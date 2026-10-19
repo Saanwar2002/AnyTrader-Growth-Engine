@@ -17,7 +17,7 @@
 ## Phase 2 — Backend and tenant-safe persistence (server scaffold; not production-ready)
 
 - [x] Select Firebase Cloud Functions v2 callable endpoints as the initial trusted backend.
-- [x] Add authenticated organisation creation and atomic owner membership creation.
+- [x] Add authenticated organisation creation, atomic owner membership creation, and membership-based organisation discovery.
 - [x] Add owner/admin-only campaign creation/status changes and membership-checked campaign listing.
 - [x] Add membership-checked lead listing and tenant-scoped lead creation/contact editing.
 - [x] Add transactional lead status and notes updates with activity events.
@@ -29,7 +29,7 @@
 - [ ] Add sign-in and account lifecycle UI using Firebase Authentication.
 - [ ] Run callable functions and Firestore rules against Firebase Emulator Suite.
 - [ ] Add emulator-backed tests for unauthenticated requests, non-member access, role escalation, and cross-tenant isolation.
-- [ ] Connect the frontend through a typed API/repository adapter; keep demo mode as a separate mode.
+- [x] Scaffold environment-gated Firebase client setup and a typed callable API adapter with unit tests.\n- [ ] Connect the frontend through the typed API/repository adapter; keep demo mode as a separate mode.
 - [ ] Add rate limiting/App Check strategy, structured audit events, idempotency, and safe error handling before external exposure.
 
 ## Phase 3 — Complete persisted workflows
