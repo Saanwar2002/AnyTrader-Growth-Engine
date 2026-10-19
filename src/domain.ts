@@ -254,7 +254,7 @@ export function parseLeadCsv(csv: string, fieldMapping?: LeadCsvMapping): { rows
       errors.push(`Row ${rowNumber}: ${oversizedField[0]} exceeds the maximum length of ${fieldLimits[oversizedField[0]]} characters; row skipped.`);
       return;
     }
-    if (row.email && !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(row.email)) {
+    if (row.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email)) {
       errors.push(`Row ${rowNumber}: email address is not valid; row skipped.`);
       return;
     }
