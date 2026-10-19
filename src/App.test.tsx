@@ -86,4 +86,66 @@ describe("Growth Engine interactive workflows", () => {
     expect(screen.getByText("Persistence test campaign")).toBeTruthy();
   });
 
+
+  it("imports only the CSV candidates explicitly selected during review", async () => {
+    const { container } = render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /Lead directory/i }));
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+    const csv = new File(
+      ["businessName,category,location,email\\nNorth Star Roofing,Roofers,Leeds,hello@northstar.example\\nSouth City Painting,Painters,Manchester,hello@southcity.example\\n"],
+      "selected-leads.csv",
+      { type: "text/csv" },
+    );
+    fireEvent.change(fileInput, { target: { files: [csv] } });
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Match your spreadsheet columns" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Preview rows" }));
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Review CSV before importing" })).toBeTruthy());
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "Include North Star Roofing in import" }));
+    expect(screen.getByText("South City Painting")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Confirm import (1)" }));
+
+    expect(screen.getByText("South City Painting")).toBeTruthy();
+    expect(screen.queryByText("North Star Roofing")).toBeNull();
+    expect(screen.getByRole("status").textContent).toContain("1 added");
+    expect(screen.getByRole("status").textContent).toContain("1 rows excluded");
+  });
+
+  it("cancels a CSV preview without adding any candidate rows", async () => {
+    const { container } = render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /Lead directory/i }));
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+    const csv = new File(
+      ["businessName,category,location\\nCancelled Test Roofing,Roofers,Leeds\\n"],
+      "cancelled-leads.csv",
+      { type: "text/csv" },
+    );
+    fireEvent.change(fileInput, { target: { files: [csv] } });
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Match your spreadsheet columns" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Preview rows" }));
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Review CSV before importing" })).toBeTruthy());
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel import preview" }));
+    expect(screen.queryByRole("heading", { name: "Review CSV before importing" })).toBeNull();
+    expect(screen.queryByText("Cancelled Test Roofing")).toBeNull();
+    expect(screen.getByRole("status").textContent).toContain("CSV import cancelled");
+  });
+
+  it("flags an already-created draft if its lead is later suppressed", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /Lead directory/i }));
+    const row = screen.getByText("Fictional Northside Painting Co").closest("tr");
+    fireEvent.click(within(row as HTMLElement).getByRole("button", { name: /Draft/i }));
+    expect(screen.getByText("DRAFT · NOT SENT")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /Lead directory/i }));
+    const refreshedRow = screen.getByText("Fictional Northside Painting Co").closest("tr");
+    fireEvent.click(within(refreshedRow as HTMLElement).getByRole("button", { name: "Details" }));
+    fireEvent.click(screen.getByRole("button", { name: /Mark do not contact/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Outreach drafts/i }));
+
+    expect(screen.getByText("DO NOT CONTACT")).toBeTruthy();
+    expect(screen.getByRole("alert").textContent).toContain("Do not use this saved draft for outreach");
+  });
+
 });
