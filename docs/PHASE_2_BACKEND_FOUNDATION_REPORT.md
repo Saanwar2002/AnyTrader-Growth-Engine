@@ -1,56 +1,67 @@
 # Phase 2 — Firebase Backend Foundation Scaffold Report
 
-Branch: development/chatgpt-mvp  
-Status: Scaffold implemented and locally checked; not deployed or production-ready  
-Backend decision: Firebase Cloud Functions v2 callable functions, Firestore, and Firebase Authentication context  
-Runtime: Node.js 22 for deployed Functions
+**Branch:** `development/chatgpt-mvp`  
+**Status:** Backend scaffold implemented and locally checked; not deployed or production-ready  
+**Backend decision:** Firebase Cloud Functions v2 callable functions, Firestore, and Firebase Authentication context  
+**Configured deployment runtime:** Node.js 22
 
-## Delivered
+## Delivered endpoints
 
-- firebase.json configures the Functions source, Firestore rules, and local Auth/Functions/Firestore emulator ports.
-- .firebaserc.example provides a placeholder only; it contains no real project ID or credentials.
-- firestore.rules denies all direct client reads and writes by default. The Admin SDK backend bypasses these rules, so each callable must enforce authentication and authorisation itself.
-- functions/src/index.ts adds:
-  - createOrganisation: requires an authenticated caller, validates the name, and atomically creates the organisation and its owner membership.
-  - createCampaign: requires authentication, validates bounded input, verifies membership, and permits campaign creation only for owner/admin roles.
-  - listCampaigns: requires authentication and membership before listing at most 100 campaigns scoped to the requested organisation.
-- functions/src/authorization.ts provides bounded text and organisation-ID validation and a strict owner/admin campaign-write guard.
-- Server guard tests cover invalid text, optional goals, unsafe organisation IDs, and non-privileged roles.
-- Root Vitest configuration includes frontend tests and server guard tests while excluding compiled Functions output.
-- Upgraded the frontend test runner to Vitest 4.1.12 after an audit found critical/moderate issues in the previous Vitest dependency tree.
+All data endpoints require an authenticated Firebase callable request. Organisation-owned documents are scoped under `organisations/{organisationId}/...`; the supplied organisation ID is never sufficient without a membership check.
+
+- `createOrganisation`: validates the name and transactionally creates an organisation plus its owner membership.
+- `createCampaign`: checks membership, validates bounded fields, and permits creation only for owner/admin.
+- `listCampaigns`: checks membership and returns at most 100 campaigns for that organisation.
+- `listLeads`: checks membership and returns at most 200 leads for that organisation.
+- `createLead`: checks a writable role and verifies that the campaign exists inside the same organisation. Lead completeness score and explanations are calculated server-side.
+- `updateLeadStatus`: validates allowed statuses, checks organisation membership, blocks moving a suppressed lead to contacted, and transactionally writes the status change with an activity event.
+- `updateLeadNotes`: validates note length and transactionally writes the note change with an activity event.
+- `setLeadSuppression`: validates a strict boolean and transactionally records suppression changes. Owners/admins/members may suppress; only owners/admins may remove the restriction.
+- `createOutreachDraft`: creates draft-only records; it has no send capability. The lead read, suppression check, draft creation, and activity entry are in one Firestore transaction to prevent a concurrent suppression update from racing past the guard.
 
 ## Security design
 
-- Caller identity is derived from the verified Firebase callable request context, never from a supplied UID.
-- Organisation IDs are selectors only; each endpoint checks membership before accessing tenant data.
+- Caller identity is derived from Firebase callable request context, never from a supplied UID.
+- Organisation IDs and document IDs are validated against bounded path-safe formats.
 - Membership role is read from Firestore, not accepted from the request body.
-- Campaign creation is restricted to owner/admin. Campaign listing requires membership.
-- Firestore direct client access remains deny-by-default while the frontend is still in local demo mode.
+- Campaign creation is owner/admin-only. Lead edits and draft creation require owner/admin/member; viewers are read-only.
+- Firestore direct client access remains deny-by-default. The Admin SDK bypasses those rules, so every callable enforces its own authentication, membership, and role checks.
+- Lead status, email, text lengths, and suppression inputs are validated server-side.
+- Related lead mutations and activity records are written transactionally.
+- Suppression is a server-side gate for draft creation; removing suppression requires an owner/admin.
 - No API keys or Firebase service-account credentials are included in the repository.
-- The initial API does not yet implement App Check enforcement, rate limiting, comprehensive audit events, or tenant-level usage quotas; do not expose it as a production service yet.
+
+## Known gaps — do not expose as production service yet
+
+- No dedicated Firebase project has been configured and no deployment has been performed.
+- The frontend is not connected to Firebase Auth or these endpoints; it remains a browser-local demo.
+- No Firebase Emulator Suite integration tests have run, and tenant isolation is not yet proven end-to-end.
+- No App Check enforcement, rate limiting, idempotency keys, comprehensive security audit log, or usage quotas yet.
+- CSV batch import, full draft list/edit/delete operations, lead contact editing, and campaign status mutation are not yet implemented server-side.
+- The Functions runtime is configured for Node.js 22, while the remote development workspace runs Node.js 20. Build and pure guard tests passed there, but deployment must use the configured runtime.
 
 ## Verification performed in the remote development workspace
 
 | Check | Result |
 |---|---|
-| npm run typecheck | Passed |
-| npm test | Passed — 39 tests across 4 files |
-| npm run build | Passed |
-| npm --prefix functions run build | Passed |
-| npm --prefix functions test | Passed — 4 guard tests |
-| npm audit | Passed — 0 reported vulnerabilities |
-| npm --prefix functions audit | Passed — 0 reported vulnerabilities |
+| `npm run typecheck` | Passed |
+| `npm test` | Passed — 46 tests across 4 files |
+| `npm run build` | Passed |
+| `npm --prefix functions run build` | Passed |
+| `npm --prefix functions test` | Passed — 11 guard tests |
+| `npm audit` | Passed — 0 reported vulnerabilities |
+| `npm --prefix functions audit` | Passed — 0 reported vulnerabilities |
 
-These checks do not substitute for Firebase Emulator Suite tests or a deployed security review. The remote development workspace runs Node.js 20; Functions compilation and pure guard tests passed there, but deployment/runtime must use the configured Node.js 22 runtime. Emulator execution was not completed because Java is not installed in the remote workspace; no emulator/integration test is claimed as passing.
+The Firebase Emulator Suite was not run because Java is not installed in the remote workspace. These results are not a substitute for emulator-backed authorization tests, an end-to-end tenant-isolation test, or a deployed security review.
 
 ## Remaining before Phase 2 can be called complete
 
 1. Create a dedicated Firebase project for Growth Engine; never reuse production AnyTrader credentials or databases.
-2. Copy .firebaserc.example to .firebaserc and replace the placeholder locally. Do not commit credentials or service-account keys.
-3. Enable Firebase Authentication and configure allowed sign-in providers.
-4. Run Auth, Firestore, and Functions emulators and add integration tests proving unauthenticated calls fail, non-members cannot read data, members cannot create campaigns, and Organisation A cannot access Organisation B.
+2. Copy `.firebaserc.example` to `.firebaserc` locally and replace the placeholder; never commit service-account credentials.
+3. Enable Firebase Authentication and configure approved sign-in providers.
+4. Run Auth, Firestore, and Functions emulators and prove unauthenticated calls fail, non-members cannot access organisation data, members cannot create campaigns or remove suppression, and Organisation A cannot access Organisation B.
 5. Add a sign-in UI and typed frontend API adapter; keep local demo mode isolated and clearly labelled.
-6. Add rate limiting/App Check, audit events, monitoring, and privacy/retention controls before any external production use.
+6. Add App Check, rate limiting, idempotency protection, audit events, monitoring, and privacy/retention controls before external production use.
 
 ## Scope boundary
 
