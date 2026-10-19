@@ -58,6 +58,17 @@ describe("typed backend API boundary", () => {
     expect(calls[0]).toEqual({ name: "listLeads", payload: { organisationId: "org-1" } });
   });
 
+  it("passes the tenant-scoped campaign cursor to the listing callable", async () => {
+    const response = { campaigns: [], hasMoreCampaigns: false, nextPageToken: null };
+    const { invoke, calls } = makeInvoker([response]);
+    const api = createGrowthEngineApi(invoke);
+    await expect(api.listCampaigns({ organisationId: "org-1", pageToken: "organisations/org-1/campaigns/campaign-100" })).resolves.toEqual(response);
+    expect(calls[0]).toEqual({
+      name: "listCampaigns",
+      payload: { organisationId: "org-1", pageToken: "organisations/org-1/campaigns/campaign-100" },
+    });
+  });
+
   it("passes tenant-scoped pagination tokens to lead and draft listing callables", async () => {
     const { invoke, calls } = makeInvoker([
       { leads: [], hasMoreLeads: false, nextPageToken: null },
