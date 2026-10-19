@@ -245,3 +245,10 @@ Continue the callable authorization audit and integration-test reliability work;
 - Existing emulator coverage already checks that an invalid campaign status is rejected and that updating a missing campaign returns `functions/not-found`; CI will re-run these alongside tenant isolation, role checks, pagination, and contact-review gates.
 - This is a backend integrity improvement only. No production Firebase project, provider source, or sending integration was configured.
 - Verification pending for this commit; do not mark it passed until the workflow completes successfully.
+
+
+## Campaign status transaction regression — 2026-10-19
+
+- The transactional campaign-status update has passed CI run [39331734989](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39331734989), including the frontend/emulator job and Functions job.
+- Added an emulator regression scenario to verify that an owner can pause a campaign, the updated status is persisted and returned by the campaign list, and the owner can reactivate it. This tests the successful path alongside the existing invalid-status, missing-campaign, and cross-tenant denial cases.
+- Verification pending for this additional smoke-test change. Wait for CI to complete before treating the expanded regression as passed. No Firebase project or production integration was configured.

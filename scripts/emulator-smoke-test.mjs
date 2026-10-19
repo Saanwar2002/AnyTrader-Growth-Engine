@@ -40,6 +40,21 @@ try {
   const orgOne = await callOne("createOrganisation", { name: "Tenant One" });
   assert.equal(orgOne.role, "owner");
   const campaignOne = await callOne("createCampaign", { organisationId: orgOne.organisationId, name: "Painter pilot", brand: "Example", category: "Painters", location: "Manchester", goal: "Recruit providers" });
+  const pausedCampaign = await callOne("updateCampaignStatus", {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    status: "paused",
+  });
+  assert.equal(pausedCampaign.status, "paused", "campaign status update returns the new state");
+  const campaignAfterPause = await callOne("listCampaigns", { organisationId: orgOne.organisationId });
+  assert.equal(campaignAfterPause.campaigns.find((campaign) => campaign.id === campaignOne.campaignId)?.status, "paused",
+    "campaign status update is persisted");
+  const reactivatedCampaign = await callOne("updateCampaignStatus", {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    status: "active",
+  });
+  assert.equal(reactivatedCampaign.status, "active", "campaign can be reactivated by an owner");
   await expectCallableFailure(callOne("createLead", {
     organisationId: orgOne.organisationId, campaignId: campaignOne.campaignId,
     businessName: "Invalid Email Test", email: "not-an-email",
