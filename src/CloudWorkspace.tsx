@@ -23,6 +23,9 @@ export default function CloudWorkspace() {
   const [loadingMoreOrganisations, setLoadingMoreOrganisations] = useState(false);
   const [organisationId, setOrganisationId] = useState("");
   const [campaigns, setCampaigns] = useState<CampaignSummary[]>([]);
+  const [hasMoreCampaigns, setHasMoreCampaigns] = useState(false);
+  const [nextCampaignPageToken, setNextCampaignPageToken] = useState<string | null>(null);
+  const [loadingMoreCampaigns, setLoadingMoreCampaigns] = useState(false);
   const [leads, setLeads] = useState<LeadSummary[]>([]);
   const [hasMoreLeads, setHasMoreLeads] = useState(false);
   const [nextLeadPageToken, setNextLeadPageToken] = useState<string | null>(null);
