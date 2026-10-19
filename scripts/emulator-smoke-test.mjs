@@ -482,6 +482,15 @@ try {
   assert.ok(malformedRestrictionLegacyDraft, "legacy draft with malformed contact restriction remains visible for review");
   assert.equal(malformedRestrictionLegacyDraft.requiresReview, true, "malformed contact restriction requires review");
   assert.match(malformedRestrictionLegacyDraft.reviewReason, /restriction could not be verified/i);
+  const legacyRestrictionLeads = await callOne("listLeads", { organisationId: orgOne.organisationId });
+  const missingRestrictionLead = legacyRestrictionLeads.leads.find((item) => item.id === "legacy-missing-restriction-lead");
+  const malformedRestrictionLead = legacyRestrictionLeads.leads.find((item) => item.id === "legacy-malformed-restriction-lead");
+  assert.ok(missingRestrictionLead, "lead with missing restriction remains visible");
+  assert.equal(missingRestrictionLead.contactRestrictionVerified, false, "missing restriction is not presented as verified");
+  assert.equal(missingRestrictionLead.contactReviewStatus, "pending", "missing restriction is normalised to pending review");
+  assert.ok(malformedRestrictionLead, "lead with malformed restriction remains visible");
+  assert.equal(malformedRestrictionLead.contactRestrictionVerified, false, "malformed restriction is not presented as verified");
+  assert.equal(malformedRestrictionLead.contactReviewStatus, "pending", "malformed restriction is normalised to pending review");
   await expectCallableFailure(callOne("updateOutreachDraft", {
     organisationId: orgOne.organisationId, draftId: "legacy-missing-restriction-draft",
     subject: "Must remain blocked", body: "Missing restriction remains unverified",
