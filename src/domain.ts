@@ -58,7 +58,7 @@ export const LEAD_STATUSES: LeadStatus[] = [
 ];
 
 export function normalizeBusinessName(value: string): string {
-  return value.trim().toLocaleLowerCase("en-GB").replace(/\\s+/g, " ");
+  return value.trim().toLocaleLowerCase("en-GB").replace(/\s+/g, " ");
 }
 
 export function scoreLead(input: Pick<Lead, "businessName" | "website" | "email" | "phone" | "location" | "category">): { score: number; reasons: string[] } {
@@ -74,7 +74,7 @@ export function scoreLead(input: Pick<Lead, "businessName" | "website" | "email"
 }
 
 export function parseLeadCsv(csv: string): { rows: Array<Record<string, string>>; errors: string[] } {
-  const lines = csv.replace(/^\\uFEFF/, "").split(/\\r?\\n/).filter((line) => line.trim().length > 0);
+  const lines = csv.replace(/^\uFEFF/, "").split(/\r?\n/).filter((line) => line.trim().length > 0);
   if (lines.length < 2) return { rows: [], errors: ["CSV must contain a header and at least one data row."] };
   const parseLine = (line: string): string[] => {
     const values: string[] = [];
@@ -90,7 +90,7 @@ export function parseLeadCsv(csv: string): { rows: Array<Record<string, string>>
     values.push(current.trim());
     return values;
   };
-  const headers = parseLine(lines[0]).map((header) => header.toLocaleLowerCase("en-GB").replace(/\\s+/g, ""));
+  const headers = parseLine(lines[0]).map((header) => header.toLocaleLowerCase("en-GB").replace(/\s+/g, ""));
   const nameIndex = headers.findIndex((h) => ["businessname", "business", "company", "name"].includes(h));
   if (nameIndex < 0) return { rows: [], errors: ["Missing required column: businessName (or business/company/name)."] };
   const rows: Array<Record<string, string>> = [];
