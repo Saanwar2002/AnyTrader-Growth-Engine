@@ -2,11 +2,13 @@
   "name": "anytrader-growth-engine-functions",
   "private": true,
   "main": "lib/index.js",
-  "engines": { "node": "22" },
+  "engines": {
+    "node": "22"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "vitest run src/authorization.test.ts",
-    "emulate": "npm run build && firebase emulators:start --only auth,functions,firestore"
+    "emulate": "npm run build && npx --yes firebase-tools emulators:start --only auth,functions,firestore"
   },
   "dependencies": {
     "firebase-admin": "^14.5.0",
