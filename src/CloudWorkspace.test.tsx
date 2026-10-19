@@ -75,7 +75,7 @@ describe("cloud authentication gate", () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
     mocks.api.listCampaigns.mockResolvedValue({ campaigns: [{ id: "campaign-1", name: "Painter pilot", brand: "AnyTrader", category: "Painters", location: "Manchester", goal: "Recruit providers", status: "active", createdAt: null }] });
-    mocks.api.listLeads.mockResolvedValue({ leads: [{ id: "lead-1", campaignId: "campaign-1", businessName: "Synthetic Painting Co", category: "Painters", location: "Manchester", website: "", email: "", phone: "", source: "manual", status: "new", score: 40, scoreReasons: [], notes: "", doNotContact: false, createdAt: null }] });
+    mocks.api.listLeads.mockResolvedValue({ leads: [{ id: "lead-1", campaignId: "campaign-1", businessName: "Synthetic Painting Co", category: "Painters", location: "Manchester", website: "", email: "", phone: "", source: "manual", status: "new", score: 40, scoreReasons: [], notes: "", doNotContact: false, contactRestrictionVerified: true, createdAt: null }] });
     render(<CloudWorkspace />);
     await waitFor(() => expect(screen.getByRole("heading", { name: "Provider acquisition workspace" })).toBeTruthy());
     expect(await screen.findByText("Pilot Workspace · owner")).toBeTruthy();
@@ -102,7 +102,7 @@ describe("cloud authentication gate", () => {
     const lead = (id: string, businessName: string) => ({
       id, campaignId: "campaign-1", businessName, category: "Painters", location: "Manchester",
       website: "", email: "", phone: "", source: "manual", status: "new", score: 20,
-      scoreReasons: [], notes: "", doNotContact: false, createdAt: null,
+      scoreReasons: [], notes: "", doNotContact: false, contactRestrictionVerified: true, createdAt: null,
     });
     mocks.api.listLeads.mockImplementation(({ organisationId }: { organisationId: string }) =>
       organisationId === "org-1" ? firstTenantLeads : Promise.resolve({ leads: [lead("lead-2", "Second Tenant Lead")] })
@@ -132,7 +132,7 @@ describe("cloud authentication gate", () => {
       id: "lead-1", campaignId: "campaign-1", businessName: "First Tenant Private Lead",
       category: "Painters", location: "Manchester", website: "", email: "", phone: "",
       source: "manual", status: "new", score: 20, scoreReasons: [], notes: "",
-      doNotContact: false, createdAt: null,
+      doNotContact: false, contactRestrictionVerified: true, createdAt: null,
     };
     let resolveSecondTenant!: (value: { leads: typeof firstLead[] }) => void;
     const secondTenantLeads = new Promise<{ leads: typeof firstLead[] }>((resolve) => { resolveSecondTenant = resolve; });
@@ -160,6 +160,18 @@ describe("cloud authentication gate", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
     await waitFor(() => expect(mocks.api.updateOutreachDraft).toHaveBeenCalledWith({ organisationId: "org-1", draftId: "draft-1", subject: "Updated subject", body: "Updated body for human review." }));
     expect(mocks.api.updateOutreachDraft).toHaveBeenCalledTimes(1);
+  });
+
+  it("fails closed when a lead contact restriction cannot be verified", async () => {
+    mocks.api.listLeads.mockResolvedValue({ leads: [{
+      id: "lead-unverified", campaignId: "campaign-1", businessName: "Unverified Painter", category: "Painters",
+      location: "Manchester", website: "", email: "", phone: "", source: "manual", status: "new",
+      score: 40, scoreReasons: [], notes: "", doNotContact: false, contactRestrictionVerified: false, createdAt: null,
+    }] });
+    const { container } = render(<CloudWorkspace api={mocks.api} />);
+    await screen.findByText("Unverified Painter");
+    expect(screen.getByText("REVIEW RESTRICTION")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /create draft for unverified painter/i })).toBeDisabled();
   });
 
   it("flags and locks an existing draft when its lead is suppressed", async () => {
