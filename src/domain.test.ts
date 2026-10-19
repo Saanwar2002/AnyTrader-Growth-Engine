@@ -53,4 +53,16 @@ describe("parseLeadCsv", () => {
     expect(parseLeadCsv("businessName").errors[0]).toContain("header and at least one data row");
     expect(parseLeadCsv("").errors[0]).toContain("header and at least one data row");
   });
+
+  it("reports an unmatched quote and skips the malformed row", () => {
+    const result = parseLeadCsv('businessName,category\\n"Unclosed Decorators,Painters\\nExample Decorators,Painters');
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0].businessname).toBe("Example Decorators");
+    expect(result.errors).toEqual(["Row 2: unmatched quote; row skipped."]);
+  });
+
+  it("rejects a header with an unmatched quote", () => {
+    const result = parseLeadCsv('"businessName,category\\nExample Decorators,Painters');
+    expect(result.errors[0]).toContain("header contains an unmatched quote");
+  });
 });
