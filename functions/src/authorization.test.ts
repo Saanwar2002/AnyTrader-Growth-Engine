@@ -175,11 +175,24 @@ describe("existing outreach draft review state", () => {
     });
   });
 
-  it("allows review state only when the lead exists and suppression is explicitly false", () => {
+  it("allows legacy and explicitly cleared review states only when suppression is false", () => {
     expect(getOutreachDraftReviewState(true, false)).toEqual({
       leadSuppressed: false,
       requiresReview: false,
       reviewReason: null,
+    });
+    expect(getOutreachDraftReviewState(true, false, "cleared")).toEqual({
+      leadSuppressed: false,
+      requiresReview: false,
+      reviewReason: null,
+    });
+  });
+
+  it.each(["unknown", "PENDING", 0, null])("fails closed for an unrecognised review status (%s)", (status) => {
+    expect(getOutreachDraftReviewState(true, false, status)).toEqual({
+      leadSuppressed: false,
+      requiresReview: true,
+      reviewReason: "Lead contact restriction could not be verified; review before use.",
     });
   });
 });
