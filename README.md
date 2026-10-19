@@ -26,7 +26,9 @@ npm ci
 npm run dev
 ```
 
-Open the local URL printed by Vite.
+Open the local URL printed by Vite. With no `.env.local` file, the app runs in local synthetic-data demo mode.
+
+**Cloud mode is scaffolded but not yet configured.** Do not add Firebase values until a dedicated Growth Engine project exists and its Auth/Functions/Firestore setup has been validated in emulators. At that point, copy `.env.example` to `.env.local` and use only that dedicated project's public web-app config. Never point this app at production AnyTrader. The cloud UI expects the callable Functions API to be deployed to the same project.
 
 Quality checks:
 
@@ -61,9 +63,8 @@ Import starts with a review summary, skips blank-name rows and businesses alread
 
 ## Important limitations
 
-This release is a browser-local demo, not a secure multi-user service:
+The local demo is not a secure multi-user service. It uses browser localStorage, not a cloud database; data is local to that browser profile and may be lost if browser storage is cleared. The cloud backend/UI is still a scaffold and must not be treated as production-ready.
 
-- It uses browser localStorage, not a cloud database. Data is local to that browser profile and may be lost if browser storage is cleared.
 - The default demo mode uses browser localStorage and synthetic data only. If all required `VITE_FIREBASE_*` web config values are supplied in `.env.local`, the app instead shows the cloud sign-in and workspace UI, which calls the authenticated Functions API. The cloud UI supports organisation discovery/creation, campaign creation/listing, lead creation/listing/status changes/suppression, and draft creation/listing/deletion. The cloud UI and API have passed local unit/build checks but have not been connected to a configured Firebase project or tested against Firebase emulators.
 - There is no configured dedicated Firebase project or emulator-backed tenant-isolation test yet. The cloud UI supports email/password sign-in, account creation, sign-out, organisation selection/creation, campaign creation, lead creation/status/suppression, and draft creation/deletion. It is not production-ready; subscription billing and live source-provider integrations are not connected. Server-side draft creation checks suppression transactionally; only owners/admins can remove a contact restriction.
 - Do not use it to store real customer data, sensitive personal data, or production credentials.
@@ -75,7 +76,7 @@ This release is a browser-local demo, not a secure multi-user service:
 ## Roadmap
 
 1. **Local demo MVP:** usable campaign and lead workflows, synthetic data, CSV import/export, drafts, and unit tests.
-2. **Authentication and tenant-safe persistence:** configure the dedicated Firebase project, connect Firebase Auth to the UI, exercise callable endpoints in emulators, add tenant-isolation integration tests, and only then replace local demo persistence.
+2. **Authentication and tenant-safe persistence:** configure the dedicated Firebase project, validate the cloud UI and callable endpoints in emulators, add tenant-isolation integration tests, and only then enable the cloud mode outside local development.
 3. **Workflow hardening:** richer import preview, lead details/notes, activity history, opt-out/suppression controls, and stronger CSV edge-case tests.
 4. **Approved source adapters:** only APIs/data providers whose terms permit the intended use.
 5. **Server-side AI assistance:** validated classification and draft generation with usage limits and human review.
