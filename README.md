@@ -10,7 +10,7 @@ A standalone, multi-brand lead discovery and provider acquisition workspace for 
 - Lead directory with search and filters for status and campaign, plus a lead details panel and editable internal notes.
 - Lead status workflow: new, in review, qualified, contacted, onboarded, and rejected.
 - Transparent completeness score (0–100) with an explanation of which fields contributed.
-- CSV import with a 2 MB file limit, basic quoted-field support, row validation, per-campaign duplicate detection, and a review table that lets you include/exclude candidates before committing the import.
+- CSV import with a 2 MB file limit, automatic header suggestions, configurable field mapping for unfamiliar spreadsheets, basic quoted-field support, row validation, per-campaign duplicate detection, and a review table that lets you include/exclude candidates before committing the import.
 - Export currently visible leads to CSV.
 - Create and edit outreach drafts; no send action exists.
 - Local activity history and a demo reset action.
@@ -38,7 +38,7 @@ npm run build
 
 ## CSV import format
 
-A header row is required. The business name column may be named `businessName`, `business`, `company`, or `name`. Optional recognised columns include:
+A header row is required. The import first suggests column mappings, which you can review or change before previewing rows. The business name mapping is required; category, location, website, email, and phone are optional. Common aliases are detected automatically, including `businessName`, `companyName`, `tradingName`, `organisation`, `service`, `trade`, `industry`, `town`, `postcode`, `address`, `domain`, `contactEmail`, `mobile`, and `phoneNumber`. Any other named column can be manually mapped to a supported field.
 
 - `category` or `serviceCategory`
 - `location`, `city`, or `area`
@@ -46,7 +46,7 @@ A header row is required. The business name column may be named `businessName`, 
 - `email` or `emailAddress`
 - `phone` or `telephone`
 
-Import starts with a review summary, skips blank-name rows and businesses already present in the selected campaign using case-insensitive whitespace-normalised names, and lets you include/exclude candidate rows before confirming. The table shows up to eight candidates at a time; select-all applies to the complete candidate set. The parser handles a UTF-8 BOM and escaped quotes, rejects empty or duplicate headers and rows with more values than the header, and reports original source line numbers. Review every imported record before any outreach. This is a lightweight MVP CSV parser; it does not support quoted fields containing line breaks or guarantee full RFC 4180 compliance.
+Import starts with a review summary, skips blank-name rows and businesses already present in the selected campaign using case-insensitive whitespace-normalised names, and lets you include/exclude candidate rows before confirming. The table shows up to eight candidates at a time; select-all applies to the complete candidate set. The parser handles a UTF-8 BOM and escaped quotes, rejects empty or duplicate headers and rows with more values than the header, and reports original source line numbers. The mapping step lets you map unfamiliar headings to supported lead fields; unmapped columns are ignored. Review every imported record before any outreach. This is a lightweight MVP CSV parser; it does not support quoted fields containing line breaks or guarantee full RFC 4180 compliance.
 
 ## Current pilot defaults
 
