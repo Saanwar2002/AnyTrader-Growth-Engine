@@ -15,6 +15,14 @@ const navigation: Array<{ id: View; label: string; icon: string }> = [
   { id: "drafts", label: "Outreach drafts", icon: "✉" },
   { id: "settings", label: "Workspace settings", icon: "⚙" },
 ];
+
+interface CsvImportPreview {
+  fileName: string;
+  campaignId: string;
+  candidates: Lead[];
+  duplicates: number;
+  errors: string[];
+}
 const newId = (prefix: string) => `${prefix}-${typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
 const dateLabel = (value: string) => new Date(value).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
@@ -48,6 +56,9 @@ export default function App() {
   const [campaignGoal, setCampaignGoal] = useState("Recruit reliable providers");
   const [notice, setNotice] = useState("");
   const [editingDraft, setEditingDraft] = useState<string | null>(null);
+  const [importPreview, setImportPreview] = useState<CsvImportPreview | null>(null);
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
+  const [leadNotes, setLeadNotes] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => { repository.save(state); }, [state]);
@@ -112,26 +123,43 @@ export default function App() {
       const parsed = parseLeadCsv(String(reader.result ?? ""));
       if (parsed.errors.length && parsed.rows.length === 0) { setNotice(parsed.errors.join(" ")); return; }
       const knownKeys = new Set(state.leads.map((lead) => `${lead.campaignId}:${normalizeBusinessName(lead.businessName)}`));
-      const imported: Lead[] = [];
+      const candidates: Lead[] = [];
       let duplicates = 0;
       for (const row of parsed.rows) {
         const lead = makeLead(row, selectedCampaign, "csv");
         const key = `${selectedCampaign}:${normalizeBusinessName(lead.businessName)}`;
         if (knownKeys.has(key)) { duplicates += 1; continue; }
         knownKeys.add(key);
-        imported.push(lead);
+        candidates.push(lead);
       }
-      if (imported.length) {
-        const next = { ...state, leads: [...imported, ...state.leads] };
-        setState({ ...next, activities: [{ id: newId("activity"), leadId: imported[0].id, message: `CSV import: ${imported.length} lead(s) added; ${duplicates} duplicate(s) skipped.`, createdAt: new Date().toISOString() }, ...next.activities] });
-      }
-      const errorText = parsed.errors.length ? ` ${parsed.errors.length} row warning(s).` : "";
-      setNotice(`Import complete: ${imported.length} added, ${duplicates} duplicates skipped.${errorText} Review all imported records before contact.`);
+      setImportPreview({ fileName: file.name, campaignId: selectedCampaign, candidates, duplicates, errors: parsed.errors });
       setView("leads");
+      setNotice("Review the import summary before adding any records.");
       event.target.value = "";
     };
     reader.onerror = () => setNotice("Could not read that file. Please try a UTF-8 CSV.");
     reader.readAsText(file);
+  }
+
+  function confirmCsvImport() {
+    if (!importPreview) return;
+    const { candidates, duplicates, errors, fileName } = importPreview;
+    if (candidates.length) {
+      const next = { ...state, leads: [...candidates, ...state.leads] };
+      setState({ ...next, activities: [{ id: newId("activity"), leadId: candidates[0].id, message: `CSV import (${fileName}): ${candidates.length} lead(s) added; ${duplicates} duplicate(s) skipped.`, createdAt: new Date().toISOString() }, ...next.activities] });
+    }
+    const errorText = errors.length ? ` ${errors.length} row warning(s).` : "";
+    setNotice(`Import complete: ${candidates.length} added, ${duplicates} duplicates skipped.${errorText} Review all imported records before contact.`);
+    setImportPreview(null);
+  }
+
+  function saveLeadNotes() {
+    if (!selectedLeadId) return;
+    const lead = state.leads.find((item) => item.id === selectedLeadId);
+    if (!lead) return;
+    const next = { ...state, leads: state.leads.map((item) => item.id === selectedLeadId ? { ...item, notes: leadNotes } : item) };
+    setState(addActivity(next, selectedLeadId, "Lead notes updated."));
+    setNotice("Lead notes saved in this browser's demo workspace.");
   }
 
   function exportCsv() {
