@@ -72,6 +72,38 @@ Example Decorators,Painters`);
   });
 });
 
+  it("removes a UTF-8 BOM and handles escaped quotes", () => {
+    const result = parseLeadCsv('\uFEFFbusinessName,notes\n"North ""Star"" Decorators",Approved');
+    expect(result.errors).toEqual([]);
+    expect(result.rows[0].businessname).toBe('North "Star" Decorators');
+  });
+
+  it("rejects duplicate headers after normalisation", () => {
+    const result = parseLeadCsv("businessName,Business Name\nExample Decorators,Other");
+    expect(result.rows).toEqual([]);
+    expect(result.errors[0]).toContain("duplicate column header");
+  });
+
+  it("rejects empty column headers", () => {
+    const result = parseLeadCsv("businessName,,email\nExample Decorators,Painters,hello@example.com");
+    expect(result.rows).toEqual([]);
+    expect(result.errors[0]).toContain("empty column header");
+  });
+
+  it("skips rows with more values than headers and preserves source line numbers", () => {
+    const result = parseLeadCsv("\nbusinessName,category\n\nExample Decorators,Painters,unexpected\nNorth Star Decorators,Painters");
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0].businessname).toBe("North Star Decorators");
+    expect(result.errors).toEqual(["Row 4: contains more values than the header has columns; row skipped."]);
+  });
+
+  it("fills missing optional cells with empty strings", () => {
+    const result = parseLeadCsv("businessName,category,email\nExample Decorators,Painters");
+    expect(result.errors).toEqual([]);
+    expect(result.rows[0]).toEqual({ businessname: "Example Decorators", category: "Painters", email: "" });
+  });
+
+
 
 describe("deduplicateLeads", () => {
   const lead = (businessName: string, campaignId = "campaign-a") => ({ businessName, campaignId });
