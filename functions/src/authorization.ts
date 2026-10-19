@@ -83,3 +83,21 @@ const SERVER_CAMPAIGN_STATUSES: readonly ServerCampaignStatus[] = ["draft", "act
 export function isValidCampaignStatus(value: unknown): value is ServerCampaignStatus {
   return typeof value === "string" && SERVER_CAMPAIGN_STATUSES.includes(value as ServerCampaignStatus);
 }
+
+
+export function getOutreachDraftReviewState(leadExists: boolean, doNotContact: unknown): {
+  leadSuppressed: boolean;
+  requiresReview: boolean;
+  reviewReason: string | null;
+} {
+  if (!leadExists) {
+    return { leadSuppressed: false, requiresReview: true, reviewReason: "Lead record is missing; review before use." };
+  }
+  if (doNotContact === true) {
+    return { leadSuppressed: true, requiresReview: true, reviewReason: "Lead is suppressed; do not contact." };
+  }
+  if (doNotContact !== false) {
+    return { leadSuppressed: false, requiresReview: true, reviewReason: "Lead contact restriction could not be verified; review before use." };
+  }
+  return { leadSuppressed: false, requiresReview: false, reviewReason: null };
+}
