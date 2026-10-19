@@ -13,7 +13,7 @@ export interface CampaignInput { organisationId: string; name: string; brand: st
 export interface CampaignSummary { id: string; name: string; brand: string; category: string; location: string; goal: string; status: ServerCampaignStatus; createdAt: string | null; }
 export interface LeadInput { organisationId: string; campaignId: string; businessName: string; category?: string; location?: string; website?: string; email?: string; phone?: string; }
 export interface LeadSummary { id: string; campaignId: string; businessName: string; category: string; location: string; website: string; email: string; phone: string; source: string; status: ServerLeadStatus; score: number; scoreReasons: string[]; notes: string; doNotContact: boolean; contactRestrictionVerified: boolean; contactReviewStatus?: "pending" | "cleared" | "blocked"; createdAt: string | null; }
-export interface OutreachDraftSummary { id: string; leadId: string; campaignId: string; subject: string; body: string; status: "draft"; leadSuppressed: boolean; requiresReview: boolean; reviewReason: string | null; createdAt: string | null; }
+export interface OutreachDraftSummary { id: string; leadId: string; campaignId: string; subject: string; body: string; status: string; leadSuppressed: boolean; requiresReview: boolean; reviewReason: string | null; createdAt: string | null; }
 
 /** Typed boundary for callable functions. All authorisation still happens server-side. */
 export function createGrowthEngineApi(call: CallableInvoker) {

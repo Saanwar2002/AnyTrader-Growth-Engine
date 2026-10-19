@@ -472,6 +472,7 @@ try {
   assert.match(missingCampaignLegacyDraft.reviewReason, /campaign record is missing/i);
   assert.ok(nonDraftStatusLegacyDraft, "legacy record with a non-draft status remains visible for review");
   assert.equal(nonDraftStatusLegacyDraft.requiresReview, true, "legacy record with a non-draft status requires review");
+  assert.equal(nonDraftStatusLegacyDraft.status, "sent", "legacy sent status is displayed honestly rather than normalised to draft");
   assert.match(nonDraftStatusLegacyDraft.reviewReason, /status is missing or is not draft/i);
   await expectCallableFailure(callOne("updateOutreachDraft", {
     organisationId: orgOne.organisationId, draftId: "legacy-non-draft-status",

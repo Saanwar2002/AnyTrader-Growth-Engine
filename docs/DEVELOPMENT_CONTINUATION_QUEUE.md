@@ -328,3 +328,10 @@ Continue the callable authorization audit and integration-test reliability work;
 - A further lifecycle audit found that the draft list normalised every stored record to UI status `draft`, and the update callable did not check the stored status. A malformed/legacy record marked `sent` or with a missing status could therefore be shown as a draft and potentially edited back into a draft-shaped record.
 - The list now flags any record whose persisted status is not exactly `draft` as requiring review. Editing now fails closed unless the stored status is exactly `draft`. Deletion remains available for safe cleanup, with no send action. Added a guarded emulator-only synthetic `sent` status fixture and assertions for visibility/review warning, edit rejection, and safe deletion.
 - **Verification pending:** CI run must pass before this change is considered complete. Keep work on `development/chatgpt-mvp`; no production Firebase configuration, real lead data, or sending integration.
+
+
+## Honest display of legacy outreach status — 2026-10-19
+
+- Follow-up audit found that although legacy records with missing/non-draft status were flagged for review and could not be edited, the list response still normalised their displayed status to `draft`. This could mislead operators about the stored record state.
+- The list now preserves a non-empty stored status (or displays `unknown` when absent), the frontend labels non-draft records as requiring review, and the emulator smoke test asserts a synthetic `sent` record is returned as `sent` rather than `draft`. Editing remains blocked and deletion remains available for cleanup; no sending integration was added.
+- Verification pending for the commit. Keep changes on `development/chatgpt-mvp`; Firebase deployment remains deferred.

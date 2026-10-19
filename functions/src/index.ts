@@ -511,7 +511,9 @@ export const listOutreachDrafts = onCall(async (request) => {
         };
       return {
         id: doc.id, leadId, campaignId: draft.campaignId, subject: draft.subject, body: draft.body,
-        status: "draft" as const, ...review,
+        // Preserve the stored status for honest display; unknown/missing values are
+        // visibly distinct from a real draft while the review gate remains fail-closed.
+        status: typeof draft.status === "string" && draft.status.trim() ? draft.status : "unknown", ...review,
         createdAt: draft.createdAt?.toDate?.().toISOString() ?? null,
       };
     }),
