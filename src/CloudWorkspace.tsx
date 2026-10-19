@@ -106,7 +106,7 @@ export default function CloudWorkspace() {
     }
     // Clear the previous tenant's visible records immediately while the newly
     // selected organisation is loading; do not leave old data on screen.
-    setCampaigns([]); setLeads([]); setHasMoreLeads(false); setNextLeadPageToken(null); setLoadingMoreLeads(false); setLeadNotes({}); setDrafts([]); setHasMoreDrafts(false); setNextDraftPageToken(null); setLoadingMoreDrafts(false);
+    setCampaigns([]); setHasMoreCampaigns(false); setNextCampaignPageToken(null); setLoadingMoreCampaigns(false); setLeads([]); setHasMoreLeads(false); setNextLeadPageToken(null); setLoadingMoreLeads(false); setLeadNotes({}); setDrafts([]); setHasMoreDrafts(false); setNextDraftPageToken(null); setLoadingMoreDrafts(false);
     setEditingDraftId(""); setDraftSubject(""); setDraftBody("");
     const [campaignResult, leadResult, draftResult] = await Promise.all([
       api.listCampaigns({ organisationId: orgId }), api.listLeads({ organisationId: orgId }), api.listOutreachDrafts({ organisationId: orgId }),
@@ -188,7 +188,7 @@ export default function CloudWorkspace() {
       workspaceLoadIdRef.current += 1;
       organisationListLoadIdRef.current += 1;
       setOrganisations([]); setHasMoreOrganisations(false); setNextOrganisationPageToken(null); setLoadingMoreOrganisations(false); setOrganisationId("");
-      setCampaigns([]); setLeads([]); setHasMoreLeads(false); setNextLeadPageToken(null); setLoadingMoreLeads(false); setLeadNotes({}); setDrafts([]); setHasMoreDrafts(false); setNextDraftPageToken(null); setLoadingMoreDrafts(false);
+      setCampaigns([]); setHasMoreCampaigns(false); setNextCampaignPageToken(null); setLoadingMoreCampaigns(false); setLeads([]); setHasMoreLeads(false); setNextLeadPageToken(null); setLoadingMoreLeads(false); setLeadNotes({}); setDrafts([]); setHasMoreDrafts(false); setNextDraftPageToken(null); setLoadingMoreDrafts(false);
       return;
     }
     void refreshOrganisations().catch((reason: unknown) => setError(readableError(reason)));
@@ -197,7 +197,7 @@ export default function CloudWorkspace() {
   useEffect(() => {
     if (!organisationId) {
       workspaceLoadIdRef.current += 1;
-      setCampaigns([]); setLeads([]); setHasMoreLeads(false); setNextLeadPageToken(null); setLoadingMoreLeads(false); setLeadNotes({}); setDrafts([]); setHasMoreDrafts(false); setNextDraftPageToken(null); setLoadingMoreDrafts(false);
+      setCampaigns([]); setHasMoreCampaigns(false); setNextCampaignPageToken(null); setLoadingMoreCampaigns(false); setLeads([]); setHasMoreLeads(false); setNextLeadPageToken(null); setLoadingMoreLeads(false); setLeadNotes({}); setDrafts([]); setHasMoreDrafts(false); setNextDraftPageToken(null); setLoadingMoreDrafts(false);
       return;
     }
     void refreshWorkspace(organisationId).catch((reason: unknown) => setError(readableError(reason)));
