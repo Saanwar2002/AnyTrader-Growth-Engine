@@ -462,6 +462,34 @@ try {
   const missingCampaignLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-missing-campaign-record-draft");
   const nonDraftStatusLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-non-draft-status");
   const missingStatusLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-missing-status");
+  const missingRestrictionLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-missing-restriction-draft");
+  const malformedRestrictionLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-malformed-restriction-draft");
+  await expectCallableFailure(callOne("createOutreachDraft", {
+    organisationId: orgOne.organisationId,
+    leadId: "legacy-missing-restriction-lead",
+    subject: "Missing restriction must block",
+    body: "Must not be created without a verified restriction",
+  }), "functions/failed-precondition", "draft creation for a lead with a missing doNotContact value");
+  await expectCallableFailure(callOne("createOutreachDraft", {
+    organisationId: orgOne.organisationId,
+    leadId: "legacy-malformed-restriction-lead",
+    subject: "Malformed restriction must block",
+    body: "Must not be created with a malformed restriction",
+  }), "functions/failed-precondition", "draft creation for a lead with a malformed doNotContact value");
+  assert.ok(missingRestrictionLegacyDraft, "legacy draft with missing contact restriction remains visible for review");
+  assert.equal(missingRestrictionLegacyDraft.requiresReview, true, "missing contact restriction requires review");
+  assert.match(missingRestrictionLegacyDraft.reviewReason, /restriction could not be verified/i);
+  assert.ok(malformedRestrictionLegacyDraft, "legacy draft with malformed contact restriction remains visible for review");
+  assert.equal(malformedRestrictionLegacyDraft.requiresReview, true, "malformed contact restriction requires review");
+  assert.match(malformedRestrictionLegacyDraft.reviewReason, /restriction could not be verified/i);
+  await expectCallableFailure(callOne("updateOutreachDraft", {
+    organisationId: orgOne.organisationId, draftId: "legacy-missing-restriction-draft",
+    subject: "Must remain blocked", body: "Missing restriction remains unverified",
+  }), "functions/failed-precondition", "editing a draft whose lead has a missing doNotContact value");
+  await expectCallableFailure(callOne("updateOutreachDraft", {
+    organisationId: orgOne.organisationId, draftId: "legacy-malformed-restriction-draft",
+    subject: "Must remain blocked", body: "Malformed restriction remains unverified",
+  }), "functions/failed-precondition", "editing a draft whose lead has a malformed doNotContact value");
   assert.ok(orphanLegacyDraft, "orphan legacy draft is visible for operator review");
   assert.equal(orphanLegacyDraft.requiresReview, true, "orphan legacy draft requires review");
   assert.match(orphanLegacyDraft.reviewReason, /Lead record is missing/i);

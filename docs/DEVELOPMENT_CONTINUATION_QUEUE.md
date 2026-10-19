@@ -343,3 +343,11 @@ Continue the callable authorization audit and integration-test reliability work;
 - Added a second guarded synthetic legacy fixture where the persisted outreach record has no `status` field. The emulator smoke test now verifies it remains visible as `unknown`, requires review, cannot be edited, and can be deleted safely without sending.
 - This complements the existing `sent` status regression, covering both known non-draft and missing status values. Verification of this new test is pending until CI completes.
 - Continue only on `development/chatgpt-mvp`; keep Firebase deployment deferred and outreach draft-only.
+
+
+## Legacy contact-restriction integrity regression — 2026-10-19
+
+- CI run [39336093918](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39336093918) passed both frontend and Firebase Functions jobs for the missing-status regression commit.
+- Extended the guarded emulator fixture with synthetic legacy leads whose `doNotContact` value is missing or malformed (a string instead of a boolean), while review metadata misleadingly says `cleared`.
+- Added assertions that drafts tied to both records remain visible with a restriction-verification warning, cannot be edited, and new draft creation fails with `failed-precondition`. This checks that review metadata cannot override an absent or malformed authoritative restriction value.
+- Verification pending for the new emulator regression. Changes remain on `development/chatgpt-mvp`; no production Firebase configuration, real lead data, or sending integration.

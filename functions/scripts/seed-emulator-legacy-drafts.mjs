@@ -31,6 +31,30 @@ await db.collection("organisations").doc(organisationId).collection("leads").doc
   createdAt: now,
   updatedAt: now,
 });
+// Exercise fail-closed handling for missing and malformed legacy contact restrictions.
+await Promise.all([
+  db.collection("organisations").doc(organisationId).collection("leads").doc("legacy-missing-restriction-lead").set({
+    businessName: "Synthetic Missing Restriction Lead",
+    category: "Painter and decorator",
+    location: "Test location",
+    campaignId: validCampaignId,
+    status: "new",
+    contactReviewStatus: "cleared",
+    createdAt: now,
+    updatedAt: now,
+  }),
+  db.collection("organisations").doc(organisationId).collection("leads").doc("legacy-malformed-restriction-lead").set({
+    businessName: "Synthetic Malformed Restriction Lead",
+    category: "Painter and decorator",
+    location: "Test location",
+    campaignId: validCampaignId,
+    status: "new",
+    doNotContact: "false",
+    contactReviewStatus: "cleared",
+    createdAt: now,
+    updatedAt: now,
+  }),
+]);
 await Promise.all([
   drafts.doc("legacy-orphan-draft").set({
     leadId: "legacy-missing-lead", campaignId: validCampaignId,
@@ -55,6 +79,16 @@ await Promise.all([
   drafts.doc("legacy-missing-status").set({
     leadId: validLeadId, campaignId: validCampaignId,
     subject: "Legacy missing status fixture", body: "Synthetic test only",
+    createdAt: now,
+  }),
+  drafts.doc("legacy-missing-restriction-draft").set({
+    leadId: "legacy-missing-restriction-lead", campaignId: validCampaignId,
+    subject: "Legacy missing restriction fixture", body: "Synthetic test only", status: "draft",
+    createdAt: now,
+  }),
+  drafts.doc("legacy-malformed-restriction-draft").set({
+    leadId: "legacy-malformed-restriction-lead", campaignId: validCampaignId,
+    subject: "Legacy malformed restriction fixture", body: "Synthetic test only", status: "draft",
     createdAt: now,
   }),
 ]);
