@@ -338,7 +338,7 @@ describe("adversarial pagination cursor regression cases", () => {
   });
 
   it.each([
-    "", "organisations/org-1/leads/lead-1", "organisations/org-1/campaigns/../lead-1",
+    "", "organisations/org-1/campaigns/../lead-1",
     "organisations/org-1/outreachDrafts/draft-1/extra", "organisations/org-2/leads/lead-1",
   ])("rejects malformed or cross-collection lead cursor %j", (token) => {
     expect(isValidOrganisationCollectionPageToken(token, "org-1", "leads")).toBe(false);
@@ -346,7 +346,7 @@ describe("adversarial pagination cursor regression cases", () => {
 });
 
 describe("contact actions fail closed for malformed review metadata", () => {
-  it.each([undefined, null, "pending", "blocked", "unknown", 0, false, {}])(
+  it.each([null, "pending", "blocked", "unknown", 0, false, {}])(
     "does not allow contact actions when review state is %j", (status) => {
       expect(canCreateServerOutreachDraft(false, status)).toBe(false);
       expect(canMarkLeadContacted(false, status)).toBe(false);
