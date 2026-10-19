@@ -72,6 +72,9 @@ describe("cloud authentication gate", () => {
     expect(await screen.findByText("Pilot Workspace · owner")).toBeTruthy();
     expect(await screen.findByText("Synthetic Painting Co")).toBeTruthy();
     expect(mocks.api.listLeads).toHaveBeenCalledWith({ organisationId: "org-1" });
+    fireEvent.change(screen.getByLabelText("Notes for Synthetic Painting Co"), { target: { value: "Call after reviewing provider requirements." } });
+    fireEvent.click(screen.getByRole("button", { name: "Save notes" }));
+    await waitFor(() => expect(mocks.api.updateLeadNotes).toHaveBeenCalledWith({ organisationId: "org-1", leadId: "lead-1", notes: "Call after reviewing provider requirements." }));
   });
 
   it("offers account creation without weakening the required password length", () => {
