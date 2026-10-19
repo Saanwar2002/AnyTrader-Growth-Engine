@@ -405,3 +405,10 @@ Continue the callable authorization audit and integration-test reliability work;
 - CI run [39339439259](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39339439259) failed only in emulator smoke assertions after the malformed timestamp and membership cursor checks executed. The failing assertion selected `drafts[0]`, which is not guaranteed to be the original draft once member/admin-created drafts exist and the list is ordered by creation time.
 - Updated the integration test to locate the exact original draft by ID before asserting that a later suppression is reflected and requires review. This keeps the test checking the intended security behaviour without relying on incidental result ordering.
 - Rerun full CI before treating this batch as verified. Continue on `development/chatgpt-mvp` only; no deployment and no automatic outreach sending.
+
+
+## Make draft-list smoke assertions independent of list contents — 2026-10-20
+
+- CI run [39339735848](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39339735848) passed Firebase Functions tests/build but the emulator smoke test exposed another brittle assertion: it expected exactly one draft and inspected the first result, although the integration scenario has created additional drafts.
+- The test now finds the original draft by its ID and checks that its subject update persisted and that the record remains draft-only. It no longer assumes the collection has exactly one item or a particular ordering.
+- Full CI verification pending. Continue on `development/chatgpt-mvp` only; no production deployment or automatic outreach sending.

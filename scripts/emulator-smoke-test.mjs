@@ -285,9 +285,10 @@ try {
   await callOne("setLeadSuppression", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, doNotContact: false });
   await callOne("updateOutreachDraft", { organisationId: orgOne.organisationId, draftId: draft.draftId, subject: "Updated test draft", body: "Still draft only" });
   const draftList = await callOne("listOutreachDrafts", { organisationId: orgOne.organisationId });
-  assert.equal(draftList.drafts.length, 1);
-  assert.equal(draftList.drafts[0].subject, "Updated test draft");
-  assert.equal(draftList.drafts[0].sent, undefined);
+  const updatedDraft = draftList.drafts.find((item) => item.id === draft.draftId);
+  assert.ok(updatedDraft, "the updated original draft remains present");
+  assert.equal(updatedDraft.subject, "Updated test draft");
+  assert.equal(updatedDraft.sent, undefined);
 
   // Exercise real server-side pagination beyond the 100-record page size.
   // Each lead is synthetic and remains blocked pending contact review.
