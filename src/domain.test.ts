@@ -155,3 +155,27 @@ describe("deduplicateLeads", () => {
     expect(result.duplicateCount).toBe(0);
   });
 });
+
+
+describe("CSV import safety edge cases", () => {
+  it("does not treat an email or category column as the required business name", () => {
+    const result = parseLeadCsv("category,email\nPainters,hello@example.com");
+    expect(result.rows).toEqual([]);
+    expect(result.errors.join(" ")).toContain("Missing required column");
+  });
+
+  it("does not silently accept a row with extra columns", () => {
+    const result = parseLeadCsv("businessName,category\nExample Decorators,Painters,unexpected");
+    expect(result.rows).toEqual([]);
+    expect(result.errors).toEqual([
+      "Row 2: contains more values than the header has columns; row skipped.",
+    ]);
+  });
+
+  it("keeps suppression as a hard draft-creation gate", () => {
+    const suppressedLead = { doNotContact: true };
+    expect(canCreateOutreachDraft(suppressedLead)).toBe(false);
+    expect(canCreateOutreachDraft({ doNotContact: false })).toBe(true);
+    expect(canCreateOutreachDraft({})).toBe(true);
+  });
+});
