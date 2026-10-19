@@ -230,6 +230,20 @@ try {
   await expectCallableFailure(callOne("listLeads", { organisationId: orgOne.organisationId, pageToken: `organisations/${orgOne.organisationId}/leads/missing-lead` }), "functions/invalid-argument", "lead cursor whose document no longer exists");
   await expectCallableFailure(callOne("listOutreachDrafts", { organisationId: orgOne.organisationId, pageToken: `organisations/${orgOne.organisationId}/outreachDrafts/missing-draft` }), "functions/invalid-argument", "draft cursor whose document no longer exists");
 
+  // A syntactically valid organisation cursor must still point to a valid membership
+  // in an existing organisation. This synthetic malformed record is seeded only in the
+  // guarded local emulator project.
+  execFileSync(process.execPath, [
+    "functions/scripts/seed-emulator-invalid-membership.mjs",
+    "cursor-fixture-org",
+    first.auth.currentUser.uid,
+  ], { stdio: "inherit" });
+  await expectCallableFailure(
+    callOne("listMyOrganisations", { pageToken: `organisations/cursor-fixture-org/members/${first.auth.currentUser.uid}` }),
+    "functions/invalid-argument",
+    "organisation cursor backed by a malformed membership record",
+  );
+
   // A restriction added after draft creation must be reflected by list and enforced by update.
   await callOne("setLeadSuppression", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, doNotContact: true });
   const suppressedDraftList = await callOne("listOutreachDrafts", { organisationId: orgOne.organisationId });

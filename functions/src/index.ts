@@ -106,7 +106,19 @@ export const listMyOrganisations = onCall(async (request) => {
       throw new HttpsError("invalid-argument", "Organisation page token is invalid.");
     }
     const cursor = await db.doc(data.pageToken).get();
-    if (!cursor.exists || cursor.data()?.uid !== uid) {
+    const cursorMembership = cursor.data();
+    const cursorOrganisationRef = cursor.ref.parent.parent;
+    if (
+      !cursor.exists
+      || cursor.id !== uid
+      || !isValidMembershipRecord(cursorMembership, uid)
+      || !cursorOrganisationRef
+      || cursorOrganisationRef.parent.id !== "organisations"
+    ) {
+      throw new HttpsError("invalid-argument", "Organisation page token is no longer valid.");
+    }
+    const cursorOrganisation = await cursorOrganisationRef.get();
+    if (!cursorOrganisation.exists) {
       throw new HttpsError("invalid-argument", "Organisation page token is no longer valid.");
     }
     cursorSnapshot = cursor as QueryDocumentSnapshot;

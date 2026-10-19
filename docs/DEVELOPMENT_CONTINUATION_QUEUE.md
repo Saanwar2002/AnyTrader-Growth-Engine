@@ -375,3 +375,11 @@ Continue the callable authorization audit and integration-test reliability work;
 - Continued the backend audit with focused unit coverage for pagination token validators used by organisation, campaign, lead, and outreach-draft listings. The tests cover user binding, organisation binding, collection binding, path traversal, extra path segments, overlong tokens, and non-string input.
 - This is regression coverage for the existing path guards; it does not change pagination behaviour or data access. Next review will check cursor document state and pagination behaviour against deleted or malformed legacy records.
 - Verification pending until CI completes for this test-only commit. Continue on `development/chatgpt-mvp` only; Firebase deployment remains deferred and outreach remains draft-only.
+
+
+## Validate organisation pagination cursor state — 2026-10-19
+
+- Pagination cursor validator unit tests passed in CI run [39337823753](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39337823753); both frontend and Functions jobs succeeded, including emulator integration checks.
+- Tightened `listMyOrganisations` cursor validation: in addition to the safe path, the cursor must exist, be the signed-in user's valid membership record with a supported role, and belong to an existing organisation. This prevents stale or malformed membership documents from being accepted as query cursors.
+- Added an emulator-only malformed-membership fixture script guarded to the demo project and local Firestore emulator, plus an integration assertion that such a cursor is rejected with `functions/invalid-argument`.
+- Verification pending full CI. Continue only on `development/chatgpt-mvp`; production Firebase remains deferred and outreach remains draft-only.
