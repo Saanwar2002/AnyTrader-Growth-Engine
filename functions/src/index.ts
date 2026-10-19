@@ -8,6 +8,7 @@ import {
   canTransitionLeadStatus,
   hasCampaignWritePermission,
   hasLeadWritePermission,
+  getOutreachDraftReviewState,
   isValidCampaignStatus,
   isValidDocumentId,
   isValidEmailAddress,
@@ -322,11 +323,10 @@ export const listOutreachDrafts = onCall(async (request) => {
       const leadId = typeof draft.leadId === "string" ? draft.leadId : "";
       const leadSnapshot = leadById.get(leadId);
       const leadExists = leadSnapshot?.exists === true;
-      const leadSuppressed = leadExists && leadSnapshot?.data()?.doNotContact === true;
+      const review = getOutreachDraftReviewState(leadExists, leadSnapshot?.data()?.doNotContact);
       return {
         id: doc.id, leadId, campaignId: draft.campaignId, subject: draft.subject, body: draft.body,
-        status: "draft" as const, leadSuppressed, requiresReview: !leadExists || leadSuppressed,
-        reviewReason: !leadExists ? "Lead record is missing; review before use." : leadSuppressed ? "Lead is suppressed; do not contact." : null,
+        status: "draft" as const, ...review,
         createdAt: draft.createdAt?.toDate?.().toISOString() ?? null,
       };
     }),
