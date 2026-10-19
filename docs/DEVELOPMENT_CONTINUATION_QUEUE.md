@@ -252,3 +252,11 @@ Continue the callable authorization audit and integration-test reliability work;
 - The transactional campaign-status update has passed CI run [39331734989](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39331734989), including the frontend/emulator job and Functions job.
 - Added an emulator regression scenario to verify that an owner can pause a campaign, the updated status is persisted and returned by the campaign list, and the owner can reactivate it. This tests the successful path alongside the existing invalid-status, missing-campaign, and cross-tenant denial cases.
 - Verification pending for this additional smoke-test change. Wait for CI to complete before treating the expanded regression as passed. No Firebase project or production integration was configured.
+
+
+## Lead lifecycle persistence regression — 2026-10-19
+
+- Extended the local Firebase emulator smoke test to cover successful lead lifecycle changes after the lead's internal contact-review gate is explicitly cleared.
+- The test now moves the synthetic lead to `qualified`, verifies that status through `listLeads`, moves it to `contacted`, and verifies persistence again. Existing checks still reject `contacted` while the lead is pending review or suppressed.
+- This adds an end-to-end regression for both positive status persistence and the contact-review safety gate without changing production semantics or introducing new services.
+- Verification is pending until GitHub Actions completes for this commit. Firebase deployment remains deferred; outreach remains draft-only.

@@ -89,6 +89,16 @@ try {
   const clearedLeadList = await callOne("listLeads", { organisationId: orgOne.organisationId });
   assert.equal(clearedLeadList.leads.find((lead) => lead.id === leadOne.leadId)?.contactReviewStatus, "cleared");
 
+  // A reviewed lead may advance through lifecycle states; verify the server persists each update.
+  const qualifiedLead = await callOne("updateLeadStatus", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, status: "qualified" });
+  assert.equal(qualifiedLead.status, "qualified", "reviewed lead can be qualified");
+  const qualifiedLeadList = await callOne("listLeads", { organisationId: orgOne.organisationId });
+  assert.equal(qualifiedLeadList.leads.find((lead) => lead.id === leadOne.leadId)?.status, "qualified", "qualified status persists in list results");
+  const contactedLead = await callOne("updateLeadStatus", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, status: "contacted" });
+  assert.equal(contactedLead.status, "contacted", "explicitly cleared lead can be marked contacted");
+  const contactedLeadList = await callOne("listLeads", { organisationId: orgOne.organisationId });
+  assert.equal(contactedLeadList.leads.find((lead) => lead.id === leadOne.leadId)?.status, "contacted", "contacted status persists in list results");
+
   // Seed non-owner roles through a separate Admin SDK process that refuses to run
   // outside the local demo Firestore emulator. Exercise real callable authorization.
   function seedRole(uid, role) {
