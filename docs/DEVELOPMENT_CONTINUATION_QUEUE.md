@@ -22,7 +22,7 @@ This is a source-inspection work queue, not a certification or test report.
 - Draft creation and editing now verify that the lead's campaign document exists within the same organisation, and fail closed if the campaign reference is missing.
 
 ## Work required before Firebase connection
-1. Run typecheck, unit tests and production build for the current branch when a working execution environment is available; latest membership validation and workspace-switch regression tests also remain unverified by execution.
+1. Run the full frontend typecheck, unit tests and production build. In an isolated remote workspace, the current Functions TypeScript build completed successfully, but the Functions unit test runner terminated with `Bus error`; no test assertions completed. The workspace default Node version is 20 while the Functions package requires Node 22, so repeat under a stable Node 22 environment.
 2. Add emulator integration coverage for missing lead records and malformed/missing `doNotContact` values, and run a 101+ membership pagination test.
 3. Run the expanded cross-tenant draft/lead checks in the emulator and verify campaign-reference validation.
 4. Resolve the existing emulator transaction timeout and run the complete integration suite.
@@ -39,7 +39,7 @@ This is a source-inspection work queue, not a certification or test report.
 - The organisation listing also verifies that the membership document ID matches the caller UID, in addition to checking its stored UID and role. This prevents malformed membership documents from appearing as valid workspace entries.
 - Added unit coverage for the shared membership record validator.
 - Workspace refresh now clears tenant-specific records and draft-editing state immediately while a newly selected organisation loads; a regression test was added.
-- These changes are committed, but no current-branch typecheck, unit test, build, or emulator suite has yet been run.
+- These changes are committed. An isolated Functions TypeScript build completed successfully, and `node --check scripts/emulator-smoke-test.mjs` passed. The Functions Vitest run crashed with `Bus error` before reporting tests; frontend checks and emulator integration remain unverified.
 
 ## Next build focus
 Continue the callable authorization audit and integration-test reliability work; resolve the emulator transaction timeout and run the expanded cross-tenant tests before Firebase connection. Keep all changes on `development/chatgpt-mvp`; do not modify `main` or the original AnyTrader repository.
