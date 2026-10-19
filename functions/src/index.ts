@@ -443,9 +443,9 @@ export const updateOutreachDraft = onCall(async (request) => {
     const leadSnapshot = await transaction.get(leadRef);
     if (!leadSnapshot.exists) throw new HttpsError("failed-precondition", "The lead for this draft no longer exists.");
     const lead = leadSnapshot.data() ?? {};
-    if (!canCreateServerOutreachDraft(lead.doNotContact)) throw new HttpsError("failed-precondition", lead.doNotContact === true
+    if (!canCreateServerOutreachDraft(lead.doNotContact, lead.contactReviewStatus)) throw new HttpsError("failed-precondition", lead.doNotContact === true && lead.contactReviewStatus !== "pending"
       ? "This lead is suppressed. Remove the restriction before editing an outreach draft."
-      : "The lead contact restriction is unverified; resolve it before editing an outreach draft.");
+      : "The lead contact review is pending or unverified; resolve it before editing an outreach draft.");
     const campaignId = requireDocumentId(lead.campaignId, "lead campaignId");
     const campaignRef = db.collection("organisations").doc(organisationId).collection("campaigns").doc(campaignId);
     const campaignSnapshot = await transaction.get(campaignRef);
