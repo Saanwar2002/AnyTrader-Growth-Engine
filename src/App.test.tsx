@@ -92,7 +92,7 @@ describe("Growth Engine interactive workflows", () => {
     fireEvent.click(screen.getByRole("button", { name: /Lead directory/i }));
     const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
     const csv = new File(
-      ["businessName,category,location,email\\nNorth Star Roofing,Roofers,Leeds,hello@northstar.example\\nSouth City Painting,Painters,Manchester,hello@southcity.example\\n"],
+      ["businessName,category,location,email\nNorth Star Roofing,Roofers,Leeds,hello@northstar.example\nSouth City Painting,Painters,Manchester,hello@southcity.example\n"],
       "selected-leads.csv",
       { type: "text/csv" },
     );
@@ -116,7 +116,7 @@ describe("Growth Engine interactive workflows", () => {
     fireEvent.click(screen.getByRole("button", { name: /Lead directory/i }));
     const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
     const csv = new File(
-      ["businessName,category,location\\nCancelled Test Roofing,Roofers,Leeds\\n"],
+      ["businessName,category,location\nCancelled Test Roofing,Roofers,Leeds\n"],
       "cancelled-leads.csv",
       { type: "text/csv" },
     );
