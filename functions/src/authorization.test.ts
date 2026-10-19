@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateLeadCompleteness, canChangeSuppression, canMarkLeadContacted, canCreateServerOutreachDraft, canTransitionLeadStatus, getOutreachDraftReviewState, hasCampaignWritePermission, hasLeadWritePermission, isValidCampaignStatus, isValidDocumentId, isValidEmailAddress, isValidLeadStatus, isValidOrganisationId, isValidOrganisationPageToken, isValidOrganisationCollectionPageToken, isValidMembershipRecord, normaliseContactReviewStatus, normaliseOptionalText, normaliseRequiredText } from "./authorization";
+import { calculateLeadCompleteness, canChangeSuppression, canMarkLeadContacted, canCreateServerOutreachDraft, canTransitionLeadStatus, getOutreachDraftReviewState, hasCampaignWritePermission, hasLeadWritePermission, isValidCampaignStatus, isValidDocumentId, isValidEmailAddress, isValidLeadStatus, isValidOrganisationId, isValidOrganisationPageToken, isValidOrganisationCollectionPageToken, isValidMembershipRecord, normaliseContactReviewStatus, hasConsistentDraftCampaign, normaliseOptionalText, normaliseRequiredText } from "./authorization";
 
 describe("server authorization input guards", () => {
   it("trims required text and rejects missing, non-string, blank, and overlong values", () => {
@@ -119,6 +119,17 @@ describe("suppression permission rules", () => {
     expect(canChangeSuppression("admin", false)).toBe(true);
     expect(canChangeSuppression("member", false)).toBe(false);
     expect(canChangeSuppression("owner", "false")).toBe(false);
+  });
+});
+
+
+describe("draft campaign relationship validation", () => {
+  it("accepts only matching, valid campaign IDs for a draft and its lead", () => {
+    expect(hasConsistentDraftCampaign("campaign_1", "campaign_1")).toBe(true);
+    expect(hasConsistentDraftCampaign("campaign_1", "campaign_2")).toBe(false);
+    expect(hasConsistentDraftCampaign(undefined, "campaign_1")).toBe(false);
+    expect(hasConsistentDraftCampaign("campaign_1", null)).toBe(false);
+    expect(hasConsistentDraftCampaign("../campaign", "../campaign")).toBe(false);
   });
 });
 
