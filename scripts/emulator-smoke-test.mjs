@@ -52,6 +52,20 @@ try {
   assert.equal(leadOne.doNotContact, true, "new leads must remain blocked pending review");
   assert.equal(leadOne.contactReviewStatus, "pending", "new leads must expose a distinct pending-review state");
   await expectCallableFailure(callOne("updateLeadStatus", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, status: "contacted" }), "functions/failed-precondition", "pending review contacted-status gate");
+  await expectCallableFailure(callOne("updateLeadStatus", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, status: "sent" }), "functions/failed-precondition", "unknown lead lifecycle status rejected");
+  await expectCallableFailure(callOne("updateLeadContact", {
+    organisationId: orgOne.organisationId,
+    leadId: leadOne.leadId,
+    businessName: "Synthetic Test Painting Ltd",
+    category: "Painters",
+    location: "Manchester",
+    email: "not-an-email",
+  }), "functions/invalid-argument", "lead contact update rejects malformed email");
+  await expectCallableFailure(callOne("updateCampaignStatus", {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    status: "sent",
+  }), "functions/invalid-argument", "unknown campaign lifecycle status rejected");
   await expectCallableFailure(callOne("createOutreachDraft", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Blocked before review", body: "Must not be created" }), "functions/failed-precondition", "new lead draft gate before contact review");
   await callOne("setLeadSuppression", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, doNotContact: true });
   await expectCallableFailure(callOne("createOutreachDraft", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Blocked", body: "Must not be created" }), "functions/failed-precondition", "suppressed lead draft gate");
