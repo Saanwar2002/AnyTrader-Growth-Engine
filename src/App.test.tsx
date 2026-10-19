@@ -157,6 +157,7 @@ describe("Growth Engine interactive workflows", () => {
 
     expect(screen.getByText("DO NOT CONTACT")).toBeTruthy();
     expect(screen.getByRole("alert").textContent).toContain("Do not use this saved draft for outreach");
+    expect((screen.getByRole("button", { name: "Edit draft" }) as HTMLButtonElement).disabled).toBe(true);
   });
 
 });
