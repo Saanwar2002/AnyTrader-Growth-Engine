@@ -198,7 +198,13 @@ export default function App() {
 
   function exportCsv() {
     const header = ["businessName", "category", "location", "website", "email", "phone", "status", "score", "source", "doNotContact"];
-    const escape = (value: string | number) => `"${String(value).replace(/"/g, '""')}"`;
+    const escape = (value: string | number) => {
+      let text = String(value);
+      const first = text.trimStart().charAt(0);
+      const riskyPrefixes = ["=", "+", String.fromCharCode(45), String.fromCharCode(64)];
+      if (riskyPrefixes.includes(first) || text.startsWith("\\t") || text.startsWith("\\r") || text.startsWith("\\n")) text = "'" + text;
+      return '"' + text.replace(/"/g, '""') + '"';
+    };
     const rows = [header.join(","), ...visibleLeads.map((lead) => [lead.businessName, lead.category, lead.location, lead.website, lead.email, lead.phone, lead.status, lead.score, lead.source, lead.doNotContact ? "yes" : "no"].map(escape).join(","))];
     const blob = new Blob(["\uFEFF", rows.join("\r\n")], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
