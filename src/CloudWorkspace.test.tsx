@@ -34,7 +34,7 @@ import CloudWorkspace from "./CloudWorkspace";
 
 afterEach(() => cleanup());
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
   mocks.currentUser = null;
   mocks.signIn.mockResolvedValue({}); mocks.googleSignIn.mockResolvedValue({}); mocks.register.mockResolvedValue({});
   mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [] });
