@@ -101,3 +101,14 @@ export function getOutreachDraftReviewState(leadExists: boolean, doNotContact: u
   }
   return { leadSuppressed: false, requiresReview: false, reviewReason: null };
 }
+
+
+export function isValidOrganisationPageToken(value: unknown, uid: string): value is string {
+  if (typeof value !== "string" || value.length > 512) return false;
+  const segments = value.split("/");
+  return segments.length === 4
+    && segments[0] === "organisations"
+    && isValidOrganisationId(segments[1])
+    && segments[2] === "members"
+    && segments[3] === uid;
+}
