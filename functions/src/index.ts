@@ -185,9 +185,11 @@ export const updateCampaignStatus = onCall(async (request) => {
   const membership = await requireMembership(organisationId, uid);
   if (!hasCampaignWritePermission(membership.role)) throw new HttpsError("permission-denied", "Only organisation owners and admins can change campaign status.");
   const campaignRef = db.collection("organisations").doc(organisationId).collection("campaigns").doc(campaignId);
-  const campaignSnapshot = await campaignRef.get();
-  if (!campaignSnapshot.exists) throw new HttpsError("not-found", "Campaign was not found in this organisation.");
-  await campaignRef.update({ status: data.status, updatedAt: FieldValue.serverTimestamp(), updatedBy: uid });
+  await db.runTransaction(async (transaction: Transaction) => {
+    const campaignSnapshot = await transaction.get(campaignRef);
+    if (!campaignSnapshot.exists) throw new HttpsError("not-found", "Campaign was not found in this organisation.");
+    transaction.update(campaignRef, { status: data.status, updatedAt: FieldValue.serverTimestamp(), updatedBy: uid });
+  });
   return { campaignId, status: data.status };
 });
 

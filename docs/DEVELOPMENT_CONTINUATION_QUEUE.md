@@ -236,3 +236,12 @@ Continue the callable authorization audit and integration-test reliability work;
 - Re-reviewed `updateOutreachDraft`: within a Firestore transaction it reads the draft and lead, checks their campaign IDs agree, applies the contact-review gate, then reads the campaign document in the same organisation and fails closed if it is missing before any writes. The existing missing-campaign emulator scenario therefore exercises the intended edit rejection path. Firestore transaction reads precede writes.
 - Lifecycle review found no campaign-deletion callable; campaign status updates check organisation membership/owner-admin role and return not-found for a missing campaign. Lead mutations are scoped to the organisation's lead path and use transactional existence checks. Continue to assess legacy lifecycle edge cases without adding a production membership or data-repair endpoint just for testing.
 - **Next review:** inspect whether lead lifecycle mutations and draft creation consistently fail closed when a legacy lead's campaign record is missing, and add focused emulator assertions only where they materially improve safety. Keep work on `development/chatgpt-mvp`; do not change Growth Engine `main`, the original AnyTrader repository, or configure/deploy Firebase.
+
+
+## Transactional campaign-status lifecycle hardening — 2026-10-19
+
+- Reviewed campaign status mutation against the other lifecycle operations. It previously fetched the campaign, then issued a separate update. Although no campaign-delete callable currently exists, the two-step sequence left a check/update gap if the record changed or was removed by an authorised administrative operation.
+- Changed `updateCampaignStatus` to read campaign existence and apply the status update in one Firestore transaction. The operation still requires owner/admin permission and validates the status before entering the transaction; missing campaigns continue to return a controlled `not-found` error.
+- Existing emulator coverage already checks that an invalid campaign status is rejected and that updating a missing campaign returns `functions/not-found`; CI will re-run these alongside tenant isolation, role checks, pagination, and contact-review gates.
+- This is a backend integrity improvement only. No production Firebase project, provider source, or sending integration was configured.
+- Verification pending for this commit; do not mark it passed until the workflow completes successfully.
