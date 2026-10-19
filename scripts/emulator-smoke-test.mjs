@@ -427,6 +427,13 @@ try {
   const legacyDraftList = await callOne("listOutreachDrafts", { organisationId: orgOne.organisationId });
   const orphanLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-orphan-draft");
   const mismatchedLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-mismatched-campaign-draft");
+  // Even a legacy lead marked internally cleared must not get a new draft if its campaign record is gone.
+  await expectCallableFailure(callOne("createOutreachDraft", {
+    organisationId: orgOne.organisationId,
+    leadId: "legacy-missing-campaign-lead",
+    subject: "Missing campaign must block draft",
+    body: "Must not be created without the referenced campaign",
+  }), "functions/failed-precondition", "draft creation for a cleared legacy lead with a missing campaign");
   const missingCampaignLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-missing-campaign-record-draft");
   assert.ok(orphanLegacyDraft, "orphan legacy draft is visible for operator review");
   assert.equal(orphanLegacyDraft.requiresReview, true, "orphan legacy draft requires review");

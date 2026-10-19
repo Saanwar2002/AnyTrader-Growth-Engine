@@ -264,6 +264,13 @@ Continue the callable authorization audit and integration-test reliability work;
 
 ## Suppressed-lead draft creation regression — 2026-10-19
 
-- Extended the emulator smoke test to verify that adding a do-not-contact restriction blocks both editing an existing outreach draft and creating a new draft for that lead.
-- The existing flow also verifies that removing the internal restriction allows draft editing again; this is only an internal review gate and does not establish consent or lawful basis for real-world outreach.
-- The new assertion uses synthetic emulator data and preserves the draft-only product boundary. Verification is pending for the commit that adds this check.
+- **Confirmed passing:** GitHub Actions run [39333135974](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39333135974) completed successfully for commit `639da935e6fdfa7411689459028160888d5ff577`. Both frontend and Firebase Functions jobs passed, including the emulator smoke suite.
+- The emulator smoke test verifies that a do-not-contact restriction blocks editing an existing outreach draft and creating a new draft, and that removing the internal restriction permits editing again.
+- Clearing the internal review restriction does not establish consent or lawful basis for real-world outreach. The tool remains draft-only.
+
+## Missing-campaign lead draft-creation regression — 2026-10-19
+
+- Extended the emulator smoke suite with a legacy lead whose internal review status is cleared but whose referenced campaign record is missing.
+- The test asserts that creating an outreach draft for that lead fails with `functions/failed-precondition`. This confirms that the campaign-integrity guard is enforced even when the contact-review gate is cleared.
+- The fixture uses synthetic records in the guarded local emulator; no production Firebase project or real provider data is involved.
+- Verification pending until CI passes on the new commit.
