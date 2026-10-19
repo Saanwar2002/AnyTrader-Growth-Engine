@@ -66,10 +66,10 @@ export function canMarkLeadContacted(doNotContact: unknown): boolean {
   return doNotContact === false;
 }
 
-export function canCreateServerOutreachDraft(doNotContact: unknown): boolean {
-  // Fail closed: only an explicit boolean false is contactable. Missing or malformed
-  // suppression data must never silently permit an outreach draft.
-  return doNotContact === false;
+export function canCreateServerOutreachDraft(doNotContact: unknown, contactReviewStatus?: unknown): boolean {
+  // Legacy records without a review status are allowed only when the restriction is
+  // explicitly false. New records must have an explicitly cleared review status.
+  return doNotContact === false && (contactReviewStatus === undefined || contactReviewStatus === "cleared");
 }
 
 export function isValidEmailAddress(value: string): boolean {
@@ -91,7 +91,7 @@ export function isValidCampaignStatus(value: unknown): value is ServerCampaignSt
 }
 
 
-export function getOutreachDraftReviewState(leadExists: boolean, doNotContact: unknown): {
+export function getOutreachDraftReviewState(leadExists: boolean, doNotContact: unknown, contactReviewStatus?: unknown): {
   leadSuppressed: boolean;
   requiresReview: boolean;
   reviewReason: string | null;
@@ -99,11 +99,11 @@ export function getOutreachDraftReviewState(leadExists: boolean, doNotContact: u
   if (!leadExists) {
     return { leadSuppressed: false, requiresReview: true, reviewReason: "Lead record is missing; review before use." };
   }
-  if (doNotContact === true) {
+  if (doNotContact === true && contactReviewStatus !== "pending") {
     return { leadSuppressed: true, requiresReview: true, reviewReason: "Lead is suppressed; do not contact." };
   }
-  if (doNotContact !== false) {
-    return { leadSuppressed: false, requiresReview: true, reviewReason: "Lead contact restriction could not be verified; review before use." };
+  if (doNotContact !== false || (contactReviewStatus !== undefined && contactReviewStatus !== "cleared")) {
+    return { leadSuppressed: false, requiresReview: true, reviewReason: "Lead contact review is pending or could not be verified; review before use." };
   }
   return { leadSuppressed: false, requiresReview: false, reviewReason: null };
 }
