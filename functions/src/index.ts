@@ -308,10 +308,27 @@ export const listOutreachDrafts = onCall(async (request) => {
   const organisationId = requireOrganisationId(data.organisationId);
   await requireMembership(organisationId, uid);
   const snapshot = await db.collection("organisations").doc(organisationId).collection("outreachDrafts").orderBy("createdAt", "desc").limit(200).get();
+  // Read current lead records so existing drafts reflect later contact restrictions.
+  const leadIds = [...new Set(snapshot.docs
+    .map((doc: QueryDocumentSnapshot) => doc.data().leadId)
+    .filter((leadId: unknown): leadId is string => isValidDocumentId(leadId)))];
+  const leadSnapshots = await Promise.all(leadIds.map((leadId) =>
+    db.collection("organisations").doc(organisationId).collection("leads").doc(leadId).get()
+  ));
+  const leadById = new Map(leadIds.map((leadId, index) => [leadId, leadSnapshots[index]]));
   return {
     drafts: snapshot.docs.map((doc: QueryDocumentSnapshot) => {
       const draft = doc.data();
-      return { id: doc.id, leadId: draft.leadId, campaignId: draft.campaignId, subject: draft.subject, body: draft.body, status: "draft" as const, createdAt: draft.createdAt?.toDate?.().toISOString() ?? null };
+      const leadId = typeof draft.leadId === "string" ? draft.leadId : "";
+      const leadSnapshot = leadById.get(leadId);
+      const leadExists = leadSnapshot?.exists === true;
+      const leadSuppressed = leadExists && leadSnapshot?.data()?.doNotContact === true;
+      return {
+        id: doc.id, leadId, campaignId: draft.campaignId, subject: draft.subject, body: draft.body,
+        status: "draft" as const, leadSuppressed, requiresReview: !leadExists || leadSuppressed,
+        reviewReason: !leadExists ? "Lead record is missing; review before use." : leadSuppressed ? "Lead is suppressed; do not contact." : null,
+        createdAt: draft.createdAt?.toDate?.().toISOString() ?? null,
+      };
     }),
   };
 });
