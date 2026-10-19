@@ -71,6 +71,18 @@ export function canCreateServerOutreachDraft(doNotContact: unknown, contactRevie
   return doNotContact === false && (contactReviewStatus === undefined || contactReviewStatus === "cleared");
 }
 
+export type ContactReviewStatus = "pending" | "cleared" | "blocked";
+
+export function normaliseContactReviewStatus(doNotContact: unknown, contactReviewStatus: unknown): ContactReviewStatus {
+  if (contactReviewStatus === "pending" || contactReviewStatus === "cleared" || contactReviewStatus === "blocked") {
+    return contactReviewStatus;
+  }
+  if (contactReviewStatus === undefined && doNotContact === false) return "cleared";
+  if (doNotContact === true) return "blocked";
+  // Never present malformed or missing restriction data as cleared.
+  return "pending";
+}
+
 export function isValidEmailAddress(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
