@@ -43,7 +43,7 @@ async function requireMembership(organisationId: string, uid: string) {
   if (!snapshot.exists || !isValidMembershipRecord(membership, uid)) {
     throw new HttpsError("permission-denied", "You do not have access to this organisation.");
   }
-  return membership;
+  return membership ?? {};
 }
 
 async function requireLeadEditor(organisationId: string, uid: string) {
