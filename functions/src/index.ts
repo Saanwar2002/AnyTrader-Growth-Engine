@@ -219,6 +219,7 @@ export const listLeads = onCall(async (request) => {
         score: lead.score, scoreReasons: lead.scoreReasons, notes: lead.notes,
         doNotContact: lead.doNotContact === true,
         contactRestrictionVerified: lead.doNotContact === false,
+        contactReviewStatus: lead.contactReviewStatus === "pending" || lead.contactReviewStatus === "cleared" || lead.contactReviewStatus === "blocked" ? lead.contactReviewStatus : lead.doNotContact === false ? "cleared" : "blocked",
         createdAt: lead.createdAt?.toDate?.().toISOString() ?? null,
       };
     }),
@@ -243,10 +244,10 @@ export const createLead = onCall(async (request) => {
   const activity = db.collection("organisations").doc(organisationId).collection("leadActivities").doc();
   const now = FieldValue.serverTimestamp();
   await db.runTransaction(async (transaction: Transaction) => {
-    transaction.create(lead, { ...fields, campaignId, status: "new", source: "manual", score: completeness.score, scoreReasons: completeness.reasons, notes: "", doNotContact: true, createdBy: uid, createdAt: now, updatedAt: now });
+    transaction.create(lead, { ...fields, campaignId, status: "new", source: "manual", score: completeness.score, scoreReasons: completeness.reasons, notes: "", doNotContact: true, contactReviewStatus: "pending", createdBy: uid, createdAt: now, updatedAt: now });
     transaction.create(activity, { leadId: lead.id, actorUid: uid, message: `Lead created: ${fields.businessName}`, createdAt: now });
   });
-  return { leadId: lead.id, organisationId, campaignId, ...fields, status: "new" as const, source: "manual" as const, score: completeness.score, scoreReasons: completeness.reasons, doNotContact: true };
+  return { leadId: lead.id, organisationId, campaignId, ...fields, status: "new" as const, source: "manual" as const, score: completeness.score, scoreReasons: completeness.reasons, doNotContact: true, contactReviewStatus: "pending" as const };
 });
 
 export const updateLeadContact = onCall(async (request) => {
@@ -333,7 +334,7 @@ export const setLeadSuppression = onCall(async (request) => {
     const leadSnapshot = await transaction.get(leadRef);
     if (!leadSnapshot.exists) throw new HttpsError("not-found", "Lead was not found in this organisation.");
     const now = FieldValue.serverTimestamp();
-    transaction.update(leadRef, { doNotContact: data.doNotContact, updatedAt: now, updatedBy: uid });
+    transaction.update(leadRef, { doNotContact: data.doNotContact, contactReviewStatus: data.doNotContact ? "blocked" : "cleared", updatedAt: now, updatedBy: uid });
     transaction.create(activity, { leadId, actorUid: uid, message: data.doNotContact ? "Lead marked do not contact" : "Lead contact restriction removed", createdAt: now });
   });
   return { leadId, doNotContact: data.doNotContact };
