@@ -12,7 +12,7 @@
 - Synthetic pilot data for fictional painter/decorator businesses.
 - Search, campaign/status filtering, and lead status transitions.
 - Explainable completeness scoring. Score values are not a measure of trust, quality, or legitimacy.
-- CSV import with a 2 MB limit, pre-commit review summary, header/name validation, basic quoted-comma handling, blank-name row skipping, and duplicate checks scoped to the selected campaign.
+- CSV import with a 2 MB limit, pre-commit review summary, header/name validation, basic quoted-comma handling, unmatched-quote detection, blank-name row skipping, and duplicate checks scoped to the selected campaign.
 - CSV export of the currently visible lead list.
 - Lead details panel with contact fields, score explanations, editable internal notes, and activity recording when notes are saved.
 - Human-reviewed outreach drafts with subject/body editing. There is no message-sending capability.
@@ -29,7 +29,7 @@ Executed against the branch snapshot copied into the remote workspace:
 |---|---|
 | `npm ci --no-audit --no-fund` | Passed |
 | `npm run typecheck` | Passed |
-| `npm test` | Passed — 12 tests across 2 files |
+| `npm test` | Passed — 14 tests across 2 files |
 | `npm run build` | Passed — Vite production bundle generated |
 | Vite development server + HTTP request to `/` | Passed |
 
