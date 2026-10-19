@@ -67,18 +67,42 @@ function normaliseLeadFields(data: Record<string, unknown>) {
 
 export const listMyOrganisations = onCall(async (request) => {
   const uid = requireUid(request.auth?.uid);
-  const memberships = await db.collectionGroup("members").where("uid", "==", uid).limit(101).get();
-  const organisations: Array<{ organisationId: string; name: string; role: "owner" | "admin" | "member" | "viewer" } | null> = await Promise.all(memberships.docs.slice(0, 100).map(async (membershipDoc: QueryDocumentSnapshot) => {
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  let cursorSnapshot: QueryDocumentSnapshot | undefined;
+  if (data.pageToken !== undefined && data.pageToken !== null && data.pageToken !== "") {
+    if (typeof data.pageToken !== "string" || data.pageToken.length > 512) {
+      throw new HttpsError("invalid-argument", "Organisation page token is invalid.");
+    }
+    const pathSegments = data.pageToken.split("/");
+    if (pathSegments.length !== 4 || pathSegments[0] !== "organisations" || pathSegments[2] !== "members" || pathSegments[3] !== uid || !isValidOrganisationId(pathSegments[1])) {
+      throw new HttpsError("invalid-argument", "Organisation page token is invalid.");
+    }
+    const cursor = await db.doc(data.pageToken).get();
+    if (!cursor.exists || cursor.data()?.uid !== uid) {
+      throw new HttpsError("invalid-argument", "Organisation page token is no longer valid.");
+    }
+    cursorSnapshot = cursor as QueryDocumentSnapshot;
+  }
+  let membershipQuery = db.collectionGroup("members").where("uid", "==", uid);
+  if (cursorSnapshot) membershipQuery = membershipQuery.startAfter(cursorSnapshot);
+  const memberships = await membershipQuery.limit(101).get();
+  const page = memberships.docs.slice(0, 100);
+  const organisations: Array<{ organisationId: string; name: string; role: "owner" | "admin" | "member" | "viewer" } | null> = await Promise.all(page.map(async (membershipDoc: QueryDocumentSnapshot) => {
     const organisationRef = membershipDoc.ref.parent.parent;
     if (!organisationRef || organisationRef.parent.id !== "organisations") return null;
     const organisation = await organisationRef.get();
     if (!organisation.exists) return null;
     const membership = membershipDoc.data();
     const role = membership.role;
-    if (role !== "owner" && role !== "admin" && role !== "member" && role !== "viewer") return null;
+    if (membership.uid !== uid || (role !== "owner" && role !== "admin" && role !== "member" && role !== "viewer")) return null;
     return { organisationId: organisation.id, name: organisation.data()?.name ?? "Unnamed organisation", role };
   }));
-  return { organisations: organisations.filter((item): item is NonNullable<typeof item> => item !== null), hasMoreOrganisations: memberships.size > 100 };
+  const hasMoreOrganisations = memberships.size > 100;
+  return {
+    organisations: organisations.filter((item): item is NonNullable<typeof item> => item !== null),
+    hasMoreOrganisations,
+    nextPageToken: hasMoreOrganisations ? page[page.length - 1]?.ref.path ?? null : null,
+  };
 });
 
 export const createOrganisation = onCall(async (request) => {
