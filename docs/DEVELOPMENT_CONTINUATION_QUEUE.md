@@ -181,3 +181,12 @@ Continue the callable authorization audit and integration-test reliability work;
 - Added a Firebase emulator scenario that creates 100 additional synthetic outreach drafts against the already-cleared synthetic lead, then checks 100 records on page one, one on page two, continuation/final cursor behaviour, unique IDs across both pages, and that the generated drafts remain unsent.
 - This complements the existing 101-record lead and campaign pagination checks. The scenario adds 100 callable writes, so CI runtime must be observed; if the 15-minute emulator step becomes unstable, split or seed only via a trusted emulator-only fixture rather than weakening assertions.
 - Role-specific emulator checks remain a follow-up: use a trusted emulator-only Admin SDK fixture to seed member/viewer membership documents; do not create a production endpoint just for tests.
+
+
+## Role-based emulator authorization follow-up — 2026-10-19
+
+- Confirmed GitHub Actions run [39318714101](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39318714101) completed successfully. Frontend typecheck, unit tests, production build, Functions authorization tests/build, and the Firebase Auth/Functions/Firestore emulator integration step all passed for commit `ab900904a191c3a9735501fa54ca8d25b6c86fd5`. This run included the 101-record lead, campaign, and draft pagination checks.
+- Added `functions/scripts/seed-emulator-membership.mjs`, a test-only Admin SDK fixture that refuses to run unless the project is `demo-growth-engine-test` and the Firestore emulator host is local. It creates no callable or production membership-management endpoint.
+- Expanded `scripts/emulator-smoke-test.mjs` to seed member/viewer memberships and test actual callable authorization: member can update lead notes and add suppression but cannot clear suppression or create campaigns; viewer can list leads but cannot create/edit leads, create campaigns, change suppression, or create drafts.
+- **Verification pending:** the new role-based tests are committed but have not yet run. Wait for the CI run on the latest commit to finish; check that the fixture's emulator-only guard accepts the environment passed by `firebase emulators:exec`. Do not claim the new role matrix passes until that run is green.
+- Keep Firebase project setup/deployment deferred. Continue only on `development/chatgpt-mvp`; do not change the Growth Engine `main` branch or the original AnyTrader repository.
