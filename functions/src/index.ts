@@ -351,7 +351,7 @@ export const setLeadSuppression = onCall(async (request) => {
     const membershipRef = db.doc(`organisations/${organisationId}/members/${uid}`);
     const membershipSnapshot = await transaction.get(membershipRef);
     const currentMembership = membershipSnapshot.data();
-    if (!membershipSnapshot.exists || !isValidMembershipRecord(currentMembership, uid)) {
+    if (!membershipSnapshot.exists || !currentMembership || !isValidMembershipRecord(currentMembership, uid)) {
       throw new HttpsError("permission-denied", "You do not have access to this organisation.");
     }
     if (!hasLeadWritePermission(currentMembership.role) || !canChangeSuppression(currentMembership.role, data.doNotContact)) {

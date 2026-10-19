@@ -1,3 +1,10 @@
+## Suppression authorization TypeScript guard follow-up — 2026-10-19
+
+- CI run [39334559481](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39334559481) exposed a TypeScript strict-nullability issue in the new transaction guard: the membership validator returns a boolean, so TypeScript did not infer that the membership data object exists after validation.
+- Added an explicit null/undefined check before accessing the current membership role. This is a type-safety correction to the fail-closed membership check; it does not relax authorization.
+- The frontend job's typecheck, 211 tests, and production build passed, but the emulator smoke step was blocked because the Functions TypeScript build failed on the same compiler error. Functions authorization unit tests (129) passed.
+- Verification pending for the fix commit. Keep all changes on `development/chatgpt-mvp`; Firebase deployment remains deferred and outreach remains draft-only.
+
 ## Transactional suppression authorization — 2026-10-19
 
 - CI run [39334305213](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39334305213) passed both frontend and Functions jobs for commit `131b74739251945146f74a8de108dbc92bdf07ca`, including the emulator regression that rejects `contacted` status when the lead's campaign record is missing.
