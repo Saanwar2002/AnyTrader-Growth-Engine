@@ -81,7 +81,7 @@ export default function App() {
     const matchesQuery = [lead.businessName, lead.category, lead.location, lead.email].some((value) => value.toLocaleLowerCase("en-GB").includes(query.toLocaleLowerCase("en-GB")));
     const matchesStatus = statusFilter === "all" || lead.status === statusFilter;
     const matchesCampaign = campaignFilter === "all" || lead.campaignId === campaignFilter;
-    const matchesContact = contactFilter === "all" || (contactFilter === "suppressed" ? lead.doNotContact === true : lead.doNotContact !== true);
+    const matchesContact = contactFilter === "all" || (contactFilter === "suppressed" ? lead.doNotContact === true || lead.contactReviewStatus === "pending" || lead.contactReviewStatus === "blocked" : canCreateOutreachDraft(lead));
     const matchesReview = view !== "review" || ["new", "reviewing"].includes(lead.status);
     return matchesQuery && matchesStatus && matchesCampaign && matchesContact && matchesReview;
   }), [state.leads, query, statusFilter, campaignFilter, contactFilter, view]);
@@ -94,6 +94,7 @@ export default function App() {
   function changeLeadStatus(leadId: string, status: LeadStatus) {
     const lead = state.leads.find((item) => item.id === leadId);
     if (!lead) return;
+    if (status === "contacted" && !canCreateOutreachDraft(lead)) { setNotice("This lead must pass contact review and have its restriction cleared before it can be marked contacted."); return; }
     const next = { ...state, leads: state.leads.map((item) => item.id === leadId ? { ...item, status } : item) };
     setState(addActivity(next, leadId, `Status changed to ${statusLabels[status]}.`));
     setNotice(`${lead.businessName}: moved to ${statusLabels[status].toLowerCase()}.`);
@@ -111,7 +112,7 @@ export default function App() {
   }
 
   function createDraft(lead: Lead) {
-    if (!canCreateOutreachDraft(lead)) { setNotice("Outreach is blocked because this lead is marked Do not contact."); return; }
+    if (!canCreateOutreachDraft(lead)) { setNotice(lead.contactReviewStatus === "pending" ? "Outreach is blocked until contact review is completed." : "Outreach is blocked because this lead is marked Do not contact or its contact review is not cleared."); return; }
     const campaign = state.campaigns.find((item) => item.id === lead.campaignId);
     const brand = campaign?.brand || "our marketplace";
     const draft: OutreachDraft = {
