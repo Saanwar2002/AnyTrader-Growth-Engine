@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { createDemoRepository } from "./repository";
-import { LEAD_STATUSES, deduplicateLeads, inspectLeadCsvHeaders, parseLeadCsv, scoreLead, suggestLeadCsvMapping, type Activity, type AppState, type Campaign, type CampaignStatus, type Lead, type LeadStatus, type OutreachDraft, type LeadCsvField, type LeadCsvMapping } from "./domain";
+import { LEAD_STATUSES, canCreateOutreachDraft, deduplicateLeads, inspectLeadCsvHeaders, parseLeadCsv, scoreLead, suggestLeadCsvMapping, type Activity, type AppState, type Campaign, type CampaignStatus, type Lead, type LeadStatus, type OutreachDraft, type LeadCsvField, type LeadCsvMapping } from "./domain";
 import "./styles.css";
 
 type View = "overview" | "campaigns" | "leads" | "review" | "drafts" | "settings";
@@ -50,7 +50,7 @@ function makeLead(row: Record<string, string>, campaignId: string, source: Lead[
   const email = row.email || row.emailaddress || "";
   const phone = row.phone || row.telephone || "";
   const scored = scoreLead({ businessName, website, email, phone, location, category });
-  return { id: newId("lead"), campaignId, businessName: businessName.trim(), category, location, website, email, phone, source, status: "new", score: scored.score, scoreReasons: scored.reasons, notes: "", createdAt: new Date().toISOString() };
+  return { id: newId("lead"), campaignId, businessName: businessName.trim(), category, location, website, email, phone, source, status: "new", score: scored.score, scoreReasons: scored.reasons, notes: "", doNotContact: false, createdAt: new Date().toISOString() };
 }
 
 export default function App() {
@@ -58,6 +58,7 @@ export default function App() {
   const [view, setView] = useState<View>("overview");
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | LeadStatus>("all");
+  const [contactFilter, setContactFilter] = useState<"all" | "contactable" | "suppressed">("all");
   const [campaignFilter, setCampaignFilter] = useState("all");
   const [showCampaignForm, setShowCampaignForm] = useState(false);
   const [campaignName, setCampaignName] = useState("");
@@ -80,9 +81,10 @@ export default function App() {
     const matchesQuery = [lead.businessName, lead.category, lead.location, lead.email].some((value) => value.toLocaleLowerCase("en-GB").includes(query.toLocaleLowerCase("en-GB")));
     const matchesStatus = statusFilter === "all" || lead.status === statusFilter;
     const matchesCampaign = campaignFilter === "all" || lead.campaignId === campaignFilter;
+    const matchesContact = contactFilter === "all" || (contactFilter === "suppressed" ? lead.doNotContact === true : lead.doNotContact !== true);
     const matchesReview = view !== "review" || ["new", "reviewing"].includes(lead.status);
-    return matchesQuery && matchesStatus && matchesCampaign && matchesReview;
-  }), [state.leads, query, statusFilter, campaignFilter, view]);
+    return matchesQuery && matchesStatus && matchesCampaign && matchesContact && matchesReview;
+  }), [state.leads, query, statusFilter, campaignFilter, contactFilter, view]);
 
   const reviewCount = state.leads.filter((lead) => lead.status === "new" || lead.status === "reviewing").length;
   const activeCampaigns = state.campaigns.filter((campaign) => campaign.status === "active").length;
@@ -109,6 +111,7 @@ export default function App() {
   }
 
   function createDraft(lead: Lead) {
+    if (!canCreateOutreachDraft(lead)) { setNotice("Outreach is blocked because this lead is marked Do not contact."); return; }
     const campaign = state.campaigns.find((item) => item.id === lead.campaignId);
     const brand = campaign?.brand || "our marketplace";
     const draft: OutreachDraft = {
@@ -176,6 +179,14 @@ export default function App() {
     setImportPreview(null);
   }
 
+  function setLeadSuppression(leadId: string, doNotContact: boolean) {
+    const lead = state.leads.find((item) => item.id === leadId);
+    if (!lead) return;
+    const next = { ...state, leads: state.leads.map((item) => item.id === leadId ? { ...item, doNotContact } : item) };
+    setState(addActivity(next, leadId, doNotContact ? "Marked Do not contact; new outreach drafts are blocked." : "Do not contact restriction removed by a workspace user."));
+    setNotice(doNotContact ? `${lead.businessName} marked Do not contact. Existing drafts are retained but flagged for review.` : `${lead.businessName} can be considered for outreach again; review permissions and consent before contact.`);
+  }
+
   function saveLeadNotes() {
     if (!selectedLeadId) return;
     const lead = state.leads.find((item) => item.id === selectedLeadId);
@@ -186,9 +197,9 @@ export default function App() {
   }
 
   function exportCsv() {
-    const header = ["businessName", "category", "location", "website", "email", "phone", "status", "score", "source"];
+    const header = ["businessName", "category", "location", "website", "email", "phone", "status", "score", "source", "doNotContact"];
     const escape = (value: string | number) => `"${String(value).replace(/"/g, '""')}"`;
-    const rows = [header.join(","), ...visibleLeads.map((lead) => [lead.businessName, lead.category, lead.location, lead.website, lead.email, lead.phone, lead.status, lead.score, lead.source].map(escape).join(","))];
+    const rows = [header.join(","), ...visibleLeads.map((lead) => [lead.businessName, lead.category, lead.location, lead.website, lead.email, lead.phone, lead.status, lead.score, lead.source, lead.doNotContact ? "yes" : "no"].map(escape).join(","))];
     const blob = new Blob(["\uFEFF", rows.join("\r\n")], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
@@ -199,7 +210,7 @@ export default function App() {
   function resetDemo() {
     const confirmed = window.confirm("Reset this browser's Growth Engine demo data? Campaigns, imported demo leads, drafts and activity history will be reset.");
     if (!confirmed) return;
-    setState(repository.reset()); setQuery(""); setStatusFilter("all"); setCampaignFilter("all"); setView("overview");
+    setState(repository.reset()); setQuery(""); setStatusFilter("all"); setContactFilter("all"); setCampaignFilter("all"); setView("overview");
     setNotice("Demo workspace reset to the original synthetic records.");
   }
 
@@ -246,17 +257,18 @@ export default function App() {
         {view === "campaigns" && <Campaigns campaigns={state.campaigns} leads={state.leads} onCreate={() => setShowCampaignForm(true)} onSelect={(id) => { setCampaignFilter(id); setView("leads"); }} onStatus={(id, status) => setState((previous) => ({ ...previous, campaigns: previous.campaigns.map((item) => item.id === id ? { ...item, status } : item) }))} />}
         {(view === "leads" || view === "review") && <section className="panel-card">
           <div className="section-heading"><div><p className="eyebrow">{view === "review" ? "HUMAN REVIEW REQUIRED" : "LEAD MANAGEMENT"}</p><h3>{view === "review" ? "Leads waiting for review" : "Lead directory"} <span className="muted-count">{visibleLeads.length}</span></h3></div><div className="button-row"><button className="secondary-button" onClick={exportCsv}>Export CSV ↓</button><button className="primary-button" onClick={() => fileInput.current?.click()}>Import CSV ↑</button><input ref={fileInput} type="file" accept=".csv,text/csv" hidden onChange={handleCsv} /></div></div>
-          <div className="filter-bar"><label className="search-box"><span>⌕</span><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search business, category or area…" /></label><select aria-label="Filter by lead status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as "all" | LeadStatus)}><option value="all">All statuses</option>{LEAD_STATUSES.map((status) => <option key={status} value={status}>{statusLabels[status]}</option>)}</select><select aria-label="Filter by campaign" value={campaignFilter} onChange={(e) => setCampaignFilter(e.target.value)}><option value="all">All campaigns</option>{state.campaigns.map((campaign) => <option key={campaign.id} value={campaign.id}>{campaign.name}</option>)}</select></div>
-          <div className="table-wrap"><table><thead><tr><th>BUSINESS</th><th>CAMPAIGN / AREA</th><th>SCORE</th><th>STATUS</th><th>ACTIONS</th></tr></thead><tbody>{visibleLeads.map((lead) => <tr key={lead.id}><td><div className="business-cell"><span className="business-avatar">{lead.businessName.slice(0, 1).toUpperCase()}</span><span><strong>{lead.businessName}</strong><small>{lead.category} · {lead.source === "demo" ? "Synthetic demo" : "CSV import"}</small></span></div></td><td><strong>{state.campaigns.find((item) => item.id === lead.campaignId)?.name ?? "Campaign unavailable"}</strong><small className="cell-subline">{lead.location || "Location not supplied"}</small></td><td><button className="score-pill" title={lead.scoreReasons.join("\n")}>{lead.score}<small>/100</small></button></td><td><span className={`status-pill status-${lead.status}`}>{statusLabels[lead.status]}</span></td><td><div className="row-actions"><select aria-label={`Change status for ${lead.businessName}`} value={lead.status} onChange={(e) => changeLeadStatus(lead.id, e.target.value as LeadStatus)}>{LEAD_STATUSES.map((status) => <option key={status} value={status}>{statusLabels[status]}</option>)}</select><button className="text-button" onClick={() => { setSelectedLeadId(lead.id); setLeadNotes(lead.notes); }}>Details</button><button className="text-button" onClick={() => createDraft(lead)} disabled={state.drafts.some((draft) => draft.leadId === lead.id)}>＋ Draft</button></div></td></tr>)}</tbody></table>{visibleLeads.length === 0 && <EmptyState title="No leads match these filters" detail="Try another search, status or campaign, or import a CSV file." />}</div>
+          <div className="filter-bar"><label className="search-box"><span>⌕</span><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search business, category or area…" /></label><select aria-label="Filter by lead status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as "all" | LeadStatus)}><option value="all">All statuses</option>{LEAD_STATUSES.map((status) => <option key={status} value={status}>{statusLabels[status]}</option>)}</select><select aria-label="Filter by contact permission" value={contactFilter} onChange={(e) => setContactFilter(e.target.value as "all" | "contactable" | "suppressed")}><option value="all">All contact preferences</option><option value="contactable">Not suppressed</option><option value="suppressed">Do not contact</option></select><select aria-label="Filter by campaign" onChange={(e) => setCampaignFilter(e.target.value)}><option value="all">All campaigns</option>{state.campaigns.map((campaign) => <option key={campaign.id} value={campaign.id}>{campaign.name}</option>)}</select></div>
+          <div className="table-wrap"><table><thead><tr><th>BUSINESS</th><th>CAMPAIGN / AREA</th><th>SCORE</th><th>STATUS</th><th>ACTIONS</th></tr></thead><tbody>{visibleLeads.map((lead) => <tr key={lead.id}><td><div className="business-cell"><span className="business-avatar">{lead.businessName.slice(0, 1).toUpperCase()}</span><span><strong>{lead.businessName} {lead.doNotContact && <span className="suppression-badge">DO NOT CONTACT</span>}</strong><small>{lead.category} · {lead.source === "demo" ? "Synthetic demo" : "CSV import"}</small></span></div></td><td><strong>{state.campaigns.find((item) => item.id === lead.campaignId)?.name ?? "Campaign unavailable"}</strong><small className="cell-subline">{lead.location || "Location not supplied"}</small></td><td><button className="score-pill" title={lead.scoreReasons.join("\n")}>{lead.score}<small>/100</small></button></td><td><span className={`status-pill status-${lead.status}`}>{statusLabels[lead.status]}</span></td><td><div className="row-actions"><select aria-label={`Change status for ${lead.businessName}`} value={lead.status} onChange={(e) => changeLeadStatus(lead.id, e.target.value as LeadStatus)}>{LEAD_STATUSES.map((status) => <option key={status} value={status}>{statusLabels[status]}</option>)}</select><button className="text-button" onClick={() => { setSelectedLeadId(lead.id); setLeadNotes(lead.notes); }}>Details</button><button className="text-button" title={lead.doNotContact ? "Blocked: lead is marked Do not contact" : "Create a draft for human review"} onClick={() => createDraft(lead)} disabled={lead.doNotContact || state.drafts.some((draft) => draft.leadId === lead.id)}>＋ Draft</button></div></td></tr>)}</tbody></table>{visibleLeads.length === 0 && <EmptyState title="No leads match these filters" detail="Try another search, status or campaign, or import a CSV file." />}</div>
           <div className="table-footer">Demo records only · Scores are transparent completeness indicators, not a judgement of business quality.</div>
           {selectedLead && <section className="lead-detail-panel"><div className="section-heading"><div><p className="eyebrow">LEAD DETAILS</p><h3>{selectedLead.businessName}</h3><p className="section-description">{selectedLead.category} · {selectedLead.location || "Location not supplied"}</p></div><button className="icon-button" aria-label="Close lead details" onClick={() => setSelectedLeadId(null)}>×</button></div>
             <div className="lead-contact-grid"><span><small>Email</small><strong>{selectedLead.email || "Not provided"}</strong></span><span><small>Phone</small><strong>{selectedLead.phone || "Not provided"}</strong></span><span><small>Website</small><strong>{selectedLead.website || "Not provided"}</strong></span><span><small>Source</small><strong>{selectedLead.source === "demo" ? "Synthetic demo" : "CSV import"}</strong></span></div>
             <div className="lead-score-reasons"><strong>Completeness score: {selectedLead.score}/100</strong><ul>{selectedLead.scoreReasons.length ? selectedLead.scoreReasons.map((reason) => <li key={reason}>{reason}</li>) : <li>No completeness points yet.</li>}</ul></div>
+            <div className={`suppression-control ${selectedLead.doNotContact ? "is-suppressed" : ""}`}><div><strong>{selectedLead.doNotContact ? "Do not contact is enabled" : "Contact restriction not set"}</strong><small>{selectedLead.doNotContact ? "New outreach drafts are blocked for this lead." : "Use this if the business has opted out or must not be contacted."}</small></div><button className={selectedLead.doNotContact ? "secondary-button" : "danger-button"} onClick={() => setLeadSuppression(selectedLead.id, !selectedLead.doNotContact)}>{selectedLead.doNotContact ? "Remove restriction" : "Mark do not contact"}</button></div>
             <label className="notes-field">Internal notes<textarea rows={4} value={leadNotes} onChange={(event) => setLeadNotes(event.target.value)} placeholder="Add review notes for this demo lead…" /></label>
             <div className="form-actions"><button className="primary-button" onClick={saveLeadNotes}>Save notes</button></div>
           </section>}
         </section>}
-        {view === "drafts" && <section className="panel-card"><div className="section-heading"><div><p className="eyebrow">HUMAN APPROVAL REQUIRED</p><h3>Outreach drafts <span className="muted-count">{state.drafts.length}</span></h3><p className="section-description">Drafts are saved locally. This app does not send emails or messages.</p></div></div>{state.drafts.length === 0 ? <EmptyState title="No drafts yet" detail="Create a draft from a lead record when you are ready to review an introduction." actionLabel="Browse leads" onAction={() => setView("leads")} /> : <div className="draft-list">{state.drafts.map((draft) => { const lead = state.leads.find((item) => item.id === draft.leadId); const campaign = state.campaigns.find((item) => item.id === draft.campaignId); return <article className="draft-card" key={draft.id}><div className="draft-card-head"><div><span className="status-pill status-new">DRAFT · NOT SENT</span><h4>{lead?.businessName ?? "Lead record unavailable"}</h4><p>{campaign?.brand ?? "Brand"} · Created {dateLabel(draft.createdAt)}</p></div><button className="secondary-button" onClick={() => setEditingDraft(editingDraft === draft.id ? null : draft.id)}>{editingDraft === draft.id ? "Close editor" : "Edit draft"}</button></div>{editingDraft === draft.id ? <div className="draft-editor"><label>Subject<input value={draft.subject} onChange={(e) => saveDraft(draft.id, "subject", e.target.value)} /></label><label>Message<textarea rows={8} value={draft.body} onChange={(e) => saveDraft(draft.id, "body", e.target.value)} /></label><p>Saving changes keeps this draft in draft status. No send action is available.</p></div> : <><h5>{draft.subject}</h5><p className="draft-body">{draft.body}</p></>}<div className="draft-footer"><span>Review all claims and personalise before use.</span><button className="text-button danger-text" onClick={() => { setState((previous) => ({ ...previous, drafts: previous.drafts.filter((item) => item.id !== draft.id) })); setNotice("Draft deleted."); }}>Delete draft</button></div></article>; })}</div>}</section>}
+        {view === "drafts" && <section className="panel-card"><div className="section-heading"><div><p className="eyebrow">HUMAN APPROVAL REQUIRED</p><h3>Outreach drafts <span className="muted-count">{state.drafts.length}</span></h3><p className="section-description">Drafts are saved locally. This app does not send emails or messages.</p></div></div>{state.drafts.length === 0 ? <EmptyState title="No drafts yet" detail="Create a draft from a lead record when you are ready to review an introduction." actionLabel="Browse leads" onAction={() => setView("leads")} /> : <div className="draft-list">{state.drafts.map((draft) => { const lead = state.leads.find((item) => item.id === draft.leadId); const campaign = state.campaigns.find((item) => item.id === draft.campaignId); return <article className="draft-card" key={draft.id}><div className="draft-card-head"><div><span className="status-pill status-new">DRAFT · NOT SENT</span><h4>{lead?.businessName ?? "Lead record unavailable"} {lead?.doNotContact && <span className="suppression-badge">DO NOT CONTACT</span>}</h4><p>{campaign?.brand ?? "Brand"} · Created {dateLabel(draft.createdAt)}</p></div><button className="secondary-button" onClick={() => setEditingDraft(editingDraft === draft.id ? null : draft.id)}>{editingDraft === draft.id ? "Close editor" : "Edit draft"}</button></div>{lead?.doNotContact && <div className="suppression-warning" role="alert">This lead is marked Do not contact. Do not use this saved draft for outreach; delete it if no longer needed.</div>}{editingDraft === draft.id ? <div className="draft-editor"><label>Subject<input value={draft.subject} onChange={(e) => saveDraft(draft.id, "subject", e.target.value)} /></label><label>Message<textarea rows={8} value={draft.body} onChange={(e) => saveDraft(draft.id, "body", e.target.value)} /></label><p>Saving changes keeps this draft in draft status. No send action is available.</p></div> : <><h5>{draft.subject}</h5><p className="draft-body">{draft.body}</p></>}<div className="draft-footer"><span>Review all claims and personalise before use.</span><button className="text-button danger-text" onClick={() => { setState((previous) => ({ ...previous, drafts: previous.drafts.filter((item) => item.id !== draft.id) })); setNotice("Draft deleted."); }}>Delete draft</button></div></article>; })}</div>}</section>}
         {view === "settings" && <Settings state={state} onReset={resetDemo} />}
       </div>
       <footer className="app-footer"><span>AnyTrader Growth Engine</span><span>Standalone demo · No live data sources · No messages sent</span></footer>
