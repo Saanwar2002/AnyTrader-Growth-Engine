@@ -18,7 +18,7 @@ This is a source-inspection work queue, not a certification or test report.
 - The organisation pagination UI merges additional pages without replacing the existing list and has a regression test for loading a second page.
 - Pure authorization tests now cover missing, suppressed, unverified, and explicitly contactable draft review states, plus organisation pagination token path/UID validation.
 - The typed frontend API has a regression test for forwarding a pagination token to the callable.
-- The emulator smoke script checks a suppression restriction added after draft creation, including list warning and server-side rejection of draft edits. It now also checks that one organisation cannot create a draft for another organisation's lead or update/delete that organisation's draft.
+- The emulator smoke script checks a suppression restriction added after draft creation, including list warning and server-side rejection of draft edits. It checks that one organisation cannot list another organisation's leads, campaigns, or outreach drafts, create a lead using another organisation's campaign, or create/update/delete a draft using another organisation's records.
 - Draft creation and editing now verify that the lead's campaign document exists within the same organisation, and fail closed if the campaign reference is missing.
 
 ## Work required before Firebase connection
