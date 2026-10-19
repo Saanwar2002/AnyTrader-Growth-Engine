@@ -27,7 +27,12 @@ try {
   const first = connectClient(initializeApp(firebaseConfig, "tenant-one"));
   apps.push(first.app);
   await createUserWithEmailAndPassword(first.auth, "tenant-one@example.test", "testing-password-one");
-  const callOne = (name, payload = {}) => httpsCallable(first.functions, name, { timeout: 180000 })(payload).then((response) => response.data);
+  const callOne = (name, payload = {}) => (async () => {
+    console.log(`CALL ${name} (tenant one)`);
+    const response = await httpsCallable(first.functions, name, { timeout: 30000 })(payload);
+    console.log(`OK ${name} (tenant one)`);
+    return response.data;
+  })();
 
   const initialOrgs = await callOne("listMyOrganisations");
   assert.deepEqual(initialOrgs.organisations, []);
@@ -53,7 +58,12 @@ try {
   const second = connectClient(initializeApp(firebaseConfig, "tenant-two"));
   apps.push(second.app);
   await createUserWithEmailAndPassword(second.auth, "tenant-two@example.test", "testing-password-two");
-  const callTwo = (name, payload = {}) => httpsCallable(second.functions, name, { timeout: 180000 })(payload).then((response) => response.data);
+  const callTwo = (name, payload = {}) => (async () => {
+    console.log(`CALL ${name} (tenant two)`);
+    const response = await httpsCallable(second.functions, name, { timeout: 30000 })(payload);
+    console.log(`OK ${name} (tenant two)`);
+    return response.data;
+  })();
   await expectCallableFailure(callTwo("listLeads", { organisationId: orgOne.organisationId }), "functions/permission-denied", "cross-tenant lead listing denial");
   const orgTwo = await callTwo("createOrganisation", { name: "Tenant Two" });
   await expectCallableFailure(callTwo("createLead", { organisationId: orgTwo.organisationId, campaignId: campaignOne.campaignId, businessName: "Cross Tenant Attempt" }), "functions/not-found", "cross-tenant campaign reference denial");
