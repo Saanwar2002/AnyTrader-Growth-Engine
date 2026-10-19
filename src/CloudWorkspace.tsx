@@ -92,8 +92,13 @@ export default function CloudWorkspace() {
     const requestId = ++workspaceLoadIdRef.current;
     if (!api || !orgId) {
       setCampaigns([]); setLeads([]); setLeadNotes({}); setDrafts([]);
+      setEditingDraftId(""); setDraftSubject(""); setDraftBody("");
       return;
     }
+    // Clear the previous tenant's visible records immediately while the newly
+    // selected organisation is loading; do not leave old data on screen.
+    setCampaigns([]); setLeads([]); setLeadNotes({}); setDrafts([]);
+    setEditingDraftId(""); setDraftSubject(""); setDraftBody("");
     const [campaignResult, leadResult, draftResult] = await Promise.all([
       api.listCampaigns({ organisationId: orgId }), api.listLeads({ organisationId: orgId }), api.listOutreachDrafts({ organisationId: orgId }),
     ]);
