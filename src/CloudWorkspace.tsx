@@ -23,6 +23,9 @@ export default function CloudWorkspace() {
   const [leads, setLeads] = useState<LeadSummary[]>([]);
   const [leadNotes, setLeadNotes] = useState<Record<string, string>>({});
   const [drafts, setDrafts] = useState<OutreachDraftSummary[]>([]);
+  const [editingDraftId, setEditingDraftId] = useState("");
+  const [draftSubject, setDraftSubject] = useState("");
+  const [draftBody, setDraftBody] = useState("");
   const [organisationName, setOrganisationName] = useState("");
   const [campaignName, setCampaignName] = useState("");
   const [campaignBrand, setCampaignBrand] = useState("AnyTrader");
@@ -110,6 +113,15 @@ export default function CloudWorkspace() {
     }, "Campaign created.");
   }
 
+  async function saveDraft(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!api || !organisationId || !editingDraftId) return;
+    await runAction(async () => {
+      await api.updateOutreachDraft({ organisationId, draftId: editingDraftId, subject: draftSubject.trim(), body: draftBody.trim() });
+      setEditingDraftId(""); setDraftSubject(""); setDraftBody("");
+    }, "Draft updated. Nothing was sent.");
+  }
+
   async function createLead(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!api || !organisationId || !leadCampaignId) return;
@@ -139,6 +151,6 @@ Kind regards,
 ${selectedOrganisation.name}
 
 DRAFT ONLY — NOT SENT.` }), "Draft saved. Nothing was sent.")}>Create draft</button></td></tr>)}</tbody></table>{!leads.length && <p className="cloud-empty">No leads in this organisation yet.</p>}</div></section>
-      <section className="cloud-card"><div className="cloud-section-head"><div><p className="cloud-eyebrow">HUMAN REVIEW REQUIRED</p><h2>Outreach drafts</h2></div><span className="cloud-count">{drafts.length}</span></div><div className="cloud-list">{drafts.map((draft) => <div className="cloud-draft" key={draft.id}><div><strong>{draft.subject}</strong><p>{draft.body}</p><small>DRAFT · NOT SENT</small></div><button className="cloud-secondary" disabled={busy} onClick={() => void runAction(() => api.deleteOutreachDraft({ organisationId, draftId: draft.id }), "Draft deleted.")}>Delete</button></div>)}{!drafts.length && <p className="cloud-empty">No outreach drafts yet.</p>}</div></section></>}
+      <section className="cloud-card"><div className="cloud-section-head"><div><p className="cloud-eyebrow">HUMAN REVIEW REQUIRED</p><h2>Outreach drafts</h2></div><span className="cloud-count">{drafts.length}</span></div><div className="cloud-list">{drafts.map((draft) => <div className="cloud-draft" key={draft.id}>{editingDraftId === draft.id ? <form className="cloud-form cloud-draft-editor" onSubmit={(event) => void saveDraft(event)}><label>Draft subject<input required maxLength={200} value={draftSubject} onChange={(event) => setDraftSubject(event.target.value)} /></label><label>Draft body<textarea required maxLength={10000} rows={6} value={draftBody} onChange={(event) => setDraftBody(event.target.value)} /></label><div className="cloud-draft-actions"><button className="cloud-primary" disabled={busy || !draftSubject.trim() || !draftBody.trim()}>{busy ? "Saving…" : "Save draft"}</button><button type="button" className="cloud-secondary" disabled={busy} onClick={() => { setEditingDraftId(""); setDraftSubject(""); setDraftBody(""); }}>Cancel</button></div></form> : <><div><strong>{draft.subject}</strong><p>{draft.body}</p><small>DRAFT · NOT SENT</small></div><div className="cloud-draft-actions"><button className="cloud-secondary" disabled={busy} onClick={() => { setEditingDraftId(draft.id); setDraftSubject(draft.subject); setDraftBody(draft.body); }}>Edit</button><button className="cloud-secondary" disabled={busy} onClick={() => void runAction(() => api.deleteOutreachDraft({ organisationId, draftId: draft.id }), "Draft deleted.")}>Delete</button></div></>}</div>)}{!drafts.length && <p className="cloud-empty">No outreach drafts yet.</p>}</div></section></>}
     <footer className="cloud-footer">Dedicated Firebase project required · tenant access enforced by server functions · no automated outreach</footer></main>;
 }
