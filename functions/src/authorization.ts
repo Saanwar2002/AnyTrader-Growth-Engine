@@ -111,7 +111,8 @@ export function getOutreachDraftReviewState(leadExists: boolean, doNotContact: u
   if (!leadExists) {
     return { leadSuppressed: false, requiresReview: true, reviewReason: "Lead record is missing; review before use." };
   }
-  if (contactReviewStatus === "blocked" || (doNotContact === true && contactReviewStatus !== "pending")) {
+  // The explicit restriction is authoritative, even if review metadata conflicts.
+  if (doNotContact === true || contactReviewStatus === "blocked") {
     return { leadSuppressed: true, requiresReview: true, reviewReason: "Lead is suppressed; do not contact." };
   }
   if (contactReviewStatus === "pending") {
