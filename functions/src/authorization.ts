@@ -159,3 +159,17 @@ export function isValidOrganisationCollectionPageToken(value: unknown, organisat
     && segments[2] === collectionName
     && isValidDocumentId(segments[3]);
 }
+
+
+/** True only for a usable Firestore Timestamp value used by ordered pagination. */
+export function isValidFirestoreTimestamp(value: unknown): boolean {
+  if (!value || typeof value !== "object") return false;
+  const timestamp = value as { toMillis?: unknown };
+  if (typeof timestamp.toMillis !== "function") return false;
+  try {
+    const milliseconds = (timestamp.toMillis as () => unknown).call(value);
+    return typeof milliseconds === "number" && Number.isFinite(milliseconds);
+  } catch {
+    return false;
+  }
+}

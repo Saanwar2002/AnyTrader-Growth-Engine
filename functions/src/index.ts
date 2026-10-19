@@ -18,6 +18,7 @@ import {
   isValidOrganisationPageToken,
   isValidOrganisationCollectionPageToken,
   isValidMembershipRecord,
+  isValidFirestoreTimestamp,
   normaliseContactReviewStatus,
   normaliseOptionalText,
   normaliseRequiredText,
@@ -195,7 +196,7 @@ export const listCampaigns = onCall(async (request) => {
       throw new HttpsError("invalid-argument", "Campaign page token is invalid for this organisation.");
     }
     const cursor = await db.doc(data.pageToken).get();
-    if (!cursor.exists || !cursor.data()?.createdAt) {
+    if (!cursor.exists || !isValidFirestoreTimestamp(cursor.data()?.createdAt)) {
       throw new HttpsError("invalid-argument", "Campaign page token is no longer valid.");
     }
     cursorSnapshot = cursor as QueryDocumentSnapshot;
@@ -243,7 +244,7 @@ export const listLeads = onCall(async (request) => {
       throw new HttpsError("invalid-argument", "Lead page token is invalid for this organisation.");
     }
     const cursor = await db.doc(data.pageToken).get();
-    if (!cursor.exists || !cursor.data()?.createdAt) {
+    if (!cursor.exists || !isValidFirestoreTimestamp(cursor.data()?.createdAt)) {
       throw new HttpsError("invalid-argument", "Lead page token is no longer valid.");
     }
     cursorSnapshot = cursor as QueryDocumentSnapshot;
@@ -455,7 +456,7 @@ export const listOutreachDrafts = onCall(async (request) => {
       throw new HttpsError("invalid-argument", "Outreach draft page token is invalid for this organisation.");
     }
     const cursor = await db.doc(data.pageToken).get();
-    if (!cursor.exists || !cursor.data()?.createdAt) {
+    if (!cursor.exists || !isValidFirestoreTimestamp(cursor.data()?.createdAt)) {
       throw new HttpsError("invalid-argument", "Outreach draft page token is no longer valid.");
     }
     cursorSnapshot = cursor as QueryDocumentSnapshot;

@@ -230,6 +230,27 @@ try {
   await expectCallableFailure(callOne("listLeads", { organisationId: orgOne.organisationId, pageToken: `organisations/${orgOne.organisationId}/leads/missing-lead` }), "functions/invalid-argument", "lead cursor whose document no longer exists");
   await expectCallableFailure(callOne("listOutreachDrafts", { organisationId: orgOne.organisationId, pageToken: `organisations/${orgOne.organisationId}/outreachDrafts/missing-draft` }), "functions/invalid-argument", "draft cursor whose document no longer exists");
 
+  // Existing cursor paths are still invalid if their stored ordering field is malformed.
+  execFileSync(process.execPath, [
+    "functions/scripts/seed-emulator-invalid-timestamp-cursors.mjs",
+    orgOne.organisationId,
+  ], { stdio: "inherit" });
+  await expectCallableFailure(
+    callOne("listCampaigns", { organisationId: orgOne.organisationId, pageToken: `organisations/${orgOne.organisationId}/campaigns/invalid-timestamp-campaign` }),
+    "functions/invalid-argument",
+    "campaign cursor with malformed createdAt",
+  );
+  await expectCallableFailure(
+    callOne("listLeads", { organisationId: orgOne.organisationId, pageToken: `organisations/${orgOne.organisationId}/leads/invalid-timestamp-lead` }),
+    "functions/invalid-argument",
+    "lead cursor with malformed createdAt",
+  );
+  await expectCallableFailure(
+    callOne("listOutreachDrafts", { organisationId: orgOne.organisationId, pageToken: `organisations/${orgOne.organisationId}/outreachDrafts/invalid-timestamp-draft` }),
+    "functions/invalid-argument",
+    "draft cursor with malformed createdAt",
+  );
+
   // A syntactically valid organisation cursor must still point to a valid membership
   // in an existing organisation. This synthetic malformed record is seeded only in the
   // guarded local emulator project.

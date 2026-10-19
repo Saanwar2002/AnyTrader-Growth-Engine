@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateLeadCompleteness, canChangeSuppression, canMarkLeadContacted, canCreateServerOutreachDraft, canTransitionLeadStatus, getOutreachDraftReviewState, hasCampaignWritePermission, hasLeadWritePermission, isValidCampaignStatus, isValidDocumentId, isValidEmailAddress, isValidLeadStatus, isValidOrganisationId, isValidOrganisationPageToken, isValidOrganisationCollectionPageToken, isValidMembershipRecord, normaliseContactReviewStatus, hasConsistentDraftCampaign, normaliseOptionalText, normaliseRequiredText } from "./authorization";
+import { calculateLeadCompleteness, canChangeSuppression, canMarkLeadContacted, canCreateServerOutreachDraft, canTransitionLeadStatus, getOutreachDraftReviewState, hasCampaignWritePermission, hasLeadWritePermission, isValidCampaignStatus, isValidDocumentId, isValidEmailAddress, isValidLeadStatus, isValidOrganisationId, isValidOrganisationPageToken, isValidOrganisationCollectionPageToken, isValidMembershipRecord, isValidFirestoreTimestamp, normaliseContactReviewStatus, hasConsistentDraftCampaign, normaliseOptionalText, normaliseRequiredText } from "./authorization";
 
 describe("server authorization input guards", () => {
   it("trims required text and rejects missing, non-string, blank, and overlong values", () => {
@@ -478,4 +478,18 @@ describe("pagination cursor path validation", () => {
     expect(isValidOrganisationCollectionPageToken("x".repeat(513), "org-1", "leads")).toBe(false);
     expect(isValidOrganisationCollectionPageToken(null, "org-1", "leads")).toBe(false);
   });
+});
+
+
+describe("ordered pagination cursor timestamp validation", () => {
+  it("accepts finite Firestore-like timestamp values", () => {
+    expect(isValidFirestoreTimestamp({ toMillis: () => 1234 })).toBe(true);
+    expect(isValidFirestoreTimestamp({ toMillis: () => 0 })).toBe(true);
+  });
+
+  it.each([undefined, null, "", "2026-01-01", 1234, new Date(), {}, { toMillis: () => Number.NaN }, { toMillis: () => Infinity }, { toMillis: () => { throw new Error("malformed timestamp"); } }])(
+    "rejects malformed stored cursor timestamps %#", (value) => {
+      expect(isValidFirestoreTimestamp(value)).toBe(false);
+    },
+  );
 });

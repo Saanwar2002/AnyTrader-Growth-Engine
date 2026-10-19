@@ -390,3 +390,11 @@ Continue the callable authorization audit and integration-test reliability work;
 - CI run [39338235700](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39338235700) failed in the emulator smoke test because the fixture's loopback-host regular expression was over-escaped and rejected the valid emulator host `127.0.0.1:8080`. Frontend typecheck/tests/build and Firebase Functions tests/build passed; the smoke test stopped at fixture setup before its new malformed-membership assertion.
 - Corrected the regex to match the literal dots in `127.0.0.1:8080` or `localhost:8080`. The demo-project and emulator-host safety checks remain enforced.
 - Full CI verification is pending. Continue only on `development/chatgpt-mvp`; do not deploy Firebase or add any sending integration.
+
+
+## Validate ordered pagination cursor timestamps — 2026-10-19
+
+- Tightened `listCampaigns`, `listLeads`, and `listOutreachDrafts` so an existing cursor document is rejected unless its persisted `createdAt` exposes a finite Firestore timestamp value. Truthy strings/objects no longer pass cursor validation.
+- Added unit regressions for finite, missing, non-numeric, non-finite, and throwing timestamp values.
+- Added a guarded local-emulator fixture and callable integration checks for malformed `createdAt` values across all three ordered collections. Fixture requires project `demo-growth-engine-test` and loopback Firestore emulator.
+- Verification pending CI run. Work remains isolated to `development/chatgpt-mvp`; no production Firebase deployment or message sending.
