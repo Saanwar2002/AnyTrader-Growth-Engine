@@ -72,6 +72,9 @@ describe("Growth Engine interactive workflows", () => {
     fireEvent.click(screen.getByRole("button", { name: /Confirm import \(1\)/i }));
     expect(screen.getByRole("status").textContent).toContain("Import complete: 1 added");
     expect(screen.getByText("North Star Roofing")).toBeTruthy();
+    const importedRow = screen.getByText("North Star Roofing").closest("tr");
+    expect(within(importedRow as HTMLElement).getByText("DO NOT CONTACT")).toBeTruthy();
+    expect(within(importedRow as HTMLElement).getByRole("button", { name: /Draft/i })).toBeDisabled();
   });
 
   it("persists a created campaign when the workspace is remounted", () => {
