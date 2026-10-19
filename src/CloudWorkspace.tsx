@@ -121,6 +121,27 @@ export default function CloudWorkspace() {
     setLeadCampaignId((current) => campaignResult.campaigns.some((campaign) => campaign.id === current) ? current : campaignResult.campaigns[0]?.id ?? "");
   }, [api]);
 
+  const loadMoreCampaigns = useCallback(async () => {
+    if (!api || !organisationId || !nextCampaignPageToken || loadingMoreCampaigns) return;
+    const requestId = workspaceLoadIdRef.current;
+    const requestedOrganisationId = organisationId;
+    setLoadingMoreCampaigns(true); setError("");
+    try {
+      const result = await api.listCampaigns({ organisationId: requestedOrganisationId, pageToken: nextCampaignPageToken });
+      if (requestId !== workspaceLoadIdRef.current || requestedOrganisationId !== currentOrganisationIdRef.current) return;
+      setCampaigns((current) => {
+        const known = new Set(current.map((campaign) => campaign.id));
+        return [...current, ...result.campaigns.filter((campaign) => !known.has(campaign.id))];
+      });
+      setHasMoreCampaigns(result.hasMoreCampaigns === true);
+      setNextCampaignPageToken(result.nextPageToken ?? null);
+    } catch (reason) {
+      if (requestId === workspaceLoadIdRef.current) setError(readableError(reason));
+    } finally {
+      if (requestId === workspaceLoadIdRef.current) setLoadingMoreCampaigns(false);
+    }
+  }, [api, organisationId, nextCampaignPageToken, loadingMoreCampaigns]);
+
   const loadMoreLeads = useCallback(async () => {
     if (!api || !organisationId || !nextLeadPageToken || loadingMoreLeads) return;
     const requestId = workspaceLoadIdRef.current;
