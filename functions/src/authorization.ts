@@ -102,6 +102,12 @@ export function isValidCampaignStatus(value: unknown): value is ServerCampaignSt
   return typeof value === "string" && SERVER_CAMPAIGN_STATUSES.includes(value as ServerCampaignStatus);
 }
 
+export function hasConsistentDraftCampaign(draftCampaignId: unknown, leadCampaignId: unknown): boolean {
+  return isValidDocumentId(draftCampaignId)
+    && isValidDocumentId(leadCampaignId)
+    && draftCampaignId === leadCampaignId;
+}
+
 
 export function getOutreachDraftReviewState(leadExists: boolean, doNotContact: unknown, contactReviewStatus?: unknown): {
   leadSuppressed: boolean;
