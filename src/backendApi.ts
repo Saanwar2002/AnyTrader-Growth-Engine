@@ -18,7 +18,7 @@ export interface OutreachDraftSummary { id: string; leadId: string; campaignId: 
 /** Typed boundary for callable functions. All authorisation still happens server-side. */
 export function createGrowthEngineApi(call: CallableInvoker) {
   return {
-    listMyOrganisations: () => call<Record<string, never>, { organisations: OrganisationSummary[]; hasMoreOrganisations: boolean }>("listMyOrganisations", {}),
+    listMyOrganisations: (pageToken?: string) => call<{ pageToken?: string }, { organisations: OrganisationSummary[]; hasMoreOrganisations: boolean; nextPageToken: string | null }>("listMyOrganisations", pageToken ? { pageToken } : {}),
     createOrganisation: (payload: { name: string }) => call<typeof payload, OrganisationSummary>("createOrganisation", payload),
     createCampaign: (payload: CampaignInput) => call<CampaignInput, { campaignId: string; status: ServerCampaignStatus }>("createCampaign", payload),
     updateCampaignStatus: (payload: { organisationId: string; campaignId: string; status: ServerCampaignStatus }) => call<typeof payload, { campaignId: string; status: ServerCampaignStatus }>("updateCampaignStatus", payload),
