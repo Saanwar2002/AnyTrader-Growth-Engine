@@ -60,6 +60,12 @@ export function calculateLeadCompleteness(input: {
 }
 
 
+export function canMarkLeadContacted(doNotContact: unknown): boolean {
+  // Contact history must also fail closed when a legacy or malformed lead lacks
+  // an explicit, verified opt-in to contact.
+  return doNotContact === false;
+}
+
 export function canCreateServerOutreachDraft(doNotContact: unknown): boolean {
   // Fail closed: only an explicit boolean false is contactable. Missing or malformed
   // suppression data must never silently permit an outreach draft.
