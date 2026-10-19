@@ -325,7 +325,9 @@ export const createOutreachDraft = onCall(async (request) => {
     const leadSnapshot = await transaction.get(leadRef);
     if (!leadSnapshot.exists) throw new HttpsError("not-found", "Lead was not found in this organisation.");
     const lead = leadSnapshot.data() ?? {};
-    if (!canCreateServerOutreachDraft(lead.doNotContact)) throw new HttpsError("failed-precondition", "This lead is suppressed. Remove the restriction before creating an outreach draft.");
+    if (!canCreateServerOutreachDraft(lead.doNotContact)) throw new HttpsError("failed-precondition", lead.doNotContact === true
+      ? "This lead is suppressed. Remove the restriction before creating an outreach draft."
+      : "The lead contact restriction is unverified; resolve it before creating an outreach draft.");
     campaignId = requireDocumentId(lead.campaignId, "lead campaignId");
     const campaignRef = db.collection("organisations").doc(organisationId).collection("campaigns").doc(campaignId);
     const campaignSnapshot = await transaction.get(campaignRef);
@@ -391,7 +393,9 @@ export const updateOutreachDraft = onCall(async (request) => {
     const leadSnapshot = await transaction.get(leadRef);
     if (!leadSnapshot.exists) throw new HttpsError("failed-precondition", "The lead for this draft no longer exists.");
     const lead = leadSnapshot.data() ?? {};
-    if (!canCreateServerOutreachDraft(lead.doNotContact)) throw new HttpsError("failed-precondition", "This lead is suppressed. Remove the restriction before editing an outreach draft.");
+    if (!canCreateServerOutreachDraft(lead.doNotContact)) throw new HttpsError("failed-precondition", lead.doNotContact === true
+      ? "This lead is suppressed. Remove the restriction before editing an outreach draft."
+      : "The lead contact restriction is unverified; resolve it before editing an outreach draft.");
     const campaignId = requireDocumentId(lead.campaignId, "lead campaignId");
     const campaignRef = db.collection("organisations").doc(organisationId).collection("campaigns").doc(campaignId);
     const campaignSnapshot = await transaction.get(campaignRef);
