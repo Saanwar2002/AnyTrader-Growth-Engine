@@ -417,10 +417,14 @@ export const listOutreachDrafts = onCall(async (request) => {
       const review = relationshipValid
         ? getOutreachDraftReviewState(leadExists, lead?.doNotContact, lead?.contactReviewStatus)
         : {
-          leadSuppressed: false,
+          // Keep an explicit lead restriction visible even when another integrity
+          // problem also requires review. Integrity warnings must never mask suppression.
+          leadSuppressed: leadExists && (lead?.doNotContact === true || lead?.contactReviewStatus === "blocked"),
           requiresReview: true,
           reviewReason: leadExists
-            ? "Draft campaign does not match its lead; review the record before use."
+            ? (lead?.doNotContact === true || lead?.contactReviewStatus === "blocked"
+              ? "Lead is suppressed and the draft campaign does not match its lead; do not contact."
+              : "Draft campaign does not match its lead; review the record before use.")
             : "Lead record is missing; review before use.",
         };
       return {
