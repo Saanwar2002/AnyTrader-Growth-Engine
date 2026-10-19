@@ -183,6 +183,23 @@ describe("CSV import safety edge cases", () => {
     ]);
   });
 
+  it("skips imported rows with invalid non-empty email addresses", () => {
+    const result = parseLeadCsv("businessName,email\nNorth Star Decorators,not-an-email");
+    expect(result.rows).toEqual([]);
+    expect(result.errors).toEqual(["Row 2: email address is not valid; row skipped."]);
+  });
+
+  it("skips imported rows with email addresses longer than the server limit", () => {
+    const result = parseLeadCsv(`businessName,email\nNorth Star Decorators,${"a".repeat(250)}@example.com`);
+    expect(result.rows).toEqual([]);
+    expect(result.errors).toEqual(["Row 2: email exceeds the maximum length of 254 characters; row skipped."]);
+  });
+
+  it("skips imported rows with business names longer than the server limit", () => {
+    const result = parseLeadCsv(`businessName,email\n${"N".repeat(161)},hello@example.com`);
+    expect(result.rows).toEqual([]);
+    expect(result.errors).toEqual(["Row 2: businessname exceeds the maximum length of 160 characters; row skipped."]);
+  });
   it("keeps suppression as a hard draft-creation gate", () => {
     const suppressedLead = { doNotContact: true };
     expect(canCreateOutreachDraft(suppressedLead)).toBe(false);
