@@ -221,6 +221,20 @@ describe("cloud authentication gate", () => {
     expect((screen.getByRole("button", { name: /create draft/i }) as HTMLButtonElement).disabled).toBe(true);
   });
 
+  it("disables clearing a pending restriction for non-admin organisation roles", async () => {
+    mocks.currentUser = { email: "member@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "member" }] });
+    mocks.api.listLeads.mockResolvedValue({ leads: [{
+      id: "lead-pending-member", campaignId: "campaign-1", businessName: "Member Pending Painter", category: "Painters",
+      location: "Manchester", website: "", email: "", phone: "", source: "manual", status: "new",
+      score: 40, scoreReasons: [], notes: "", doNotContact: true, contactRestrictionVerified: false,
+      contactReviewStatus: "pending", createdAt: null,
+    }] });
+    render(<CloudWorkspace api={mocks.api} />);
+    await screen.findByText("Member Pending Painter");
+    expect((screen.getByRole("button", { name: "Review & clear restriction" }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
   it("fails closed when a lead contact restriction cannot be verified", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
