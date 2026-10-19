@@ -344,3 +344,18 @@ describe("adversarial pagination cursor regression cases", () => {
     expect(isValidOrganisationCollectionPageToken(token, "org-1", "leads")).toBe(false);
   });
 });
+
+describe("contact actions fail closed for malformed review metadata", () => {
+  it.each([undefined, null, "pending", "blocked", "unknown", 0, false, {}])(
+    "does not allow contact actions when review state is %j", (status) => {
+      expect(canCreateServerOutreachDraft(false, status)).toBe(false);
+      expect(canMarkLeadContacted(false, status)).toBe(false);
+    },
+  );
+  it("allows the legacy path only when suppression is explicitly false and status is absent", () => {
+    expect(canCreateServerOutreachDraft(false, undefined)).toBe(true);
+    expect(canMarkLeadContacted(false, undefined)).toBe(true);
+    expect(canCreateServerOutreachDraft(undefined, undefined)).toBe(false);
+    expect(canMarkLeadContacted(undefined, undefined)).toBe(false);
+  });
+});
