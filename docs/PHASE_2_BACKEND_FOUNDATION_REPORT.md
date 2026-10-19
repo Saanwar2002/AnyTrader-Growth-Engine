@@ -7,28 +7,33 @@
 
 ## Delivered endpoints
 
-All data endpoints require an authenticated Firebase callable request. Organisation-owned documents are scoped under `organisations/{organisationId}/...`; the supplied organisation ID is never sufficient without a membership check.
+All data endpoints require an authenticated Firebase callable request. Organisation-owned documents are scoped under `organisations/{organisationId}/...`; a supplied organisation ID is never sufficient without a membership check.
 
 - `createOrganisation`: validates the name and transactionally creates an organisation plus its owner membership.
 - `createCampaign`: checks membership, validates bounded fields, and permits creation only for owner/admin.
+- `updateCampaignStatus`: permits only owner/admin to set one of the allowed campaign statuses.
 - `listCampaigns`: checks membership and returns at most 100 campaigns for that organisation.
 - `listLeads`: checks membership and returns at most 200 leads for that organisation.
-- `createLead`: checks a writable role and verifies that the campaign exists inside the same organisation. Lead completeness score and explanations are calculated server-side.
-- `updateLeadStatus`: validates allowed statuses, checks organisation membership, blocks moving a suppressed lead to contacted, and transactionally writes the status change with an activity event.
-- `updateLeadNotes`: validates note length and transactionally writes the note change with an activity event.
+- `createLead`: checks a writable role and verifies the campaign exists inside the same organisation. Lead completeness score and explanations are calculated server-side.
+- `updateLeadContact`: validates lead fields and recalculates completeness server-side.
+- `updateLeadStatus`: validates allowed statuses, blocks moving a suppressed lead to contacted, and writes the status change plus activity event transactionally.
+- `updateLeadNotes`: validates note length and transactionally writes the note change plus activity event.
 - `setLeadSuppression`: validates a strict boolean and transactionally records suppression changes. Owners/admins/members may suppress; only owners/admins may remove the restriction.
-- `createOutreachDraft`: creates draft-only records; it has no send capability. The lead read, suppression check, draft creation, and activity entry are in one Firestore transaction to prevent a concurrent suppression update from racing past the guard.
+- `createOutreachDraft`: creates draft-only records; no send capability exists. The lead read, suppression check, draft creation, and activity entry are in one Firestore transaction.
+- `listOutreachDrafts`: checks organisation membership and returns at most 200 drafts.
+- `updateOutreachDraft`: validates subject/body and transactionally checks the linked lead is not suppressed before editing; creates an activity event.
+- `deleteOutreachDraft`: deletes a draft and records an activity event transactionally. It never sends a message.
 
 ## Security design
 
 - Caller identity is derived from Firebase callable request context, never from a supplied UID.
-- Organisation IDs and document IDs are validated against bounded path-safe formats.
+- Organisation and document IDs are validated against bounded path-safe formats.
 - Membership role is read from Firestore, not accepted from the request body.
-- Campaign creation is owner/admin-only. Lead edits and draft creation require owner/admin/member; viewers are read-only.
-- Firestore direct client access remains deny-by-default. The Admin SDK bypasses those rules, so every callable enforces its own authentication, membership, and role checks.
+- Campaign creation/status changes are owner/admin-only. Lead and draft mutations require owner/admin/member; viewers are read-only.
+- Firestore direct client access remains deny-by-default. The Admin SDK bypasses those rules, so every callable enforces authentication, membership, and role checks.
 - Lead status, email, text lengths, and suppression inputs are validated server-side.
-- Related lead mutations and activity records are written transactionally.
-- Suppression is a server-side gate for draft creation; removing suppression requires an owner/admin.
+- Related lead/draft mutations and activity records are written transactionally.
+- Suppression is a server-side gate for creating/editing drafts; removing suppression requires an owner/admin.
 - No API keys or Firebase service-account credentials are included in the repository.
 
 ## Known gaps — do not expose as production service yet
@@ -37,7 +42,7 @@ All data endpoints require an authenticated Firebase callable request. Organisat
 - The frontend is not connected to Firebase Auth or these endpoints; it remains a browser-local demo.
 - No Firebase Emulator Suite integration tests have run, and tenant isolation is not yet proven end-to-end.
 - No App Check enforcement, rate limiting, idempotency keys, comprehensive security audit log, or usage quotas yet.
-- CSV batch import, full draft list/edit/delete operations, lead contact editing, and campaign status mutation are not yet implemented server-side.
+- Server-side CSV batch import and cursor pagination are not implemented.
 - The Functions runtime is configured for Node.js 22, while the remote development workspace runs Node.js 20. Build and pure guard tests passed there, but deployment must use the configured runtime.
 
 ## Verification performed in the remote development workspace
@@ -45,10 +50,10 @@ All data endpoints require an authenticated Firebase callable request. Organisat
 | Check | Result |
 |---|---|
 | `npm run typecheck` | Passed |
-| `npm test` | Passed — 46 tests across 4 files |
+| `npm test` | Passed — 47 tests across 4 files |
 | `npm run build` | Passed |
 | `npm --prefix functions run build` | Passed |
-| `npm --prefix functions test` | Passed — 11 guard tests |
+| `npm --prefix functions test` | Passed — 12 server guard tests |
 | `npm audit` | Passed — 0 reported vulnerabilities |
 | `npm --prefix functions audit` | Passed — 0 reported vulnerabilities |
 
