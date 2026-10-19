@@ -86,6 +86,38 @@ describe("cloud authentication gate", () => {
     await waitFor(() => expect(mocks.api.updateLeadNotes).toHaveBeenCalledWith({ organisationId: "org-1", leadId: "lead-1", notes: "Call after reviewing provider requirements." }));
   });
 
+
+  it("does not let a stale tenant response replace the newly selected organisation", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [
+        { organisationId: "org-1", name: "First Workspace", role: "owner" },
+        { organisationId: "org-2", name: "Second Workspace", role: "member" },
+      ],
+      hasMoreOrganisations: false,
+    });
+
+    let resolveFirstTenant!: (value: { leads: any[] }) => void;
+    const firstTenantLeads = new Promise<{ leads: any[] }>((resolve) => { resolveFirstTenant = resolve; });
+    const lead = (id: string, businessName: string) => ({
+      id, campaignId: "campaign-1", businessName, category: "Painters", location: "Manchester",
+      website: "", email: "", phone: "", source: "manual", status: "new", score: 20,
+      scoreReasons: [], notes: "", doNotContact: false, createdAt: null,
+    });
+    mocks.api.listLeads.mockImplementation(({ organisationId }: { organisationId: string }) =>
+      organisationId === "org-1" ? firstTenantLeads : Promise.resolve({ leads: [lead("lead-2", "Second Tenant Lead")] })
+    );
+
+    render(<CloudWorkspace />);
+    await waitFor(() => expect(mocks.api.listLeads).toHaveBeenCalledWith({ organisationId: "org-1" }));
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
+    expect(await screen.findByText("Second Tenant Lead")).toBeTruthy();
+
+    resolveFirstTenant({ leads: [lead("lead-1", "First Tenant Secret Lead")] });
+    await waitFor(() => expect(screen.queryByText("First Tenant Secret Lead")).toBeNull());
+    expect(screen.getByText("Second Tenant Lead")).toBeTruthy();
+  });
+
   it("allows an authenticated user to edit a draft without sending it", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
