@@ -8,6 +8,7 @@ import {
   canTransitionLeadStatus,
   hasCampaignWritePermission,
   hasLeadWritePermission,
+  isValidCampaignStatus,
   isValidDocumentId,
   isValidEmailAddress,
   isValidOrganisationId,
@@ -113,6 +114,21 @@ export const listCampaigns = onCall(async (request) => {
   };
 });
 
+export const updateCampaignStatus = onCall(async (request) => {
+  const uid = requireUid(request.auth?.uid);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const organisationId = requireOrganisationId(data.organisationId);
+  const campaignId = requireDocumentId(data.campaignId, "campaignId");
+  if (!isValidCampaignStatus(data.status)) throw new HttpsError("invalid-argument", "Campaign status is not valid.");
+  const membership = await requireMembership(organisationId, uid);
+  if (!hasCampaignWritePermission(membership.role)) throw new HttpsError("permission-denied", "Only organisation owners and admins can change campaign status.");
+  const campaignRef = db.collection("organisations").doc(organisationId).collection("campaigns").doc(campaignId);
+  const campaignSnapshot = await campaignRef.get();
+  if (!campaignSnapshot.exists) throw new HttpsError("not-found", "Campaign was not found in this organisation.");
+  await campaignRef.update({ status: data.status, updatedAt: FieldValue.serverTimestamp(), updatedBy: uid });
+  return { campaignId, status: data.status };
+});
+
 export const listLeads = onCall(async (request) => {
   const uid = requireUid(request.auth?.uid);
   const data = (request.data ?? {}) as Record<string, unknown>;
@@ -154,6 +170,26 @@ export const createLead = onCall(async (request) => {
     transaction.create(activity, { leadId: lead.id, actorUid: uid, message: `Lead created: ${fields.businessName}`, createdAt: now });
   });
   return { leadId: lead.id, organisationId, campaignId, ...fields, status: "new" as const, source: "manual" as const, score: completeness.score, scoreReasons: completeness.reasons, doNotContact: false };
+});
+
+export const updateLeadContact = onCall(async (request) => {
+  const uid = requireUid(request.auth?.uid);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const organisationId = requireOrganisationId(data.organisationId);
+  const leadId = requireDocumentId(data.leadId, "leadId");
+  const fields = normaliseLeadFields(data);
+  await requireLeadEditor(organisationId, uid);
+  const leadRef = db.collection("organisations").doc(organisationId).collection("leads").doc(leadId);
+  const activity = db.collection("organisations").doc(organisationId).collection("leadActivities").doc();
+  const completeness = calculateLeadCompleteness(fields);
+  await db.runTransaction(async (transaction: Transaction) => {
+    const leadSnapshot = await transaction.get(leadRef);
+    if (!leadSnapshot.exists) throw new HttpsError("not-found", "Lead was not found in this organisation.");
+    const now = FieldValue.serverTimestamp();
+    transaction.update(leadRef, { ...fields, score: completeness.score, scoreReasons: completeness.reasons, updatedAt: now, updatedBy: uid });
+    transaction.create(activity, { leadId, actorUid: uid, message: "Lead contact details updated", createdAt: now });
+  });
+  return { leadId, ...fields, score: completeness.score, scoreReasons: completeness.reasons };
 });
 
 export const updateLeadStatus = onCall(async (request) => {
@@ -247,4 +283,65 @@ export const createOutreachDraft = onCall(async (request) => {
     transaction.create(activity, { leadId, actorUid: uid, message: "Outreach draft created; not sent", createdAt: now });
   });
   return { draftId: draft.id, leadId, campaignId, subject, body, status: "draft" as const, sent: false };
+});
+
+
+export const listOutreachDrafts = onCall(async (request) => {
+  const uid = requireUid(request.auth?.uid);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const organisationId = requireOrganisationId(data.organisationId);
+  await requireMembership(organisationId, uid);
+  const snapshot = await db.collection("organisations").doc(organisationId).collection("outreachDrafts").orderBy("createdAt", "desc").limit(200).get();
+  return {
+    drafts: snapshot.docs.map((doc: QueryDocumentSnapshot) => {
+      const draft = doc.data();
+      return { id: doc.id, leadId: draft.leadId, campaignId: draft.campaignId, subject: draft.subject, body: draft.body, status: "draft" as const, createdAt: draft.createdAt?.toDate?.().toISOString() ?? null };
+    }),
+  };
+});
+
+export const updateOutreachDraft = onCall(async (request) => {
+  const uid = requireUid(request.auth?.uid);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const organisationId = requireOrganisationId(data.organisationId);
+  const draftId = requireDocumentId(data.draftId, "draftId");
+  const subject = normaliseRequiredText(data.subject, 200);
+  const body = normaliseRequiredText(data.body, 10000);
+  if (!subject || !body) throw new HttpsError("invalid-argument", "Draft subject and body are required and must fit the allowed limits.");
+  await requireLeadEditor(organisationId, uid);
+  const draftRef = db.collection("organisations").doc(organisationId).collection("outreachDrafts").doc(draftId);
+  const activity = db.collection("organisations").doc(organisationId).collection("leadActivities").doc();
+  let leadId = "";
+  await db.runTransaction(async (transaction: Transaction) => {
+    const draftSnapshot = await transaction.get(draftRef);
+    if (!draftSnapshot.exists) throw new HttpsError("not-found", "Outreach draft was not found in this organisation.");
+    const draft = draftSnapshot.data() ?? {};
+    leadId = requireDocumentId(draft.leadId, "draft leadId");
+    const leadRef = db.collection("organisations").doc(organisationId).collection("leads").doc(leadId);
+    const leadSnapshot = await transaction.get(leadRef);
+    if (!leadSnapshot.exists) throw new HttpsError("failed-precondition", "The lead for this draft no longer exists.");
+    if (!canCreateServerOutreachDraft(leadSnapshot.data()?.doNotContact)) throw new HttpsError("failed-precondition", "This lead is suppressed. Remove the restriction before editing an outreach draft.");
+    const now = FieldValue.serverTimestamp();
+    transaction.update(draftRef, { subject, body, updatedAt: now, updatedBy: uid });
+    transaction.create(activity, { leadId, actorUid: uid, message: "Outreach draft updated; not sent", createdAt: now });
+  });
+  return { draftId, leadId, subject, body, status: "draft" as const, sent: false };
+});
+
+export const deleteOutreachDraft = onCall(async (request) => {
+  const uid = requireUid(request.auth?.uid);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const organisationId = requireOrganisationId(data.organisationId);
+  const draftId = requireDocumentId(data.draftId, "draftId");
+  await requireLeadEditor(organisationId, uid);
+  const draftRef = db.collection("organisations").doc(organisationId).collection("outreachDrafts").doc(draftId);
+  const activity = db.collection("organisations").doc(organisationId).collection("leadActivities").doc();
+  await db.runTransaction(async (transaction: Transaction) => {
+    const draftSnapshot = await transaction.get(draftRef);
+    if (!draftSnapshot.exists) throw new HttpsError("not-found", "Outreach draft was not found in this organisation.");
+    const leadId = requireDocumentId(draftSnapshot.data()?.leadId, "draft leadId");
+    transaction.delete(draftRef);
+    transaction.create(activity, { leadId, actorUid: uid, message: "Outreach draft deleted; no message was sent", createdAt: FieldValue.serverTimestamp() });
+  });
+  return { draftId, deleted: true, sent: false };
 });
