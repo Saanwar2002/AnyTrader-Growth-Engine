@@ -7,7 +7,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "vitest run src/authorization.test.ts",
+    "test": "vitest run --config vitest.config.ts src/authorization.test.ts",
     "emulate": "npm run build && npx --yes firebase-tools emulators:start --only auth,functions,firestore"
   },
   "dependencies": {
