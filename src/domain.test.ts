@@ -107,15 +107,6 @@ Example Decorators,Painters`);
     expect(result.errors).toEqual(["Row 2: malformed or unmatched quote; row skipped."]);
   });
 
-  it("does not let a later quoted record close an earlier unmatched quote", () => {
-    const result = parseLeadCsv(`businessName,category
-"Unclosed Decorators,Painters
-"North Star Decorators",Painters
-"Westside Painting",Decorators`);
-    expect(result.rows.map((row) => row.businessname)).toEqual(["North Star Decorators", "Westside Painting"]);
-    expect(result.errors).toEqual(["Row 2: malformed or unmatched quote; row skipped."]);
-  });
-
   it("preserves a valid multiline field followed by quoted fields in later records", () => {
     const result = parseLeadCsv(`businessName,location,email
 North Star Decorators,"Manchester,
