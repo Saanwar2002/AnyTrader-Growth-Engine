@@ -61,7 +61,9 @@ export function calculateLeadCompleteness(input: {
 
 
 export function canCreateServerOutreachDraft(doNotContact: unknown): boolean {
-  return doNotContact !== true;
+  // Fail closed: only an explicit boolean false is contactable. Missing or malformed
+  // suppression data must never silently permit an outreach draft.
+  return doNotContact === false;
 }
 
 export function isValidEmailAddress(value: string): boolean {
