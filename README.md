@@ -15,11 +15,11 @@ A standalone, multi-brand lead discovery and provider acquisition workspace for 
 - Create and edit outreach drafts; no send action exists.
 - Local activity history and a demo reset action.
 - Synthetic example data clearly labelled as fictional.
-- Automated tests for lead normalization/scoring, CSV parsing, demo persistence, and server-rendered app-shell smoke checks.
+- Automated tests for lead normalization/scoring, CSV parsing, demo persistence, interactive campaign/CSV/suppression/draft workflows, and server-side authorization guards.
 
 ## Run locally
 
-Requirements: Node.js 20 or newer and npm.
+Frontend requirements: Node.js 20 or newer and npm. The Firebase Functions backend targets Node.js 22.
 
 ```bash
 npm ci
@@ -34,6 +34,9 @@ Quality checks:
 npm run typecheck
 npm test
 npm run build
+npm --prefix functions ci
+npm --prefix functions run build
+npm --prefix functions test
 ```
 
 ## CSV import format
@@ -61,7 +64,8 @@ Import starts with a review summary, skips blank-name rows and businesses alread
 This release is a browser-local demo, not a secure multi-user service:
 
 - It uses browser localStorage, not a cloud database. Data is local to that browser profile and may be lost if browser storage is cleared.
-- Authentication, organisation membership, tenant isolation, server APIs, cloud persistence, production audit logs, subscription billing, and live source-provider integrations are not implemented.
+- The frontend still uses browser localStorage and is not connected to the backend. A Firebase Functions scaffold now provides authenticated organisation creation and membership-checked campaign endpoints, with Firestore direct client access denied by default. It has not been connected to the UI, deployed, or integration-tested against Firebase emulators.
+- There is no configured dedicated Firebase project, sign-in screen, emulator-backed tenant-isolation test, production audit system, subscription billing, or live source-provider integration.
 - Do not use it to store real customer data, sensitive personal data, or production credentials.
 - The scoring model measures record completeness, not trustworthiness, service quality, or business legitimacy.
 - CSV imports are not sent to an external service.
@@ -71,7 +75,7 @@ This release is a browser-local demo, not a secure multi-user service:
 ## Roadmap
 
 1. **Local demo MVP:** usable campaign and lead workflows, synthetic data, CSV import/export, drafts, and unit tests.
-2. **Authentication and tenant-safe persistence:** dedicated Firebase project, verified identity, organisations/memberships, deny-by-default rules, and isolation tests.
+2. **Authentication and tenant-safe persistence:** configure the dedicated Firebase project, connect Firebase Auth to the UI, exercise callable endpoints in emulators, add tenant-isolation integration tests, and only then replace local demo persistence.
 3. **Workflow hardening:** richer import preview, lead details/notes, activity history, opt-out/suppression controls, and stronger CSV edge-case tests.
 4. **Approved source adapters:** only APIs/data providers whose terms permit the intended use.
 5. **Server-side AI assistance:** validated classification and draft generation with usage limits and human review.
@@ -84,5 +88,5 @@ This release is a browser-local demo, not a secure multi-user service:
 - Respect data-source terms, rate limits, privacy law, and applicable marketing rules.
 - Do not commit API keys, passwords, access tokens, or personal lead data.
 - Keep synthetic fixtures clearly labelled as fictional.
-- Use server-side permission checks for all privileged operations when the backend is introduced.
+- Use server-side permission checks for all privileged operations; the initial callable Functions scaffold checks Firebase Auth context and organisation membership.
 - Use a separate Firebase project for Growth Engine; never reuse production AnyTrader credentials or databases.
