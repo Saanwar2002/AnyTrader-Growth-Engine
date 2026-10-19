@@ -12,18 +12,19 @@ This is a source-inspection work queue, not a certification or test report.
 - Draft creation and editing check the associated lead's suppression state inside a Firestore transaction.
 - `listOutreachDrafts` resolves current lead records and returns `leadSuppressed`, `requiresReview`, and `reviewReason`; missing lead records and records without an explicit boolean `doNotContact: false` are flagged for human review (fail closed).
 - The cloud UI displays a warning for drafts needing review and disables editing while the warning applies; deletion remains available.
-- UI regression tests now cover the suppression warning/edit lock, the 100-membership truncation warning, and stale responses arriving after a tenant switch.
-- Workspace data refreshes now ignore stale asynchronous results and clear tenant-scoped data on sign-out or when no organisation is selected.
+- UI regression tests cover the suppression warning/edit lock, loading a second organisation page, clearing previous-tenant records during workspace switching, and ignoring stale responses after a tenant switch.
+- Workspace data refreshes ignore stale asynchronous results and clear tenant-scoped data on sign-out, when no organisation is selected, and immediately when switching organisations; draft editing state is cleared at the same boundary.
 - Organisation listing now uses a validated Firestore membership cursor token, fetches 101 records to determine whether more pages exist, returns 100 per page, and provides a UI Load more control. Tokens are checked server-side for expected path shape and ownership by the signed-in UID.
 - The organisation pagination UI merges additional pages without replacing the existing list and has a regression test for loading a second page.
 - Pure authorization tests now cover missing, suppressed, unverified, and explicitly contactable draft review states, plus organisation pagination token path/UID validation.
 - The typed frontend API has a regression test for forwarding a pagination token to the callable.
-- The emulator smoke script now checks a suppression restriction added after draft creation, including list warning and server-side rejection of draft edits.
+- The emulator smoke script checks a suppression restriction added after draft creation, including list warning and server-side rejection of draft edits. It now also checks that one organisation cannot create a draft for another organisation's lead or update/delete that organisation's draft.
+- Draft creation and editing now verify that the lead's campaign document exists within the same organisation, and fail closed if the campaign reference is missing.
 
 ## Work required before Firebase connection
 1. Run typecheck, unit tests and production build for the current branch when a working execution environment is available; latest membership validation and workspace-switch regression tests also remain unverified by execution.
 2. Add emulator integration coverage for missing lead records and malformed/missing `doNotContact` values, and run a 101+ membership pagination test.
-3. Test cross-tenant references for leads, campaigns and drafts.
+3. Run the expanded cross-tenant draft/lead checks in the emulator and verify campaign-reference validation.
 4. Resolve the existing emulator transaction timeout and run the complete integration suite.
 5. Review Firestore rules and environment configuration before deploying to a dedicated Firebase project.
 
@@ -41,4 +42,4 @@ This is a source-inspection work queue, not a certification or test report.
 - These changes are committed, but no current-branch typecheck, unit test, build, or emulator suite has yet been run.
 
 ## Next build focus
-Continue the callable authorization audit and integration-test reliability work; verify cross-tenant campaign/draft references and resolve the emulator transaction timeout before Firebase connection. Keep all changes on `development/chatgpt-mvp`; do not modify `main` or the original AnyTrader repository.
+Continue the callable authorization audit and integration-test reliability work; resolve the emulator transaction timeout and run the expanded cross-tenant tests before Firebase connection. Keep all changes on `development/chatgpt-mvp`; do not modify `main` or the original AnyTrader repository.
