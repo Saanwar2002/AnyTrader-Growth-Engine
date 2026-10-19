@@ -19,6 +19,8 @@ export default function CloudWorkspace() {
   const [authBusy, setAuthBusy] = useState(false);
   const [organisations, setOrganisations] = useState<OrganisationSummary[]>([]);
   const [hasMoreOrganisations, setHasMoreOrganisations] = useState(false);
+  const [nextOrganisationPageToken, setNextOrganisationPageToken] = useState<string | null>(null);
+  const [loadingMoreOrganisations, setLoadingMoreOrganisations] = useState(false);
   const [organisationId, setOrganisationId] = useState("");
   const [campaigns, setCampaigns] = useState<CampaignSummary[]>([]);
   const [leads, setLeads] = useState<LeadSummary[]>([]);
@@ -44,6 +46,7 @@ export default function CloudWorkspace() {
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const workspaceLoadIdRef = useRef(0);
+  const organisationListLoadIdRef = useRef(0);
   const currentOrganisationIdRef = useRef(organisationId);
   currentOrganisationIdRef.current = organisationId;
 
@@ -54,11 +57,35 @@ export default function CloudWorkspace() {
 
   const refreshOrganisations = useCallback(async () => {
     if (!api) return;
+    const requestId = ++organisationListLoadIdRef.current;
     const result = await api.listMyOrganisations();
+    if (requestId !== organisationListLoadIdRef.current) return;
     setOrganisations(result.organisations);
     setHasMoreOrganisations(result.hasMoreOrganisations === true);
+    setNextOrganisationPageToken(result.nextPageToken ?? null);
     setOrganisationId((current) => result.organisations.some((org) => org.organisationId === current) ? current : result.organisations[0]?.organisationId ?? "");
   }, [api]);
+
+  const loadMoreOrganisations = useCallback(async () => {
+    if (!api || !nextOrganisationPageToken || loadingMoreOrganisations) return;
+    const requestId = organisationListLoadIdRef.current;
+    setLoadingMoreOrganisations(true);
+    setError("");
+    try {
+      const result = await api.listMyOrganisations(nextOrganisationPageToken);
+      if (requestId !== organisationListLoadIdRef.current) return;
+      setOrganisations((current) => {
+        const known = new Set(current.map((org) => org.organisationId));
+        return [...current, ...result.organisations.filter((org) => !known.has(org.organisationId))];
+      });
+      setHasMoreOrganisations(result.hasMoreOrganisations === true);
+      setNextOrganisationPageToken(result.nextPageToken ?? null);
+    } catch (reason) {
+      if (requestId === organisationListLoadIdRef.current) setError(readableError(reason));
+    } finally {
+      if (requestId === organisationListLoadIdRef.current) setLoadingMoreOrganisations(false);
+    }
+  }, [api, nextOrganisationPageToken, loadingMoreOrganisations]);
 
   const refreshWorkspace = useCallback(async (orgId: string) => {
     const requestId = ++workspaceLoadIdRef.current;
@@ -82,7 +109,8 @@ export default function CloudWorkspace() {
   useEffect(() => {
     if (!user || !api) {
       workspaceLoadIdRef.current += 1;
-      setOrganisations([]); setHasMoreOrganisations(false); setOrganisationId("");
+      organisationListLoadIdRef.current += 1;
+      setOrganisations([]); setHasMoreOrganisations(false); setNextOrganisationPageToken(null); setLoadingMoreOrganisations(false); setOrganisationId("");
       setCampaigns([]); setLeads([]); setLeadNotes({}); setDrafts([]);
       return;
     }
@@ -173,7 +201,7 @@ export default function CloudWorkspace() {
   return <main className="cloud-shell cloud-dashboard"><header className="cloud-header"><div><div className="cloud-brand">AT <span>Growth Engine</span></div><p className="cloud-eyebrow">FIREBASE CLOUD MODE</p></div><div className="cloud-user"><span>{user.email}</span><button className="cloud-secondary" onClick={() => void signOut(client.auth)}>Sign out</button></div></header>
     <section className="cloud-card cloud-intro"><div><p className="cloud-eyebrow">PERSISTED WORKSPACE</p><h1>Provider acquisition workspace</h1><p className="cloud-muted">Changes are stored through authenticated server functions. Outreach remains draft-only.</p></div><span className="cloud-safe-badge">NO AUTOMATIC SENDING</span></section>
     {notice && <p className="cloud-notice" role="status">{notice}</p>}{error && <p className="cloud-error" role="alert">{error}</p>}
-    <section className="cloud-card"><div className="cloud-section-head"><div><p className="cloud-eyebrow">TENANT CONTEXT</p><h2>Organisation</h2></div></div>{hasMoreOrganisations && <p className="cloud-error" role="alert">Your account has at least 100 organisation memberships. This view currently shows up to 100; organisation pagination must be enabled before you can reliably access every workspace.</p>}{organisations.length > 0 ? <label className="cloud-field">Current organisation<select value={organisationId} onChange={(event) => setOrganisationId(event.target.value)}>{organisations.map((org) => <option key={org.organisationId} value={org.organisationId}>{org.name} · {org.role}</option>)}</select></label> : <p className="cloud-muted">Create an organisation to begin. Your account cannot read other organisations unless you are a member.</p>}
+    <section className="cloud-card"><div className="cloud-section-head"><div><p className="cloud-eyebrow">TENANT CONTEXT</p><h2>Organisation</h2></div></div>{hasMoreOrganisations && <div className="cloud-pagination"><p className="cloud-muted">Showing {organisations.length} organisations. More workspaces are available.</p><button className="cloud-secondary" type="button" disabled={loadingMoreOrganisations} onClick={() => void loadMoreOrganisations()}>{loadingMoreOrganisations ? "Loading workspaces…" : "Load more organisations"}</button></div>}{organisations.length > 0 ? <label className="cloud-field">Current organisation<select value={organisationId} onChange={(event) => setOrganisationId(event.target.value)}>{organisations.map((org) => <option key={org.organisationId} value={org.organisationId}>{org.name} · {org.role}</option>)}</select></label> : <p className="cloud-muted">Create an organisation to begin. Your account cannot read other organisations unless you are a member.</p>}
       <form className="cloud-inline-form" onSubmit={(event) => void createOrganisation(event)}><label className="cloud-field">{organisations.length ? "Create another organisation" : "Organisation name"}<input required maxLength={100} value={organisationName} onChange={(event) => setOrganisationName(event.target.value)} placeholder="e.g. AnyTrader pilot" /></label><button className="cloud-primary" disabled={busy || !organisationName.trim()}>{busy ? "Saving…" : "Create organisation"}</button></form></section>
     {selectedOrganisation && <><section className="cloud-columns"><article className="cloud-card"><div className="cloud-section-head"><div><p className="cloud-eyebrow">CAMPAIGNS</p><h2>Campaign setup</h2></div><span className="cloud-count">{campaigns.length}</span></div><form className="cloud-form" onSubmit={(event) => void createCampaign(event)}><label>Campaign name<input required maxLength={120} value={campaignName} onChange={(event) => setCampaignName(event.target.value)} placeholder="Manchester painter pilot" /></label><label>Brand<input required maxLength={100} value={campaignBrand} onChange={(event) => setCampaignBrand(event.target.value)} /></label><label>Service category<input required maxLength={100} value={campaignCategory} onChange={(event) => setCampaignCategory(event.target.value)} /></label><label>Target location<input required maxLength={160} value={campaignLocation} onChange={(event) => setCampaignLocation(event.target.value)} /></label><label>Goal<input maxLength={500} value={campaignGoal} onChange={(event) => setCampaignGoal(event.target.value)} /></label><button className="cloud-primary" disabled={busy}>{busy ? "Saving…" : "Create campaign"}</button></form><div className="cloud-list">{campaigns.map((campaign) => <div className="cloud-list-item" key={campaign.id}><div><strong>{campaign.name}</strong><small>{campaign.category} · {campaign.location}</small></div><span className="cloud-status">{statusLabel(campaign.status)}</span></div>)}{!campaigns.length && <p className="cloud-empty">No campaigns yet.</p>}</div></article>
       <article className="cloud-card"><div className="cloud-section-head"><div><p className="cloud-eyebrow">LEADS</p><h2>Add a provider lead</h2></div><span className="cloud-count">{leads.length}</span></div>{campaigns.length ? <form className="cloud-form" onSubmit={(event) => void createLead(event)}><label>Campaign<select required value={leadCampaignId} onChange={(event) => setLeadCampaignId(event.target.value)}>{campaigns.map((campaign) => <option key={campaign.id} value={campaign.id}>{campaign.name}</option>)}</select></label><label>Business name<input required maxLength={160} value={leadName} onChange={(event) => setLeadName(event.target.value)} /></label><label>Service category<input maxLength={100} value={leadCategory} onChange={(event) => setLeadCategory(event.target.value)} /></label><label>Location<input maxLength={160} value={leadLocation} onChange={(event) => setLeadLocation(event.target.value)} /></label><label>Website<input type="url" maxLength={500} value={leadWebsite} onChange={(event) => setLeadWebsite(event.target.value)} placeholder="https://…" /></label><label>Email<input type="email" maxLength={254} value={leadEmail} onChange={(event) => setLeadEmail(event.target.value)} /></label><label>Phone<input maxLength={80} value={leadPhone} onChange={(event) => setLeadPhone(event.target.value)} /></label><button className="cloud-primary" disabled={busy || !leadCampaignId}>{busy ? "Saving…" : "Save lead"}</button></form> : <p className="cloud-empty">Create a campaign before adding leads.</p>}</article></section>
