@@ -59,7 +59,7 @@ const csvAliases: Record<LeadCsvField, string[]> = {
 };
 
 export function normalizeCsvHeader(value: string): string {
-  return value.toLocaleLowerCase("en-GB").replace(/[\\s_-]+/g, "").replace(/[^\\p{L}\\p{N}]/gu, "");
+  return value.toLocaleLowerCase("en-GB").replace(/[\s_-]+/g, "").replace(/[^\p{L}\p{N}]/gu, "");
 }
 
 export function suggestLeadCsvMapping(headers: string[]): LeadCsvMapping {
@@ -73,7 +73,7 @@ export function suggestLeadCsvMapping(headers: string[]): LeadCsvMapping {
 }
 
 export function inspectLeadCsvHeaders(csv: string): { headers: string[]; errors: string[] } {
-  const lines = csv.replace(/^\\uFEFF/, "").split(/\\r?\\n/);
+  const lines = csv.replace(/^\uFEFF/, "").split(/\r?\n/);
   const headerLine = lines.find((line) => line.trim().length > 0);
   if (!headerLine) return { headers: [], errors: ["CSV must contain a header and at least one data row."] };
   const values: string[] = [];
