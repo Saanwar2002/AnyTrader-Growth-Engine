@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateLeadCompleteness, canChangeSuppression, canCreateServerOutreachDraft, canTransitionLeadStatus, getOutreachDraftReviewState, hasCampaignWritePermission, hasLeadWritePermission, isValidCampaignStatus, isValidDocumentId, isValidEmailAddress, isValidLeadStatus, isValidOrganisationId, isValidOrganisationPageToken, isValidMembershipRecord, normaliseOptionalText, normaliseRequiredText } from "./authorization";
+import { calculateLeadCompleteness, canChangeSuppression, canMarkLeadContacted, canCreateServerOutreachDraft, canTransitionLeadStatus, getOutreachDraftReviewState, hasCampaignWritePermission, hasLeadWritePermission, isValidCampaignStatus, isValidDocumentId, isValidEmailAddress, isValidLeadStatus, isValidOrganisationId, isValidOrganisationPageToken, isValidMembershipRecord, normaliseOptionalText, normaliseRequiredText } from "./authorization";
 
 describe("server authorization input guards", () => {
   it("trims required text and rejects missing, non-string, blank, and overlong values", () => {
@@ -60,6 +60,14 @@ describe("server lead workflow guards", () => {
     expect(canTransitionLeadStatus("contacted", false)).toBe(true);
     expect(canTransitionLeadStatus("contacted", true)).toBe(false);
     expect(canTransitionLeadStatus("unknown", false)).toBe(false);
+  });
+
+  it("requires an explicit verified contact restriction state before marking a lead contacted", () => {
+    expect(canMarkLeadContacted(false)).toBe(true);
+    expect(canMarkLeadContacted(true)).toBe(false);
+    expect(canMarkLeadContacted(undefined)).toBe(false);
+    expect(canMarkLeadContacted(null)).toBe(false);
+    expect(canMarkLeadContacted("false")).toBe(false);
   });
 
   it("calculates lead completeness on the server with an explainable score", () => {
