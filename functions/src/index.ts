@@ -14,6 +14,7 @@ import {
   isValidEmailAddress,
   isValidOrganisationId,
   isValidOrganisationPageToken,
+  isValidMembershipRecord,
   normaliseOptionalText,
   normaliseRequiredText,
 } from "./authorization";
@@ -39,9 +40,7 @@ function requireDocumentId(value: unknown, label: string): string {
 async function requireMembership(organisationId: string, uid: string) {
   const snapshot = await db.doc(`organisations/${organisationId}/members/${uid}`).get();
   const membership = snapshot.data();
-  const validRole = membership?.role === "owner" || membership?.role === "admin"
-    || membership?.role === "member" || membership?.role === "viewer";
-  if (!snapshot.exists || membership?.uid !== uid || !validRole) {
+  if (!snapshot.exists || !isValidMembershipRecord(membership, uid)) {
     throw new HttpsError("permission-denied", "You do not have access to this organisation.");
   }
   return membership;
