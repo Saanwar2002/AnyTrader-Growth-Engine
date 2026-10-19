@@ -36,7 +36,9 @@ export function createDemoRepository(storage?: Storage | null): DemoRepository {
         const raw = target.getItem(STORAGE_KEY);
         if (!raw) return createInitialState();
         const parsed: unknown = JSON.parse(raw);
-        return isAppState(parsed) ? parsed : createInitialState();
+        if (!isAppState(parsed)) return createInitialState();
+        // Migrate older local demo records that predate contact-suppression support.
+        return { ...parsed, leads: parsed.leads.map((lead) => ({ ...lead, doNotContact: lead.doNotContact === true })) };
       } catch {
         return createInitialState();
       }
