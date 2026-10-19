@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateLeadCompleteness, canChangeSuppression, canCreateServerOutreachDraft, canTransitionLeadStatus, getOutreachDraftReviewState, hasCampaignWritePermission, hasLeadWritePermission, isValidCampaignStatus, isValidDocumentId, isValidEmailAddress, isValidLeadStatus, isValidOrganisationId, normaliseOptionalText, normaliseRequiredText } from "./authorization";
+import { calculateLeadCompleteness, canChangeSuppression, canCreateServerOutreachDraft, canTransitionLeadStatus, getOutreachDraftReviewState, hasCampaignWritePermission, hasLeadWritePermission, isValidCampaignStatus, isValidDocumentId, isValidEmailAddress, isValidLeadStatus, isValidOrganisationId, isValidOrganisationPageToken, normaliseOptionalText, normaliseRequiredText } from "./authorization";
 
 describe("server authorization input guards", () => {
   it("trims required text and rejects missing, non-string, blank, and overlong values", () => {
@@ -146,5 +146,18 @@ describe("existing outreach draft review state", () => {
       requiresReview: false,
       reviewReason: null,
     });
+  });
+});
+
+
+describe("organisation pagination token validation", () => {
+  it("accepts only a membership cursor belonging to the signed-in user", () => {
+    expect(isValidOrganisationPageToken("organisations/org-123/members/user_1", "user_1")).toBe(true);
+    expect(isValidOrganisationPageToken("organisations/org-123/members/other-user", "user_1")).toBe(false);
+    expect(isValidOrganisationPageToken("organisations/org-123/leads/user_1", "user_1")).toBe(false);
+    expect(isValidOrganisationPageToken("organisations/../members/user_1", "user_1")).toBe(false);
+    expect(isValidOrganisationPageToken("organisations/org-123/members/user_1/extra", "user_1")).toBe(false);
+    expect(isValidOrganisationPageToken("x".repeat(513), "user_1")).toBe(false);
+    expect(isValidOrganisationPageToken(undefined, "user_1")).toBe(false);
   });
 });
