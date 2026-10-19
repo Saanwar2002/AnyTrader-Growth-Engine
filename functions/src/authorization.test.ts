@@ -228,6 +228,40 @@ describe("existing outreach draft review state", () => {
 });
 
 
+describe("contact review status adversarial matrix", () => {
+  it.each([
+    [true, undefined, "blocked"],
+    [true, null, "blocked"],
+    [true, "unknown", "blocked"],
+    [true, "pending", "pending"],
+    [true, "cleared", "blocked"],
+    [false, undefined, "cleared"],
+    [false, null, "pending"],
+    [false, "unknown", "pending"],
+    [false, "pending", "pending"],
+    [false, "cleared", "cleared"],
+    [false, "blocked", "blocked"],
+    [undefined, "cleared", "cleared"],
+    [undefined, undefined, "pending"],
+    [null, "cleared", "cleared"],
+    ["false", "cleared", "cleared"],
+  ])("normalises restriction=%s and status=%s to %s", (restriction, status, expected) => {
+    expect(normaliseContactReviewStatus(restriction, status)).toBe(expected);
+  });
+
+  it.each([
+    [undefined, undefined],
+    [null, "cleared"],
+    ["false", "cleared"],
+    [false, null],
+    [false, "unknown"],
+    [false, 0],
+  ])("does not grant draft/contact permission for malformed restriction=%s status=%s", (restriction, status) => {
+    expect(canCreateServerOutreachDraft(restriction, status)).toBe(false);
+    expect(canMarkLeadContacted(restriction, status)).toBe(false);
+  });
+});
+
 describe("contact review status normalisation", () => {
   it("preserves recognised statuses", () => {
     expect(normaliseContactReviewStatus(false, "cleared")).toBe("cleared");
