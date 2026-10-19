@@ -9,7 +9,8 @@
 
 All data endpoints require an authenticated Firebase callable request. Organisation-owned documents are scoped under `organisations/{organisationId}/...`; a supplied organisation ID is never sufficient without a membership check.
 
-- `listMyOrganisations`: uses the authenticated UID to find only that user's organisation memberships and validates stored roles before returning summaries.\n- `createOrganisation`: validates the name and transactionally creates an organisation plus its owner membership.
+- `listMyOrganisations`: uses the authenticated UID to find only that user's organisation memberships and validates stored roles before returning summaries.
+- `createOrganisation`: validates the name and transactionally creates an organisation plus its owner membership.
 - `createCampaign`: checks membership, validates bounded fields, and permits creation only for owner/admin.
 - `updateCampaignStatus`: permits only owner/admin to set one of the allowed campaign statuses.
 - `listCampaigns`: checks membership and returns at most 100 campaigns for that organisation.
