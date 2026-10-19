@@ -361,9 +361,6 @@ export const createOutreachDraft = onCall(async (request) => {
     const leadSnapshot = await transaction.get(leadRef);
     if (!leadSnapshot.exists) throw new HttpsError("not-found", "Lead was not found in this organisation.");
     const lead = leadSnapshot.data() ?? {};
-    if (!hasConsistentDraftCampaign(draft.campaignId, lead.campaignId)) {
-      throw new HttpsError("failed-precondition", "The draft campaign does not match its lead; review the record before editing.");
-    }
     if (!canCreateServerOutreachDraft(lead.doNotContact, lead.contactReviewStatus)) throw new HttpsError("failed-precondition", lead.doNotContact === true && lead.contactReviewStatus !== "pending"
       ? "This lead is suppressed. Remove the restriction before creating an outreach draft."
       : "The lead contact review is pending or unverified; resolve it before creating an outreach draft.");
@@ -458,6 +455,9 @@ export const updateOutreachDraft = onCall(async (request) => {
     const leadSnapshot = await transaction.get(leadRef);
     if (!leadSnapshot.exists) throw new HttpsError("failed-precondition", "The lead for this draft no longer exists.");
     const lead = leadSnapshot.data() ?? {};
+    if (!hasConsistentDraftCampaign(draft.campaignId, lead.campaignId)) {
+      throw new HttpsError("failed-precondition", "The draft campaign does not match its lead; review the record before editing.");
+    }
     if (!canCreateServerOutreachDraft(lead.doNotContact, lead.contactReviewStatus)) throw new HttpsError("failed-precondition", lead.doNotContact === true && lead.contactReviewStatus !== "pending"
       ? "This lead is suppressed. Remove the restriction before editing an outreach draft."
       : "The lead contact review is pending or unverified; resolve it before editing an outreach draft.");
