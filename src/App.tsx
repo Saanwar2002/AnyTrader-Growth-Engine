@@ -50,7 +50,7 @@ function makeLead(row: Record<string, string>, campaignId: string, source: Lead[
   const email = row.email || row.emailaddress || "";
   const phone = row.phone || row.telephone || "";
   const scored = scoreLead({ businessName, website, email, phone, location, category });
-  return { id: newId("lead"), campaignId, businessName: businessName.trim(), category, location, website, email, phone, source, status: "new", score: scored.score, scoreReasons: scored.reasons, notes: "", doNotContact: false, createdAt: new Date().toISOString() };
+  return { id: newId("lead"), campaignId, businessName: businessName.trim(), category, location, website, email, phone, source, status: "new", score: scored.score, scoreReasons: scored.reasons, notes: "", doNotContact: true, createdAt: new Date().toISOString() };
 }
 
 export default function App() {
