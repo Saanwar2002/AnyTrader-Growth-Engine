@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
-import { createUserWithEmailAndPassword, onAuthStateChanged, signInWithEmailAndPassword, signOut, type User } from "firebase/auth";
+import { createUserWithEmailAndPassword, GoogleAuthProvider, onAuthStateChanged, signInWithEmailAndPassword, signInWithPopup, signOut, type User } from "firebase/auth";
 import { createFirebaseCallableInvoker, createGrowthEngineApi, type CampaignSummary, type LeadSummary, type OrganisationSummary, type OutreachDraftSummary, type ServerLeadStatus } from "./backendApi";
 import { firebaseClient } from "./firebaseClient";
 import "./cloudWorkspace.css";
@@ -98,6 +98,19 @@ export default function CloudWorkspace() {
     finally { setAuthBusy(false); }
   }
 
+  async function signInWithGoogle() {
+    if (!client) return;
+    setAuthBusy(true); setError(""); setNotice("");
+    try {
+      // Firebase verifies the Google identity; application permissions still come from server-side organisation membership.
+      await signInWithPopup(client.auth, new GoogleAuthProvider());
+    } catch (reason) {
+      setError(readableError(reason));
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
   async function createOrganisation(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!api || !organisationName.trim()) return;
@@ -133,7 +146,7 @@ export default function CloudWorkspace() {
 
   if (!client || !api) return <main className="cloud-shell"><section className="cloud-card"><h1>Firebase is not configured</h1><p>Cloud mode is disabled. Keep using the clearly labelled synthetic-data demo until a dedicated Growth Engine Firebase project is configured in a local <code>.env.local</code> file.</p></section></main>;
   if (!authReady) return <main className="cloud-shell"><section className="cloud-card"><p>Checking sign-in status…</p></section></main>;
-  if (!user) return <main className="cloud-shell"><section className="cloud-card auth-card"><div className="cloud-brand">AT <span>Growth Engine</span></div><p className="cloud-eyebrow">SECURE WORKSPACE</p><h1>{registerMode ? "Create your account" : "Sign in to Growth Engine"}</h1><p className="cloud-muted">This connects to the dedicated Firebase project configured for this app, not production AnyTrader.</p><form className="cloud-form" onSubmit={(event) => void submitAuth(event)}><label>Email address<input type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} /></label><label>Password<input type="password" autoComplete={registerMode ? "new-password" : "current-password"} minLength={6} required value={password} onChange={(event) => setPassword(event.target.value)} /></label><button className="cloud-primary" disabled={authBusy}>{authBusy ? "Please wait…" : registerMode ? "Create account" : "Sign in"}</button></form><button className="cloud-link" onClick={() => { setRegisterMode((value) => !value); setError(""); }}>{registerMode ? "Already have an account? Sign in" : "Need an account? Create one"}</button>{error && <p className="cloud-error" role="alert">{error}</p>}<p className="cloud-footnote">Use synthetic/test data only until emulator-backed tenant isolation tests have passed.</p></section></main>;
+  if (!user) return <main className="cloud-shell"><section className="cloud-card auth-card"><div className="cloud-brand">AT <span>Growth Engine</span></div><p className="cloud-eyebrow">SECURE WORKSPACE</p><h1>{registerMode ? "Create your account" : "Sign in to Growth Engine"}</h1><p className="cloud-muted">This connects to the dedicated Firebase project configured for this app, not production AnyTrader.</p><form className="cloud-form" onSubmit={(event) => void submitAuth(event)}><label>Email address<input type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} /></label><label>Password<input type="password" autoComplete={registerMode ? "new-password" : "current-password"} minLength={6} required value={password} onChange={(event) => setPassword(event.target.value)} /></label><button className="cloud-primary" disabled={authBusy}>{authBusy ? "Please wait…" : registerMode ? "Create account" : "Sign in"}</button></form><div className="cloud-auth-divider"><span>or</span></div><button type="button" className="cloud-google-button" disabled={authBusy} onClick={() => void signInWithGoogle()}><span aria-hidden="true" className="cloud-google-mark">G</span>{authBusy ? "Please wait…" : "Continue with Google"}</button><button className="cloud-link" onClick={() => { setRegisterMode((value) => !value); setError(""); }}>{registerMode ? "Already have an account? Sign in" : "Need an account? Create one"}</button>{error && <p className="cloud-error" role="alert">{error}</p>}<p className="cloud-footnote">Use synthetic/test data only until emulator-backed tenant isolation tests have passed.</p></section></main>;
 
   const selectedOrganisation = organisations.find((org) => org.organisationId === organisationId);
   return <main className="cloud-shell cloud-dashboard"><header className="cloud-header"><div><div className="cloud-brand">AT <span>Growth Engine</span></div><p className="cloud-eyebrow">FIREBASE CLOUD MODE</p></div><div className="cloud-user"><span>{user.email}</span><button className="cloud-secondary" onClick={() => void signOut(client.auth)}>Sign out</button></div></header>
