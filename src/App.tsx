@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { createDemoRepository } from "./repository";
-import { LEAD_STATUSES, deduplicateLeads, parseLeadCsv, scoreLead, type Activity, type AppState, type Campaign, type CampaignStatus, type Lead, type LeadStatus, type OutreachDraft } from "./domain";
+import { LEAD_STATUSES, deduplicateLeads, inspectLeadCsvHeaders, parseLeadCsv, scoreLead, suggestLeadCsvMapping, type Activity, type AppState, type Campaign, type CampaignStatus, type Lead, type LeadStatus, type OutreachDraft, type LeadCsvField, type LeadCsvMapping } from "./domain";
 import "./styles.css";
 
 type View = "overview" | "campaigns" | "leads" | "review" | "drafts" | "settings";
@@ -16,7 +16,7 @@ const navigation: Array<{ id: View; label: string; icon: string }> = [
   { id: "settings", label: "Workspace settings", icon: "⚙" },
 ];
 
-interface CsvImportPreview {
+interface CsvPending { fileName: string; campaignId: string; csv: string; headers: string[]; }\nconst csvFields: Array<{ key: LeadCsvField; label: string; required?: boolean }> = [\n  { key: "businessName", label: "Business name", required: true },\n  { key: "category", label: "Service category" },\n  { key: "location", label: "Location" },\n  { key: "website", label: "Website" },\n  { key: "email", label: "Email" },\n  { key: "phone", label: "Phone" },\n];\n\ninterface CsvImportPreview {
   fileName: string;
   campaignId: string;
   candidates: Lead[];
@@ -57,7 +57,7 @@ export default function App() {
   const [campaignGoal, setCampaignGoal] = useState("Recruit reliable providers");
   const [notice, setNotice] = useState("");
   const [editingDraft, setEditingDraft] = useState<string | null>(null);
-  const [importPreview, setImportPreview] = useState<CsvImportPreview | null>(null);
+  const [importPreview, setImportPreview] = useState<CsvImportPreview | null>(null);\n  const [csvPending, setCsvPending] = useState<CsvPending | null>(null);\n  const [csvMapping, setCsvMapping] = useState<LeadCsvMapping>({});
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [leadNotes, setLeadNotes] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
@@ -122,19 +122,32 @@ export default function App() {
     if (file.size > 2 * 1024 * 1024) { setNotice("CSV is larger than the 2 MB demo import limit."); event.target.value = ""; return; }
     const reader = new FileReader();
     reader.onload = () => {
-      const parsed = parseLeadCsv(String(reader.result ?? ""));
-      if (parsed.errors.length && parsed.rows.length === 0) { setNotice(parsed.errors.join(" ")); return; }
-      const parsedCandidates = parsed.rows.map((row) => makeLead(row, selectedCampaign, "csv"));
-      const deduplicated = deduplicateLeads(parsedCandidates, state.leads);
-      const candidates = deduplicated.unique;
-      const duplicates = deduplicated.duplicateCount;
-      setImportPreview({ fileName: file.name, campaignId: selectedCampaign, candidates, selectedCandidateIds: candidates.map((lead) => lead.id), duplicates, errors: parsed.errors });
+      const csv = String(reader.result ?? "");
+      const inspected = inspectLeadCsvHeaders(csv);
+      if (inspected.errors.length) { setNotice(inspected.errors.join(" ")); return; }
+      const mapping = suggestLeadCsvMapping(inspected.headers);
+      setCsvPending({ fileName: file.name, campaignId: selectedCampaign, csv, headers: inspected.headers });
+      setCsvMapping(mapping);
+      setImportPreview(null);
       setView("leads");
-      setNotice("Review the import summary before adding any records.");
+      setNotice("Confirm the column mapping, then preview the rows before importing.");
       event.target.value = "";
     };
     reader.onerror = () => setNotice("Could not read that file. Please try a UTF-8 CSV.");
     reader.readAsText(file);
+  }
+
+  function previewMappedCsv() {
+    if (!csvPending) return;
+    if (!csvMapping.businessName) { setNotice("Choose a column for the required Business name field."); return; }
+    const parsed = parseLeadCsv(csvPending.csv, csvMapping);
+    if (parsed.errors.length && parsed.rows.length === 0) { setNotice(parsed.errors.join(" ")); return; }
+    const parsedCandidates = parsed.rows.map((row) => makeLead(row, csvPending.campaignId, "csv"));
+    const deduplicated = deduplicateLeads(parsedCandidates, state.leads);
+    const candidates = deduplicated.unique;
+    setImportPreview({ fileName: csvPending.fileName, campaignId: csvPending.campaignId, candidates, selectedCandidateIds: candidates.map((lead) => lead.id), duplicates: deduplicated.duplicateCount, errors: parsed.errors });
+    setCsvPending(null);
+    setNotice("Review the import summary before adding any records.");
   }
 
   function confirmCsvImport() {
@@ -200,6 +213,13 @@ export default function App() {
             <label className="wide-field">Acquisition goal<input value={campaignGoal} onChange={(e) => setCampaignGoal(e.target.value)} placeholder="Recruit reliable providers" /></label>
             <div className="form-actions"><button type="button" className="secondary-button" onClick={() => setShowCampaignForm(false)}>Cancel</button><button className="primary-button" type="submit">Create campaign</button></div>
           </form>
+        </section>}
+
+        {csvPending && <section className="panel-card import-preview-panel">
+          <div className="section-heading"><div><p className="eyebrow">CSV COLUMN MAPPING</p><h3>Match your spreadsheet columns</h3><p className="section-description">File: {csvPending.fileName}. We suggest matches automatically; review them before previewing any records.</p></div><button className="icon-button" aria-label="Cancel CSV mapping" onClick={() => { setCsvPending(null); setNotice("CSV import cancelled. No records were added."); }}>×</button></div>
+          <div className="mapping-grid">{csvFields.map((field) => <label className="mapping-field" key={field.key}>{field.label}{field.required ? " *" : ""}<select aria-label={field.label} value={csvMapping[field.key] ?? ""} onChange={(event) => setCsvMapping((previous) => ({ ...previous, [field.key]: event.target.value || undefined }))}><option value="">— Not mapped —</option>{csvPending.headers.map((header) => <option key={header} value={header}>{header}</option>)}</select></label>)}</div>
+          <p className="mapping-help">Only map fields that match the data in your file. Business name is required; other fields can be left unmapped.</p>
+          <div className="form-actions"><button className="secondary-button" onClick={() => { setCsvPending(null); setNotice("CSV import cancelled. No records were added."); }}>Cancel import</button><button className="primary-button" onClick={previewMappedCsv} disabled={!csvMapping.businessName}>Preview rows</button></div>
         </section>}
 
         {importPreview && <section className="panel-card import-preview-panel">
