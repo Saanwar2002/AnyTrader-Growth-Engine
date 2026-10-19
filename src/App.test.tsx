@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import App from "./App";
 
@@ -49,4 +49,41 @@ describe("Growth Engine interactive workflows", () => {
     expect(screen.getByText("DRAFT · NOT SENT")).toBeTruthy();
     expect(screen.getByText(/Nothing has been sent/i)).toBeTruthy();
   });
+
+  it("imports a reviewed CSV row only after explicit confirmation", async () => {
+    const { container } = render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /Lead directory/i }));
+    const fileInput = container.querySelector('input[type="file"]');
+    expect(fileInput).toBeTruthy();
+    const csv = new File(
+      ["businessName,category,location,email\nNorth Star Roofing,Roofers,Leeds,hello@northstar.example\n"],
+      "pilot-leads.csv",
+      { type: "text/csv" },
+    );
+    fireEvent.change(fileInput as HTMLInputElement, { target: { files: [csv] } });
+
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Match your spreadsheet columns" })).toBeTruthy());
+    expect(screen.getByText(/Confirm the column mapping/i)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Preview rows" }));
+
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Review CSV before importing" })).toBeTruthy());
+    expect(screen.getByText("North Star Roofing")).toBeTruthy();
+    expect(screen.queryByText(/Import complete:/)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /Confirm import \(1\)/i }));
+    expect(screen.getByRole("status").textContent).toContain("Import complete: 1 added");
+    expect(screen.getByText("North Star Roofing")).toBeTruthy();
+  });
+
+  it("persists a created campaign when the workspace is remounted", () => {
+    const firstRender = render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /New campaign/i }));
+    fireEvent.change(screen.getByLabelText("Campaign name"), { target: { value: "Persistence test campaign" } });
+    fireEvent.click(within(screen.getByRole("heading", { name: "Create a campaign" }).closest("section") as HTMLElement).getByRole("button", { name: "Create campaign" }));
+    expect(screen.getByText("Persistence test campaign")).toBeTruthy();
+    firstRender.unmount();
+
+    render(<App />);
+    expect(screen.getByText("Persistence test campaign")).toBeTruthy();
+  });
+
 });
