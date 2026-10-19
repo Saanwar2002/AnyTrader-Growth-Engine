@@ -191,6 +191,49 @@ describe("cloud authentication gate", () => {
     expect(screen.queryByRole("button", { name: "Load more campaigns" })).toBeNull();
   });
 
+  it("loads additional lead pages without replacing or duplicating the first page", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
+    const lead = (id: string, businessName: string) => ({
+      id, campaignId: "campaign-1", businessName, category: "Painters", location: "Manchester",
+      website: "", email: "", phone: "", source: "manual", status: "new", score: 20,
+      scoreReasons: [], notes: "", doNotContact: false, contactRestrictionVerified: true, createdAt: null,
+    });
+    mocks.api.listLeads
+      .mockResolvedValueOnce({ leads: [lead("lead-1", "First Page Painter")], hasMoreLeads: true, nextPageToken: "organisations/org-1/leads/lead-1" })
+      .mockResolvedValueOnce({ leads: [lead("lead-1", "First Page Painter"), lead("lead-2", "Second Page Painter")], hasMoreLeads: false, nextPageToken: null });
+    render(<CloudWorkspace />);
+    expect(await screen.findByText("First Page Painter")).toBeTruthy();
+    fireEvent.click(await screen.findByRole("button", { name: "Load more leads" }));
+    expect(await screen.findByText("Second Page Painter")).toBeTruthy();
+    expect(screen.getAllByText("First Page Painter")).toHaveLength(1);
+    await waitFor(() => expect(mocks.api.listLeads).toHaveBeenLastCalledWith({
+      organisationId: "org-1", pageToken: "organisations/org-1/leads/lead-1",
+    }));
+    expect(screen.queryByRole("button", { name: "Load more leads" })).toBeNull();
+  });
+
+  it("loads additional draft pages without replacing or duplicating the first page", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
+    const draft = (id: string, subject: string) => ({
+      id, leadId: "lead-1", campaignId: "campaign-1", subject, body: "Draft body", status: "draft",
+      leadSuppressed: false, requiresReview: false, reviewReason: null, createdAt: null,
+    });
+    mocks.api.listOutreachDrafts
+      .mockResolvedValueOnce({ drafts: [draft("draft-1", "First Page Draft")], hasMoreDrafts: true, nextPageToken: "organisations/org-1/outreachDrafts/draft-1" })
+      .mockResolvedValueOnce({ drafts: [draft("draft-1", "First Page Draft"), draft("draft-2", "Second Page Draft")], hasMoreDrafts: false, nextPageToken: null });
+    render(<CloudWorkspace />);
+    expect(await screen.findByText("First Page Draft")).toBeTruthy();
+    fireEvent.click(await screen.findByRole("button", { name: "Load more drafts" }));
+    expect(await screen.findByText("Second Page Draft")).toBeTruthy();
+    expect(screen.getAllByText("First Page Draft")).toHaveLength(1);
+    await waitFor(() => expect(mocks.api.listOutreachDrafts).toHaveBeenLastCalledWith({
+      organisationId: "org-1", pageToken: "organisations/org-1/outreachDrafts/draft-1",
+    }));
+    expect(screen.queryByRole("button", { name: "Load more drafts" })).toBeNull();
+  });
+
   it("allows an authenticated user to edit a draft without sending it", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
