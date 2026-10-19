@@ -41,7 +41,7 @@ All data endpoints require an authenticated Firebase callable request. Organisat
 
 - No dedicated Firebase project has been configured and no deployment has been performed.
 - The frontend now selects a Firebase email/password sign-in and cloud workspace UI when required public config values exist; without them it remains in local synthetic demo mode. The cloud UI connects organisation discovery/creation, campaign creation/listing, lead creation/listing/status/suppression, and draft create/list/delete to callable functions. This UI has not been validated against a real project or Firebase emulators.
-- No Firebase Emulator Suite integration tests have run, and tenant isolation is not yet proven end-to-end.
+- The full emulator smoke suite has not completed, and tenant isolation is not yet proven end-to-end. One isolated `createOrganisation` callable smoke check did pass against the demo Auth/Functions/Firestore emulators.
 - No App Check enforcement, rate limiting, idempotency keys, comprehensive security audit log, or usage quotas yet.
 - Server-side CSV batch import and cursor pagination are not implemented.
 - The Functions runtime is configured for Node.js 22, while the remote development workspace runs Node.js 20. Build and pure guard tests passed there, but deployment must use the configured runtime.
@@ -58,7 +58,7 @@ All data endpoints require an authenticated Firebase callable request. Organisat
 | `npm audit` | Passed — 0 reported vulnerabilities after the root package override for @grpc/grpc-js |
 | `npm --prefix functions audit` | Passed — 0 reported vulnerabilities |
 
-The Firebase Emulator Suite was not run because Java is not installed in the remote workspace. These results are not a substitute for emulator-backed authorization tests, an end-to-end tenant-isolation test, or a deployed security review.
+Java was installed in the remote development workspace and the emulators started. The isolated `createOrganisation` callable smoke check passed. The broader smoke suite did not complete because the sandbox has approximately 1 GB RAM and additional Functions emulator workers exhausted available memory. This is an environment limitation, not a passing result: run `npm run test:emulators` on a machine/CI runner with enough memory before treating tenant isolation as verified.
 
 ## Remaining before Phase 2 can be called complete
 
