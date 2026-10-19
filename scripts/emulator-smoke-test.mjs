@@ -61,7 +61,6 @@ try {
   assert.equal(draftList.drafts.length, 1);
   assert.equal(draftList.drafts[0].subject, "Updated test draft");
   assert.equal(draftList.drafts[0].sent, undefined);
-  await callOne("deleteOutreachDraft", { organisationId: orgOne.organisationId, draftId: draft.draftId });
 
   await expectCallableFailure(getDoc(doc(first.firestore, `organisations/${orgOne.organisationId}`)), "permission-denied", "direct client Firestore read denial");
 
@@ -77,6 +76,10 @@ try {
   await expectCallableFailure(callTwo("listLeads", { organisationId: orgOne.organisationId }), "functions/permission-denied", "cross-tenant lead listing denial");
   const orgTwo = await callTwo("createOrganisation", { name: "Tenant Two" });
   await expectCallableFailure(callTwo("createLead", { organisationId: orgTwo.organisationId, campaignId: campaignOne.campaignId, businessName: "Cross Tenant Attempt" }), "functions/not-found", "cross-tenant campaign reference denial");
+  await expectCallableFailure(callTwo("createOutreachDraft", { organisationId: orgTwo.organisationId, leadId: leadOne.leadId, subject: "Cross tenant", body: "Must not be created" }), "functions/not-found", "cross-tenant lead reference denial");
+  await expectCallableFailure(callTwo("updateOutreachDraft", { organisationId: orgTwo.organisationId, draftId: draft.draftId, subject: "Cross tenant", body: "Must not be updated" }), "functions/not-found", "cross-tenant draft update denial");
+  await expectCallableFailure(callTwo("deleteOutreachDraft", { organisationId: orgTwo.organisationId, draftId: draft.draftId }), "functions/not-found", "cross-tenant draft delete denial");
+  await callOne("deleteOutreachDraft", { organisationId: orgOne.organisationId, draftId: draft.draftId });
 
   await signOut(first.auth);
   await expectCallableFailure(callOne("listMyOrganisations"), "functions/unauthenticated", "unauthenticated callable denial");
