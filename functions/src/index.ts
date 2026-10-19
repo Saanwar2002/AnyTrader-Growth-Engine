@@ -283,7 +283,7 @@ export const updateLeadStatus = onCall(async (request) => {
     const leadSnapshot = await transaction.get(leadRef);
     if (!leadSnapshot.exists) throw new HttpsError("not-found", "Lead was not found in this organisation.");
     const lead = leadSnapshot.data() ?? {};
-    if (status === "contacted" && !canMarkLeadContacted(lead.doNotContact)) {
+    if (status === "contacted" && !canMarkLeadContacted(lead.doNotContact, lead.contactReviewStatus)) {
       throw new HttpsError("failed-precondition", lead.doNotContact === true
         ? "A suppressed lead cannot be marked as contacted."
         : "The lead contact restriction is unverified; it cannot be marked as contacted.");
