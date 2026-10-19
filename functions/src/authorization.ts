@@ -127,7 +127,7 @@ export function isValidMembershipRecord(value: unknown, expectedUid: string): bo
   return record.uid === expectedUid && validRole;
 }
 
-export function isValidOrganisationCollectionPageToken(value: unknown, organisationId: string, collectionName: "leads" | "outreachDrafts"): value is string {
+export function isValidOrganisationCollectionPageToken(value: unknown, organisationId: string, collectionName: "campaigns" | "leads" | "outreachDrafts"): value is string {
   if (typeof value !== "string" || value.length > 512) return false;
   const segments = value.split("/");
   return segments.length === 4
