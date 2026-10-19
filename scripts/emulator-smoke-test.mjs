@@ -39,6 +39,14 @@ try {
   const orgOne = await callOne("createOrganisation", { name: "Tenant One" });
   assert.equal(orgOne.role, "owner");
   const campaignOne = await callOne("createCampaign", { organisationId: orgOne.organisationId, name: "Painter pilot", brand: "Example", category: "Painters", location: "Manchester", goal: "Recruit providers" });
+  await expectCallableFailure(callOne("createLead", {
+    organisationId: orgOne.organisationId, campaignId: campaignOne.campaignId,
+    businessName: "Invalid Email Test", email: "not-an-email",
+  }), "functions/invalid-argument", "server rejects malformed lead email");
+  await expectCallableFailure(callOne("createLead", {
+    organisationId: orgOne.organisationId, campaignId: campaignOne.campaignId,
+    businessName: "X".repeat(161),
+  }), "functions/invalid-argument", "server rejects oversized business name");
   const leadOne = await callOne("createLead", { organisationId: orgOne.organisationId, campaignId: campaignOne.campaignId, businessName: "Synthetic Test Painting Ltd", category: "Painters", location: "Manchester", email: "hello@example.test" });
   assert.equal(leadOne.doNotContact, true, "new leads must remain blocked pending review");
   assert.equal(leadOne.contactReviewStatus, "pending", "new leads must expose a distinct pending-review state");
