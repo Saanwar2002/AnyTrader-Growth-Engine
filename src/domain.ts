@@ -27,6 +27,7 @@ export interface Lead {
   scoreReasons: string[];
   notes: string;
   doNotContact: boolean;
+  contactReviewStatus?: "pending" | "cleared" | "blocked";
   createdAt: string;
 }
 
@@ -107,8 +108,8 @@ export const LEAD_STATUSES: LeadStatus[] = [
   "new", "reviewing", "qualified", "contacted", "onboarded", "rejected",
 ];
 
-export function canCreateOutreachDraft(lead: Pick<Lead, "doNotContact">): boolean {
-  return lead.doNotContact === false;
+export function canCreateOutreachDraft(lead: Pick<Lead, "doNotContact" | "contactReviewStatus">): boolean {
+  return lead.doNotContact === false && (lead.contactReviewStatus === undefined || lead.contactReviewStatus === "cleared");
 }
 
 export function normalizeBusinessName(value: string): string {
