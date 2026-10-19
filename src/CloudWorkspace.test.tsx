@@ -174,6 +174,7 @@ describe("cloud authentication gate", () => {
     await screen.findByText("Unverified Painter");
     expect(screen.getByText("REVIEW RESTRICTION")).toBeTruthy();
     expect((screen.getByRole("button", { name: /create draft/i }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole("button", { name: "Suppress" }) as HTMLButtonElement).disabled).toBe(false);
   });
 
   it("flags and locks an existing draft when its lead is suppressed", async () => {
