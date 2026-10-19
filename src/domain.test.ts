@@ -44,7 +44,8 @@ describe("parseLeadCsv", () => {
   });
 
   it("skips nameless rows and reports the row number", () => {
-    const result = parseLeadCsv("businessName,category\n,Painting\nExample Decorators,Painters");
+    const result = parseLeadCsv(`"businessName,category
+Example Decorators,Painters`);
     expect(result.rows).toHaveLength(1);
     expect(result.errors).toEqual(["Row 2: business name is required; row skipped."]);
   });
@@ -55,14 +56,17 @@ describe("parseLeadCsv", () => {
   });
 
   it("reports an unmatched quote and skips the malformed row", () => {
-    const result = parseLeadCsv('businessName,category\\n"Unclosed Decorators,Painters\\nExample Decorators,Painters');
+    const result = parseLeadCsv(`businessName,category
+"Unclosed Decorators,Painters
+Example Decorators,Painters`);
     expect(result.rows).toHaveLength(1);
     expect(result.rows[0].businessname).toBe("Example Decorators");
     expect(result.errors).toEqual(["Row 2: unmatched quote; row skipped."]);
   });
 
   it("rejects a header with an unmatched quote", () => {
-    const result = parseLeadCsv('"businessName,category\\nExample Decorators,Painters');
+    const result = parseLeadCsv(`"businessName,category
+Example Decorators,Painters`);
     expect(result.errors[0]).toContain("header contains an unmatched quote");
   });
 });
