@@ -162,14 +162,27 @@ describe("existing outreach draft review state", () => {
 
   it("requires pending contact review to be resolved before a draft is usable", () => {
     expect(getOutreachDraftReviewState(true, true, "pending")).toEqual({
-      leadSuppressed: false,
+      leadSuppressed: true,
       requiresReview: true,
-      reviewReason: "Lead contact review is pending or could not be verified; review before use.",
+      reviewReason: "Lead is suppressed; do not contact.",
     });
     expect(getOutreachDraftReviewState(true, false, "pending")).toEqual({
       leadSuppressed: false,
       requiresReview: true,
       reviewReason: "Lead contact review is pending or could not be verified; review before use.",
+    });
+  });
+
+  it("treats an explicit do-not-contact restriction as suppressed even when review metadata is pending", () => {
+    expect(getOutreachDraftReviewState(true, true, "pending")).toEqual({
+      leadSuppressed: true,
+      requiresReview: true,
+      reviewReason: "Lead is suppressed; do not contact.",
+    });
+    expect(getOutreachDraftReviewState(true, true, "cleared")).toEqual({
+      leadSuppressed: true,
+      requiresReview: true,
+      reviewReason: "Lead is suppressed; do not contact.",
     });
   });
 
