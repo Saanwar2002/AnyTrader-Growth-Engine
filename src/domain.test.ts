@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { deduplicateLeads, inspectLeadCsvHeaders, normalizeBusinessName, parseLeadCsv, scoreLead, suggestLeadCsvMapping } from "./domain";
+import { canCreateOutreachDraft, deduplicateLeads, inspectLeadCsvHeaders, normalizeBusinessName, parseLeadCsv, scoreLead, suggestLeadCsvMapping } from "./domain";
+
+describe("outreach suppression", () => {
+  it("blocks new outreach drafts for suppressed leads", () => {
+    expect(canCreateOutreachDraft({ doNotContact: true })).toBe(false);
+    expect(canCreateOutreachDraft({ doNotContact: false })).toBe(true);
+  });
+});
 
 describe("normalizeBusinessName", () => {
   it("trims whitespace, collapses spaces and ignores case", () => {
@@ -30,7 +37,8 @@ describe("scoreLead", () => {
 
 describe("parseLeadCsv", () => {
   it("parses normal rows and quoted commas", () => {
-    const result = parseLeadCsv('businessName,category,location,email\n"North, Star Decorators",Painters,"Manchester, UK",hello@example.com');
+    const result = parseLeadCsv('businessName,category,location,email
+"North, Star Decorators",Painters,"Manchester, UK",hello@example.com');
     expect(result.errors).toEqual([]);
     expect(result.rows).toHaveLength(1);
     expect(result.rows[0].businessname).toBe("North, Star Decorators");
@@ -38,7 +46,8 @@ describe("parseLeadCsv", () => {
   });
 
   it("reports a missing business name header", () => {
-    const result = parseLeadCsv("category,location\nPainters,Manchester");
+    const result = parseLeadCsv("category,location
+Painters,Manchester");
     expect(result.rows).toEqual([]);
     expect(result.errors[0]).toContain("Missing required column");
   });
@@ -52,7 +61,8 @@ describe("parseLeadCsv", () => {
   });
 
   it("parses using a user-selected mapping for unfamiliar headers", () => {
-    const csv = "Provider,Specialism,Service Area,Contact\nNorth Star Decorators,Painting,Manchester,hello@example.com";
+    const csv = "Provider,Specialism,Service Area,Contact
+North Star Decorators,Painting,Manchester,hello@example.com";
     const result = parseLeadCsv(csv, {
       businessName: "Provider", category: "Specialism", location: "Service Area", email: "Contact",
     });
@@ -63,7 +73,8 @@ describe("parseLeadCsv", () => {
   });
 
   it("requires a business-name mapping when custom mappings are supplied", () => {
-    const result = parseLeadCsv("Provider,Area\nNorth Star Decorators,Manchester", { location: "Area" });
+    const result = parseLeadCsv("Provider,Area
+North Star Decorators,Manchester", { location: "Area" });
     expect(result.rows).toEqual([]);
     expect(result.errors[0]).toContain("Map a CSV column");
   });
@@ -98,32 +109,40 @@ Example Decorators,Painters`);
 });
 
   it("removes a UTF-8 BOM and handles escaped quotes", () => {
-    const result = parseLeadCsv('\uFEFFbusinessName,notes\n"North ""Star"" Decorators",Approved');
+    const result = parseLeadCsv('\uFEFFbusinessName,notes
+"North ""Star"" Decorators",Approved');
     expect(result.errors).toEqual([]);
     expect(result.rows[0].businessname).toBe('North "Star" Decorators');
   });
 
   it("rejects duplicate headers after normalisation", () => {
-    const result = parseLeadCsv("businessName,Business Name\nExample Decorators,Other");
+    const result = parseLeadCsv("businessName,Business Name
+Example Decorators,Other");
     expect(result.rows).toEqual([]);
     expect(result.errors[0]).toContain("duplicate column header");
   });
 
   it("rejects empty column headers", () => {
-    const result = parseLeadCsv("businessName,,email\nExample Decorators,Painters,hello@example.com");
+    const result = parseLeadCsv("businessName,,email
+Example Decorators,Painters,hello@example.com");
     expect(result.rows).toEqual([]);
     expect(result.errors[0]).toContain("empty column header");
   });
 
   it("skips rows with more values than headers and preserves source line numbers", () => {
-    const result = parseLeadCsv("\nbusinessName,category\n\nExample Decorators,Painters,unexpected\nNorth Star Decorators,Painters");
+    const result = parseLeadCsv("
+businessName,category
+
+Example Decorators,Painters,unexpected
+North Star Decorators,Painters");
     expect(result.rows).toHaveLength(1);
     expect(result.rows[0].businessname).toBe("North Star Decorators");
     expect(result.errors).toEqual(["Row 4: contains more values than the header has columns; row skipped."]);
   });
 
   it("fills missing optional cells with empty strings", () => {
-    const result = parseLeadCsv("businessName,category,email\nExample Decorators,Painters");
+    const result = parseLeadCsv("businessName,category,email
+Example Decorators,Painters");
     expect(result.errors).toEqual([]);
     expect(result.rows[0]).toEqual({ businessname: "Example Decorators", category: "Painters", email: "" });
   });
