@@ -50,7 +50,7 @@ All data endpoints require an authenticated Firebase callable request. Organisat
 | Check | Result |
 |---|---|
 | `npm run typecheck` | Passed |
-| `npm test` | Passed — 57 tests across 7 files |
+| `npm test` | Passed — 58 tests across 7 files |
 | `npm run build` | Passed |
 | `npm --prefix functions run build` | Passed |
 | `npm --prefix functions test` | Passed — 12 server guard tests |
