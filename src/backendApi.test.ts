@@ -57,7 +57,6 @@ describe("typed backend API boundary", () => {
     await expect(api.listLeads({ organisationId: "org-1" })).resolves.toEqual(response);
     expect(calls[0]).toEqual({ name: "listLeads", payload: { organisationId: "org-1" } });
   });
-});
 
   it("passes tenant-scoped pagination tokens to lead and draft listing callables", async () => {
     const { invoke, calls } = makeInvoker([
