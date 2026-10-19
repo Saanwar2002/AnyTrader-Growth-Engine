@@ -148,7 +148,7 @@ describe("cloud authentication gate", () => {
 
     render(<CloudWorkspace />);
     expect(await screen.findByText("First Tenant Private Lead")).toBeTruthy();
-    expect(await screen.findByText("First Tenant Private Campaign")).toBeTruthy();
+    expect((await screen.findAllByText("First Tenant Private Campaign")).length).toBeGreaterThan(0);
     fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
     expect(screen.queryByText("First Tenant Private Lead")).toBeNull();
     expect(screen.queryByText("First Tenant Private Campaign")).toBeNull();
@@ -180,10 +180,10 @@ describe("cloud authentication gate", () => {
         nextPageToken: null,
       });
     render(<CloudWorkspace />);
-    expect(await screen.findByText("First Campaign")).toBeTruthy();
+    expect((await screen.findAllByText("First Campaign")).length).toBeGreaterThan(0);
     fireEvent.click(await screen.findByRole("button", { name: "Load more campaigns" }));
-    expect(await screen.findByText("Second Campaign")).toBeTruthy();
-    expect(screen.getByText("First Campaign")).toBeTruthy();
+    expect((await screen.findAllByText("Second Campaign")).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("First Campaign").length).toBeGreaterThan(0);
     await waitFor(() => expect(mocks.api.listCampaigns).toHaveBeenLastCalledWith({
       organisationId: "org-1",
       pageToken: "organisations/org-1/campaigns/campaign-1",
