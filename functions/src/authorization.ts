@@ -112,3 +112,11 @@ export function isValidOrganisationPageToken(value: unknown, uid: string): value
     && segments[2] === "members"
     && segments[3] === uid;
 }
+
+
+export function isValidMembershipRecord(value: unknown, expectedUid: string): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  const validRole = record.role === "owner" || record.role === "admin" || record.role === "member" || record.role === "viewer";
+  return record.uid === expectedUid && validRole;
+}
