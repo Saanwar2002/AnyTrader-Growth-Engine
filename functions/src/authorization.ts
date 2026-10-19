@@ -74,11 +74,12 @@ export function canCreateServerOutreachDraft(doNotContact: unknown, contactRevie
 export type ContactReviewStatus = "pending" | "cleared" | "blocked";
 
 export function normaliseContactReviewStatus(doNotContact: unknown, contactReviewStatus: unknown): ContactReviewStatus {
+  // A positive restriction always overrides a contradictory "cleared" status.
+  if (doNotContact === true && contactReviewStatus !== "pending") return "blocked";
   if (contactReviewStatus === "pending" || contactReviewStatus === "cleared" || contactReviewStatus === "blocked") {
     return contactReviewStatus;
   }
   if (contactReviewStatus === undefined && doNotContact === false) return "cleared";
-  if (doNotContact === true) return "blocked";
   // Never present malformed or missing restriction data as cleared.
   return "pending";
 }
