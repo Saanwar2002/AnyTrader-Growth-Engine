@@ -61,6 +61,26 @@ export function normalizeBusinessName(value: string): string {
   return value.trim().toLocaleLowerCase("en-GB").replace(/\s+/g, " ");
 }
 
+export function deduplicateLeads<T extends Pick<Lead, "campaignId" | "businessName">>(
+  candidates: T[],
+  existing: T[],
+): { unique: T[]; duplicateCount: number } {
+  const keyFor = (lead: T) => `${lead.campaignId}:${normalizeBusinessName(lead.businessName)}`;
+  const knownKeys = new Set(existing.map(keyFor));
+  const unique: T[] = [];
+  let duplicateCount = 0;
+  for (const candidate of candidates) {
+    const key = keyFor(candidate);
+    if (knownKeys.has(key)) {
+      duplicateCount += 1;
+      continue;
+    }
+    knownKeys.add(key);
+    unique.push(candidate);
+  }
+  return { unique, duplicateCount };
+}
+
 export function scoreLead(input: Pick<Lead, "businessName" | "website" | "email" | "phone" | "location" | "category">): { score: number; reasons: string[] } {
   let score = 0;
   const reasons: string[] = [];
