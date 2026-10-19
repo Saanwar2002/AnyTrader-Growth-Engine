@@ -156,21 +156,39 @@ export function parseLeadCsv(csv: string, fieldMapping?: LeadCsvMapping): { rows
     const values: string[] = [];
     let current = "";
     let quoted = false;
+    let afterQuote = false;
+    let malformed = false;
     for (let i = 0; i < line.length; i += 1) {
       const char = line[i];
-      if (char === '"' && quoted && line[i + 1] === '"') {
-        current += '"';
-        i += 1;
-      } else if (char === '"') {
-        quoted = !quoted;
-      } else if (char === "," && !quoted) {
+      if (quoted) {
+        if (char === '"' && line[i + 1] === '"') {
+          current += '"';
+          i += 1;
+        } else if (char === '"') {
+          quoted = false;
+          afterQuote = true;
+        } else {
+          current += char;
+        }
+      } else if (afterQuote) {
+        if (char === ",") {
+          values.push(current.trim());
+          current = "";
+          afterQuote = false;
+        } else if (!/\\s/.test(char)) {
+          malformed = true;
+        }
+      } else if (char === ",") {
         values.push(current.trim());
         current = "";
+      } else if (char === '"') {
+        if (current.length !== 0) malformed = true;
+        else quoted = true;
       } else {
         current += char;
       }
     }
-    if (quoted) return null;
+    if (quoted || malformed) return null;
     values.push(current.trim());
     return values;
   };
@@ -214,7 +232,7 @@ export function parseLeadCsv(csv: string, fieldMapping?: LeadCsvMapping): { rows
     const rowNumber = headerLineIndex + offset + 2;
     const values = parseLine(line);
     if (!values) {
-      errors.push(`Row ${rowNumber}: unmatched quote; row skipped.`);
+      errors.push(`Row ${rowNumber}: malformed or unmatched quote; row skipped.`);
       return;
     }
     if (values.every((value) => !value.trim())) return;
