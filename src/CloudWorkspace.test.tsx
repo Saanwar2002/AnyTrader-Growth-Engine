@@ -7,23 +7,43 @@ const mocks = vi.hoisted(() => ({
   register: vi.fn(),
   signOut: vi.fn(),
   authListener: vi.fn(),
+  currentUser: null as unknown,
+  api: {
+    listMyOrganisations: vi.fn(), createOrganisation: vi.fn(), createCampaign: vi.fn(), updateCampaignStatus: vi.fn(),
+    listCampaigns: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(),
+    updateLeadNotes: vi.fn(), setLeadSuppression: vi.fn(), createOutreachDraft: vi.fn(), listOutreachDrafts: vi.fn(),
+    updateOutreachDraft: vi.fn(), deleteOutreachDraft: vi.fn(),
+  },
 }));
 
 vi.mock("./firebaseClient", () => ({ firebaseClient: { auth: {}, functions: {} } }));
 vi.mock("./backendApi", () => ({
   createFirebaseCallableInvoker: vi.fn(() => vi.fn()),
-  createGrowthEngineApi: vi.fn(() => ({})),
+  createGrowthEngineApi: vi.fn(() => mocks.api),
 }));
 vi.mock("firebase/auth", () => ({
   createUserWithEmailAndPassword: mocks.register,
-  onAuthStateChanged: (_auth: unknown, callback: (user: null) => void) => { mocks.authListener(); callback(null); return () => undefined; },
+  onAuthStateChanged: (_auth: unknown, callback: (user: unknown) => void) => { mocks.authListener(); callback(mocks.currentUser); return () => undefined; },
   signInWithEmailAndPassword: mocks.signIn,
   signOut: mocks.signOut,
 }));
 import CloudWorkspace from "./CloudWorkspace";
 
 afterEach(() => cleanup());
-beforeEach(() => { vi.clearAllMocks(); mocks.signIn.mockResolvedValue({}); mocks.register.mockResolvedValue({}); });
+beforeEach(() => {
+  vi.clearAllMocks();
+  mocks.currentUser = null;
+  mocks.signIn.mockResolvedValue({}); mocks.register.mockResolvedValue({});
+  mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [] });
+  mocks.api.listCampaigns.mockResolvedValue({ campaigns: [] });
+  mocks.api.listLeads.mockResolvedValue({ leads: [] });
+  mocks.api.listOutreachDrafts.mockResolvedValue({ drafts: [] });
+  mocks.api.createOrganisation.mockResolvedValue({ organisationId: "org-new", name: "New Org", role: "owner" });
+  mocks.api.createCampaign.mockResolvedValue({ campaignId: "campaign-new", status: "active" });
+  mocks.api.createLead.mockResolvedValue({ leadId: "lead-new", status: "new" });
+  mocks.api.setLeadSuppression.mockResolvedValue({ leadId: "lead-1", doNotContact: true });
+  mocks.api.createOutreachDraft.mockResolvedValue({ draftId: "draft-new", leadId: "lead-1", status: "draft", sent: false });
+});
 
 describe("cloud authentication gate", () => {
   it("shows email/password sign-in and explains the dedicated project boundary", () => {
@@ -40,6 +60,18 @@ describe("cloud authentication gate", () => {
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "testing-password" } });
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
     await waitFor(() => expect(mocks.signIn).toHaveBeenCalledWith({}, "pilot@example.test", "testing-password"));
+  });
+
+  it("loads only the selected organisation's cloud data after authentication", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
+    mocks.api.listCampaigns.mockResolvedValue({ campaigns: [{ id: "campaign-1", name: "Painter pilot", brand: "AnyTrader", category: "Painters", location: "Manchester", goal: "Recruit providers", status: "active", createdAt: null }] });
+    mocks.api.listLeads.mockResolvedValue({ leads: [{ id: "lead-1", campaignId: "campaign-1", businessName: "Synthetic Painting Co", category: "Painters", location: "Manchester", website: "", email: "", phone: "", source: "manual", status: "new", score: 40, scoreReasons: [], notes: "", doNotContact: false, createdAt: null }] });
+    render(<CloudWorkspace />);
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Provider acquisition workspace" })).toBeTruthy());
+    expect(await screen.findByText("Pilot Workspace · owner")).toBeTruthy();
+    expect(await screen.findByText("Synthetic Painting Co")).toBeTruthy();
+    expect(mocks.api.listLeads).toHaveBeenCalledWith({ organisationId: "org-1" });
   });
 
   it("offers account creation without weakening the required password length", () => {
