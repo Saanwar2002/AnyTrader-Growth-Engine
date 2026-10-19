@@ -320,6 +320,9 @@ export const createOutreachDraft = onCall(async (request) => {
     const lead = leadSnapshot.data() ?? {};
     if (!canCreateServerOutreachDraft(lead.doNotContact)) throw new HttpsError("failed-precondition", "This lead is suppressed. Remove the restriction before creating an outreach draft.");
     campaignId = requireDocumentId(lead.campaignId, "lead campaignId");
+    const campaignRef = db.collection("organisations").doc(organisationId).collection("campaigns").doc(campaignId);
+    const campaignSnapshot = await transaction.get(campaignRef);
+    if (!campaignSnapshot.exists) throw new HttpsError("failed-precondition", "The lead's campaign no longer exists in this organisation.");
     const now = FieldValue.serverTimestamp();
     transaction.create(draft, { leadId, campaignId, subject, body, status: "draft", createdBy: uid, createdAt: now, updatedAt: now });
     transaction.create(activity, { leadId, actorUid: uid, message: "Outreach draft created; not sent", createdAt: now });
@@ -378,7 +381,12 @@ export const updateOutreachDraft = onCall(async (request) => {
     const leadRef = db.collection("organisations").doc(organisationId).collection("leads").doc(leadId);
     const leadSnapshot = await transaction.get(leadRef);
     if (!leadSnapshot.exists) throw new HttpsError("failed-precondition", "The lead for this draft no longer exists.");
-    if (!canCreateServerOutreachDraft(leadSnapshot.data()?.doNotContact)) throw new HttpsError("failed-precondition", "This lead is suppressed. Remove the restriction before editing an outreach draft.");
+    const lead = leadSnapshot.data() ?? {};
+    if (!canCreateServerOutreachDraft(lead.doNotContact)) throw new HttpsError("failed-precondition", "This lead is suppressed. Remove the restriction before editing an outreach draft.");
+    const campaignId = requireDocumentId(lead.campaignId, "lead campaignId");
+    const campaignRef = db.collection("organisations").doc(organisationId).collection("campaigns").doc(campaignId);
+    const campaignSnapshot = await transaction.get(campaignRef);
+    if (!campaignSnapshot.exists) throw new HttpsError("failed-precondition", "The lead's campaign no longer exists in this organisation.");
     const now = FieldValue.serverTimestamp();
     transaction.update(draftRef, { subject, body, updatedAt: now, updatedBy: uid });
     transaction.create(activity, { leadId, actorUid: uid, message: "Outreach draft updated; not sent", createdAt: now });
