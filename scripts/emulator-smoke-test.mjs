@@ -382,6 +382,40 @@ try {
     body: "Must not create a draft without a lead",
   }), "functions/not-found", "creating a draft for a missing lead");
 
+  // Inject malformed legacy records using a guarded Admin SDK fixture; callable
+  // reads must flag them for review, updates must fail closed, and deletion must
+  // remain available so operators can clean up an orphaned record.
+  execFileSync(process.execPath, [
+    "functions/scripts/seed-emulator-legacy-drafts.mjs",
+    orgOne.organisationId,
+    leadOne.leadId,
+    campaignOne.campaignId,
+  ], { stdio: "inherit", env: process.env });
+  const legacyDraftList = await callOne("listOutreachDrafts", { organisationId: orgOne.organisationId });
+  const orphanLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-orphan-draft");
+  const mismatchedLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-mismatched-campaign-draft");
+  assert.ok(orphanLegacyDraft, "orphan legacy draft is visible for operator review");
+  assert.equal(orphanLegacyDraft.requiresReview, true, "orphan legacy draft requires review");
+  assert.match(orphanLegacyDraft.reviewReason, /Lead record is missing/i);
+  assert.ok(mismatchedLegacyDraft, "campaign-mismatched legacy draft is visible for operator review");
+  assert.equal(mismatchedLegacyDraft.requiresReview, true, "campaign-mismatched legacy draft requires review");
+  assert.match(mismatchedLegacyDraft.reviewReason, /campaign does not match/i);
+  await expectCallableFailure(callOne("updateOutreachDraft", {
+    organisationId: orgOne.organisationId, draftId: "legacy-orphan-draft",
+    subject: "Should remain blocked", body: "Do not update an orphan",
+  }), "functions/failed-precondition", "editing an orphan legacy draft");
+  await expectCallableFailure(callOne("updateOutreachDraft", {
+    organisationId: orgOne.organisationId, draftId: "legacy-mismatched-campaign-draft",
+    subject: "Should remain blocked", body: "Do not update a campaign-mismatched draft",
+  }), "functions/failed-precondition", "editing a campaign-mismatched legacy draft");
+  const orphanCleanup = await callOne("deleteOutreachDraft", {
+    organisationId: orgOne.organisationId, draftId: "legacy-orphan-draft",
+  });
+  assert.equal(orphanCleanup.deleted, true, "orphan legacy draft remains deletable for cleanup");
+  assert.equal(orphanCleanup.sent, false, "legacy cleanup never sends outreach");
+  const legacyCleanupList = await callOne("listOutreachDrafts", { organisationId: orgOne.organisationId });
+  assert.equal(legacyCleanupList.drafts.some((item) => item.id === "legacy-orphan-draft"), false, "deleted orphan no longer appears in the list");
+
   await callOne("deleteOutreachDraft", { organisationId: orgOne.organisationId, draftId: draft.draftId });
 
   await signOut(first.auth);

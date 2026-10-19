@@ -199,3 +199,13 @@ Continue the callable authorization audit and integration-test reliability work;
 - Emulator coverage now verifies 101-record lead, campaign, and draft pagination; continuation tokens and unique IDs; owner/admin/member/viewer authorization cases; organisation isolation; malformed and stale cursor rejection; suppression and contact-review gates; and draft-only operations.
 - Keep Firebase project creation/deployment deferred until the user creates the dedicated project. Continue only on `development/chatgpt-mvp`; do not change Growth Engine `main` or the original AnyTrader repository.
 - **Next batch:** audit callable authorization and validation for inconsistent legacy records and lifecycle mutations (lead status/contact changes, draft updates/deletes, campaign status), adding targeted emulator assertions where they materially close a gap without making CI unnecessarily slow.
+
+
+## Legacy outreach-draft integrity and cleanup — 2026-10-19
+
+- Latest lifecycle-validation CI run [39323914332](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39323914332) completed successfully for commit `fcae234baed11eed257267e12a8206c4e673e32e`; frontend and Functions checks passed.
+- Added a guarded emulator-only Admin SDK fixture for two legacy integrity cases: a draft whose lead is missing and a draft whose campaign ID disagrees with its lead's authoritative campaign.
+- Expanded emulator smoke assertions to ensure both malformed drafts remain visible and explicitly require review, both are blocked from editing, and the orphan can still be deleted as a safe cleanup action. Deletion must remain draft-only and never send a message.
+- The fixture refuses to run unless the project is `demo-growth-engine-test` and Firestore emulator host is local. No production callable, Firebase project, or real provider data is involved.
+- **Verification pending:** CI must pass on the commit containing these tests before this batch is considered complete.
+- Next: inspect lifecycle consistency and stale legacy-record handling in lead/campaign mutations, then assess whether any additional assertions materially improve coverage without inflating emulator runtime. Continue only on `development/chatgpt-mvp`; do not alter Growth Engine `main` or the original AnyTrader repository.
