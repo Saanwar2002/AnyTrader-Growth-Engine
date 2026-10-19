@@ -43,9 +43,12 @@ function requireDocumentId(value: unknown, label: string): string {
 }
 
 async function requireMembership(organisationId: string, uid: string) {
-  const snapshot = await db.doc(`organisations/${organisationId}/members/${uid}`).get();
+  const [organisationSnapshot, snapshot] = await Promise.all([
+    db.doc(`organisations/${organisationId}`).get(),
+    db.doc(`organisations/${organisationId}/members/${uid}`).get(),
+  ]);
   const membership = snapshot.data();
-  if (!snapshot.exists || !isValidMembershipRecord(membership, uid)) {
+  if (!organisationSnapshot.exists || !snapshot.exists || !isValidMembershipRecord(membership, uid)) {
     throw new HttpsError("permission-denied", "You do not have access to this organisation.");
   }
   return membership ?? {};
@@ -65,10 +68,14 @@ async function requireTransactionalRole(
   uid: string,
   permission: "lead" | "campaign",
 ) {
+  const organisationRef = db.doc(`organisations/${organisationId}`);
   const membershipRef = db.doc(`organisations/${organisationId}/members/${uid}`);
-  const membershipSnapshot = await transaction.get(membershipRef);
+  const [organisationSnapshot, membershipSnapshot] = await Promise.all([
+    transaction.get(organisationRef),
+    transaction.get(membershipRef),
+  ]);
   const membership = membershipSnapshot.data();
-  if (!membershipSnapshot.exists || !membership || !isValidMembershipRecord(membership, uid)) {
+  if (!organisationSnapshot.exists || !membershipSnapshot.exists || !membership || !isValidMembershipRecord(membership, uid)) {
     throw new HttpsError("permission-denied", "You do not have access to this organisation.");
   }
   const allowed = permission === "campaign"

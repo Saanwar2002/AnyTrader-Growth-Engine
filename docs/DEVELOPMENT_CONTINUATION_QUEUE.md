@@ -419,3 +419,10 @@ Continue the callable authorization audit and integration-test reliability work;
 - CI run [39340002191](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39340002191) passed frontend typecheck, 224 unit tests, production build, and Firebase Functions tests/build, but the emulator smoke test failed because it expected exactly one record on the second lead page. The scenario already contains additional valid lead records.
 - Updated lead, campaign, and outreach-draft pagination assertions to validate non-empty later pages, absence of duplicate IDs, and a total beyond the 100-record page limit without assuming the test fixture contains an exact total. The checks still require the final page to report no further cursor.
 - Awaiting full CI rerun for verification. Changes remain limited to `development/chatgpt-mvp`; no Firebase deployment or automated outreach sending.
+
+
+## Reject access to orphaned organisation subcollections — 2026-10-20
+
+- The previous membership checks validated a membership document but did not also verify the parent `organisations/{organisationId}` document exists. Firestore can retain subcollection documents after a parent document is deleted, so a leftover membership could otherwise grant access to orphaned campaign, lead, or draft records.
+- Updated both the regular membership guard and transactional role guard to require the parent organisation document. Added a strictly local-emulator-only fixture that creates orphaned membership and child records, plus smoke assertions that list endpoints and lead creation fail with `permission-denied`.
+- Full CI verification pending. Changes remain on `development/chatgpt-mvp`; no deployment and no automated outreach sending.

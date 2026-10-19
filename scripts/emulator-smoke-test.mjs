@@ -265,6 +265,38 @@ try {
     "organisation cursor backed by a malformed membership record",
   );
 
+  // Orphaned subcollections must not remain accessible after the organisation parent is deleted.
+  execFileSync(process.execPath, [
+    "functions/scripts/seed-emulator-orphaned-organisation.mjs",
+    first.auth.currentUser.uid,
+  ], { stdio: "inherit" });
+  await expectCallableFailure(
+    callOne("listCampaigns", { organisationId: "orphaned-org" }),
+    "functions/permission-denied",
+    "campaign listing under deleted organisation parent",
+  );
+  await expectCallableFailure(
+    callOne("listLeads", { organisationId: "orphaned-org" }),
+    "functions/permission-denied",
+    "lead listing under deleted organisation parent",
+  );
+  await expectCallableFailure(
+    callOne("listOutreachDrafts", { organisationId: "orphaned-org" }),
+    "functions/permission-denied",
+    "draft listing under deleted organisation parent",
+  );
+  await expectCallableFailure(
+    callOne("createLead", {
+      organisationId: "orphaned-org",
+      campaignId: "orphaned-campaign",
+      businessName: "Must not persist",
+      category: "Painters",
+      location: "Manchester",
+    }),
+    "functions/permission-denied",
+    "lead creation under deleted organisation parent",
+  );
+
   // A restriction added after draft creation must be reflected by list and enforced by update.
   await callOne("setLeadSuppression", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, doNotContact: true });
   const suppressedDraftList = await callOne("listOutreachDrafts", { organisationId: orgOne.organisationId });
