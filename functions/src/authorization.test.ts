@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateLeadCompleteness, canChangeSuppression, canMarkLeadContacted, canCreateServerOutreachDraft, canTransitionLeadStatus, getOutreachDraftReviewState, hasCampaignWritePermission, hasLeadWritePermission, isValidCampaignStatus, isValidDocumentId, isValidEmailAddress, isValidLeadStatus, isValidOrganisationId, isValidOrganisationPageToken, isValidOrganisationCollectionPageToken, isValidMembershipRecord, normaliseOptionalText, normaliseRequiredText } from "./authorization";
+import { calculateLeadCompleteness, canChangeSuppression, canMarkLeadContacted, canCreateServerOutreachDraft, canTransitionLeadStatus, getOutreachDraftReviewState, hasCampaignWritePermission, hasLeadWritePermission, isValidCampaignStatus, isValidDocumentId, isValidEmailAddress, isValidLeadStatus, isValidOrganisationId, isValidOrganisationPageToken, isValidOrganisationCollectionPageToken, isValidMembershipRecord, normaliseContactReviewStatus, normaliseOptionalText, normaliseRequiredText } from "./authorization";
 
 describe("server authorization input guards", () => {
   it("trims required text and rejects missing, non-string, blank, and overlong values", () => {
@@ -194,6 +194,23 @@ describe("existing outreach draft review state", () => {
       requiresReview: true,
       reviewReason: "Lead contact restriction could not be verified; review before use.",
     });
+  });
+});
+
+
+describe("contact review status normalisation", () => {
+  it("preserves recognised statuses", () => {
+    expect(normaliseContactReviewStatus(false, "cleared")).toBe("cleared");
+    expect(normaliseContactReviewStatus(false, "pending")).toBe("pending");
+    expect(normaliseContactReviewStatus(true, "blocked")).toBe("blocked");
+  });
+
+  it("recognises only the legacy explicitly-unsuppressed record as implicitly cleared", () => {
+    expect(normaliseContactReviewStatus(false, undefined)).toBe("cleared");
+    expect(normaliseContactReviewStatus(false, "unknown")).toBe("pending");
+    expect(normaliseContactReviewStatus(false, null)).toBe("pending");
+    expect(normaliseContactReviewStatus(undefined, undefined)).toBe("pending");
+    expect(normaliseContactReviewStatus(true, "unknown")).toBe("blocked");
   });
 });
 
