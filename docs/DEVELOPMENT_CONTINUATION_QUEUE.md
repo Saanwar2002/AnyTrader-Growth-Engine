@@ -274,3 +274,11 @@ Continue the callable authorization audit and integration-test reliability work;
 - The test asserts that creating an outreach draft for that lead fails with `functions/failed-precondition`. This confirms that the campaign-integrity guard is enforced even when the contact-review gate is cleared.
 - The fixture uses synthetic records in the guarded local emulator; no production Firebase project or real provider data is involved.
 - Verification pending until CI passes on the new commit.
+
+
+## Suppression persistence during contact edits — 2026-10-19
+
+- Extended the local emulator smoke test to edit a lead's ordinary contact fields while its do-not-contact restriction is active.
+- The test verifies the contact update does not clear `doNotContact` or the `blocked` review state, and that outreach draft creation remains rejected afterward.
+- This protects against a future regression where an innocent contact-detail edit could accidentally reopen a suppressed lead. Synthetic emulator data only; no production integration.
+- Verification pending until GitHub Actions completes for the new commit.
