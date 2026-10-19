@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateLeadCompleteness, canCreateServerOutreachDraft, canTransitionLeadStatus, hasCampaignWritePermission, hasLeadWritePermission, isValidDocumentId, isValidEmailAddress, isValidLeadStatus, isValidOrganisationId, normaliseOptionalText, normaliseRequiredText } from "./authorization";
+import { calculateLeadCompleteness, canChangeSuppression, canCreateServerOutreachDraft, canTransitionLeadStatus, hasCampaignWritePermission, hasLeadWritePermission, isValidDocumentId, isValidEmailAddress, isValidLeadStatus, isValidOrganisationId, normaliseOptionalText, normaliseRequiredText } from "./authorization";
 
 describe("server authorization input guards", () => {
   it("trims required text and rejects missing, non-string, blank, and overlong values", () => {
@@ -85,5 +85,17 @@ describe("server outreach safeguards", () => {
     expect(isValidEmailAddress("not-an-email")).toBe(false);
     expect(isValidEmailAddress("a@b")).toBe(false);
     expect(isValidEmailAddress("x @example.com")).toBe(false);
+  });
+});
+
+
+describe("suppression permission rules", () => {
+  it("allows members to suppress a lead but reserves removing suppression for owner/admin", () => {
+    expect(canChangeSuppression("member", true)).toBe(true);
+    expect(canChangeSuppression("viewer", true)).toBe(false);
+    expect(canChangeSuppression("owner", false)).toBe(true);
+    expect(canChangeSuppression("admin", false)).toBe(true);
+    expect(canChangeSuppression("member", false)).toBe(false);
+    expect(canChangeSuppression("owner", "false")).toBe(false);
   });
 });
