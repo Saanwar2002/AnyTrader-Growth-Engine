@@ -181,7 +181,7 @@ describe("CSV import safety edge cases", () => {
 
 
 describe("CSV export safety", () => {
-  it.each(["=1+1", "+SUM(A1:A2)", "-2+3", "@SUM(A1)", "  =1+1", "\\t=1+1", "\\r@formula"])(
+  it.each(["=1+1", "+SUM(A1:A2)", "-2+3", "@SUM(A1)", "  =1+1", "\t=1+1", "\r@formula"])(
     "prefixes formula-like cell content with a text marker",
     (value) => {
       expect(escapeCsvCell(value)).toBe('"' + "'" + value.replace(/"/g, '""') + '"');
