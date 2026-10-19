@@ -58,6 +58,29 @@ async function requireLeadEditor(organisationId: string, uid: string) {
   return membership;
 }
 
+async function requireTransactionalRole(
+  transaction: Transaction,
+  organisationId: string,
+  uid: string,
+  permission: "lead" | "campaign",
+) {
+  const membershipRef = db.doc(`organisations/${organisationId}/members/${uid}`);
+  const membershipSnapshot = await transaction.get(membershipRef);
+  const membership = membershipSnapshot.data();
+  if (!membershipSnapshot.exists || !membership || !isValidMembershipRecord(membership, uid)) {
+    throw new HttpsError("permission-denied", "You do not have access to this organisation.");
+  }
+  const allowed = permission === "campaign"
+    ? hasCampaignWritePermission(membership.role)
+    : hasLeadWritePermission(membership.role);
+  if (!allowed) {
+    throw new HttpsError("permission-denied", permission === "campaign"
+      ? "Only organisation owners and admins can manage campaigns."
+      : "Your organisation role cannot edit leads or outreach drafts.");
+  }
+  return membership;
+}
+
 function normaliseLeadFields(data: Record<string, unknown>) {
   const businessName = normaliseRequiredText(data.businessName, 160);
   const category = normaliseOptionalText(data.category, 100);
@@ -142,7 +165,10 @@ export const createCampaign = onCall(async (request) => {
     throw new HttpsError("permission-denied", "Only organisation owners and admins can create campaigns.");
   }
   const campaign = db.collection("organisations").doc(organisationId).collection("campaigns").doc();
-  await campaign.create({ name, category, location, brand, goal, status: "active", createdBy: uid, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
+  await db.runTransaction(async (transaction: Transaction) => {
+    await requireTransactionalRole(transaction, organisationId, uid, "campaign");
+    transaction.create(campaign, { name, category, location, brand, goal, status: "active", createdBy: uid, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
+  });
   return { campaignId: campaign.id, organisationId, name, category, location, brand, goal, status: "active" as const };
 });
 
@@ -186,6 +212,7 @@ export const updateCampaignStatus = onCall(async (request) => {
   if (!hasCampaignWritePermission(membership.role)) throw new HttpsError("permission-denied", "Only organisation owners and admins can change campaign status.");
   const campaignRef = db.collection("organisations").doc(organisationId).collection("campaigns").doc(campaignId);
   await db.runTransaction(async (transaction: Transaction) => {
+    await requireTransactionalRole(transaction, organisationId, uid, "campaign");
     const campaignSnapshot = await transaction.get(campaignRef);
     if (!campaignSnapshot.exists) throw new HttpsError("not-found", "Campaign was not found in this organisation.");
     transaction.update(campaignRef, { status: data.status, updatedAt: FieldValue.serverTimestamp(), updatedBy: uid });
@@ -246,6 +273,7 @@ export const createLead = onCall(async (request) => {
   const activity = db.collection("organisations").doc(organisationId).collection("leadActivities").doc();
   const now = FieldValue.serverTimestamp();
   await db.runTransaction(async (transaction: Transaction) => {
+    await requireTransactionalRole(transaction, organisationId, uid, "lead");
     // Check campaign existence in the same transaction as lead creation so a
     // stale/deleted campaign cannot race past the precondition.
     const campaignSnapshot = await transaction.get(campaignRef);
@@ -267,6 +295,7 @@ export const updateLeadContact = onCall(async (request) => {
   const activity = db.collection("organisations").doc(organisationId).collection("leadActivities").doc();
   const completeness = calculateLeadCompleteness(fields);
   await db.runTransaction(async (transaction: Transaction) => {
+    await requireTransactionalRole(transaction, organisationId, uid, "lead");
     const leadSnapshot = await transaction.get(leadRef);
     if (!leadSnapshot.exists) throw new HttpsError("not-found", "Lead was not found in this organisation.");
     const now = FieldValue.serverTimestamp();
@@ -286,6 +315,7 @@ export const updateLeadStatus = onCall(async (request) => {
   const leadRef = db.collection("organisations").doc(organisationId).collection("leads").doc(leadId);
   const activity = db.collection("organisations").doc(organisationId).collection("leadActivities").doc();
   await db.runTransaction(async (transaction: Transaction) => {
+    await requireTransactionalRole(transaction, organisationId, uid, "lead");
     const leadSnapshot = await transaction.get(leadRef);
     if (!leadSnapshot.exists) throw new HttpsError("not-found", "Lead was not found in this organisation.");
     const lead = leadSnapshot.data() ?? {};
@@ -323,6 +353,7 @@ export const updateLeadNotes = onCall(async (request) => {
   const leadRef = db.collection("organisations").doc(organisationId).collection("leads").doc(leadId);
   const activity = db.collection("organisations").doc(organisationId).collection("leadActivities").doc();
   await db.runTransaction(async (transaction: Transaction) => {
+    await requireTransactionalRole(transaction, organisationId, uid, "lead");
     const leadSnapshot = await transaction.get(leadRef);
     if (!leadSnapshot.exists) throw new HttpsError("not-found", "Lead was not found in this organisation.");
     const now = FieldValue.serverTimestamp();
@@ -380,6 +411,7 @@ export const createOutreachDraft = onCall(async (request) => {
   const activity = db.collection("organisations").doc(organisationId).collection("leadActivities").doc();
   let campaignId = "";
   await db.runTransaction(async (transaction: Transaction) => {
+    await requireTransactionalRole(transaction, organisationId, uid, "lead");
     // Reading the lead and creating the draft in one transaction prevents a concurrent
     // suppression change from racing past the do-not-contact gate.
     const leadSnapshot = await transaction.get(leadRef);
@@ -497,6 +529,7 @@ export const updateOutreachDraft = onCall(async (request) => {
   const activity = db.collection("organisations").doc(organisationId).collection("leadActivities").doc();
   let leadId = "";
   await db.runTransaction(async (transaction: Transaction) => {
+    await requireTransactionalRole(transaction, organisationId, uid, "lead");
     const draftSnapshot = await transaction.get(draftRef);
     if (!draftSnapshot.exists) throw new HttpsError("not-found", "Outreach draft was not found in this organisation.");
     const draft = draftSnapshot.data() ?? {};
@@ -531,6 +564,7 @@ export const deleteOutreachDraft = onCall(async (request) => {
   const draftRef = db.collection("organisations").doc(organisationId).collection("outreachDrafts").doc(draftId);
   const activity = db.collection("organisations").doc(organisationId).collection("leadActivities").doc();
   await db.runTransaction(async (transaction: Transaction) => {
+    await requireTransactionalRole(transaction, organisationId, uid, "lead");
     const draftSnapshot = await transaction.get(draftRef);
     if (!draftSnapshot.exists) throw new HttpsError("not-found", "Outreach draft was not found in this organisation.");
     // Deletion must remain possible for malformed legacy drafts so an operator

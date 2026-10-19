@@ -311,3 +311,12 @@ Continue the callable authorization audit and integration-test reliability work;
 - Lifecycle review found that a synthetic legacy lead could have an internally cleared contact-review state while its campaign record was missing. Draft creation already rejects this, but changing the lead's status to `contacted` did not independently validate the campaign reference.
 - Updated `updateLeadStatus` to check campaign existence transactionally before permitting `contacted`. Added an emulator regression using the guarded legacy fixture. Other non-contacted lifecycle transitions retain their existing behaviour.
 - Verification pending for the new commit. Emulator-only synthetic data; no production Firebase setup or outreach sending.
+
+
+## Transactional membership revalidation for write operations — 2026-10-19
+
+- **Prior CI baseline:** run [39334743855](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39334743855) completed successfully after the suppression transaction's membership nullability fix. Frontend typecheck/tests/build, Functions authorization tests/build, and the emulator smoke suite all passed.
+- Audit found that several write callables checked organisation role before opening a Firestore transaction, then relied on that earlier role snapshot while mutating records. A membership role change between the pre-check and transaction could leave a stale authorization decision in use.
+- Added a shared transactional role guard and applied it inside campaign creation/status changes and lead/draft create, edit, status, notes, and delete transactions. The guard re-reads the caller's membership in the transaction, validates the membership record and current role, and checks the relevant permission before any business writes. Existing fast pre-checks remain for clear early errors; the transactional guard is authoritative at commit time.
+- Suppression changes retain their dedicated transactional guard, including the owner/admin-only suppression-clear rule. Read-only callables and organisation creation are unchanged. No membership-management endpoint was added; no production Firebase project, provider source, or sending integration was configured.
+- **Verification pending:** wait for the new CI run to pass before considering this batch complete. Keep all work on development/chatgpt-mvp; do not modify Growth Engine main or the original AnyTrader repository.
