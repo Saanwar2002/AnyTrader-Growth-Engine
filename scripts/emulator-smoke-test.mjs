@@ -302,6 +302,86 @@ try {
   await expectCallableFailure(callTwo("createOutreachDraft", { organisationId: orgTwo.organisationId, leadId: leadOne.leadId, subject: "Cross tenant", body: "Must not be created" }), "functions/not-found", "cross-tenant lead reference denial");
   await expectCallableFailure(callTwo("updateOutreachDraft", { organisationId: orgTwo.organisationId, draftId: draft.draftId, subject: "Cross tenant", body: "Must not be updated" }), "functions/not-found", "cross-tenant draft update denial");
   await expectCallableFailure(callTwo("deleteOutreachDraft", { organisationId: orgTwo.organisationId, draftId: draft.draftId }), "functions/not-found", "cross-tenant draft delete denial");
+
+  // Mutation endpoints must independently enforce tenant membership, not merely
+  // rely on the UI or on read/list authorization.
+  await expectCallableFailure(callTwo("updateLeadContact", {
+    organisationId: orgOne.organisationId,
+    leadId: leadOne.leadId,
+    businessName: "Cross-tenant mutation attempt",
+    category: "Painters",
+    location: "Manchester",
+  }), "functions/permission-denied", "cross-tenant lead contact mutation denial");
+  await expectCallableFailure(callTwo("updateLeadNotes", {
+    organisationId: orgOne.organisationId,
+    leadId: leadOne.leadId,
+    notes: "Cross-tenant mutation attempt",
+  }), "functions/permission-denied", "cross-tenant lead notes mutation denial");
+  await expectCallableFailure(callTwo("updateLeadStatus", {
+    organisationId: orgOne.organisationId,
+    leadId: leadOne.leadId,
+    status: "qualified",
+  }), "functions/permission-denied", "cross-tenant lead status mutation denial");
+  await expectCallableFailure(callTwo("setLeadSuppression", {
+    organisationId: orgOne.organisationId,
+    leadId: leadOne.leadId,
+    doNotContact: true,
+  }), "functions/permission-denied", "cross-tenant suppression mutation denial");
+  await expectCallableFailure(callTwo("updateCampaignStatus", {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    status: "paused",
+  }), "functions/permission-denied", "cross-tenant campaign status mutation denial");
+
+  // Missing or deleted records must return controlled not-found/precondition
+  // errors instead of accidentally updating a different tenant's record.
+  const missingLeadId = "missing-lead-record";
+  const missingCampaignId = "missing-campaign-record";
+  const missingDraftId = "missing-draft-record";
+  await expectCallableFailure(callOne("updateLeadContact", {
+    organisationId: orgOne.organisationId,
+    leadId: missingLeadId,
+    businessName: "Missing lead test",
+    category: "Painters",
+    location: "Manchester",
+  }), "functions/not-found", "updating a missing lead");
+  await expectCallableFailure(callOne("updateLeadNotes", {
+    organisationId: orgOne.organisationId,
+    leadId: missingLeadId,
+    notes: "Must not create a missing lead",
+  }), "functions/not-found", "updating notes on a missing lead");
+  await expectCallableFailure(callOne("updateLeadStatus", {
+    organisationId: orgOne.organisationId,
+    leadId: missingLeadId,
+    status: "qualified",
+  }), "functions/not-found", "changing status on a missing lead");
+  await expectCallableFailure(callOne("setLeadSuppression", {
+    organisationId: orgOne.organisationId,
+    leadId: missingLeadId,
+    doNotContact: true,
+  }), "functions/not-found", "changing suppression on a missing lead");
+  await expectCallableFailure(callOne("updateCampaignStatus", {
+    organisationId: orgOne.organisationId,
+    campaignId: missingCampaignId,
+    status: "paused",
+  }), "functions/not-found", "updating a missing campaign");
+  await expectCallableFailure(callOne("updateOutreachDraft", {
+    organisationId: orgOne.organisationId,
+    draftId: missingDraftId,
+    subject: "Missing draft",
+    body: "Must not create a missing draft",
+  }), "functions/not-found", "updating a missing draft");
+  await expectCallableFailure(callOne("deleteOutreachDraft", {
+    organisationId: orgOne.organisationId,
+    draftId: missingDraftId,
+  }), "functions/not-found", "deleting a missing draft");
+  await expectCallableFailure(callOne("createOutreachDraft", {
+    organisationId: orgOne.organisationId,
+    leadId: missingLeadId,
+    subject: "Missing lead",
+    body: "Must not create a draft without a lead",
+  }), "functions/not-found", "creating a draft for a missing lead");
+
   await callOne("deleteOutreachDraft", { organisationId: orgOne.organisationId, draftId: draft.draftId });
 
   await signOut(first.auth);
