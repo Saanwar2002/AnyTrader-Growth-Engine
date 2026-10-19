@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { createUserWithEmailAndPassword, GoogleAuthProvider, onAuthStateChanged, signInWithEmailAndPassword, signInWithPopup, signOut, type User } from "firebase/auth";
 import { createFirebaseCallableInvoker, createGrowthEngineApi, type CampaignSummary, type LeadSummary, type OrganisationSummary, type OutreachDraftSummary, type ServerLeadStatus } from "./backendApi";
 import { firebaseClient } from "./firebaseClient";
@@ -43,6 +43,7 @@ export default function CloudWorkspace() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const workspaceLoadIdRef = useRef(0);
 
   useEffect(() => {
     if (!client) { setAuthReady(true); return; }
