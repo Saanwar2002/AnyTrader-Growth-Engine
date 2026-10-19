@@ -163,6 +163,8 @@ describe("cloud authentication gate", () => {
   });
 
   it("fails closed when a lead contact restriction cannot be verified", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
     mocks.api.listLeads.mockResolvedValue({ leads: [{
       id: "lead-unverified", campaignId: "campaign-1", businessName: "Unverified Painter", category: "Painters",
       location: "Manchester", website: "", email: "", phone: "", source: "manual", status: "new",
