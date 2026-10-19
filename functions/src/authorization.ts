@@ -101,8 +101,11 @@ export function getOutreachDraftReviewState(leadExists: boolean, doNotContact: u
   if (contactReviewStatus === "blocked" || (doNotContact === true && contactReviewStatus !== "pending")) {
     return { leadSuppressed: true, requiresReview: true, reviewReason: "Lead is suppressed; do not contact." };
   }
-  if (doNotContact !== false || (contactReviewStatus !== undefined && contactReviewStatus !== "cleared")) {
+  if (contactReviewStatus === "pending") {
     return { leadSuppressed: false, requiresReview: true, reviewReason: "Lead contact review is pending or could not be verified; review before use." };
+  }
+  if (doNotContact !== false || (contactReviewStatus !== undefined && contactReviewStatus !== "cleared")) {
+    return { leadSuppressed: false, requiresReview: true, reviewReason: "Lead contact restriction could not be verified; review before use." };
   }
   return { leadSuppressed: false, requiresReview: false, reviewReason: null };
 }
