@@ -109,6 +109,31 @@ try {
   const paginatedLeadIds = [...firstLeadPage.leads, ...secondLeadPage.leads].map((lead) => lead.id);
   assert.equal(new Set(paginatedLeadIds).size, 101, "lead pages do not duplicate records");
 
+  // Exercise campaign pagination beyond the same 100-record page boundary.
+  for (let index = 0; index < 100; index += 1) {
+    await callOne("createCampaign", {
+      organisationId: orgOne.organisationId,
+      name: `Synthetic Pagination Campaign ${String(index + 1).padStart(3, "0")}`,
+      brand: "Example",
+      category: "Painters",
+      location: "Manchester",
+      goal: "Pagination integration test",
+    });
+  }
+  const firstCampaignPage = await callOne("listCampaigns", { organisationId: orgOne.organisationId });
+  assert.equal(firstCampaignPage.campaigns.length, 100, "campaign pagination returns a maximum of 100 records");
+  assert.equal(firstCampaignPage.hasMoreCampaigns, true, "campaign pagination signals another page");
+  assert.ok(firstCampaignPage.nextPageToken, "campaign pagination supplies a cursor");
+  const secondCampaignPage = await callOne("listCampaigns", {
+    organisationId: orgOne.organisationId,
+    pageToken: firstCampaignPage.nextPageToken,
+  });
+  assert.equal(secondCampaignPage.campaigns.length, 1, "the second campaign page returns the remaining record");
+  assert.equal(secondCampaignPage.hasMoreCampaigns, false, "the final campaign page has no further cursor");
+  assert.equal(secondCampaignPage.nextPageToken, null);
+  const paginatedCampaignIds = [...firstCampaignPage.campaigns, ...secondCampaignPage.campaigns].map((campaign) => campaign.id);
+  assert.equal(new Set(paginatedCampaignIds).size, 101, "campaign pages do not duplicate records");
+
   await expectCallableFailure(getDoc(doc(first.firestore, `organisations/${orgOne.organisationId}`)), "permission-denied", "direct client Firestore read denial");
 
   const second = connectClient(initializeApp(firebaseConfig, "tenant-two"));
