@@ -74,3 +74,10 @@ export function canChangeSuppression(role: unknown, doNotContact: unknown): bool
   if (doNotContact) return hasLeadWritePermission(role);
   return hasCampaignWritePermission(role);
 }
+
+
+export type ServerCampaignStatus = "draft" | "active" | "paused" | "completed";
+const SERVER_CAMPAIGN_STATUSES: readonly ServerCampaignStatus[] = ["draft", "active", "paused", "completed"];
+export function isValidCampaignStatus(value: unknown): value is ServerCampaignStatus {
+  return typeof value === "string" && SERVER_CAMPAIGN_STATUSES.includes(value as ServerCampaignStatus);
+}
