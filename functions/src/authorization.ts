@@ -98,7 +98,7 @@ export function getOutreachDraftReviewState(leadExists: boolean, doNotContact: u
   if (!leadExists) {
     return { leadSuppressed: false, requiresReview: true, reviewReason: "Lead record is missing; review before use." };
   }
-  if (doNotContact === true && contactReviewStatus !== "pending") {
+  if (contactReviewStatus === "blocked" || (doNotContact === true && contactReviewStatus !== "pending")) {
     return { leadSuppressed: true, requiresReview: true, reviewReason: "Lead is suppressed; do not contact." };
   }
   if (doNotContact !== false || (contactReviewStatus !== undefined && contactReviewStatus !== "cleared")) {
