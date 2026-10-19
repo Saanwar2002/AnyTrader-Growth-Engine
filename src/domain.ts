@@ -234,3 +234,14 @@ export function parseLeadCsv(csv: string, fieldMapping?: LeadCsvMapping): { rows
   }
   return { rows, errors };
 }
+
+
+export function escapeCsvCell(value: string | number): string {
+  let text = String(value);
+  const first = text.trimStart().charAt(0);
+  const riskyPrefixes = ["=", "+", String.fromCharCode(45), String.fromCharCode(64)];
+  if (riskyPrefixes.includes(first) || text.startsWith("\\t") || text.startsWith("\\r") || text.startsWith("\\n")) {
+    text = "'" + text;
+  }
+  return '"' + text.replace(/"/g, '""') + '"';
+}
