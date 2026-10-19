@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   signIn: vi.fn(),
+  googleSignIn: vi.fn(),
   register: vi.fn(),
   signOut: vi.fn(),
   authListener: vi.fn(),
@@ -23,8 +24,10 @@ vi.mock("./backendApi", () => ({
 }));
 vi.mock("firebase/auth", () => ({
   createUserWithEmailAndPassword: mocks.register,
+  GoogleAuthProvider: vi.fn(() => ({ providerId: "google.com" })),
   onAuthStateChanged: (_auth: unknown, callback: (user: unknown) => void) => { mocks.authListener(); callback(mocks.currentUser); return () => undefined; },
   signInWithEmailAndPassword: mocks.signIn,
+  signInWithPopup: mocks.googleSignIn,
   signOut: mocks.signOut,
 }));
 import CloudWorkspace from "./CloudWorkspace";
@@ -33,7 +36,7 @@ afterEach(() => cleanup());
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.currentUser = null;
-  mocks.signIn.mockResolvedValue({}); mocks.register.mockResolvedValue({});
+  mocks.signIn.mockResolvedValue({}); mocks.googleSignIn.mockResolvedValue({}); mocks.register.mockResolvedValue({});
   mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [] });
   mocks.api.listCampaigns.mockResolvedValue({ campaigns: [] });
   mocks.api.listLeads.mockResolvedValue({ leads: [] });
@@ -60,6 +63,12 @@ describe("cloud authentication gate", () => {
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "testing-password" } });
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
     await waitFor(() => expect(mocks.signIn).toHaveBeenCalledWith({}, "pilot@example.test", "testing-password"));
+  });
+
+  it("starts Google sign-in through Firebase Auth", async () => {
+    render(<CloudWorkspace />);
+    fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
+    await waitFor(() => expect(mocks.googleSignIn).toHaveBeenCalledWith({}, { providerId: "google.com" }));
   });
 
   it("loads only the selected organisation's cloud data after authentication", async () => {
