@@ -43,3 +43,8 @@ This is a source-inspection work queue, not a certification or test report.
 
 ## Next build focus
 Continue the callable authorization audit and integration-test reliability work; resolve the emulator transaction timeout and run the expanded cross-tenant tests before Firebase connection. Keep all changes on `development/chatgpt-mvp`; do not modify `main` or the original AnyTrader repository.
+
+
+## Latest implementation note (2026-10-19)
+- `listOutreachDrafts` now uses Firestore Admin SDK `db.getAll(...refs)` to batch-fetch the distinct associated lead documents rather than starting up to 200 separate read promises. Results are associated to lead IDs by the input order returned by Firestore. This is a source-level performance improvement only; it has not been freshly built or integration-tested in the current environment.
+- Still required: verify the batch-read mapping with unit/emulator tests, add explicit emulator cases for missing/malformed suppression fields and cross-tenant list operations, and run the 101+ organisation pagination test.
