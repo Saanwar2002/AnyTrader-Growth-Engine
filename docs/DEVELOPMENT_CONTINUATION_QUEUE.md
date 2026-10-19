@@ -70,3 +70,5 @@ Continue the callable authorization audit and integration-test reliability work;
 
 
 - 2026-10-19 follow-up: corrected the CSV export guard to detect actual tab/CR/LF control characters (rather than the literal backslash sequences), and tightened row parsing so quote characters in unquoted fields or non-whitespace text after a closing quote cause the row to be skipped with a warning. Added regression cases for malformed quote placement. Commits: `0fbf2bc7611fd53816c7122eac44bef515d8c1b7`, `ec61038779484912c708e54533bddad001d3bfc6`, `f74c67a46047f4110d46fbe211d9a214e8a2088b`, `219b49435924ef6ca466e1f3bbcdaa4628c660fb`. Tests remain unexecuted. The importer still processes physical lines independently, so valid quoted fields containing embedded newlines are not supported yet; implement a record-aware parser before claiming full CSV compatibility.
+
+- Follow-up test fixture correction: malformed-quote regression cases now use actual newline separators so they exercise distinct physical CSV rows. Commit: `550f9444e1a9d83a3bce6718aa927aa63dbd332a`. Still not executed.
