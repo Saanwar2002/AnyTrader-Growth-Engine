@@ -44,6 +44,8 @@ export default function CloudWorkspace() {
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const workspaceLoadIdRef = useRef(0);
+  const currentOrganisationIdRef = useRef(organisationId);
+  currentOrganisationIdRef.current = organisationId;
 
   useEffect(() => {
     if (!client) { setAuthReady(true); return; }
@@ -69,7 +71,7 @@ export default function CloudWorkspace() {
     ]);
     // Ignore stale responses so a slow request from a previous tenant cannot replace
     // the currently selected organisation's data after a switch or sign-out.
-    if (requestId !== workspaceLoadIdRef.current) return;
+    if (requestId !== workspaceLoadIdRef.current || orgId !== currentOrganisationIdRef.current) return;
     setCampaigns(campaignResult.campaigns);
     setLeads(leadResult.leads);
     setLeadNotes(Object.fromEntries(leadResult.leads.map((lead) => [lead.id, lead.notes ?? ""])));
