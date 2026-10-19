@@ -15,7 +15,7 @@ A standalone, multi-brand lead discovery and provider acquisition workspace for 
 - Create and edit outreach drafts; no send action exists.
 - Local activity history and a demo reset action.
 - Synthetic example data clearly labelled as fictional.
-- Unit tests for lead normalization/scoring, CSV parsing, and demo persistence.
+- Automated tests for lead normalization/scoring, CSV parsing, demo persistence, and server-rendered app-shell smoke checks.
 
 ## Run locally
 
