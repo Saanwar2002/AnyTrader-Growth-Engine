@@ -185,10 +185,12 @@ describe("membership record validation", () => {
 
 describe("tenant-scoped collection pagination token validation", () => {
   it("accepts only safe lead/draft cursors belonging to the selected organisation", () => {
+    expect(isValidOrganisationCollectionPageToken("organisations/org-1/campaigns/campaign-1", "org-1", "campaigns")).toBe(true);
     expect(isValidOrganisationCollectionPageToken("organisations/org-1/leads/lead-1", "org-1", "leads")).toBe(true);
     expect(isValidOrganisationCollectionPageToken("organisations/org-1/outreachDrafts/draft-1", "org-1", "outreachDrafts")).toBe(true);
     expect(isValidOrganisationCollectionPageToken("organisations/org-2/leads/lead-1", "org-1", "leads")).toBe(false);
-    expect(isValidOrganisationCollectionPageToken("organisations/org-1/campaigns/lead-1", "org-1", "leads")).toBe(false);
+    expect(isValidOrganisationCollectionPageToken("organisations/org-1/leads/lead-1", "org-1", "campaigns")).toBe(false);
+    expect(isValidOrganisationCollectionPageToken("organisations/org-1/outreachDrafts/draft-1", "org-1", "campaigns")).toBe(false);
     expect(isValidOrganisationCollectionPageToken("organisations/org-1/leads/../other", "org-1", "leads")).toBe(false);
     expect(isValidOrganisationCollectionPageToken("organisations/org-1/leads/lead-1/extra", "org-1", "leads")).toBe(false);
     expect(isValidOrganisationCollectionPageToken("x".repeat(513), "org-1", "leads")).toBe(false);
