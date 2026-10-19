@@ -19,6 +19,18 @@ describe("typed backend API boundary", () => {
     expect(calls[0]).toEqual({ name: "listMyOrganisations", payload: {} });
   });
 
+
+  it("passes an organisation cursor token to request the next page", async () => {
+    const response = { organisations: [], hasMoreOrganisations: false, nextPageToken: null };
+    const { invoke, calls } = makeInvoker([response]);
+    const api = createGrowthEngineApi(invoke);
+    await expect(api.listMyOrganisations("organisations/org-1/members/user-1")).resolves.toEqual(response);
+    expect(calls[0]).toEqual({
+      name: "listMyOrganisations",
+      payload: { pageToken: "organisations/org-1/members/user-1" },
+    });
+  });
+
   it("passes suppression mutations to the server without client-side role claims", async () => {
     const { invoke, calls } = makeInvoker([{ leadId: "lead-1", doNotContact: true }]);
     const api = createGrowthEngineApi(invoke);
