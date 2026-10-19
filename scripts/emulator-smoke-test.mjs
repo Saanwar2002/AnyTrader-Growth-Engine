@@ -134,6 +134,31 @@ try {
   const paginatedCampaignIds = [...firstCampaignPage.campaigns, ...secondCampaignPage.campaigns].map((campaign) => campaign.id);
   assert.equal(new Set(paginatedCampaignIds).size, 101, "campaign pages do not duplicate records");
 
+  // Exercise draft pagination beyond the 100-record page boundary. Reuse the cleared
+  // synthetic lead so this specifically tests paging rather than contact-gate setup.
+  for (let index = 0; index < 100; index += 1) {
+    await callOne("createOutreachDraft", {
+      organisationId: orgOne.organisationId,
+      leadId: leadOne.leadId,
+      subject: `Synthetic Pagination Draft ${String(index + 1).padStart(3, "0")}`,
+      body: "Synthetic draft pagination integration test; not sent.",
+    });
+  }
+  const firstDraftPage = await callOne("listOutreachDrafts", { organisationId: orgOne.organisationId });
+  assert.equal(firstDraftPage.drafts.length, 100, "draft pagination returns a maximum of 100 records");
+  assert.equal(firstDraftPage.hasMoreDrafts, true, "draft pagination signals another page");
+  assert.ok(firstDraftPage.nextPageToken, "draft pagination supplies a cursor");
+  const secondDraftPage = await callOne("listOutreachDrafts", {
+    organisationId: orgOne.organisationId,
+    pageToken: firstDraftPage.nextPageToken,
+  });
+  assert.equal(secondDraftPage.drafts.length, 1, "the second draft page returns the remaining record");
+  assert.equal(secondDraftPage.hasMoreDrafts, false, "the final draft page has no further cursor");
+  assert.equal(secondDraftPage.nextPageToken, null);
+  const paginatedDraftIds = [...firstDraftPage.drafts, ...secondDraftPage.drafts].map((item) => item.id);
+  assert.equal(new Set(paginatedDraftIds).size, 101, "draft pages do not duplicate records");
+  assert.ok([...firstDraftPage.drafts, ...secondDraftPage.drafts].every((item) => item.sent !== true), "all generated drafts remain unsent");
+
   await expectCallableFailure(getDoc(doc(first.firestore, `organisations/${orgOne.organisationId}`)), "permission-denied", "direct client Firestore read denial");
 
   const second = connectClient(initializeApp(firebaseConfig, "tenant-two"));
