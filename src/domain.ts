@@ -161,7 +161,7 @@ export function parseLeadCsv(csv: string): { rows: Array<Record<string, string>>
     else rows.push(row);
   });
   if (rows.length === 0 && errors.length === 0) {
-    errors.push("CSV must contain a header and at least one non-empty data row.");
+    errors.push("CSV must contain a header and at least one data row.");
   }
   return { rows, errors };
 }
