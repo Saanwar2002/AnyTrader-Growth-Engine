@@ -139,11 +139,19 @@ describe("cloud authentication gate", () => {
     mocks.api.listLeads.mockImplementation(({ organisationId }: { organisationId: string }) =>
       organisationId === "org-1" ? Promise.resolve({ leads: [firstLead] }) : secondTenantLeads
     );
+    mocks.api.listCampaigns
+      .mockResolvedValueOnce({ campaigns: [{
+        id: "campaign-private", name: "First Tenant Private Campaign", brand: "AnyTrader",
+        category: "Painters", location: "Manchester", goal: "Recruit", status: "active", createdAt: null,
+      }] })
+      .mockResolvedValueOnce({ campaigns: [] });
 
     render(<CloudWorkspace />);
     expect(await screen.findByText("First Tenant Private Lead")).toBeTruthy();
+    expect(await screen.findByText("First Tenant Private Campaign")).toBeTruthy();
     fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
     expect(screen.queryByText("First Tenant Private Lead")).toBeNull();
+    expect(screen.queryByText("First Tenant Private Campaign")).toBeNull();
 
     resolveSecondTenant({ leads: [] });
     await waitFor(() => expect(screen.queryByText("First Tenant Private Lead")).toBeNull());
