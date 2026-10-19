@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "typecheck": "tsc -b",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:emulators": "npx --yes firebase-tools emulators:exec --project demo-growth-engine-test --only auth,functions,firestore \"node scripts/emulator-smoke-test.mjs\""
   },
   "dependencies": {
     "firebase": "^11.10.0",
