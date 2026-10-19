@@ -7,7 +7,7 @@ A standalone, multi-brand lead discovery and provider acquisition workspace for 
 - Responsive dashboard with overview metrics and recent activity.
 - Create campaigns with a brand, service category, target location, and acquisition goal.
 - View campaign cards and change campaign status.
-- Lead directory with search and filters for status and campaign.
+- Lead directory with search and filters for status and campaign, plus a lead details panel and editable internal notes.
 - Lead status workflow: new, in review, qualified, contacted, onboarded, and rejected.
 - Transparent completeness score (0–100) with an explanation of which fields contributed.
 - CSV import with a 2 MB file limit, basic quoted-field support, row validation, and per-campaign duplicate detection.
