@@ -72,7 +72,7 @@ This release is a browser-local demo, not a secure multi-user service:
 
 1. **Local demo MVP:** usable campaign and lead workflows, synthetic data, CSV import/export, drafts, and unit tests.
 2. **Authentication and tenant-safe persistence:** dedicated Firebase project, verified identity, organisations/memberships, deny-by-default rules, and isolation tests.
-3. **Workflow hardening:** richer import preview, lead details/notes, audit history, opt-out/suppression support, and stronger CSV edge-case tests.
+3. **Workflow hardening:** richer import preview, lead details/notes, activity history, opt-out/suppression controls, and stronger CSV edge-case tests.
 4. **Approved source adapters:** only APIs/data providers whose terms permit the intended use.
 5. **Server-side AI assistance:** validated classification and draft generation with usage limits and human review.
 6. **Attribution and SaaS controls:** onboarding attribution, plans, quotas, and later billing.
