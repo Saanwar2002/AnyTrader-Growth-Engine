@@ -20,7 +20,7 @@ describe("Growth Engine app render smoke tests", () => {
   it("clearly labels the initial data as synthetic and confirms messages are not sent", () => {
     const markup = renderToStaticMarkup(createElement(App));
 
-    expect(markup).toContain("You're exploring with synthetic data");
+    expect(markup).toContain("You&#x27;re exploring with synthetic data");
     expect(markup).toContain("Nothing is sent automatically");
     expect(markup).toContain("No live data sources");
   });
