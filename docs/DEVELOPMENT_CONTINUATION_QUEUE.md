@@ -174,3 +174,10 @@ Continue the callable authorization audit and integration-test reliability work;
 - Extended the Firebase emulator smoke suite to create 100 additional synthetic campaigns and verify the campaign callable returns 100 records on page one, one record on page two, a cursor only when more records exist, and no duplicate IDs across the 101-record result set.
 - The lead pagination integration already verifies the same 100+1 behaviour. Draft pagination remains source/UI covered but does not yet have a 101-record emulator test because creating the required valid lead/draft pairs adds a larger number of callable operations.
 - Role enforcement remains split between tested pure authorization helpers and server-side membership guards. A follow-up emulator test should seed member/viewer memberships using a trusted emulator-only Admin SDK fixture, then verify member lead/draft writes, viewer read-only behaviour, and owner/admin-only campaign/suppression-clearance actions. Do not add a production membership-management endpoint merely for testing.
+
+
+## Draft pagination integration follow-up — 2026-10-19
+
+- Added a Firebase emulator scenario that creates 100 additional synthetic outreach drafts against the already-cleared synthetic lead, then checks 100 records on page one, one on page two, continuation/final cursor behaviour, unique IDs across both pages, and that the generated drafts remain unsent.
+- This complements the existing 101-record lead and campaign pagination checks. The scenario adds 100 callable writes, so CI runtime must be observed; if the 15-minute emulator step becomes unstable, split or seed only via a trusted emulator-only fixture rather than weakening assertions.
+- Role-specific emulator checks remain a follow-up: use a trusted emulator-only Admin SDK fixture to seed member/viewer membership documents; do not create a production endpoint just for tests.
