@@ -524,6 +524,7 @@ try {
   });
   assert.equal(nonDraftStatusCleanup.deleted, true, "non-draft legacy record remains deletable for cleanup");
   assert.equal(nonDraftStatusCleanup.sent, false, "cleanup does not send outreach");
+  assert.equal(nonDraftStatusCleanup.messageSentByThisAction, false, "cleanup response explicitly states this action did not send a message");
   await expectCallableFailure(callOne("updateOutreachDraft", {
     organisationId: orgOne.organisationId, draftId: "legacy-missing-status",
     subject: "Must not reopen an unknown-status record", body: "Status must remain blocked",
@@ -533,6 +534,7 @@ try {
   });
   assert.equal(missingStatusCleanup.deleted, true, "missing-status legacy record remains deletable for cleanup");
   assert.equal(missingStatusCleanup.sent, false, "missing-status cleanup does not send outreach");
+  assert.equal(missingStatusCleanup.messageSentByThisAction, false, "missing-status cleanup explicitly confirms this action did not send a message");
   await expectCallableFailure(callOne("updateOutreachDraft", {
     organisationId: orgOne.organisationId, draftId: "legacy-orphan-draft",
     subject: "Should remain blocked", body: "Do not update an orphan",

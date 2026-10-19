@@ -585,10 +585,10 @@ export const deleteOutreachDraft = onCall(async (request) => {
       ...(leadId ? { leadId } : {}),
       actorUid: uid,
       message: leadId
-        ? "Outreach draft deleted; no message was sent"
-        : "Malformed outreach draft deleted; no message was sent (lead reference was invalid)",
+        ? "Outreach record deleted; this action did not send a message"
+        : "Malformed outreach record deleted; this action did not send a message (lead reference was invalid)",
       createdAt: FieldValue.serverTimestamp(),
     });
   });
-  return { draftId, deleted: true, sent: false };
+  return { draftId, deleted: true, sent: false, messageSentByThisAction: false };
 });

@@ -360,3 +360,10 @@ Continue the callable authorization audit and integration-test reliability work;
 - CI run [39336793423](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39336793423) caught a real regression in the new direct lead-list assertions: `normaliseContactReviewStatus` preserved a misleading `cleared` metadata value when `doNotContact` was missing or malformed.
 - Fixed the helper so only an explicit boolean `doNotContact: false` can support a cleared state. Missing/malformed restriction values now normalise to `pending`, even if review metadata says `cleared`; an explicit blocked state remains blocked. Updated the adversarial unit-test matrix.
 - Re-run CI including the emulator smoke suite before treating this as verified. Continue on `development/chatgpt-mvp` only; production Firebase remains deferred and outreach stays draft-only.
+
+
+## Clarify deletion semantics for legacy outreach records — 2026-10-19
+
+- CI run [39337157941](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39337157941) passed after the fail-closed contact restriction normalisation fix. Both frontend and Functions jobs succeeded, including emulator integration checks.
+- The next audit found ambiguous wording when deleting a legacy record whose stored status is `sent`: the activity log said “no message was sent,” which could be misread as a claim about the record's entire history. Wording now says the deletion action itself did not send a message. The delete response adds explicit `messageSentByThisAction: false`, and emulator assertions cover this field for non-draft and unknown-status cleanup.
+- Verify the new commit through full CI before treating this follow-up as complete. Continue on `development/chatgpt-mvp` only; no deployment or sending integration.
