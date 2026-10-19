@@ -58,6 +58,7 @@ export default function CloudWorkspace() {
   const refreshOrganisations = useCallback(async () => {
     if (!api) return;
     const requestId = ++organisationListLoadIdRef.current;
+    setLoadingMoreOrganisations(false);
     const result = await api.listMyOrganisations();
     if (requestId !== organisationListLoadIdRef.current) return;
     setOrganisations(result.organisations);
