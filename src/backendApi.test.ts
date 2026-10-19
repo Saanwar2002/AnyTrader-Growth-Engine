@@ -11,6 +11,14 @@ function makeInvoker(responses: unknown[] = []) {
 }
 
 describe("typed backend API boundary", () => {
+  it("requests only the signed-in user's organisations without accepting a client UID", async () => {
+    const response = { organisations: [{ organisationId: "org-1", name: "Example", role: "owner" }] };
+    const { invoke, calls } = makeInvoker([response]);
+    const api = createGrowthEngineApi(invoke);
+    await expect(api.listMyOrganisations()).resolves.toEqual(response);
+    expect(calls[0]).toEqual({ name: "listMyOrganisations", payload: {} });
+  });
+
   it("passes suppression mutations to the server without client-side role claims", async () => {
     const { invoke, calls } = makeInvoker([{ leadId: "lead-1", doNotContact: true }]);
     const api = createGrowthEngineApi(invoke);
