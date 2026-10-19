@@ -225,3 +225,10 @@ tbody tr:hover{background:#fbfcff}
 .suppression-control.is-suppressed{border-color:#f0b4ab;background:#fff6f4}
 .suppression-warning{margin:14px 0;padding:12px 14px;border:1px solid #f0b4ab;border-radius:8px;background:#fff6f4;color:#96382d;font-size:12px;line-height:1.5}
 @media(max-width:620px){.suppression-control{align-items:flex-start;flex-direction:column}}
+
+.suppression-badge{display:inline-flex;align-items:center;margin-left:6px;padding:3px 6px;border-radius:5px;background:#fff0ed;color:#a43b2e;font-size:9px;font-weight:800;letter-spacing:.03em;vertical-align:middle}
+.suppression-control{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:18px 0;padding:14px 16px;border:1px solid #e2e8f0;border-radius:10px;background:#f8fafc}
+.suppression-control>div{display:grid;gap:5px}.suppression-control strong{font-size:12px;color:#344054}.suppression-control small{font-size:11px;line-height:1.5;color:#667085}
+.suppression-control.is-suppressed{border-color:#f0b4ab;background:#fff6f4}
+.suppression-warning{margin:14px 0;padding:12px 14px;border:1px solid #f0b4ab;border-radius:8px;background:#fff6f4;color:#96382d;font-size:12px;line-height:1.5}
+@media(max-width:620px){.suppression-control{align-items:flex-start;flex-direction:column}}
