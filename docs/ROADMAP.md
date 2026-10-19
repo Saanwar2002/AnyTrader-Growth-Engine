@@ -26,10 +26,10 @@
 - [x] Add draft listing, editing, and deletion; no send endpoint exists.
 - [x] Add deny-by-default Firestore rules, strict server input/role guards, and emulator configuration.
 - [ ] Create/configure a dedicated Growth Engine Firebase project; do not reuse AnyTrader production.
-- [ ] Add sign-in and account lifecycle UI using Firebase Authentication.
+- [x] Add email/password sign-in, account creation, sign-out, and a Firebase-config-gated cloud workspace UI.
 - [ ] Run callable functions and Firestore rules against Firebase Emulator Suite.
 - [ ] Add emulator-backed tests for unauthenticated requests, non-member access, role escalation, and cross-tenant isolation.
-- [x] Scaffold environment-gated Firebase client setup and a typed callable API adapter with unit tests.\n- [ ] Connect the frontend through the typed API/repository adapter; keep demo mode as a separate mode.
+- [x] Scaffold environment-gated Firebase client setup and a typed callable API adapter with unit tests.\n- [x] Connect core organisation, campaign, lead, suppression, and draft workflows through the typed API adapter; keep local demo mode separate.
 - [ ] Add rate limiting/App Check strategy, structured audit events, idempotency, and safe error handling before external exposure.
 
 ## Phase 3 — Complete persisted workflows
