@@ -287,6 +287,22 @@ export function parseLeadCsv(csv: string, fieldMapping?: LeadCsvMapping): { rows
       if (index >= 0) canonicalMapping[field] = index;
     }
   });
+  // A single source column must not be assigned to multiple fields: doing so
+  // can silently copy the same value into unrelated contact fields.
+  const mappedIndexes = Object.entries(canonicalMapping);
+  const duplicateIndexes = [...new Set(mappedIndexes
+    .map(([, index]) => index)
+    .filter((index, position, all) => all.indexOf(index) !== position))];
+  if (duplicateIndexes.length > 0) {
+    const duplicateFields = mappedIndexes
+      .filter(([, index]) => duplicateIndexes.includes(index))
+      .map(([field]) => field);
+    return {
+      rows: [],
+      errors: [`CSV field mapping assigns the same column to multiple fields (${duplicateFields.join(", ")}); choose a different column for each field.`],
+    };
+  }
+
   const nameIndex = canonicalMapping.businessName;
   if (nameIndex === undefined) {
     return { rows: [], errors: [fieldMapping ? "Map a CSV column to the required Business name field before previewing the import." : "Missing required column: businessName (or business/company/name)."] };
