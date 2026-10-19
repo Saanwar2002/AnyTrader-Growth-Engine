@@ -26,6 +26,7 @@ export interface Lead {
   score: number;
   scoreReasons: string[];
   notes: string;
+  doNotContact: boolean;
   createdAt: string;
 }
 
@@ -105,6 +106,10 @@ export interface AppState {
 export const LEAD_STATUSES: LeadStatus[] = [
   "new", "reviewing", "qualified", "contacted", "onboarded", "rejected",
 ];
+
+export function canCreateOutreachDraft(lead: Pick<Lead, "doNotContact">): boolean {
+  return lead.doNotContact !== true;
+}
 
 export function normalizeBusinessName(value: string): string {
   return value.trim().toLocaleLowerCase("en-GB").replace(/\s+/g, " ");
