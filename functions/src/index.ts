@@ -5,6 +5,7 @@ import {
   calculateLeadCompleteness,
   canChangeSuppression,
   canCreateServerOutreachDraft,
+  canMarkLeadContacted,
   canTransitionLeadStatus,
   hasCampaignWritePermission,
   hasLeadWritePermission,
@@ -248,8 +249,13 @@ export const updateLeadStatus = onCall(async (request) => {
     const leadSnapshot = await transaction.get(leadRef);
     if (!leadSnapshot.exists) throw new HttpsError("not-found", "Lead was not found in this organisation.");
     const lead = leadSnapshot.data() ?? {};
+    if (status === "contacted" && !canMarkLeadContacted(lead.doNotContact)) {
+      throw new HttpsError("failed-precondition", lead.doNotContact === true
+        ? "A suppressed lead cannot be marked as contacted."
+        : "The lead contact restriction is unverified; it cannot be marked as contacted.");
+    }
     if (!canTransitionLeadStatus(status, lead.doNotContact === true)) {
-      throw new HttpsError("failed-precondition", lead.doNotContact === true && status === "contacted" ? "A suppressed lead cannot be marked as contacted." : "Lead status is not valid.");
+      throw new HttpsError("failed-precondition", "Lead status is not valid.");
     }
     const now = FieldValue.serverTimestamp();
     transaction.update(leadRef, { status, updatedAt: now, updatedBy: uid });
