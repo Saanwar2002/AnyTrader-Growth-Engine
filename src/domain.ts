@@ -199,7 +199,7 @@ export function parseLeadCsv(csv: string, fieldMapping?: LeadCsvMapping): { rows
   });
   const nameIndex = canonicalMapping.businessName;
   if (nameIndex === undefined) {
-    return { rows: [], errors: ["Map a CSV column to the required Business name field before previewing the import."] };
+    return { rows: [], errors: [fieldMapping ? "Map a CSV column to the required Business name field before previewing the import." : "Missing required column: businessName (or business/company/name)."] };
   }
 
   const rows: Array<Record<string, string>> = [];
