@@ -487,9 +487,19 @@ export const deleteOutreachDraft = onCall(async (request) => {
   await db.runTransaction(async (transaction: Transaction) => {
     const draftSnapshot = await transaction.get(draftRef);
     if (!draftSnapshot.exists) throw new HttpsError("not-found", "Outreach draft was not found in this organisation.");
-    const leadId = requireDocumentId(draftSnapshot.data()?.leadId, "draft leadId");
+    // Deletion must remain possible for malformed legacy drafts so an operator
+    // can clean up the record instead of being trapped by its invalid lead reference.
+    const rawLeadId = draftSnapshot.data()?.leadId;
+    const leadId = isValidDocumentId(rawLeadId) ? rawLeadId : null;
     transaction.delete(draftRef);
-    transaction.create(activity, { leadId, actorUid: uid, message: "Outreach draft deleted; no message was sent", createdAt: FieldValue.serverTimestamp() });
+    transaction.create(activity, {
+      ...(leadId ? { leadId } : {}),
+      actorUid: uid,
+      message: leadId
+        ? "Outreach draft deleted; no message was sent"
+        : "Malformed outreach draft deleted; no message was sent (lead reference was invalid)",
+      createdAt: FieldValue.serverTimestamp(),
+    });
   });
   return { draftId, deleted: true, sent: false };
 });
