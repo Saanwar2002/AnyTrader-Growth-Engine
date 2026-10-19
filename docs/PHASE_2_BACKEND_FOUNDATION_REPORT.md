@@ -39,7 +39,7 @@ All data endpoints require an authenticated Firebase callable request. Organisat
 ## Known gaps — do not expose as production service yet
 
 - No dedicated Firebase project has been configured and no deployment has been performed.
-- The frontend is not connected to Firebase Auth or these endpoints; it remains a browser-local demo.
+- The frontend is not connected to Firebase Auth or these endpoints; it remains a browser-local demo. An environment-gated Firebase client initializer and typed callable API adapter are scaffolded but are not yet connected to UI workflows.
 - No Firebase Emulator Suite integration tests have run, and tenant isolation is not yet proven end-to-end.
 - No App Check enforcement, rate limiting, idempotency keys, comprehensive security audit log, or usage quotas yet.
 - Server-side CSV batch import and cursor pagination are not implemented.
@@ -50,11 +50,11 @@ All data endpoints require an authenticated Firebase callable request. Organisat
 | Check | Result |
 |---|---|
 | `npm run typecheck` | Passed |
-| `npm test` | Passed — 47 tests across 4 files |
+| `npm test` | Passed — 50 tests across 5 files |
 | `npm run build` | Passed |
 | `npm --prefix functions run build` | Passed |
 | `npm --prefix functions test` | Passed — 12 server guard tests |
-| `npm audit` | Passed — 0 reported vulnerabilities |
+| `npm audit` | Passed — 0 reported vulnerabilities after the root package override for @grpc/grpc-js |
 | `npm --prefix functions audit` | Passed — 0 reported vulnerabilities |
 
 The Firebase Emulator Suite was not run because Java is not installed in the remote workspace. These results are not a substitute for emulator-backed authorization tests, an end-to-end tenant-isolation test, or a deployed security review.
@@ -65,7 +65,7 @@ The Firebase Emulator Suite was not run because Java is not installed in the rem
 2. Copy `.firebaserc.example` to `.firebaserc` locally and replace the placeholder; never commit service-account credentials.
 3. Enable Firebase Authentication and configure approved sign-in providers.
 4. Run Auth, Firestore, and Functions emulators and prove unauthenticated calls fail, non-members cannot access organisation data, members cannot create campaigns or remove suppression, and Organisation A cannot access Organisation B.
-5. Add a sign-in UI and typed frontend API adapter; keep local demo mode isolated and clearly labelled.
+5. Add a sign-in UI and connect the typed frontend API adapter; keep local demo mode isolated and clearly labelled.
 6. Add App Check, rate limiting, idempotency protection, audit events, monitoring, and privacy/retention controls before external production use.
 
 ## Scope boundary
