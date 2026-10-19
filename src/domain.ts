@@ -108,7 +108,7 @@ export const LEAD_STATUSES: LeadStatus[] = [
 ];
 
 export function canCreateOutreachDraft(lead: Pick<Lead, "doNotContact">): boolean {
-  return lead.doNotContact !== true;
+  return lead.doNotContact === false;
 }
 
 export function normalizeBusinessName(value: string): string {
