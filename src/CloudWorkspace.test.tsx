@@ -104,9 +104,23 @@ describe("cloud authentication gate", () => {
     mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
     mocks.api.listOutreachDrafts.mockResolvedValue({ drafts: [{ id: "draft-suppressed", leadId: "lead-1", campaignId: "campaign-1", subject: "Review me", body: "Draft body", status: "draft", leadSuppressed: true, requiresReview: true, reviewReason: "Lead is suppressed; do not contact.", createdAt: null }] });
     render(<CloudWorkspace />);
-    expect(await screen.findByRole("alert")).toHaveTextContent("Lead is suppressed; do not contact.");
-    expect(screen.getByRole("button", { name: "Edit" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Delete" })).toBeEnabled();
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("Lead is suppressed; do not contact.");
+    expect((screen.getByRole("button", { name: "Edit" }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole("button", { name: "Delete" }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+
+  it("warns when the organisation list is truncated at the 100-membership cap", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: true,
+    });
+    render(<CloudWorkspace />);
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("at least 100 organisation memberships");
+    expect(alert.textContent).toContain("pagination must be enabled");
   });
 
   it("offers account creation without weakening the required password length", () => {
