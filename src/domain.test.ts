@@ -135,7 +135,6 @@ Greater Manchester",hello@example.com
 Example Decorators,Painters`);
     expect(result.errors[0]).toContain("header contains an unmatched quote");
   });
-});
 
   it("removes a UTF-8 BOM and handles escaped quotes", () => {
     const result = parseLeadCsv('\uFEFFbusinessName,notes\n"North ""Star"" Decorators",Approved');
@@ -167,8 +166,7 @@ Example Decorators,Painters`);
     expect(result.errors).toEqual([]);
     expect(result.rows[0]).toEqual({ businessname: "Example Decorators", category: "Painters", email: "" });
   });
-
-
+});
 
 describe("deduplicateLeads", () => {
   const lead = (businessName: string, campaignId = "campaign-a") => ({ businessName, campaignId });
