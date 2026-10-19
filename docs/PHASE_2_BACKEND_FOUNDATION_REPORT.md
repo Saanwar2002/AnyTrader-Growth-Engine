@@ -39,7 +39,7 @@ All data endpoints require an authenticated Firebase callable request. Organisat
 ## Known gaps — do not expose as production service yet
 
 - No dedicated Firebase project has been configured and no deployment has been performed.
-- The frontend is not connected to Firebase Auth or these endpoints; it remains a browser-local demo. An environment-gated Firebase client initializer and typed callable API adapter are scaffolded and unit-tested but are not yet connected to UI workflows.
+- The frontend now selects a Firebase email/password sign-in and cloud workspace UI when required public config values exist; without them it remains in local synthetic demo mode. The cloud UI connects organisation discovery/creation, campaign creation/listing, lead creation/listing/status/suppression, and draft create/list/delete to callable functions. This UI has not been validated against a real project or Firebase emulators.
 - No Firebase Emulator Suite integration tests have run, and tenant isolation is not yet proven end-to-end.
 - No App Check enforcement, rate limiting, idempotency keys, comprehensive security audit log, or usage quotas yet.
 - Server-side CSV batch import and cursor pagination are not implemented.
@@ -65,7 +65,7 @@ The Firebase Emulator Suite was not run because Java is not installed in the rem
 2. Copy `.firebaserc.example` to `.firebaserc` locally and replace the placeholder; never commit service-account credentials.
 3. Enable Firebase Authentication and configure approved sign-in providers.
 4. Run Auth, Firestore, and Functions emulators and prove unauthenticated calls fail, non-members cannot access organisation data, members cannot create campaigns or remove suppression, and Organisation A cannot access Organisation B.
-5. Add a sign-in UI and connect the typed frontend API adapter; keep local demo mode isolated and clearly labelled.
+5. Configure the dedicated project and validate the sign-in/cloud UI through Auth, Functions, and Firestore emulators before any production deployment.
 6. Add App Check, rate limiting, idempotency protection, audit events, monitoring, and privacy/retention controls before external production use.
 
 ## Scope boundary
