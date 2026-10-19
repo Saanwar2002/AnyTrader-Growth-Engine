@@ -172,7 +172,7 @@ export function parseLeadCsv(csv: string, fieldMapping?: LeadCsvMapping): { rows
 
   const parsedHeaders = parseLine(lines[headerLineIndex]);
   if (!parsedHeaders) return { rows: [], errors: ["CSV header contains an unmatched quote."] };
-  const headers = parsedHeaders.map((header) => header.toLocaleLowerCase("en-GB").replace(/\s+/g, ""));
+  const headers = parsedHeaders.map(normalizeCsvHeader);
   if (headers.some((header) => !header)) {
     return { rows: [], errors: ["CSV contains an empty column header. Give every column a name."] };
   }
@@ -186,8 +186,21 @@ export function parseLeadCsv(csv: string, fieldMapping?: LeadCsvMapping): { rows
     return { rows: [], errors: [`CSV contains duplicate column header(s): ${[...duplicateHeaders].join(", ")}. Rename the duplicate columns and try again.`] };
   }
 
-  const nameIndex = headers.findIndex((h) => ["businessname", "business", "company", "name"].includes(h));
-  if (nameIndex < 0) return { rows: [], errors: ["Missing required column: businessName (or business/company/name)."] };
+  const originalHeaders = parsedHeaders.map((header) => header.trim());
+  const automaticMapping = suggestLeadCsvMapping(originalHeaders);
+  const mapping = fieldMapping ?? automaticMapping;
+  const canonicalMapping: Partial<Record<LeadCsvField, number>> = {};
+  (Object.keys(csvAliases) as LeadCsvField[]).forEach((field) => {
+    const selected = mapping[field];
+    if (selected) {
+      const index = originalHeaders.findIndex((header) => header === selected);
+      if (index >= 0) canonicalMapping[field] = index;
+    }
+  });
+  const nameIndex = canonicalMapping.businessName;
+  if (nameIndex === undefined) {
+    return { rows: [], errors: ["Map a CSV column to the required Business name field before previewing the import."] };
+  }
 
   const rows: Array<Record<string, string>> = [];
   const errors: string[] = [];
@@ -205,7 +218,9 @@ export function parseLeadCsv(csv: string, fieldMapping?: LeadCsvMapping): { rows
       return;
     }
     const row: Record<string, string> = {};
-    headers.forEach((header, index) => { row[header] = values[index] ?? ""; });
+    (Object.keys(canonicalMapping) as LeadCsvField[]).forEach((field) => {
+      row[normalizeCsvHeader(field)] = values[canonicalMapping[field]!] ?? "";
+    });
     if (!values[nameIndex]?.trim()) errors.push(`Row ${rowNumber}: business name is required; row skipped.`);
     else rows.push(row);
   });
