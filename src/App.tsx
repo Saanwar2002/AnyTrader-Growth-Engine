@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { createDemoRepository } from "./repository";
-import { LEAD_STATUSES, canCreateOutreachDraft, deduplicateLeads, inspectLeadCsvHeaders, parseLeadCsv, scoreLead, suggestLeadCsvMapping, type Activity, type AppState, type Campaign, type CampaignStatus, type Lead, type LeadStatus, type OutreachDraft, type LeadCsvField, type LeadCsvMapping } from "./domain";
+import { LEAD_STATUSES, escapeCsvCell, canCreateOutreachDraft, deduplicateLeads, inspectLeadCsvHeaders, parseLeadCsv, scoreLead, suggestLeadCsvMapping, type Activity, type AppState, type Campaign, type CampaignStatus, type Lead, type LeadStatus, type OutreachDraft, type LeadCsvField, type LeadCsvMapping } from "./domain";
 import "./styles.css";
 
 type View = "overview" | "campaigns" | "leads" | "review" | "drafts" | "settings";
@@ -198,14 +198,7 @@ export default function App() {
 
   function exportCsv() {
     const header = ["businessName", "category", "location", "website", "email", "phone", "status", "score", "source", "doNotContact"];
-    const escape = (value: string | number) => {
-      let text = String(value);
-      const first = text.trimStart().charAt(0);
-      const riskyPrefixes = ["=", "+", String.fromCharCode(45), String.fromCharCode(64)];
-      if (riskyPrefixes.includes(first) || text.startsWith("\\t") || text.startsWith("\\r") || text.startsWith("\\n")) text = "'" + text;
-      return '"' + text.replace(/"/g, '""') + '"';
-    };
-    const rows = [header.join(","), ...visibleLeads.map((lead) => [lead.businessName, lead.category, lead.location, lead.website, lead.email, lead.phone, lead.status, lead.score, lead.source, lead.doNotContact ? "yes" : "no"].map(escape).join(","))];
+    const rows = [header.join(","), ...visibleLeads.map((lead) => [lead.businessName, lead.category, lead.location, lead.website, lead.email, lead.phone, lead.status, lead.score, lead.source, lead.doNotContact ? "yes" : "no"].map(escapeCsvCell).join(","))];
     const blob = new Blob(["\uFEFF", rows.join("\r\n")], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
