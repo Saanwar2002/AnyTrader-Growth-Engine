@@ -67,3 +67,10 @@ export function canCreateServerOutreachDraft(doNotContact: unknown): boolean {
 export function isValidEmailAddress(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
+
+
+export function canChangeSuppression(role: unknown, doNotContact: unknown): boolean {
+  if (typeof doNotContact !== "boolean") return false;
+  if (doNotContact) return hasLeadWritePermission(role);
+  return hasCampaignWritePermission(role);
+}
