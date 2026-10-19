@@ -160,7 +160,9 @@ try {
   assert.equal(new Set(paginatedLeadIds).size, 101, "lead pages do not duplicate records");
 
   // Exercise campaign pagination beyond the same 100-record page boundary.
-  for (let index = 0; index < 100; index += 1) {
+  // The owner and admin setup already created two campaigns, so add 99 to
+  // make the organisation contain exactly 101 records for this paging check.
+  for (let index = 0; index < 99; index += 1) {
     await callOne("createCampaign", {
       organisationId: orgOne.organisationId,
       name: `Synthetic Pagination Campaign ${String(index + 1).padStart(3, "0")}`,
