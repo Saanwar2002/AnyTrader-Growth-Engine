@@ -28,7 +28,7 @@ npm run dev
 
 Open the local URL printed by Vite. With no `.env.local` file, the app runs in local synthetic-data demo mode.
 
-**Cloud mode is scaffolded but not yet configured.** Do not add Firebase values until a dedicated Growth Engine project exists and its Auth/Functions/Firestore setup has been validated in emulators. At that point, copy `.env.example` to `.env.local` and use only that dedicated project's public web-app config. Never point this app at production AnyTrader. The cloud UI expects the callable Functions API to be deployed to the same project.
+**Cloud mode is scaffolded but not yet configured.** Do not add Firebase values until a dedicated Growth Engine project exists and its Auth/Functions/Firestore setup has been validated in emulators. Email/password and Google sign-in are implemented in the cloud UI, but Google sign-in must be enabled in Firebase Console before it can work. At that point, copy `.env.example` to `.env.local` and use only that dedicated project's public web-app config. Never point this app at production AnyTrader. The cloud UI expects the callable Functions API to be deployed to the same project.
 
 Quality checks:
 
@@ -41,6 +41,17 @@ npm --prefix functions run build
 npm --prefix functions test
 npm run test:emulators # optional; requires Node.js 22, Java, and emulator downloads
 ```
+
+## Enable Google sign-in (Firebase setup)
+
+1. Open the dedicated **Growth Engine** Firebase project in Firebase Console; do not use production AnyTrader.
+2. Go to **Authentication → Sign-in method** (or **Sign-in providers**) and enable **Google**. Choose the project support email and save.
+3. In **Authentication → Settings → Authorized domains**, confirm the exact development/hosting domain is listed. Firebase usually adds localhost for local development, but verify it; add only domains you control.
+4. Configure the matching public web-app values in local `.env.local` from `.env.example`. Do not commit that file or use production project values.
+5. Run the app locally and test both Google sign-in and email/password flows. Also test a cancelled popup, a popup-blocked browser, and a Google account whose email already belongs to an email/password account.
+6. Before using real users/data, complete the emulator-backed tenant-isolation tests and security review. Google authentication proves the user's identity; it does **not** grant organisation access. All workspace permissions must continue to be enforced by server-side membership checks.
+
+The current implementation uses Firebase's `signInWithPopup` with `GoogleAuthProvider`. If the same email already exists under another sign-in method, do not automatically link credentials; guide the user through a verified account-recovery/linking flow in a later hardening pass.
 
 ## CSV import format
 
@@ -67,7 +78,7 @@ Import starts with a review summary, skips blank-name rows and businesses alread
 The local demo is not a secure multi-user service. It uses browser localStorage, not a cloud database; data is local to that browser profile and may be lost if browser storage is cleared. The cloud backend/UI is still a scaffold and must not be treated as production-ready.
 
 - The default demo mode uses browser localStorage and synthetic data only. If all required `VITE_FIREBASE_*` web config values are supplied in `.env.local`, the app instead shows the cloud sign-in and workspace UI, which calls the authenticated Functions API. The cloud UI supports organisation discovery/creation, campaign creation/listing, lead creation/listing/status changes, internal notes, suppression, and draft creation/listing/editing/deletion. The cloud UI and API have passed local unit/build checks. The emulator smoke suite and its tenant-isolation assertions are now checked in, but execution in the memory-limited development sandbox timed out during a Firestore transaction after the emulators started. A read-only callable returned successfully; this does not count as passing the full integration suite. Tenant isolation is not yet proven end-to-end.
-- There is no configured dedicated Firebase project or emulator-backed tenant-isolation test yet. The cloud UI supports email/password sign-in, account creation, sign-out, organisation selection/creation, campaign creation, lead creation/status/suppression, and draft creation/deletion. It is not production-ready; subscription billing and live source-provider integrations are not connected. Server-side draft creation checks suppression transactionally; only owners/admins can remove a contact restriction.
+- There is no configured dedicated Firebase project or emulator-backed tenant-isolation test yet. The cloud UI supports email/password sign-in, email/password account creation, Google sign-in, sign-out, organisation selection/creation, campaign creation, lead creation/status/suppression, and draft creation/deletion. It is not production-ready; subscription billing and live source-provider integrations are not connected. Server-side draft creation checks suppression transactionally; only owners/admins can remove a contact restriction.
 - Do not use it to store real customer data, sensitive personal data, or production credentials.
 - The scoring model measures record completeness, not trustworthiness, service quality, or business legitimacy.
 - CSV imports are not sent to an external service.
