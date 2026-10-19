@@ -100,7 +100,7 @@ export default function CloudWorkspace() {
   const refreshWorkspace = useCallback(async (orgId: string) => {
     const requestId = ++workspaceLoadIdRef.current;
     if (!api || !orgId) {
-      setCampaigns([]); setLeads([]); setHasMoreLeads(false); setNextLeadPageToken(null); setLoadingMoreLeads(false); setLeadNotes({}); setDrafts([]); setHasMoreDrafts(false); setNextDraftPageToken(null); setLoadingMoreDrafts(false);
+      setCampaigns([]); setHasMoreCampaigns(false); setNextCampaignPageToken(null); setLoadingMoreCampaigns(false); setLeads([]); setHasMoreLeads(false); setNextLeadPageToken(null); setLoadingMoreLeads(false); setLeadNotes({}); setDrafts([]); setHasMoreDrafts(false); setNextDraftPageToken(null); setLoadingMoreDrafts(false);
       setEditingDraftId(""); setDraftSubject(""); setDraftBody("");
       return;
     }
@@ -114,7 +114,7 @@ export default function CloudWorkspace() {
     // Ignore stale responses so a slow request from a previous tenant cannot replace
     // the currently selected organisation's data after a switch or sign-out.
     if (requestId !== workspaceLoadIdRef.current || orgId !== currentOrganisationIdRef.current) return;
-    setCampaigns(campaignResult.campaigns);
+    setCampaigns(campaignResult.campaigns); setHasMoreCampaigns(campaignResult.hasMoreCampaigns === true); setNextCampaignPageToken(campaignResult.nextPageToken ?? null);
     setLeads(leadResult.leads); setHasMoreLeads(leadResult.hasMoreLeads === true); setNextLeadPageToken(leadResult.nextPageToken ?? null);
     setLeadNotes(Object.fromEntries(leadResult.leads.map((lead) => [lead.id, lead.notes ?? ""])));
     setDrafts(draftResult.drafts); setHasMoreDrafts(draftResult.hasMoreDrafts === true); setNextDraftPageToken(draftResult.nextPageToken ?? null);
