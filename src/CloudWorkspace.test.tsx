@@ -77,6 +77,19 @@ describe("cloud authentication gate", () => {
     await waitFor(() => expect(mocks.api.updateLeadNotes).toHaveBeenCalledWith({ organisationId: "org-1", leadId: "lead-1", notes: "Call after reviewing provider requirements." }));
   });
 
+  it("allows an authenticated user to edit a draft without sending it", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
+    mocks.api.listOutreachDrafts.mockResolvedValue({ drafts: [{ id: "draft-1", leadId: "lead-1", campaignId: "campaign-1", subject: "Initial subject", body: "Initial body", status: "draft", createdAt: null }] });
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+    fireEvent.change(screen.getByLabelText("Draft subject"), { target: { value: "Updated subject" } });
+    fireEvent.change(screen.getByLabelText("Draft body"), { target: { value: "Updated body for human review." } });
+    fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+    await waitFor(() => expect(mocks.api.updateOutreachDraft).toHaveBeenCalledWith({ organisationId: "org-1", draftId: "draft-1", subject: "Updated subject", body: "Updated body for human review." }));
+    expect(mocks.api.updateOutreachDraft).toHaveBeenCalledTimes(1);
+  });
+
   it("offers account creation without weakening the required password length", () => {
     render(<CloudWorkspace />);
     fireEvent.click(screen.getByRole("button", { name: /Need an account/i }));
