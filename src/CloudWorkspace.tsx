@@ -24,8 +24,14 @@ export default function CloudWorkspace() {
   const [organisationId, setOrganisationId] = useState("");
   const [campaigns, setCampaigns] = useState<CampaignSummary[]>([]);
   const [leads, setLeads] = useState<LeadSummary[]>([]);
+  const [hasMoreLeads, setHasMoreLeads] = useState(false);
+  const [nextLeadPageToken, setNextLeadPageToken] = useState<string | null>(null);
+  const [loadingMoreLeads, setLoadingMoreLeads] = useState(false);
   const [leadNotes, setLeadNotes] = useState<Record<string, string>>({});
   const [drafts, setDrafts] = useState<OutreachDraftSummary[]>([]);
+  const [hasMoreDrafts, setHasMoreDrafts] = useState(false);
+  const [nextDraftPageToken, setNextDraftPageToken] = useState<string | null>(null);
+  const [loadingMoreDrafts, setLoadingMoreDrafts] = useState(false);
   const [editingDraftId, setEditingDraftId] = useState("");
   const [draftSubject, setDraftSubject] = useState("");
   const [draftBody, setDraftBody] = useState("");
@@ -91,13 +97,13 @@ export default function CloudWorkspace() {
   const refreshWorkspace = useCallback(async (orgId: string) => {
     const requestId = ++workspaceLoadIdRef.current;
     if (!api || !orgId) {
-      setCampaigns([]); setLeads([]); setLeadNotes({}); setDrafts([]);
+      setCampaigns([]); setLeads([]); setHasMoreLeads(false); setNextLeadPageToken(null); setLoadingMoreLeads(false); setLeadNotes({}); setDrafts([]); setHasMoreDrafts(false); setNextDraftPageToken(null); setLoadingMoreDrafts(false);
       setEditingDraftId(""); setDraftSubject(""); setDraftBody("");
       return;
     }
     // Clear the previous tenant's visible records immediately while the newly
     // selected organisation is loading; do not leave old data on screen.
-    setCampaigns([]); setLeads([]); setLeadNotes({}); setDrafts([]);
+    setCampaigns([]); setLeads([]); setHasMoreLeads(false); setNextLeadPageToken(null); setLoadingMoreLeads(false); setLeadNotes({}); setDrafts([]); setHasMoreDrafts(false); setNextDraftPageToken(null); setLoadingMoreDrafts(false);
     setEditingDraftId(""); setDraftSubject(""); setDraftBody("");
     const [campaignResult, leadResult, draftResult] = await Promise.all([
       api.listCampaigns({ organisationId: orgId }), api.listLeads({ organisationId: orgId }), api.listOutreachDrafts({ organisationId: orgId }),
@@ -106,18 +112,59 @@ export default function CloudWorkspace() {
     // the currently selected organisation's data after a switch or sign-out.
     if (requestId !== workspaceLoadIdRef.current || orgId !== currentOrganisationIdRef.current) return;
     setCampaigns(campaignResult.campaigns);
-    setLeads(leadResult.leads);
+    setLeads(leadResult.leads); setHasMoreLeads(leadResult.hasMoreLeads === true); setNextLeadPageToken(leadResult.nextPageToken ?? null);
     setLeadNotes(Object.fromEntries(leadResult.leads.map((lead) => [lead.id, lead.notes ?? ""])));
-    setDrafts(draftResult.drafts);
+    setDrafts(draftResult.drafts); setHasMoreDrafts(draftResult.hasMoreDrafts === true); setNextDraftPageToken(draftResult.nextPageToken ?? null);
     setLeadCampaignId((current) => campaignResult.campaigns.some((campaign) => campaign.id === current) ? current : campaignResult.campaigns[0]?.id ?? "");
   }, [api]);
+
+  const loadMoreLeads = useCallback(async () => {
+    if (!api || !organisationId || !nextLeadPageToken || loadingMoreLeads) return;
+    const requestId = workspaceLoadIdRef.current;
+    const requestedOrganisationId = organisationId;
+    setLoadingMoreLeads(true); setError("");
+    try {
+      const result = await api.listLeads({ organisationId: requestedOrganisationId, pageToken: nextLeadPageToken });
+      if (requestId !== workspaceLoadIdRef.current || requestedOrganisationId !== currentOrganisationIdRef.current) return;
+      setLeads((current) => {
+        const known = new Set(current.map((lead) => lead.id));
+        return [...current, ...result.leads.filter((lead) => !known.has(lead.id))];
+      });
+      setLeadNotes((current) => ({ ...current, ...Object.fromEntries(result.leads.map((lead) => [lead.id, lead.notes ?? ""])) }));
+      setHasMoreLeads(result.hasMoreLeads === true); setNextLeadPageToken(result.nextPageToken ?? null);
+    } catch (reason) {
+      if (requestId === workspaceLoadIdRef.current) setError(readableError(reason));
+    } finally {
+      if (requestId === workspaceLoadIdRef.current) setLoadingMoreLeads(false);
+    }
+  }, [api, organisationId, nextLeadPageToken, loadingMoreLeads]);
+
+  const loadMoreDrafts = useCallback(async () => {
+    if (!api || !organisationId || !nextDraftPageToken || loadingMoreDrafts) return;
+    const requestId = workspaceLoadIdRef.current;
+    const requestedOrganisationId = organisationId;
+    setLoadingMoreDrafts(true); setError("");
+    try {
+      const result = await api.listOutreachDrafts({ organisationId: requestedOrganisationId, pageToken: nextDraftPageToken });
+      if (requestId !== workspaceLoadIdRef.current || requestedOrganisationId !== currentOrganisationIdRef.current) return;
+      setDrafts((current) => {
+        const known = new Set(current.map((draft) => draft.id));
+        return [...current, ...result.drafts.filter((draft) => !known.has(draft.id))];
+      });
+      setHasMoreDrafts(result.hasMoreDrafts === true); setNextDraftPageToken(result.nextPageToken ?? null);
+    } catch (reason) {
+      if (requestId === workspaceLoadIdRef.current) setError(readableError(reason));
+    } finally {
+      if (requestId === workspaceLoadIdRef.current) setLoadingMoreDrafts(false);
+    }
+  }, [api, organisationId, nextDraftPageToken, loadingMoreDrafts]);
 
   useEffect(() => {
     if (!user || !api) {
       workspaceLoadIdRef.current += 1;
       organisationListLoadIdRef.current += 1;
       setOrganisations([]); setHasMoreOrganisations(false); setNextOrganisationPageToken(null); setLoadingMoreOrganisations(false); setOrganisationId("");
-      setCampaigns([]); setLeads([]); setLeadNotes({}); setDrafts([]);
+      setCampaigns([]); setLeads([]); setHasMoreLeads(false); setNextLeadPageToken(null); setLoadingMoreLeads(false); setLeadNotes({}); setDrafts([]); setHasMoreDrafts(false); setNextDraftPageToken(null); setLoadingMoreDrafts(false);
       return;
     }
     void refreshOrganisations().catch((reason: unknown) => setError(readableError(reason)));
@@ -126,7 +173,7 @@ export default function CloudWorkspace() {
   useEffect(() => {
     if (!organisationId) {
       workspaceLoadIdRef.current += 1;
-      setCampaigns([]); setLeads([]); setLeadNotes({}); setDrafts([]);
+      setCampaigns([]); setLeads([]); setHasMoreLeads(false); setNextLeadPageToken(null); setLoadingMoreLeads(false); setLeadNotes({}); setDrafts([]); setHasMoreDrafts(false); setNextDraftPageToken(null); setLoadingMoreDrafts(false);
       return;
     }
     void refreshWorkspace(organisationId).catch((reason: unknown) => setError(readableError(reason)));
@@ -211,7 +258,7 @@ export default function CloudWorkspace() {
       <form className="cloud-inline-form" onSubmit={(event) => void createOrganisation(event)}><label className="cloud-field">{organisations.length ? "Create another organisation" : "Organisation name"}<input required maxLength={100} value={organisationName} onChange={(event) => setOrganisationName(event.target.value)} placeholder="e.g. AnyTrader pilot" /></label><button className="cloud-primary" disabled={busy || !organisationName.trim()}>{busy ? "Saving…" : "Create organisation"}</button></form></section>
     {selectedOrganisation && <><section className="cloud-columns"><article className="cloud-card"><div className="cloud-section-head"><div><p className="cloud-eyebrow">CAMPAIGNS</p><h2>Campaign setup</h2></div><span className="cloud-count">{campaigns.length}</span></div><form className="cloud-form" onSubmit={(event) => void createCampaign(event)}><label>Campaign name<input required maxLength={120} value={campaignName} onChange={(event) => setCampaignName(event.target.value)} placeholder="Manchester painter pilot" /></label><label>Brand<input required maxLength={100} value={campaignBrand} onChange={(event) => setCampaignBrand(event.target.value)} /></label><label>Service category<input required maxLength={100} value={campaignCategory} onChange={(event) => setCampaignCategory(event.target.value)} /></label><label>Target location<input required maxLength={160} value={campaignLocation} onChange={(event) => setCampaignLocation(event.target.value)} /></label><label>Goal<input maxLength={500} value={campaignGoal} onChange={(event) => setCampaignGoal(event.target.value)} /></label><button className="cloud-primary" disabled={busy}>{busy ? "Saving…" : "Create campaign"}</button></form><div className="cloud-list">{campaigns.map((campaign) => <div className="cloud-list-item" key={campaign.id}><div><strong>{campaign.name}</strong><small>{campaign.category} · {campaign.location}</small></div><span className="cloud-status">{statusLabel(campaign.status)}</span></div>)}{!campaigns.length && <p className="cloud-empty">No campaigns yet.</p>}</div></article>
       <article className="cloud-card"><div className="cloud-section-head"><div><p className="cloud-eyebrow">LEADS</p><h2>Add a provider lead</h2></div><span className="cloud-count">{leads.length}</span></div>{campaigns.length ? <form className="cloud-form" onSubmit={(event) => void createLead(event)}><label>Campaign<select required value={leadCampaignId} onChange={(event) => setLeadCampaignId(event.target.value)}>{campaigns.map((campaign) => <option key={campaign.id} value={campaign.id}>{campaign.name}</option>)}</select></label><label>Business name<input required maxLength={160} value={leadName} onChange={(event) => setLeadName(event.target.value)} /></label><label>Service category<input maxLength={100} value={leadCategory} onChange={(event) => setLeadCategory(event.target.value)} /></label><label>Location<input maxLength={160} value={leadLocation} onChange={(event) => setLeadLocation(event.target.value)} /></label><label>Website<input type="url" maxLength={500} value={leadWebsite} onChange={(event) => setLeadWebsite(event.target.value)} placeholder="https://…" /></label><label>Email<input type="email" maxLength={254} value={leadEmail} onChange={(event) => setLeadEmail(event.target.value)} /></label><label>Phone<input maxLength={80} value={leadPhone} onChange={(event) => setLeadPhone(event.target.value)} /></label><button className="cloud-primary" disabled={busy || !leadCampaignId}>{busy ? "Saving…" : "Save lead"}</button></form> : <p className="cloud-empty">Create a campaign before adding leads.</p>}</article></section>
-      <section className="cloud-card"><div className="cloud-section-head"><div><p className="cloud-eyebrow">REVIEW AND SUPPRESSION</p><h2>Lead directory</h2></div></div><div className="cloud-table-wrap"><table className="cloud-table"><thead><tr><th>Business</th><th>Status</th><th>Contact restriction</th><th>Actions</th></tr></thead><tbody>{leads.map((lead) => <tr key={lead.id}><td><strong>{lead.businessName}</strong><small>{lead.category} · {lead.location}</small><label className="cloud-note-label">Internal notes<textarea aria-label={`Notes for ${lead.businessName}`} maxLength={4000} rows={2} value={leadNotes[lead.id] ?? ""} disabled={busy} onChange={(event) => setLeadNotes((current) => ({ ...current, [lead.id]: event.target.value }))} /></label><button className="cloud-link" disabled={busy || (leadNotes[lead.id] ?? "") === (lead.notes ?? "")} onClick={() => void runAction(() => api.updateLeadNotes({ organisationId, leadId: lead.id, notes: leadNotes[lead.id] ?? "" }), "Internal notes saved.")}>Save notes</button></td><td><select aria-label={`Status for ${lead.businessName}`} value={lead.status} disabled={busy} onChange={(event) => void runAction(() => api.updateLeadStatus({ organisationId, leadId: lead.id, status: event.target.value as ServerLeadStatus }), "Lead status updated.")}>{leadStatuses.map((status) => <option key={status} value={status}>{statusLabel(status)}</option>)}</select></td><td>{lead.doNotContact ? <span className="cloud-suppressed">DO NOT CONTACT</span> : lead.contactRestrictionVerified ? <span className="cloud-contactable">Contactable</span> : <span className="cloud-suppressed">REVIEW RESTRICTION</span>}<button className="cloud-link" disabled={busy} onClick={() => void runAction(() => api.setLeadSuppression({ organisationId, leadId: lead.id, doNotContact: !lead.doNotContact }), lead.doNotContact ? "Restriction removal requested." : "Lead suppressed.")}>{lead.doNotContact ? "Remove restriction" : "Suppress"}</button></td><td><button className="cloud-secondary" disabled={busy || lead.doNotContact || !lead.contactRestrictionVerified} onClick={() => void runAction(() => api.createOutreachDraft({ organisationId, leadId: lead.id, subject: `Provider network opportunity for ${lead.businessName}`, body: `Hello ${lead.businessName},
+      <section className="cloud-card"><div className="cloud-section-head"><div><p className="cloud-eyebrow">REVIEW AND SUPPRESSION</p><h2>Lead directory</h2></div>{hasMoreLeads && <button className="cloud-secondary" type="button" disabled={loadingMoreLeads} onClick={() => void loadMoreLeads()}>{loadingMoreLeads ? "Loading leads…" : "Load more leads"}</button>}</div><div className="cloud-table-wrap"><table className="cloud-table"><thead><tr><th>Business</th><th>Status</th><th>Contact restriction</th><th>Actions</th></tr></thead><tbody>{leads.map((lead) => <tr key={lead.id}><td><strong>{lead.businessName}</strong><small>{lead.category} · {lead.location}</small><label className="cloud-note-label">Internal notes<textarea aria-label={`Notes for ${lead.businessName}`} maxLength={4000} rows={2} value={leadNotes[lead.id] ?? ""} disabled={busy} onChange={(event) => setLeadNotes((current) => ({ ...current, [lead.id]: event.target.value }))} /></label><button className="cloud-link" disabled={busy || (leadNotes[lead.id] ?? "") === (lead.notes ?? "")} onClick={() => void runAction(() => api.updateLeadNotes({ organisationId, leadId: lead.id, notes: leadNotes[lead.id] ?? "" }), "Internal notes saved.")}>Save notes</button></td><td><select aria-label={`Status for ${lead.businessName}`} value={lead.status} disabled={busy} onChange={(event) => void runAction(() => api.updateLeadStatus({ organisationId, leadId: lead.id, status: event.target.value as ServerLeadStatus }), "Lead status updated.")}>{leadStatuses.map((status) => <option key={status} value={status}>{statusLabel(status)}</option>)}</select></td><td>{lead.doNotContact ? <span className="cloud-suppressed">DO NOT CONTACT</span> : lead.contactRestrictionVerified ? <span className="cloud-contactable">Contactable</span> : <span className="cloud-suppressed">REVIEW RESTRICTION</span>}<button className="cloud-link" disabled={busy} onClick={() => void runAction(() => api.setLeadSuppression({ organisationId, leadId: lead.id, doNotContact: !lead.doNotContact }), lead.doNotContact ? "Restriction removal requested." : "Lead suppressed.")}>{lead.doNotContact ? "Remove restriction" : "Suppress"}</button></td><td><button className="cloud-secondary" disabled={busy || lead.doNotContact || !lead.contactRestrictionVerified} onClick={() => void runAction(() => api.createOutreachDraft({ organisationId, leadId: lead.id, subject: `Provider network opportunity for ${lead.businessName}`, body: `Hello ${lead.businessName},
 
 We are building a trusted local provider network and would like to share details about joining. Please review and personalise this draft before any use.
 
@@ -219,6 +266,6 @@ Kind regards,
 ${selectedOrganisation.name}
 
 DRAFT ONLY — NOT SENT.` }), "Draft saved. Nothing was sent.")}>Create draft</button></td></tr>)}</tbody></table>{!leads.length && <p className="cloud-empty">No leads in this organisation yet.</p>}</div></section>
-      <section className="cloud-card"><div className="cloud-section-head"><div><p className="cloud-eyebrow">HUMAN REVIEW REQUIRED</p><h2>Outreach drafts</h2></div><span className="cloud-count">{drafts.length}</span></div><div className="cloud-list">{drafts.map((draft) => <div className="cloud-draft" key={draft.id}>{editingDraftId === draft.id ? <form className="cloud-form cloud-draft-editor" onSubmit={(event) => void saveDraft(event)}><label>Draft subject<input required maxLength={200} value={draftSubject} onChange={(event) => setDraftSubject(event.target.value)} /></label><label>Draft body<textarea required maxLength={10000} rows={6} value={draftBody} onChange={(event) => setDraftBody(event.target.value)} /></label><div className="cloud-draft-actions"><button className="cloud-primary" disabled={busy || !draftSubject.trim() || !draftBody.trim()}>{busy ? "Saving…" : "Save draft"}</button><button type="button" className="cloud-secondary" disabled={busy} onClick={() => { setEditingDraftId(""); setDraftSubject(""); setDraftBody(""); }}>Cancel</button></div></form> : <><div><strong>{draft.subject}</strong>{draft.requiresReview && <p className="cloud-error" role="alert">{draft.reviewReason ?? "Review required before use."}</p>}<p>{draft.body}</p><small>DRAFT · NOT SENT</small></div><div className="cloud-draft-actions"><button className="cloud-secondary" disabled={busy || draft.requiresReview} title={draft.requiresReview ? "Resolve the lead restriction before editing this draft." : undefined} onClick={() => { setEditingDraftId(draft.id); setDraftSubject(draft.subject); setDraftBody(draft.body); }}>Edit</button><button className="cloud-secondary" disabled={busy} onClick={() => void runAction(() => api.deleteOutreachDraft({ organisationId, draftId: draft.id }), "Draft deleted.")}>Delete</button></div></>}</div>)}{!drafts.length && <p className="cloud-empty">No outreach drafts yet.</p>}</div></section></>}
+      <section className="cloud-card"><div className="cloud-section-head"><div><p className="cloud-eyebrow">HUMAN REVIEW REQUIRED</p><h2>Outreach drafts</h2></div><span className="cloud-count">{drafts.length}</span></div>{hasMoreDrafts && <div className="cloud-pagination"><button className="cloud-secondary" type="button" disabled={loadingMoreDrafts} onClick={() => void loadMoreDrafts()}>{loadingMoreDrafts ? "Loading drafts…" : "Load more drafts"}</button></div><div className="cloud-list">{drafts.map((draft) => <div className="cloud-draft" key={draft.id}>{editingDraftId === draft.id ? <form className="cloud-form cloud-draft-editor" onSubmit={(event) => void saveDraft(event)}><label>Draft subject<input required maxLength={200} value={draftSubject} onChange={(event) => setDraftSubject(event.target.value)} /></label><label>Draft body<textarea required maxLength={10000} rows={6} value={draftBody} onChange={(event) => setDraftBody(event.target.value)} /></label><div className="cloud-draft-actions"><button className="cloud-primary" disabled={busy || !draftSubject.trim() || !draftBody.trim()}>{busy ? "Saving…" : "Save draft"}</button><button type="button" className="cloud-secondary" disabled={busy} onClick={() => { setEditingDraftId(""); setDraftSubject(""); setDraftBody(""); }}>Cancel</button></div></form> : <><div><strong>{draft.subject}</strong>{draft.requiresReview && <p className="cloud-error" role="alert">{draft.reviewReason ?? "Review required before use."}</p>}<p>{draft.body}</p><small>DRAFT · NOT SENT</small></div><div className="cloud-draft-actions"><button className="cloud-secondary" disabled={busy || draft.requiresReview} title={draft.requiresReview ? "Resolve the lead restriction before editing this draft." : undefined} onClick={() => { setEditingDraftId(draft.id); setDraftSubject(draft.subject); setDraftBody(draft.body); }}>Edit</button><button className="cloud-secondary" disabled={busy} onClick={() => void runAction(() => api.deleteOutreachDraft({ organisationId, draftId: draft.id }), "Draft deleted.")}>Delete</button></div></>}</div>)}{!drafts.length && <p className="cloud-empty">No outreach drafts yet.</p>}</div></section></>}
     <footer className="cloud-footer">Dedicated Firebase project required · tenant access enforced by server functions · no automated outreach</footer></main>;
 }
