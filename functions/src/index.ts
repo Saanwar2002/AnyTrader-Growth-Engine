@@ -186,6 +186,7 @@ export const listLeads = onCall(async (request) => {
         email: lead.email, phone: lead.phone, source: lead.source, status: lead.status,
         score: lead.score, scoreReasons: lead.scoreReasons, notes: lead.notes,
         doNotContact: lead.doNotContact === true,
+        contactRestrictionVerified: lead.doNotContact === false,
         createdAt: lead.createdAt?.toDate?.().toISOString() ?? null,
       };
     }),
