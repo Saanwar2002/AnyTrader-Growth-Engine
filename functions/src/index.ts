@@ -3,6 +3,7 @@ import { FieldValue, getFirestore, type QueryDocumentSnapshot, type Transaction 
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import {
   calculateLeadCompleteness,
+  canChangeSuppression,
   canCreateServerOutreachDraft,
   canTransitionLeadStatus,
   hasCampaignWritePermission,
@@ -204,7 +205,10 @@ export const setLeadSuppression = onCall(async (request) => {
   const organisationId = requireOrganisationId(data.organisationId);
   const leadId = requireDocumentId(data.leadId, "leadId");
   if (typeof data.doNotContact !== "boolean") throw new HttpsError("invalid-argument", "doNotContact must be a boolean.");
-  await requireLeadEditor(organisationId, uid);
+  const membership = await requireLeadEditor(organisationId, uid);
+  if (!canChangeSuppression(membership.role, data.doNotContact)) {
+    throw new HttpsError("permission-denied", data.doNotContact ? "Your organisation role cannot change lead suppression." : "Only organisation owners and admins can remove a contact restriction.");
+  }
   const leadRef = db.collection("organisations").doc(organisationId).collection("leads").doc(leadId);
   const activity = db.collection("organisations").doc(organisationId).collection("leadActivities").doc();
   await db.runTransaction(async (transaction: Transaction) => {
