@@ -268,8 +268,10 @@ try {
   // A restriction added after draft creation must be reflected by list and enforced by update.
   await callOne("setLeadSuppression", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, doNotContact: true });
   const suppressedDraftList = await callOne("listOutreachDrafts", { organisationId: orgOne.organisationId });
-  assert.equal(suppressedDraftList.drafts[0].leadSuppressed, true);
-  assert.equal(suppressedDraftList.drafts[0].requiresReview, true);
+  const suppressedDraft = suppressedDraftList.drafts.find((item) => item.id === draft.draftId);
+  assert.ok(suppressedDraft, "the original draft remains present after the lead restriction changes");
+  assert.equal(suppressedDraft.leadSuppressed, true);
+  assert.equal(suppressedDraft.requiresReview, true);
   await expectCallableFailure(callOne("updateOutreachDraft", { organisationId: orgOne.organisationId, draftId: draft.draftId, subject: "Blocked update", body: "Must not be edited" }), "functions/failed-precondition", "suppression added after draft creation");
   await expectCallableFailure(callOne("createOutreachDraft", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Blocked new draft", body: "Must not be created while suppressed" }), "functions/failed-precondition", "suppressed lead cannot create a new draft");
   await callOne("updateLeadNotes", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, notes: "Administrative note while contact is restricted" });

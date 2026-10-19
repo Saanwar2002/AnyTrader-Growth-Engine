@@ -398,3 +398,10 @@ Continue the callable authorization audit and integration-test reliability work;
 - Added unit regressions for finite, missing, non-numeric, non-finite, and throwing timestamp values.
 - Added a guarded local-emulator fixture and callable integration checks for malformed `createdAt` values across all three ordered collections. Fixture requires project `demo-growth-engine-test` and loopback Firestore emulator.
 - Verification pending CI run. Work remains isolated to `development/chatgpt-mvp`; no production Firebase deployment or message sending.
+
+
+## Fix draft restriction smoke-test record selection — 2026-10-20
+
+- CI run [39339439259](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39339439259) failed only in emulator smoke assertions after the malformed timestamp and membership cursor checks executed. The failing assertion selected `drafts[0]`, which is not guaranteed to be the original draft once member/admin-created drafts exist and the list is ordered by creation time.
+- Updated the integration test to locate the exact original draft by ID before asserting that a later suppression is reflected and requires review. This keeps the test checking the intended security behaviour without relying on incidental result ordering.
+- Rerun full CI before treating this batch as verified. Continue on `development/chatgpt-mvp` only; no deployment and no automatic outreach sending.
