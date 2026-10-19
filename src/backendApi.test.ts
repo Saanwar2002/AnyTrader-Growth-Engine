@@ -71,3 +71,4 @@ describe("typed backend API boundary", () => {
       { name: "listOutreachDrafts", payload: { organisationId: "org-1", pageToken: "organisations/org-1/outreachDrafts/draft-100" } },
     ]);
   });
+});
