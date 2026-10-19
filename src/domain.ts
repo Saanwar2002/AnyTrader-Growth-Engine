@@ -244,8 +244,21 @@ export function parseLeadCsv(csv: string, fieldMapping?: LeadCsvMapping): { rows
     (Object.keys(canonicalMapping) as LeadCsvField[]).forEach((field) => {
       row[normalizeCsvHeader(field)] = values[canonicalMapping[field]!] ?? "";
     });
-    if (!values[nameIndex]?.trim()) errors.push(`Row ${rowNumber}: business name is required; row skipped.`);
-    else rows.push(row);
+    if (!values[nameIndex]?.trim()) {
+      errors.push(`Row ${rowNumber}: business name is required; row skipped.`);
+      return;
+    }
+    const fieldLimits: Record<string, number> = { businessname: 160, category: 100, location: 160, website: 500, email: 254, phone: 80 };
+    const oversizedField = Object.entries(row).find(([field, value]) => value.length > (fieldLimits[field] ?? Number.MAX_SAFE_INTEGER));
+    if (oversizedField) {
+      errors.push(`Row ${rowNumber}: ${oversizedField[0]} exceeds the maximum length of ${fieldLimits[oversizedField[0]]} characters; row skipped.`);
+      return;
+    }
+    if (row.email && !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(row.email)) {
+      errors.push(`Row ${rowNumber}: email address is not valid; row skipped.`);
+      return;
+    }
+    rows.push(row);
   });
   if (rows.length === 0 && errors.length === 0) {
     errors.push("CSV must contain a header and at least one data row.");
