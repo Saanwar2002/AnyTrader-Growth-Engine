@@ -193,4 +193,4 @@ The MVP is not complete until:
 - Type-check, tests, security rules/emulator tests, and production build pass in a reproducible environment.
 - Deployment, backup, monitoring, and recovery decisions are documented before real customer data is used.
 
-**Current stage:** Architecture baseline. Do not jump straight to live LinkedIn/Google integrations, automatic outreach, payment collection, or production AnyTrader integration before the relevant phases and gates are complete.
+**Current stage:** Architecture baseline established; the Phase 1 local demo MVP is implemented on `development/chatgpt-mvp` and has passed type-check, 12 unit tests, production build, and a development-server HTTP smoke check. Phase 2 (authentication and tenant-safe persistence) has not started. Do not jump straight to live LinkedIn/Google integrations, automatic outreach, payment collection, or production AnyTrader integration before the relevant phases and gates are complete.
