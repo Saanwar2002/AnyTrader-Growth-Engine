@@ -209,3 +209,11 @@ Continue the callable authorization audit and integration-test reliability work;
 - The fixture refuses to run unless the project is `demo-growth-engine-test` and Firestore emulator host is local. No production callable, Firebase project, or real provider data is involved.
 - **Verification pending:** CI must pass on the commit containing these tests before this batch is considered complete.
 - Next: inspect lifecycle consistency and stale legacy-record handling in lead/campaign mutations, then assess whether any additional assertions materially improve coverage without inflating emulator runtime. Continue only on `development/chatgpt-mvp`; do not alter Growth Engine `main` or the original AnyTrader repository.
+
+
+## Legacy-draft emulator fixture guard correction — 2026-10-19
+
+- CI run [39324288617](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39324288617) failed only in the emulator integration step; frontend typecheck, all 211 frontend/unit tests, production build, and Functions authorization tests/build passed.
+- Failure evidence: the new legacy-draft fixture rejected the local emulator host because its IPv4 regular-expression escapes were double-escaped. This is a test-fixture guard defect, not an application authorization or draft-integrity failure.
+- Corrected the fixture's host pattern to match the proven existing emulator-only fixture. It continues to require project ID `demo-growth-engine-test` and a local Firestore emulator host before seeding any records.
+- **Verification pending:** rerun CI before treating legacy-draft integrity assertions as passed.
