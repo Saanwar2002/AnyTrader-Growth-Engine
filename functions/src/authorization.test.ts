@@ -64,6 +64,9 @@ describe("server lead workflow guards", () => {
 
   it("requires an explicit verified contact restriction state before marking a lead contacted", () => {
     expect(canMarkLeadContacted(false)).toBe(true);
+    expect(canMarkLeadContacted(false, "cleared")).toBe(true);
+    expect(canMarkLeadContacted(false, "pending")).toBe(false);
+    expect(canMarkLeadContacted(false, "blocked")).toBe(false);
     expect(canMarkLeadContacted(true)).toBe(false);
     expect(canMarkLeadContacted(undefined)).toBe(false);
     expect(canMarkLeadContacted(null)).toBe(false);
