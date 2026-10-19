@@ -83,6 +83,9 @@ describe("server lead workflow guards", () => {
 describe("server outreach safeguards", () => {
   it("treats do-not-contact as a hard draft-creation gate", () => {
     expect(canCreateServerOutreachDraft(false)).toBe(true);
+    expect(canCreateServerOutreachDraft(false, "cleared")).toBe(true);
+    expect(canCreateServerOutreachDraft(false, "pending")).toBe(false);
+    expect(canCreateServerOutreachDraft(false, "blocked")).toBe(false);
     expect(canCreateServerOutreachDraft(undefined)).toBe(false);
     expect(canCreateServerOutreachDraft(true)).toBe(false);
     expect(canCreateServerOutreachDraft("false")).toBe(false);
@@ -145,6 +148,19 @@ describe("existing outreach draft review state", () => {
       leadSuppressed: false,
       requiresReview: true,
       reviewReason: "Lead contact restriction could not be verified; review before use.",
+    });
+  });
+
+  it("requires pending contact review to be resolved before a draft is usable", () => {
+    expect(getOutreachDraftReviewState(true, true, "pending")).toEqual({
+      leadSuppressed: false,
+      requiresReview: true,
+      reviewReason: "Lead contact review is pending or could not be verified; review before use.",
+    });
+    expect(getOutreachDraftReviewState(true, false, "pending")).toEqual({
+      leadSuppressed: false,
+      requiresReview: true,
+      reviewReason: "Lead contact review is pending or could not be verified; review before use.",
     });
   });
 
