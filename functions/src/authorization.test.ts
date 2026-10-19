@@ -393,3 +393,31 @@ describe("contact actions fail closed for malformed review metadata", () => {
     expect(canMarkLeadContacted(undefined, undefined)).toBe(false);
   });
 });
+
+
+describe("legacy outreach draft safety regressions", () => {
+  it("flags missing leads and malformed or contradictory restriction metadata for review", () => {
+    expect(getOutreachDraftReviewState(false, false, "cleared")).toEqual({
+      leadSuppressed: false,
+      requiresReview: true,
+      reviewReason: "Lead record is missing; review before use.",
+    });
+    expect(getOutreachDraftReviewState(true, true, "cleared")).toEqual({
+      leadSuppressed: true,
+      requiresReview: true,
+      reviewReason: "Lead is suppressed; do not contact.",
+    });
+    for (const status of [null, "unknown", 1, {}, []]) {
+      expect(getOutreachDraftReviewState(true, false, status).requiresReview).toBe(true);
+    }
+  });
+
+  it("requires both draft and lead campaign references to be valid and identical", () => {
+    expect(hasConsistentDraftCampaign("campaign-1", "campaign-1")).toBe(true);
+    expect(hasConsistentDraftCampaign("campaign-1", "campaign-2")).toBe(false);
+    expect(hasConsistentDraftCampaign(undefined, "campaign-1")).toBe(false);
+    expect(hasConsistentDraftCampaign("campaign-1", null)).toBe(false);
+    expect(hasConsistentDraftCampaign("../campaign-1", "../campaign-1")).toBe(false);
+    expect(hasConsistentDraftCampaign({}, "campaign-1")).toBe(false);
+  });
+});
