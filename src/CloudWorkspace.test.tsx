@@ -143,16 +143,26 @@ describe("cloud authentication gate", () => {
   });
 
 
-  it("warns when the organisation list is truncated at the 100-membership cap", async () => {
+  it("loads additional organisation pages without replacing the first page", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
-    mocks.api.listMyOrganisations.mockResolvedValue({
-      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
-      hasMoreOrganisations: true,
-    });
+    mocks.api.listMyOrganisations
+      .mockResolvedValueOnce({
+        organisations: [{ organisationId: "org-1", name: "First Workspace", role: "owner" }],
+        hasMoreOrganisations: true,
+        nextPageToken: "organisations/org-2/members/user-1",
+      })
+      .mockResolvedValueOnce({
+        organisations: [{ organisationId: "org-2", name: "Second Workspace", role: "member" }],
+        hasMoreOrganisations: false,
+        nextPageToken: null,
+      });
     render(<CloudWorkspace />);
-    const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toContain("at least 100 organisation memberships");
-    expect(alert.textContent).toContain("pagination must be enabled");
+    expect(await screen.findByText("First Workspace · owner")).toBeTruthy();
+    fireEvent.click(await screen.findByRole("button", { name: "Load more organisations" }));
+    expect(await screen.findByText("Second Workspace · member")).toBeTruthy();
+    expect(screen.getByText("First Workspace · owner")).toBeTruthy();
+    await waitFor(() => expect(mocks.api.listMyOrganisations).toHaveBeenCalledWith("organisations/org-2/members/user-1"));
+    expect(screen.queryByRole("button", { name: "Load more organisations" })).toBeNull();
   });
 
   it("offers account creation without weakening the required password length", () => {
