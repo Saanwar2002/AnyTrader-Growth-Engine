@@ -285,3 +285,17 @@ describe("tenant-scoped collection pagination token validation", () => {
     expect(isValidOrganisationCollectionPageToken("x".repeat(513), "org-1", "leads")).toBe(false);
   });
 });
+
+describe("complete organisation role permission matrix", () => {
+  it.each([
+    ["owner", true, true],
+    ["admin", true, true],
+    ["member", false, true],
+    ["viewer", false, false],
+    ["unknown", false, false],
+    [null, false, false],
+  ])("applies least-privilege permissions for role %s", (role, canWriteCampaign, canWriteLead) => {
+    expect(hasCampaignWritePermission(role)).toBe(canWriteCampaign);
+    expect(hasLeadWritePermission(role)).toBe(canWriteLead);
+  });
+});
