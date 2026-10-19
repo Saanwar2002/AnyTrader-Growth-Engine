@@ -80,7 +80,7 @@ describe("parseLeadCsv", () => {
   });
 
   it("rejects a custom mapping that assigns one source column to multiple fields", () => {
-    const result = parseLeadCsv("Provider,Area\\nNorth Star Decorators,Manchester", {
+    const result = parseLeadCsv("Provider,Area\nNorth Star Decorators,Manchester", {
       businessName: "Provider", category: "Provider",
     });
     expect(result.rows).toEqual([]);
