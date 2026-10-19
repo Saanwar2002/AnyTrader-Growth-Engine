@@ -13,3 +13,20 @@
 .cloud-google-button:hover{background:#f8fafc}
 .cloud-google-button:disabled{opacity:.55;cursor:not-allowed}
 .cloud-google-mark{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border:1px solid #e0e4eb;border-radius:50%;font-size:13px;font-weight:900;color:#4285f4}
+
+
+.cloud-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin: 0.5rem 0 1rem;
+}
+
+@media (max-width: 560px) {
+  .cloud-pagination {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
