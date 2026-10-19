@@ -209,7 +209,7 @@ export function parseLeadCsv(csv: string, fieldMapping?: LeadCsvMapping): { rows
       atFieldStart = false;
     } else if (char === "," && !inQuotedField) {
       atFieldStart = true;
-    } else if (!/\s/.test(char)) {
+        } else if (!/\s/.test(char)) {
       atFieldStart = false;
     }
   }
@@ -242,15 +242,17 @@ export function parseLeadCsv(csv: string, fieldMapping?: LeadCsvMapping): { rows
           values.push(current.trim());
           current = "";
           afterQuote = false;
-        } else if (!/\\s/.test(char)) {
+        } else if (!/\s/.test(char)) {
           malformed = true;
         }
       } else if (char === ",") {
         values.push(current.trim());
         current = "";
       } else if (char === '"') {
-        if (current.length !== 0) malformed = true;
-        else quoted = true;
+        // Allow harmless whitespace before a quoted field, but not other
+        // characters; otherwise malformed quote placement must fail closed.
+        if (current.trim().length !== 0) malformed = true;
+        else { current = ""; quoted = true; }
       } else {
         current += char;
       }
