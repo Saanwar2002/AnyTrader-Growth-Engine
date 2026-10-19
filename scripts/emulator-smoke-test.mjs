@@ -460,6 +460,7 @@ try {
     status: "contacted",
   }), "functions/failed-precondition", "marking a cleared legacy lead contacted when its campaign is missing");
   const missingCampaignLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-missing-campaign-record-draft");
+  const nonDraftStatusLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-non-draft-status");
   assert.ok(orphanLegacyDraft, "orphan legacy draft is visible for operator review");
   assert.equal(orphanLegacyDraft.requiresReview, true, "orphan legacy draft requires review");
   assert.match(orphanLegacyDraft.reviewReason, /Lead record is missing/i);
@@ -469,6 +470,18 @@ try {
   assert.ok(missingCampaignLegacyDraft, "legacy draft referencing a missing campaign remains visible for review");
   assert.equal(missingCampaignLegacyDraft.requiresReview, true, "missing campaign record requires review");
   assert.match(missingCampaignLegacyDraft.reviewReason, /campaign record is missing/i);
+  assert.ok(nonDraftStatusLegacyDraft, "legacy record with a non-draft status remains visible for review");
+  assert.equal(nonDraftStatusLegacyDraft.requiresReview, true, "legacy record with a non-draft status requires review");
+  assert.match(nonDraftStatusLegacyDraft.reviewReason, /status is missing or is not draft/i);
+  await expectCallableFailure(callOne("updateOutreachDraft", {
+    organisationId: orgOne.organisationId, draftId: "legacy-non-draft-status",
+    subject: "Must not reopen a sent record", body: "Status must remain blocked",
+  }), "functions/failed-precondition", "editing a legacy outreach record whose status is not draft");
+  const nonDraftStatusCleanup = await callOne("deleteOutreachDraft", {
+    organisationId: orgOne.organisationId, draftId: "legacy-non-draft-status",
+  });
+  assert.equal(nonDraftStatusCleanup.deleted, true, "non-draft legacy record remains deletable for cleanup");
+  assert.equal(nonDraftStatusCleanup.sent, false, "cleanup does not send outreach");
   await expectCallableFailure(callOne("updateOutreachDraft", {
     organisationId: orgOne.organisationId, draftId: "legacy-orphan-draft",
     subject: "Should remain blocked", body: "Do not update an orphan",

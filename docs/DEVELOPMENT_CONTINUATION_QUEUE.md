@@ -320,3 +320,11 @@ Continue the callable authorization audit and integration-test reliability work;
 - Added a shared transactional role guard and applied it inside campaign creation/status changes and lead/draft create, edit, status, notes, and delete transactions. The guard re-reads the caller's membership in the transaction, validates the membership record and current role, and checks the relevant permission before any business writes. Existing fast pre-checks remain for clear early errors; the transactional guard is authoritative at commit time.
 - Suppression changes retain their dedicated transactional guard, including the owner/admin-only suppression-clear rule. Read-only callables and organisation creation are unchanged. No membership-management endpoint was added; no production Firebase project, provider source, or sending integration was configured.
 - **Verification pending:** wait for the new CI run to pass before considering this batch complete. Keep all work on development/chatgpt-mvp; do not modify Growth Engine main or the original AnyTrader repository.
+
+
+## Legacy outreach status integrity — 2026-10-19
+
+- Previous transactional-role hardening passed GitHub Actions run [39335145242](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39335145242): both frontend and Firebase Functions jobs succeeded, including emulator smoke coverage.
+- A further lifecycle audit found that the draft list normalised every stored record to UI status `draft`, and the update callable did not check the stored status. A malformed/legacy record marked `sent` or with a missing status could therefore be shown as a draft and potentially edited back into a draft-shaped record.
+- The list now flags any record whose persisted status is not exactly `draft` as requiring review. Editing now fails closed unless the stored status is exactly `draft`. Deletion remains available for safe cleanup, with no send action. Added a guarded emulator-only synthetic `sent` status fixture and assertions for visibility/review warning, edit rejection, and safe deletion.
+- **Verification pending:** CI run must pass before this change is considered complete. Keep work on `development/chatgpt-mvp`; no production Firebase configuration, real lead data, or sending integration.

@@ -487,9 +487,11 @@ export const listOutreachDrafts = onCall(async (request) => {
       const lead = leadSnapshot?.data();
       const campaignId = typeof lead?.campaignId === "string" ? lead.campaignId : "";
       const campaignExists = isValidDocumentId(campaignId) && campaignById.get(campaignId)?.exists === true;
+      const draftStatusValid = draft.status === "draft";
       const relationshipValid = leadExists
         && hasConsistentDraftCampaign(draft.campaignId, lead?.campaignId)
-        && campaignExists;
+        && campaignExists
+        && draftStatusValid;
       const review = relationshipValid
         ? getOutreachDraftReviewState(leadExists, lead?.doNotContact, lead?.contactReviewStatus)
         : {
@@ -497,9 +499,11 @@ export const listOutreachDrafts = onCall(async (request) => {
           // problem also requires review. Integrity warnings must never mask suppression.
           leadSuppressed: leadExists && (lead?.doNotContact === true || lead?.contactReviewStatus === "blocked"),
           requiresReview: true,
-          reviewReason: !leadExists
-            ? "Lead record is missing; review before use."
-            : (lead?.doNotContact === true || lead?.contactReviewStatus === "blocked")
+          reviewReason: !draftStatusValid
+            ? "Draft status is missing or is not draft; review the record before use."
+            : !leadExists
+              ? "Lead record is missing; review before use."
+              : (lead?.doNotContact === true || lead?.contactReviewStatus === "blocked")
               ? "Lead is suppressed and the draft integrity check failed; do not contact."
               : !hasConsistentDraftCampaign(draft.campaignId, lead?.campaignId)
                 ? "Draft campaign does not match its lead; review the record before use."
@@ -533,6 +537,9 @@ export const updateOutreachDraft = onCall(async (request) => {
     const draftSnapshot = await transaction.get(draftRef);
     if (!draftSnapshot.exists) throw new HttpsError("not-found", "Outreach draft was not found in this organisation.");
     const draft = draftSnapshot.data() ?? {};
+    if (draft.status !== "draft") {
+      throw new HttpsError("failed-precondition", "Only unsent drafts can be edited; this record requires review.");
+    }
     leadId = requireDocumentId(draft.leadId, "draft leadId");
     const leadRef = db.collection("organisations").doc(organisationId).collection("leads").doc(leadId);
     const leadSnapshot = await transaction.get(leadRef);
