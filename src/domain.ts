@@ -162,14 +162,23 @@ export function parseLeadCsv(csv: string, fieldMapping?: LeadCsvMapping): { rows
       const newlineLength = char === "\r" && source[i + 1] === "\n" ? 2 : 1;
       let hasFutureQuote = false;
       if (inQuotedField) {
+        // A quote only closes a quoted field when followed by a delimiter,
+        // whitespace, a record boundary, or end-of-input. A quote opening a
+        // later record must not make an earlier unmatched quote absorb it.
         for (let j = i + newlineLength; j < source.length; j += 1) {
-          if (source[j] === '"') {
-            if (source[j + 1] === '"') {
-              j += 1;
-            } else {
-              hasFutureQuote = true;
-              break;
-            }
+          if (source[j] !== '"') continue;
+          if (source[j + 1] === '"') {
+            j += 1;
+            continue;
+          }
+          let afterClosingQuote = j + 1;
+          while (afterClosingQuote < source.length && /[ \t]/.test(source[afterClosingQuote])) {
+            afterClosingQuote += 1;
+          }
+          const next = source[afterClosingQuote];
+          if (afterClosingQuote === source.length || next === "," || next === "\r" || next === "\n") {
+            hasFutureQuote = true;
+            break;
           }
         }
       }
