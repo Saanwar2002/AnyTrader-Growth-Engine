@@ -383,3 +383,10 @@ Continue the callable authorization audit and integration-test reliability work;
 - Tightened `listMyOrganisations` cursor validation: in addition to the safe path, the cursor must exist, be the signed-in user's valid membership record with a supported role, and belong to an existing organisation. This prevents stale or malformed membership documents from being accepted as query cursors.
 - Added an emulator-only malformed-membership fixture script guarded to the demo project and local Firestore emulator, plus an integration assertion that such a cursor is rejected with `functions/invalid-argument`.
 - Verification pending full CI. Continue only on `development/chatgpt-mvp`; production Firebase remains deferred and outreach remains draft-only.
+
+
+## Fix emulator-only malformed membership fixture guard — 2026-10-19
+
+- CI run [39338235700](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39338235700) failed in the emulator smoke test because the fixture's loopback-host regular expression was over-escaped and rejected the valid emulator host `127.0.0.1:8080`. Frontend typecheck/tests/build and Firebase Functions tests/build passed; the smoke test stopped at fixture setup before its new malformed-membership assertion.
+- Corrected the regex to match the literal dots in `127.0.0.1:8080` or `localhost:8080`. The demo-project and emulator-host safety checks remain enforced.
+- Full CI verification is pending. Continue only on `development/chatgpt-mvp`; do not deploy Firebase or add any sending integration.
