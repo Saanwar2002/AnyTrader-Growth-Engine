@@ -59,10 +59,17 @@ export default function CloudWorkspace() {
   }, [api]);
 
   const refreshWorkspace = useCallback(async (orgId: string) => {
-    if (!api || !orgId) { setCampaigns([]); setLeads([]); setDrafts([]); return; }
+    const requestId = ++workspaceLoadIdRef.current;
+    if (!api || !orgId) {
+      setCampaigns([]); setLeads([]); setLeadNotes({}); setDrafts([]);
+      return;
+    }
     const [campaignResult, leadResult, draftResult] = await Promise.all([
       api.listCampaigns({ organisationId: orgId }), api.listLeads({ organisationId: orgId }), api.listOutreachDrafts({ organisationId: orgId }),
     ]);
+    // Ignore stale responses so a slow request from a previous tenant cannot replace
+    // the currently selected organisation's data after a switch or sign-out.
+    if (requestId !== workspaceLoadIdRef.current) return;
     setCampaigns(campaignResult.campaigns);
     setLeads(leadResult.leads);
     setLeadNotes(Object.fromEntries(leadResult.leads.map((lead) => [lead.id, lead.notes ?? ""])));
@@ -71,12 +78,21 @@ export default function CloudWorkspace() {
   }, [api]);
 
   useEffect(() => {
-    if (!user || !api) { setOrganisations([]); setOrganisationId(""); return; }
+    if (!user || !api) {
+      workspaceLoadIdRef.current += 1;
+      setOrganisations([]); setHasMoreOrganisations(false); setOrganisationId("");
+      setCampaigns([]); setLeads([]); setLeadNotes({}); setDrafts([]);
+      return;
+    }
     void refreshOrganisations().catch((reason: unknown) => setError(readableError(reason)));
   }, [user, api, refreshOrganisations]);
 
   useEffect(() => {
-    if (!organisationId) { setCampaigns([]); setLeads([]); setDrafts([]); return; }
+    if (!organisationId) {
+      workspaceLoadIdRef.current += 1;
+      setCampaigns([]); setLeads([]); setLeadNotes({}); setDrafts([]);
+      return;
+    }
     void refreshWorkspace(organisationId).catch((reason: unknown) => setError(readableError(reason)));
   }, [organisationId, refreshWorkspace]);
 
