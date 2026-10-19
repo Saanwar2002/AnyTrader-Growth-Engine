@@ -243,10 +243,10 @@ export const createLead = onCall(async (request) => {
   const activity = db.collection("organisations").doc(organisationId).collection("leadActivities").doc();
   const now = FieldValue.serverTimestamp();
   await db.runTransaction(async (transaction: Transaction) => {
-    transaction.create(lead, { ...fields, campaignId, status: "new", source: "manual", score: completeness.score, scoreReasons: completeness.reasons, notes: "", doNotContact: false, createdBy: uid, createdAt: now, updatedAt: now });
+    transaction.create(lead, { ...fields, campaignId, status: "new", source: "manual", score: completeness.score, scoreReasons: completeness.reasons, notes: "", doNotContact: true, createdBy: uid, createdAt: now, updatedAt: now });
     transaction.create(activity, { leadId: lead.id, actorUid: uid, message: `Lead created: ${fields.businessName}`, createdAt: now });
   });
-  return { leadId: lead.id, organisationId, campaignId, ...fields, status: "new" as const, source: "manual" as const, score: completeness.score, scoreReasons: completeness.reasons, doNotContact: false };
+  return { leadId: lead.id, organisationId, campaignId, ...fields, status: "new" as const, source: "manual" as const, score: completeness.score, scoreReasons: completeness.reasons, doNotContact: true };
 });
 
 export const updateLeadContact = onCall(async (request) => {
