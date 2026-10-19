@@ -1,3 +1,10 @@
+## Transactional suppression authorization — 2026-10-19
+
+- CI run [39334305213](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39334305213) passed both frontend and Functions jobs for commit `131b74739251945146f74a8de108dbc92bdf07ca`, including the emulator regression that rejects `contacted` status when the lead's campaign record is missing.
+- Continued the authorization audit: `setLeadSuppression` previously checked the caller's role before entering the transaction. A role demotion between that check and the write could leave a stale authorization decision.
+- The suppression mutation now re-reads and validates the caller's membership inside the same Firestore transaction as the lead update, and re-checks both lead-write permission and the owner/admin requirement for clearing restrictions. Existing member/viewer emulator assertions continue to cover the role matrix.
+- Verification pending for this follow-up commit. Keep changes on `development/chatgpt-mvp`; Firebase project setup/deployment remains deferred, and outreach remains draft-only.
+
 # Development continuation: security and implementation queue
 
 Branch: `development/chatgpt-mvp`
