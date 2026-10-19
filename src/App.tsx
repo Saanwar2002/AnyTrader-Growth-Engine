@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { createDemoRepository } from "./repository";
-import { LEAD_STATUSES, normalizeBusinessName, parseLeadCsv, scoreLead, type Activity, type AppState, type Campaign, type CampaignStatus, type Lead, type LeadStatus, type OutreachDraft } from "./domain";
+import { LEAD_STATUSES, deduplicateLeads, parseLeadCsv, scoreLead, type Activity, type AppState, type Campaign, type CampaignStatus, type Lead, type LeadStatus, type OutreachDraft } from "./domain";
 import "./styles.css";
 
 type View = "overview" | "campaigns" | "leads" | "review" | "drafts" | "settings";
@@ -124,16 +124,10 @@ export default function App() {
     reader.onload = () => {
       const parsed = parseLeadCsv(String(reader.result ?? ""));
       if (parsed.errors.length && parsed.rows.length === 0) { setNotice(parsed.errors.join(" ")); return; }
-      const knownKeys = new Set(state.leads.map((lead) => `${lead.campaignId}:${normalizeBusinessName(lead.businessName)}`));
-      const candidates: Lead[] = [];
-      let duplicates = 0;
-      for (const row of parsed.rows) {
-        const lead = makeLead(row, selectedCampaign, "csv");
-        const key = `${selectedCampaign}:${normalizeBusinessName(lead.businessName)}`;
-        if (knownKeys.has(key)) { duplicates += 1; continue; }
-        knownKeys.add(key);
-        candidates.push(lead);
-      }
+      const parsedCandidates = parsed.rows.map((row) => makeLead(row, selectedCampaign, "csv"));
+      const deduplicated = deduplicateLeads(parsedCandidates, state.leads);
+      const candidates = deduplicated.unique;
+      const duplicates = deduplicated.duplicateCount;
       setImportPreview({ fileName: file.name, campaignId: selectedCampaign, candidates, selectedCandidateIds: candidates.map((lead) => lead.id), duplicates, errors: parsed.errors });
       setView("leads");
       setNotice("Review the import summary before adding any records.");
