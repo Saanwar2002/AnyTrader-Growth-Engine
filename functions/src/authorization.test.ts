@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateLeadCompleteness, canChangeSuppression, canCreateServerOutreachDraft, canTransitionLeadStatus, getOutreachDraftReviewState, hasCampaignWritePermission, hasLeadWritePermission, isValidCampaignStatus, isValidDocumentId, isValidEmailAddress, isValidLeadStatus, isValidOrganisationId, isValidOrganisationPageToken, normaliseOptionalText, normaliseRequiredText } from "./authorization";
+import { calculateLeadCompleteness, canChangeSuppression, canCreateServerOutreachDraft, canTransitionLeadStatus, getOutreachDraftReviewState, hasCampaignWritePermission, hasLeadWritePermission, isValidCampaignStatus, isValidDocumentId, isValidEmailAddress, isValidLeadStatus, isValidOrganisationId, isValidOrganisationPageToken, isValidMembershipRecord, normaliseOptionalText, normaliseRequiredText } from "./authorization";
 
 describe("server authorization input guards", () => {
   it("trims required text and rejects missing, non-string, blank, and overlong values", () => {
@@ -164,18 +164,12 @@ describe("organisation pagination token validation", () => {
 
 
 describe("membership record validation", () => {
-  function validMembership(value: unknown, expectedUid: string): boolean {
-    if (!value || typeof value !== "object" || Array.isArray(value)) return false;
-    const record = value as Record<string, unknown>;
-    return record.uid === expectedUid
-      && (record.role === "owner" || record.role === "admin" || record.role === "member" || record.role === "viewer");
-  }
-
   it("requires the caller UID and a recognised role", () => {
-    expect(validMembership({ uid: "user-1", role: "owner" }, "user-1")).toBe(true);
-    expect(validMembership({ uid: "other", role: "owner" }, "user-1")).toBe(false);
-    expect(validMembership({ uid: "user-1", role: "superadmin" }, "user-1")).toBe(false);
-    expect(validMembership({ role: "member" }, "user-1")).toBe(false);
-    expect(validMembership(null, "user-1")).toBe(false);
+    expect(isValidMembershipRecord({ uid: "user-1", role: "owner" }, "user-1")).toBe(true);
+    expect(isValidMembershipRecord({ uid: "other", role: "owner" }, "user-1")).toBe(false);
+    expect(isValidMembershipRecord({ uid: "user-1", role: "superadmin" }, "user-1")).toBe(false);
+    expect(isValidMembershipRecord({ role: "member" }, "user-1")).toBe(false);
+    expect(isValidMembershipRecord(null, "user-1")).toBe(false);
+    expect(isValidMembershipRecord([], "user-1")).toBe(false);
   });
 });
