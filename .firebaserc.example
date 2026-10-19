@@ -1,0 +1,5 @@
+{
+  "projects": {
+    "default": "REPLACE_WITH_DEDICATED_GROWTH_ENGINE_FIREBASE_PROJECT_ID"
+  }
+}
