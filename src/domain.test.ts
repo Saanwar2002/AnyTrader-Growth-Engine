@@ -5,6 +5,9 @@ describe("outreach suppression", () => {
   it("blocks new outreach drafts for suppressed leads", () => {
     expect(canCreateOutreachDraft({ doNotContact: true })).toBe(false);
     expect(canCreateOutreachDraft({ doNotContact: false })).toBe(true);
+    expect(canCreateOutreachDraft({ doNotContact: false, contactReviewStatus: "cleared" })).toBe(true);
+    expect(canCreateOutreachDraft({ doNotContact: false, contactReviewStatus: "pending" })).toBe(false);
+    expect(canCreateOutreachDraft({ doNotContact: false, contactReviewStatus: "blocked" })).toBe(false);
   });
 });
 
