@@ -14,12 +14,13 @@ This is a source-inspection work queue, not a certification or test report.
 - The cloud UI displays a warning for drafts needing review and disables editing while the warning applies; deletion remains available.
 - UI regression tests now cover the suppression warning/edit lock, the 100-membership truncation warning, and stale responses arriving after a tenant switch.
 - Workspace data refreshes now ignore stale asynchronous results and clear tenant-scoped data on sign-out or when no organisation is selected.
-- Organisation truncation detection now fetches 101 membership records to determine whether more than 100 exist, while returning only the first 100; this avoids warning users who have exactly 100 memberships.
+- Organisation listing now uses a validated Firestore membership cursor token, fetches 101 records to determine whether more pages exist, returns 100 per page, and provides a UI Load more control. Tokens are checked server-side for expected path shape and ownership by the signed-in UID.
+- The organisation pagination UI merges additional pages without replacing the existing list and has a regression test for loading a second page.
 - Pure authorization tests now cover missing, suppressed, unverified, and explicitly contactable draft review states.
 - The emulator smoke script now checks a suppression restriction added after draft creation, including list warning and server-side rejection of draft edits.
 
 ## Work required before Firebase connection
-1. Run typecheck, unit tests and production build for the current branch when a working execution environment is available; latest changes remain unverified by execution.
+1. Run typecheck, unit tests and production build for the current branch when a working execution environment is available; cursor pagination changes also remain unverified by execution.
 2. Add emulator integration coverage for missing lead records and malformed/missing `doNotContact` values.
 3. Test cross-tenant references for leads, campaigns and drafts.
 4. Resolve the existing emulator transaction timeout and run the complete integration suite.
@@ -29,7 +30,7 @@ This is a source-inspection work queue, not a certification or test report.
 - End-to-end tenant isolation is not yet verified because the emulator suite did not complete successfully.
 - No dedicated Firebase project is configured or deployed.
 - Do not use real provider/customer data until the security and integration checks pass.
-- The current `listMyOrganisations` query has a 100-membership cap and now reports truncation in the UI; implement cursor-based pagination before broad SaaS rollout.
+- Organisation listing is cursor-paginated in source, but the implementation still needs runtime tests with more than 100 memberships and verification that Firestore accepts the collection-group cursor as expected.
 
 ## Next build focus
 Continue the callable authorization audit and integration-test reliability work; then address the organisation-list 100-membership cap before broad SaaS rollout. Keep all changes on `development/chatgpt-mvp`; do not modify `main` or the original AnyTrader repository.
