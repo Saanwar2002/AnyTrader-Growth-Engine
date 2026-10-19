@@ -48,9 +48,9 @@ describe("parseLeadCsv", () => {
   });
 
   it("supports quoted fields spanning physical lines and preserves later row numbers", () => {
-    const result = parseLeadCsv('businessName,location,email\\nNorth Star Decorators,"Manchester,\\nGreater Manchester",hello@example.com\\nExample Decorators,Leeds,invalid-email');
+    const result = parseLeadCsv('businessName,location,email\nNorth Star Decorators,"Manchester,\nGreater Manchester",hello@example.com\nExample Decorators,Leeds,invalid-email');
     expect(result.rows).toHaveLength(1);
-    expect(result.rows[0].location).toBe("Manchester,\\nGreater Manchester");
+    expect(result.rows[0].location).toBe("Manchester,\nGreater Manchester");
     expect(result.errors).toEqual(["Row 4: email address is not valid; row skipped."]);
   });
 
