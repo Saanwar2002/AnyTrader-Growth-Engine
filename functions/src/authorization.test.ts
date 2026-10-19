@@ -75,9 +75,11 @@ describe("server lead workflow guards", () => {
 describe("server outreach safeguards", () => {
   it("treats do-not-contact as a hard draft-creation gate", () => {
     expect(canCreateServerOutreachDraft(false)).toBe(true);
-    expect(canCreateServerOutreachDraft(undefined)).toBe(true);
+    expect(canCreateServerOutreachDraft(undefined)).toBe(false);
     expect(canCreateServerOutreachDraft(true)).toBe(false);
-    expect(canCreateServerOutreachDraft("true")).toBe(true);
+    expect(canCreateServerOutreachDraft("false")).toBe(false);
+    expect(canCreateServerOutreachDraft("true")).toBe(false);
+    expect(canCreateServerOutreachDraft(null)).toBe(false);
   });
 
   it("rejects malformed email addresses before persistence", () => {
