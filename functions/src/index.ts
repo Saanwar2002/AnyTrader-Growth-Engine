@@ -38,8 +38,13 @@ function requireDocumentId(value: unknown, label: string): string {
 
 async function requireMembership(organisationId: string, uid: string) {
   const snapshot = await db.doc(`organisations/${organisationId}/members/${uid}`).get();
-  if (!snapshot.exists) throw new HttpsError("permission-denied", "You do not have access to this organisation.");
-  return snapshot.data() ?? {};
+  const membership = snapshot.data();
+  const validRole = membership?.role === "owner" || membership?.role === "admin"
+    || membership?.role === "member" || membership?.role === "viewer";
+  if (!snapshot.exists || membership?.uid !== uid || !validRole) {
+    throw new HttpsError("permission-denied", "You do not have access to this organisation.");
+  }
+  return membership;
 }
 
 async function requireLeadEditor(organisationId: string, uid: string) {
