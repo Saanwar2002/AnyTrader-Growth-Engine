@@ -76,7 +76,7 @@ export function scoreLead(input: Pick<Lead, "businessName" | "website" | "email"
 export function parseLeadCsv(csv: string): { rows: Array<Record<string, string>>; errors: string[] } {
   const lines = csv.replace(/^\uFEFF/, "").split(/\r?\n/).filter((line) => line.trim().length > 0);
   if (lines.length < 2) return { rows: [], errors: ["CSV must contain a header and at least one data row."] };
-  const parseLine = (line: string): string[] => {
+  const parseLine = (line: string): string[] | null => {
     const values: string[] = [];
     let current = "";
     let quoted = false;
@@ -87,16 +87,20 @@ export function parseLeadCsv(csv: string): { rows: Array<Record<string, string>>
       else if (char === "," && !quoted) { values.push(current.trim()); current = ""; }
       else current += char;
     }
+    if (quoted) return null;
     values.push(current.trim());
     return values;
   };
-  const headers = parseLine(lines[0]).map((header) => header.toLocaleLowerCase("en-GB").replace(/\s+/g, ""));
+  const parsedHeaders = parseLine(lines[0]);
+  if (!parsedHeaders) return { rows: [], errors: ["CSV header contains an unmatched quote."] };
+  const headers = parsedHeaders.map((header) => header.toLocaleLowerCase("en-GB").replace(/\s+/g, ""));
   const nameIndex = headers.findIndex((h) => ["businessname", "business", "company", "name"].includes(h));
   if (nameIndex < 0) return { rows: [], errors: ["Missing required column: businessName (or business/company/name)."] };
   const rows: Array<Record<string, string>> = [];
   const errors: string[] = [];
   lines.slice(1).forEach((line, rowIndex) => {
     const values = parseLine(line);
+    if (!values) { errors.push(`Row ${rowIndex + 2}: unmatched quote; row skipped.`); return; }
     if (values.every((v) => !v)) return;
     const row: Record<string, string> = {};
     headers.forEach((header, index) => { row[header] = values[index] ?? ""; });
