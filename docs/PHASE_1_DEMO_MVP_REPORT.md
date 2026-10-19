@@ -29,7 +29,7 @@ Executed against the branch snapshot copied into the remote workspace:
 |---|---|
 | `npm ci --no-audit --no-fund` | Passed |
 | `npm run typecheck` | Passed |
-| `npm test` | Passed — 47 tests across 4 files, including 6 interactive UI tests and 12 server authorization-guard tests |
+| `npm test` | Passed — 53 tests across 6 files, including 6 interactive UI tests and 12 server authorization-guard tests |
 | `npm run build` | Passed — Vite production bundle generated |
 | Vite development server + HTTP request to `/` | Passed |
 
