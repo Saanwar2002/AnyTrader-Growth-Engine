@@ -80,7 +80,18 @@ try {
   await memberCall("setLeadSuppression", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, doNotContact: true });
   await expectCallableFailure(memberCall("setLeadSuppression", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, doNotContact: false }), "functions/permission-denied", "member cannot clear lead suppression");
   await expectCallableFailure(memberCall("createCampaign", { organisationId: orgOne.organisationId, name: "Member denied campaign", brand: "Example", category: "Painters", location: "Manchester", goal: "Role test" }), "functions/permission-denied", "member cannot create campaign");
-  await callOne("setLeadSuppression", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, doNotContact: false });
+
+  const admin = connectClient(initializeApp(firebaseConfig, "role-admin"));
+  apps.push(admin.app);
+  await createUserWithEmailAndPassword(admin.auth, "admin@example.test", "testing-password-admin");
+  seedRole(admin.auth.currentUser.uid, "admin");
+  const adminCall = (name, payload = {}) => httpsCallable(admin.functions, name, { timeout: 30000 })(payload).then((response) => response.data);
+  const adminCampaign = await adminCall("createCampaign", { organisationId: orgOne.organisationId, name: "Admin role campaign", brand: "Example", category: "Painters", location: "Manchester", goal: "Role test" });
+  assert.equal(adminCampaign.status, "active", "admin can create a campaign");
+  await adminCall("updateCampaignStatus", { organisationId: orgOne.organisationId, campaignId: adminCampaign.campaignId, status: "paused" });
+  await adminCall("setLeadSuppression", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, doNotContact: false });
+  const adminClearedLeadList = await adminCall("listLeads", { organisationId: orgOne.organisationId });
+  assert.equal(adminClearedLeadList.leads.find((lead) => lead.id === leadOne.leadId)?.contactReviewStatus, "cleared", "admin can clear lead suppression");
 
   const viewer = connectClient(initializeApp(firebaseConfig, "role-viewer"));
   apps.push(viewer.app);
@@ -92,6 +103,7 @@ try {
   await expectCallableFailure(viewerCall("createLead", { organisationId: orgOne.organisationId, campaignId: campaignOne.campaignId, businessName: "Viewer denied lead" }), "functions/permission-denied", "viewer cannot create lead");
   await expectCallableFailure(viewerCall("updateLeadNotes", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, notes: "Viewer must not edit" }), "functions/permission-denied", "viewer cannot edit lead notes");
   await expectCallableFailure(viewerCall("createCampaign", { organisationId: orgOne.organisationId, name: "Viewer denied campaign", brand: "Example", category: "Painters", location: "Manchester", goal: "Role test" }), "functions/permission-denied", "viewer cannot create campaign");
+  await expectCallableFailure(viewerCall("updateCampaignStatus", { organisationId: orgOne.organisationId, campaignId: campaignOne.campaignId, status: "paused" }), "functions/permission-denied", "viewer cannot change campaign status");
   await expectCallableFailure(viewerCall("setLeadSuppression", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, doNotContact: true }), "functions/permission-denied", "viewer cannot suppress a lead");
   await expectCallableFailure(viewerCall("setLeadSuppression", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, doNotContact: false }), "functions/permission-denied", "viewer cannot clear suppression");
   await expectCallableFailure(viewerCall("createOutreachDraft", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Viewer denied", body: "Must not be created" }), "functions/permission-denied", "viewer cannot create outreach draft");
