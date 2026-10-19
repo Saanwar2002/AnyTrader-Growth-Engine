@@ -353,3 +353,10 @@ Continue the callable authorization audit and integration-test reliability work;
 - CI run [39336484729](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39336484729) passed both frontend and Firebase Functions jobs, including the emulator integration smoke test. The test verifies missing/malformed restriction leads are not presented as verified and normalise to pending review.
 - Follow-up audit added direct `listLeads` assertions for those same legacy records, so the API/UI-facing lead list must report `contactRestrictionVerified: false` and `contactReviewStatus: pending`. Verification of these added assertions is pending.
 - Changes remain on `development/chatgpt-mvp`; no production Firebase configuration, real lead data, or sending integration.
+
+
+## Fail-closed normalisation for legacy contact restrictions — 2026-10-19
+
+- CI run [39336793423](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39336793423) caught a real regression in the new direct lead-list assertions: `normaliseContactReviewStatus` preserved a misleading `cleared` metadata value when `doNotContact` was missing or malformed.
+- Fixed the helper so only an explicit boolean `doNotContact: false` can support a cleared state. Missing/malformed restriction values now normalise to `pending`, even if review metadata says `cleared`; an explicit blocked state remains blocked. Updated the adversarial unit-test matrix.
+- Re-run CI including the emulator smoke suite before treating this as verified. Continue on `development/chatgpt-mvp` only; production Firebase remains deferred and outreach stays draft-only.

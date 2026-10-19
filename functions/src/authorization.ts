@@ -76,11 +76,12 @@ export type ContactReviewStatus = "pending" | "cleared" | "blocked";
 export function normaliseContactReviewStatus(doNotContact: unknown, contactReviewStatus: unknown): ContactReviewStatus {
   // A positive restriction always overrides a contradictory "cleared" status.
   if (doNotContact === true && contactReviewStatus !== "pending") return "blocked";
-  if (contactReviewStatus === "pending" || contactReviewStatus === "cleared" || contactReviewStatus === "blocked") {
-    return contactReviewStatus;
-  }
-  if (contactReviewStatus === undefined && doNotContact === false) return "cleared";
-  // Never present malformed or missing restriction data as cleared.
+  if (contactReviewStatus === "blocked") return "blocked";
+  if (contactReviewStatus === "pending") return "pending";
+  // Review metadata cannot make an absent or malformed authoritative restriction safe.
+  if (doNotContact !== false) return "pending";
+  if (contactReviewStatus === "cleared") return "cleared";
+  if (contactReviewStatus === undefined) return "cleared";
   return "pending";
 }
 

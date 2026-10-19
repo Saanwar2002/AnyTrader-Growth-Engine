@@ -241,10 +241,10 @@ describe("contact review status adversarial matrix", () => {
     [false, "pending", "pending"],
     [false, "cleared", "cleared"],
     [false, "blocked", "blocked"],
-    [undefined, "cleared", "cleared"],
+    [undefined, "cleared", "pending"],
     [undefined, undefined, "pending"],
-    [null, "cleared", "cleared"],
-    ["false", "cleared", "cleared"],
+    [null, "cleared", "pending"],
+    ["false", "cleared", "pending"],
   ])("normalises restriction=%s and status=%s to %s", (restriction, status, expected) => {
     expect(normaliseContactReviewStatus(restriction, status)).toBe(expected);
   });
