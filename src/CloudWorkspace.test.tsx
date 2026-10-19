@@ -256,7 +256,7 @@ describe("cloud authentication gate", () => {
       score: 40, scoreReasons: [], notes: "", doNotContact: true, contactRestrictionVerified: false,
       contactReviewStatus: "pending", createdAt: null,
     }] });
-    render(<CloudWorkspace api={mocks.api} />);
+    render(<CloudWorkspace />);
     await screen.findByText("Pending Painter");
     expect(screen.getByText("PENDING REVIEW")).toBeTruthy();
     expect(screen.queryByText("DO NOT CONTACT")).toBeNull();
@@ -273,7 +273,7 @@ describe("cloud authentication gate", () => {
       score: 40, scoreReasons: [], notes: "", doNotContact: true, contactRestrictionVerified: false,
       contactReviewStatus: "pending", createdAt: null,
     }] });
-    render(<CloudWorkspace api={mocks.api} />);
+    render(<CloudWorkspace />);
     await screen.findByText("Member Pending Painter");
     expect((screen.getByRole("button", { name: "Review & clear restriction" }) as HTMLButtonElement).disabled).toBe(true);
   });
@@ -286,7 +286,7 @@ describe("cloud authentication gate", () => {
       location: "Manchester", website: "", email: "", phone: "", source: "manual", status: "new",
       score: 40, scoreReasons: [], notes: "", doNotContact: false, contactRestrictionVerified: false, createdAt: null,
     }] });
-    render(<CloudWorkspace api={mocks.api} />);
+    render(<CloudWorkspace />);
     await screen.findByText("Unverified Painter");
     expect(screen.getByText("REVIEW RESTRICTION")).toBeTruthy();
     expect((screen.getByRole("button", { name: /create draft/i }) as HTMLButtonElement).disabled).toBe(true);
