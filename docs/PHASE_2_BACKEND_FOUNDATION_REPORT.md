@@ -41,7 +41,7 @@ Runtime: Node.js 22 for deployed Functions
 | npm audit | Passed — 0 reported vulnerabilities |
 | npm --prefix functions audit | Passed — 0 reported vulnerabilities |
 
-These checks do not substitute for Firebase Emulator Suite tests or a deployed security review. The remote development workspace runs Node.js 20; Functions compilation and pure guard tests passed there, but deployment/runtime must use the configured Node.js 22 runtime.
+These checks do not substitute for Firebase Emulator Suite tests or a deployed security review. The remote development workspace runs Node.js 20; Functions compilation and pure guard tests passed there, but deployment/runtime must use the configured Node.js 22 runtime. Emulator execution was not completed because Java is not installed in the remote workspace; no emulator/integration test is claimed as passing.
 
 ## Remaining before Phase 2 can be called complete
 
