@@ -2,48 +2,55 @@
 
 A standalone, multi-brand lead discovery and provider acquisition tool for AnyTrader, HandyTrader, and future marketplaces.
 
-## Initial pilot
+## Current implementation
+
+The first interactive demo is built with React, TypeScript, and Vite. It includes:
+- Workspace overview with pipeline metrics and campaign summaries.
+- Campaign creation and lifecycle status management.
+- Fictional lead records, lead scoring explanations, search and filters.
+- Lead detail drawer, status transitions, and activity history.
+- CSV import with required-column validation, 2 MB file limit, and duplicate checks on business name + city.
+- CSV export for the currently visible leads.
+- Outreach draft generation with explicit human-review messaging; no sending capability exists.
+- Browser-local persistence and reset-to-demo controls.
+- Workspace settings that clearly identify authentication, server-side tenant isolation, and live integrations as not yet implemented.
+
+## Initial pilot and guardrails
 
 - **Provider category:** Painters and decorators
 - **Initial market:** United Kingdom (configurable by campaign)
-- **Data mode:** Synthetic/demo records only until an approved data source is configured
-- **Outreach:** Draft-only; a human must review and approve messages
+- **Data mode:** Synthetic/demo records and locally imported CSV only
+- **Outreach:** Draft-only; nothing is sent
 - **Repository boundary:** This project is independent of the AnyTrader application. Do not modify the AnyTrader repository or its `main` branch as part of this project.
 
-## Product goals
+All built-in sample records are fictional and use reserved example.com domains and placeholder phone numbers. CSV records in this prototype are also marked as demo records in the app. Do not import real personal data until authentication, tenant isolation, privacy controls, retention, and a secure backend are implemented and reviewed.
 
-1. Configure campaigns by brand, service category, geography, and acquisition objective.
-2. Discover leads through authorised, policy-compliant data-source adapters.
-3. Normalize records and deduplicate leads.
-4. Score leads with transparent, explainable criteria.
-5. Review, qualify, and manage leads in a dashboard.
-6. Generate outreach drafts without sending messages automatically.
-7. Track onboarding attribution and campaign outcomes when integrations are deliberately configured.
-8. Keep brand-specific settings separate from reusable platform logic.
+## Development
 
-## Planned delivery phases
+Requirements: Node.js 20+ and npm.
 
-1. **Foundation:** project structure, typed domain models, campaign configuration, synthetic data, basic tests, and setup documentation.
-2. **Lead-source adapters:** integrate approved APIs or data providers; document permissions, limits, and data provenance.
-3. **Qualification:** normalization, deduplication, configurable scoring, and suppression/opt-out controls.
-4. **Review dashboard:** campaign and lead list views, filters, status changes, and record details.
-5. **Outreach drafts:** brand-aware templates, preview, audit trail, and explicit human approval; no automatic sending.
-6. **Attribution and analytics:** onboarding links, source/campaign tracking, and performance reporting.
-7. **Hardening and deployment:** security review, privacy/retention controls, observability, and deployment documentation.
+```bash
+npm install
+npm run typecheck
+npm run build
+npm run dev
+```
+
+The current prototype persists state in the browser's local storage. It is not a multi-user SaaS backend and must not be treated as secure storage. Clearing/resetting browser storage removes locally saved changes.
+
+## Architecture direction
+
+See [docs/MASTER_ARCHITECTURE.md](docs/MASTER_ARCHITECTURE.md) for the security model and staged plan. Firebase Authentication and Firestore in a dedicated Growth Engine project plus a trusted backend are proposed for a later phase; they are not configured yet.
 
 ## Safety and privacy principles
 
 - Do not use unauthorised scraping or bypass access controls.
 - Respect data-source terms, rate limits, privacy law, and applicable marketing rules.
-- Do not send outreach automatically in the initial release.
+- Do not send outreach automatically.
 - Do not commit API keys, passwords, access tokens, or personal lead data.
 - Keep synthetic fixtures clearly labelled as fictional.
 - Do not connect to production AnyTrader data or services without a separately reviewed integration plan.
 
-## Initial implementation guidance
+## Current limitations
 
-Choose the simplest maintainable stack after inspecting the repository and confirming the available runtime. Keep provider integrations behind interfaces so the application is not coupled to one source. Add tests for validation, deduplication, scoring, and campaign isolation from the beginning.
-
-## Status
-
-Project bootstrap only. No production integrations or live lead collection are configured yet.
+No authentication, server-side authorisation, Firestore, trusted backend, live lead sources, AI integration, billing, or production AnyTrader integration is configured. Browser-local demo data is not tenant-isolated. The app is a development prototype, not a production-ready SaaS.
