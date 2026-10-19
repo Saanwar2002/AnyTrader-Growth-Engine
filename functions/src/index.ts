@@ -17,6 +17,7 @@ import {
   isValidOrganisationPageToken,
   isValidOrganisationCollectionPageToken,
   isValidMembershipRecord,
+  normaliseContactReviewStatus,
   normaliseOptionalText,
   normaliseRequiredText,
 } from "./authorization";
@@ -219,7 +220,7 @@ export const listLeads = onCall(async (request) => {
         score: lead.score, scoreReasons: lead.scoreReasons, notes: lead.notes,
         doNotContact: lead.doNotContact === true || lead.contactReviewStatus === "blocked",
         contactRestrictionVerified: lead.doNotContact === false && (lead.contactReviewStatus === undefined || lead.contactReviewStatus === "cleared"),
-        contactReviewStatus: lead.contactReviewStatus === "pending" || lead.contactReviewStatus === "cleared" || lead.contactReviewStatus === "blocked" ? lead.contactReviewStatus : lead.doNotContact === false ? "cleared" : "blocked",
+        contactReviewStatus: normaliseContactReviewStatus(lead.doNotContact, lead.contactReviewStatus),
         createdAt: lead.createdAt?.toDate?.().toISOString() ?? null,
       };
     }),
