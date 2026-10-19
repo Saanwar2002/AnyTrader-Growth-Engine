@@ -46,6 +46,55 @@ export interface Activity {
   createdAt: string;
 }
 
+export type LeadCsvField = "businessName" | "category" | "location" | "website" | "email" | "phone";
+export type LeadCsvMapping = Partial<Record<LeadCsvField, string>>;
+
+const csvAliases: Record<LeadCsvField, string[]> = {
+  businessName: ["businessname", "business", "company", "name", "companyname", "tradingname", "organisation", "organization", "business_name", "company_name"],
+  category: ["category", "servicecategory", "service", "trade", "tradetype", "industry", "speciality", "specialty"],
+  location: ["location", "city", "area", "town", "postcode", "postalcode", "address", "servicearea", "region"],
+  website: ["website", "url", "web", "webaddress", "domain"],
+  email: ["email", "emailaddress", "contactemail", "e-mail"],
+  phone: ["phone", "telephone", "mobile", "phonenumber", "contactnumber", "tel"],
+};
+
+export function normalizeCsvHeader(value: string): string {
+  return value.toLocaleLowerCase("en-GB").replace(/[\\s_-]+/g, "").replace(/[^\\p{L}\\p{N}]/gu, "");
+}
+
+export function suggestLeadCsvMapping(headers: string[]): LeadCsvMapping {
+  const mapping: LeadCsvMapping = {};
+  const normalized = headers.map(normalizeCsvHeader);
+  (Object.keys(csvAliases) as LeadCsvField[]).forEach((field) => {
+    const index = normalized.findIndex((header) => csvAliases[field].some((alias) => normalizeCsvHeader(alias) === header));
+    if (index >= 0) mapping[field] = headers[index];
+  });
+  return mapping;
+}
+
+export function inspectLeadCsvHeaders(csv: string): { headers: string[]; errors: string[] } {
+  const lines = csv.replace(/^\\uFEFF/, "").split(/\\r?\\n/);
+  const headerLine = lines.find((line) => line.trim().length > 0);
+  if (!headerLine) return { headers: [], errors: ["CSV must contain a header and at least one data row."] };
+  const values: string[] = [];
+  let current = "";
+  let quoted = false;
+  for (let i = 0; i < headerLine.length; i += 1) {
+    const char = headerLine[i];
+    if (char === '"' && quoted && headerLine[i + 1] === '"') { current += '"'; i += 1; }
+    else if (char === '"') quoted = !quoted;
+    else if (char === "," && !quoted) { values.push(current.trim()); current = ""; }
+    else current += char;
+  }
+  if (quoted) return { headers: [], errors: ["CSV header contains an unmatched quote."] };
+  values.push(current.trim());
+  if (values.some((header) => !header)) return { headers: [], errors: ["CSV contains an empty column header. Give every column a name."] };
+  const headers = values.map(normalizeCsvHeader);
+  const duplicates = [...new Set(headers.filter((header, index) => headers.indexOf(header) !== index))];
+  if (duplicates.length) return { headers: [], errors: [`CSV contains duplicate column header(s): ${duplicates.join(", ")}. Rename the duplicate columns and try again.`] };
+  return { headers: values, errors: [] };
+}
+
 export interface AppState {
   campaigns: Campaign[];
   leads: Lead[];
@@ -93,7 +142,7 @@ export function scoreLead(input: Pick<Lead, "businessName" | "website" | "email"
   return { score: Math.min(score, 100), reasons };
 }
 
-export function parseLeadCsv(csv: string): { rows: Array<Record<string, string>>; errors: string[] } {
+export function parseLeadCsv(csv: string, fieldMapping?: LeadCsvMapping): { rows: Array<Record<string, string>>; errors: string[] } {
   const lines = csv.replace(/^\uFEFF/, "").split(/\r?\n/);
   const headerLineIndex = lines.findIndex((line) => line.trim().length > 0);
   if (headerLineIndex < 0) return { rows: [], errors: ["CSV must contain a header and at least one data row."] };
