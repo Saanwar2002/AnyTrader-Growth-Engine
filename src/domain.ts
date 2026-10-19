@@ -149,9 +149,51 @@ export function scoreLead(input: Pick<Lead, "businessName" | "website" | "email"
 }
 
 export function parseLeadCsv(csv: string, fieldMapping?: LeadCsvMapping): { rows: Array<Record<string, string>>; errors: string[] } {
-  const lines = csv.replace(/^\uFEFF/, "").split(/\r?\n/);
-  const headerLineIndex = lines.findIndex((line) => line.trim().length > 0);
-  if (headerLineIndex < 0) return { rows: [], errors: ["CSV must contain a header and at least one data row."] };
+  const source = csv.replace(/^\uFEFF/, "");
+  const records: Array<{ text: string; lineNumber: number }> = [];
+  let recordText = "";
+  let recordStartLine = 1;
+  let physicalLine = 1;
+  let inQuotedField = false;
+  let atFieldStart = true;
+  for (let i = 0; i < source.length; i += 1) {
+    const char = source[i];
+    if (char === "\r" || char === "\n") {
+      const newlineLength = char === "\r" && source[i + 1] === "\n" ? 2 : 1;
+      if (inQuotedField) {
+        recordText += "\n";
+      } else {
+        records.push({ text: recordText, lineNumber: recordStartLine });
+        recordText = "";
+        recordStartLine = physicalLine + 1;
+        atFieldStart = true;
+      }
+      if (newlineLength === 2) i += 1;
+      physicalLine += 1;
+      continue;
+    }
+    recordText += char;
+    if (char === '"') {
+      if (inQuotedField && source[i + 1] === '"') {
+        recordText += source[i + 1];
+        i += 1;
+      } else if (inQuotedField) {
+        inQuotedField = false;
+      } else if (atFieldStart) {
+        inQuotedField = true;
+      }
+      atFieldStart = false;
+    } else if (char === "," && !inQuotedField) {
+      atFieldStart = true;
+    } else if (!/\s/.test(char)) {
+      atFieldStart = false;
+    }
+  }
+  if (recordText.length > 0 || source.endsWith(",") || source.endsWith('"')) {
+    records.push({ text: recordText, lineNumber: recordStartLine });
+  }
+  const headerRecordIndex = records.findIndex((record) => record.text.trim().length > 0);
+  if (headerRecordIndex < 0) return { rows: [], errors: ["CSV must contain a header and at least one data row."] };
 
   const parseLine = (line: string): string[] | null => {
     const values: string[] = [];
@@ -194,7 +236,7 @@ export function parseLeadCsv(csv: string, fieldMapping?: LeadCsvMapping): { rows
     return values;
   };
 
-  const parsedHeaders = parseLine(lines[headerLineIndex]);
+  const parsedHeaders = parseLine(records[headerRecordIndex].text);
   if (!parsedHeaders) return { rows: [], errors: ["CSV header contains an unmatched quote."] };
   const headers = parsedHeaders.map(normalizeCsvHeader);
   if (headers.some((header) => !header)) {
@@ -228,9 +270,10 @@ export function parseLeadCsv(csv: string, fieldMapping?: LeadCsvMapping): { rows
 
   const rows: Array<Record<string, string>> = [];
   const errors: string[] = [];
-  lines.slice(headerLineIndex + 1).forEach((line, offset) => {
+  records.slice(headerRecordIndex + 1).forEach((record) => {
+    const line = record.text;
     if (!line.trim()) return;
-    const rowNumber = headerLineIndex + offset + 2;
+    const rowNumber = record.lineNumber;
     const values = parseLine(line);
     if (!values) {
       errors.push(`Row ${rowNumber}: malformed or unmatched quote; row skipped.`);
