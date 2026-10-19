@@ -47,10 +47,20 @@ try {
   await callOne("setLeadSuppression", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, doNotContact: false });
   const draft = await callOne("createOutreachDraft", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Test draft", body: "Review before use" });
   assert.equal(draft.sent, false);
+
+  // A restriction added after draft creation must be reflected by list and enforced by update.
+  await callOne("setLeadSuppression", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, doNotContact: true });
+  const suppressedDraftList = await callOne("listOutreachDrafts", { organisationId: orgOne.organisationId });
+  assert.equal(suppressedDraftList.drafts[0].leadSuppressed, true);
+  assert.equal(suppressedDraftList.drafts[0].requiresReview, true);
+  await expectCallableFailure(callOne("updateOutreachDraft", { organisationId: orgOne.organisationId, draftId: draft.draftId, subject: "Blocked update", body: "Must not be edited" }), "functions/failed-precondition", "suppression added after draft creation");
+
+  await callOne("setLeadSuppression", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, doNotContact: false });
   await callOne("updateOutreachDraft", { organisationId: orgOne.organisationId, draftId: draft.draftId, subject: "Updated test draft", body: "Still draft only" });
   const draftList = await callOne("listOutreachDrafts", { organisationId: orgOne.organisationId });
   assert.equal(draftList.drafts.length, 1);
   assert.equal(draftList.drafts[0].subject, "Updated test draft");
+  assert.equal(draftList.drafts[0].sent, undefined);
   await callOne("deleteOutreachDraft", { organisationId: orgOne.organisationId, draftId: draft.draftId });
 
   await expectCallableFailure(getDoc(doc(first.firestore, `organisations/${orgOne.organisationId}`)), "permission-denied", "direct client Firestore read denial");
