@@ -365,6 +365,13 @@ try {
     campaignId: missingCampaignId,
     status: "paused",
   }), "functions/not-found", "updating a missing campaign");
+  await expectCallableFailure(callOne("createLead", {
+    organisationId: orgOne.organisationId,
+    campaignId: missingCampaignId,
+    businessName: "Missing campaign lead test",
+    category: "Painters",
+    location: "Manchester",
+  }), "functions/not-found", "creating a lead for a missing campaign");
   await expectCallableFailure(callOne("updateOutreachDraft", {
     organisationId: orgOne.organisationId,
     draftId: missingDraftId,

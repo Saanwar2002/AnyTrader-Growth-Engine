@@ -238,14 +238,16 @@ export const createLead = onCall(async (request) => {
   await requireLeadEditor(organisationId, uid);
   const fields = normaliseLeadFields(data);
   const campaignRef = db.collection("organisations").doc(organisationId).collection("campaigns").doc(campaignId);
-  const campaignSnapshot = await campaignRef.get();
-  if (!campaignSnapshot.exists) throw new HttpsError("not-found", "Campaign was not found in this organisation.");
 
   const completeness = calculateLeadCompleteness(fields);
   const lead = db.collection("organisations").doc(organisationId).collection("leads").doc();
   const activity = db.collection("organisations").doc(organisationId).collection("leadActivities").doc();
   const now = FieldValue.serverTimestamp();
   await db.runTransaction(async (transaction: Transaction) => {
+    // Check campaign existence in the same transaction as lead creation so a
+    // stale/deleted campaign cannot race past the precondition.
+    const campaignSnapshot = await transaction.get(campaignRef);
+    if (!campaignSnapshot.exists) throw new HttpsError("not-found", "Campaign was not found in this organisation.");
     transaction.create(lead, { ...fields, campaignId, status: "new", source: "manual", score: completeness.score, scoreReasons: completeness.reasons, notes: "", doNotContact: true, contactReviewStatus: "pending", createdBy: uid, createdAt: now, updatedAt: now });
     transaction.create(activity, { leadId: lead.id, actorUid: uid, message: `Lead created: ${fields.businessName}`, createdAt: now });
   });
