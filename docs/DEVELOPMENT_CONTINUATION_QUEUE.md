@@ -119,3 +119,14 @@ Continue the callable authorization audit and integration-test reliability work;
 6. **Firebase readiness:** added ignore patterns for Firebase emulator state and common service-account credential filenames in `.gitignore` (commit `5709b26a2ca74e1e602b5738fd0c6661b47a7494`). Keep Firebase unconfigured until a dedicated Growth Engine project is created. Before any real-data launch, configure Auth/Google provider, Functions, Firestore, App Check/abuse controls, billing alerts and authorised domains, then pass emulator tenant-isolation checks. Never commit service-account keys or connect this tool to production AnyTrader Firebase.
 
 **Current status:** the code/docs changes above are committed on `development/chatgpt-mvp`. Automated tests, production builds and full emulator checks remain unverified. No production deployment or Firebase project was created.
+
+## Next six-task batch — 2026-10-19
+
+1. **CSV whitespace parser fix:** corrected the post-quote whitespace matcher so it recognises actual whitespace instead of a literal backslash-`s` sequence. The parser now accepts whitespace before a quoted field only when that prefix is whitespace, while continuing to reject non-whitespace characters before the opening quote and trailing text after the closing quote. Commit: `9dd4c4ebcf120d76ca3907bfe329b38d6c347808`.
+2. **CSV regression coverage:** added tests for leading/trailing whitespace around quoted fields and confirmed that trailing non-whitespace text remains rejected. Commit: `15670437f78edb6a0a9a7da2c9725d80d728a94c`. These tests are committed but not yet executed.
+3. **Backend input-validation smoke checks:** expanded the emulator smoke script to verify server-side rejection of malformed email addresses and business names exceeding the 160-character limit. Commit: `80aad25d99e88b2b02acb0b14b79dc3a4ef776a9`. Emulator execution remains pending.
+4. **Credential ignore coverage:** expanded `.gitignore` to cover private-key files and common exported credential containers (`.pem`, `.key`, `.p12`, `.pfx`, `id_rsa`, `id_ed25519`). Commit: `b3b64220726902a2358ba90653d5d36f5c39cf56`.
+5. **CI credential guard:** expanded the workflow's tracked-file check to catch those private-key and credential-container patterns in addition to environment files and Firebase service-account JSON. Commit: `71f6a7cd2ead1f02b3e01664c93f34c345798074`.
+6. **Post-change verification review:** re-fetched the changed files from `development/chatgpt-mvp` and reviewed the inserted code and workflow structure. GitHub combined status currently has no reported checks for the inspected commit; dependency installation, tests, build and emulator execution have not been demonstrated as passing. No Firebase setup/deployment was performed.
+
+**Batch status:** source changes are committed. Runtime verification remains a release blocker; do not connect real provider data or deploy until CI and emulator tenant-isolation/contact-restriction checks pass.
