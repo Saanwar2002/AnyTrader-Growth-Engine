@@ -187,6 +187,7 @@ describe("CSV import safety edge cases", () => {
     const suppressedLead = { doNotContact: true };
     expect(canCreateOutreachDraft(suppressedLead)).toBe(false);
     expect(canCreateOutreachDraft({ doNotContact: false })).toBe(true);
+    expect(canCreateOutreachDraft({ doNotContact: undefined as unknown as boolean })).toBe(false);
   });
 });
 
