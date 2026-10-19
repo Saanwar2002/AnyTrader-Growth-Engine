@@ -217,3 +217,12 @@ Continue the callable authorization audit and integration-test reliability work;
 - Failure evidence: the new legacy-draft fixture rejected the local emulator host because its IPv4 regular-expression escapes were double-escaped. This is a test-fixture guard defect, not an application authorization or draft-integrity failure.
 - Corrected the fixture's host pattern to match the proven existing emulator-only fixture. It continues to require project ID `demo-growth-engine-test` and a local Firestore emulator host before seeding any records.
 - **Verification pending:** rerun CI before treating legacy-draft integrity assertions as passed.
+
+
+## Legacy missing-campaign integrity — 2026-10-19
+
+- Confirmed CI run [39329995087](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39329995087) completed successfully for commit `109d548c9f1f0fddd6a0f1b8f4d9bc710abe2809`; frontend typecheck/tests/build, Functions authorization tests/build, and the emulator integration smoke suite passed, including orphan and campaign-mismatch draft handling.
+- Code review found one additional legacy-data gap: a draft could match its lead's campaign ID while that campaign document had been deleted. The list view could have presented it without a review warning, although editing already failed closed.
+- Updated `listOutreachDrafts` to verify the referenced campaign document exists inside the same organisation. Missing campaign records now require review, and suppression remains visible even when another integrity check fails.
+- Extended the guarded local-emulator fixture and smoke assertions with a synthetic lead/draft referencing a missing campaign record; verifies the draft is flagged, editing is rejected, and deletion remains available without sending.
+- **Verification pending:** wait for CI on the combined implementation/test commit before treating this new scenario as passed. Keep Firebase setup/deployment deferred; work only on `development/chatgpt-mvp`.

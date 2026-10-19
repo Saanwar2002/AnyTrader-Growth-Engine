@@ -394,12 +394,16 @@ try {
   const legacyDraftList = await callOne("listOutreachDrafts", { organisationId: orgOne.organisationId });
   const orphanLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-orphan-draft");
   const mismatchedLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-mismatched-campaign-draft");
+  const missingCampaignLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-missing-campaign-record-draft");
   assert.ok(orphanLegacyDraft, "orphan legacy draft is visible for operator review");
   assert.equal(orphanLegacyDraft.requiresReview, true, "orphan legacy draft requires review");
   assert.match(orphanLegacyDraft.reviewReason, /Lead record is missing/i);
   assert.ok(mismatchedLegacyDraft, "campaign-mismatched legacy draft is visible for operator review");
   assert.equal(mismatchedLegacyDraft.requiresReview, true, "campaign-mismatched legacy draft requires review");
   assert.match(mismatchedLegacyDraft.reviewReason, /campaign does not match/i);
+  assert.ok(missingCampaignLegacyDraft, "legacy draft referencing a missing campaign remains visible for review");
+  assert.equal(missingCampaignLegacyDraft.requiresReview, true, "missing campaign record requires review");
+  assert.match(missingCampaignLegacyDraft.reviewReason, /campaign record is missing/i);
   await expectCallableFailure(callOne("updateOutreachDraft", {
     organisationId: orgOne.organisationId, draftId: "legacy-orphan-draft",
     subject: "Should remain blocked", body: "Do not update an orphan",
@@ -408,6 +412,15 @@ try {
     organisationId: orgOne.organisationId, draftId: "legacy-mismatched-campaign-draft",
     subject: "Should remain blocked", body: "Do not update a campaign-mismatched draft",
   }), "functions/failed-precondition", "editing a campaign-mismatched legacy draft");
+  await expectCallableFailure(callOne("updateOutreachDraft", {
+    organisationId: orgOne.organisationId, draftId: "legacy-missing-campaign-record-draft",
+    subject: "Should remain blocked", body: "Do not update a draft with a missing campaign",
+  }), "functions/failed-precondition", "editing a legacy draft whose campaign record is missing");
+  const missingCampaignCleanup = await callOne("deleteOutreachDraft", {
+    organisationId: orgOne.organisationId, draftId: "legacy-missing-campaign-record-draft",
+  });
+  assert.equal(missingCampaignCleanup.deleted, true, "missing-campaign legacy draft remains deletable for cleanup");
+  assert.equal(missingCampaignCleanup.sent, false, "missing-campaign cleanup never sends outreach");
   const orphanCleanup = await callOne("deleteOutreachDraft", {
     organisationId: orgOne.organisationId, draftId: "legacy-orphan-draft",
   });

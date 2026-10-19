@@ -406,6 +406,22 @@ export const listOutreachDrafts = onCall(async (request) => {
     ))
     : [];
   const leadById = new Map(leadIds.map((leadId, index) => [leadId, leadSnapshots[index]]));
+  // A matching campaign ID is not enough: legacy drafts must also reference a
+  // campaign document that still exists in this organisation.
+  const campaignIds = [...new Set(page
+    .flatMap((doc: QueryDocumentSnapshot) => {
+      const draft = doc.data();
+      const leadId = typeof draft.leadId === "string" ? draft.leadId : "";
+      const lead = leadById.get(leadId)?.data();
+      return [draft.campaignId, lead?.campaignId];
+    })
+    .filter((campaignId: unknown): campaignId is string => isValidDocumentId(campaignId)))];
+  const campaignSnapshots = campaignIds.length
+    ? await db.getAll(...campaignIds.map((campaignId) =>
+      db.collection("organisations").doc(organisationId).collection("campaigns").doc(campaignId)
+    ))
+    : [];
+  const campaignById = new Map(campaignIds.map((campaignId, index) => [campaignId, campaignSnapshots[index]]));
   return {
     drafts: page.map((doc: QueryDocumentSnapshot) => {
       const draft = doc.data();
@@ -413,7 +429,11 @@ export const listOutreachDrafts = onCall(async (request) => {
       const leadSnapshot = leadById.get(leadId);
       const leadExists = leadSnapshot?.exists === true;
       const lead = leadSnapshot?.data();
-      const relationshipValid = leadExists && hasConsistentDraftCampaign(draft.campaignId, lead?.campaignId);
+      const campaignId = typeof lead?.campaignId === "string" ? lead.campaignId : "";
+      const campaignExists = isValidDocumentId(campaignId) && campaignById.get(campaignId)?.exists === true;
+      const relationshipValid = leadExists
+        && hasConsistentDraftCampaign(draft.campaignId, lead?.campaignId)
+        && campaignExists;
       const review = relationshipValid
         ? getOutreachDraftReviewState(leadExists, lead?.doNotContact, lead?.contactReviewStatus)
         : {
@@ -421,11 +441,13 @@ export const listOutreachDrafts = onCall(async (request) => {
           // problem also requires review. Integrity warnings must never mask suppression.
           leadSuppressed: leadExists && (lead?.doNotContact === true || lead?.contactReviewStatus === "blocked"),
           requiresReview: true,
-          reviewReason: leadExists
-            ? (lead?.doNotContact === true || lead?.contactReviewStatus === "blocked"
-              ? "Lead is suppressed and the draft campaign does not match its lead; do not contact."
-              : "Draft campaign does not match its lead; review the record before use.")
-            : "Lead record is missing; review before use.",
+          reviewReason: !leadExists
+            ? "Lead record is missing; review before use."
+            : (lead?.doNotContact === true || lead?.contactReviewStatus === "blocked")
+              ? "Lead is suppressed and the draft integrity check failed; do not contact."
+              : !hasConsistentDraftCampaign(draft.campaignId, lead?.campaignId)
+                ? "Draft campaign does not match its lead; review the record before use."
+                : "The lead's campaign record is missing; review before use.",
         };
       return {
         id: doc.id, leadId, campaignId: draft.campaignId, subject: draft.subject, body: draft.body,

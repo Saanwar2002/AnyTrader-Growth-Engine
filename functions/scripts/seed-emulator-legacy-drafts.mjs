@@ -16,6 +16,21 @@ initializeApp({ projectId });
 const db = getFirestore();
 const drafts = db.collection("organisations").doc(organisationId).collection("outreachDrafts");
 const now = FieldValue.serverTimestamp();
+// Model a legacy lead whose campaign reference points to a deleted campaign.
+await db.collection("organisations").doc(organisationId).collection("leads").doc("legacy-missing-campaign-lead").set({
+  businessName: "Synthetic Missing Campaign Lead",
+  category: "Painter and decorator",
+  location: "Test location",
+  website: "",
+  email: "",
+  phone: "",
+  campaignId: "legacy-missing-campaign",
+  status: "new",
+  doNotContact: false,
+  contactReviewStatus: "cleared",
+  createdAt: now,
+  updatedAt: now,
+});
 await Promise.all([
   drafts.doc("legacy-orphan-draft").set({
     leadId: "legacy-missing-lead", campaignId: validCampaignId,
@@ -27,5 +42,10 @@ await Promise.all([
     subject: "Legacy mismatched campaign fixture", body: "Synthetic test only", status: "draft",
     createdAt: now,
   }),
+  drafts.doc("legacy-missing-campaign-record-draft").set({
+    leadId: "legacy-missing-campaign-lead", campaignId: "legacy-missing-campaign",
+    subject: "Legacy missing campaign record fixture", body: "Synthetic test only", status: "draft",
+    createdAt: now,
+  }),
 ]);
-console.log("Seeded emulator-only orphan and mismatched-campaign legacy draft fixtures.");
+console.log("Seeded emulator-only orphan, mismatched-campaign, and missing-campaign legacy draft fixtures.");
