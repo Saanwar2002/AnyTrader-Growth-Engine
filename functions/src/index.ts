@@ -10,6 +10,7 @@ import {
   hasCampaignWritePermission,
   hasLeadWritePermission,
   getOutreachDraftReviewState,
+  hasConsistentDraftCampaign,
   isValidCampaignStatus,
   isValidDocumentId,
   isValidEmailAddress,
@@ -360,6 +361,9 @@ export const createOutreachDraft = onCall(async (request) => {
     const leadSnapshot = await transaction.get(leadRef);
     if (!leadSnapshot.exists) throw new HttpsError("not-found", "Lead was not found in this organisation.");
     const lead = leadSnapshot.data() ?? {};
+    if (!hasConsistentDraftCampaign(draft.campaignId, lead.campaignId)) {
+      throw new HttpsError("failed-precondition", "The draft campaign does not match its lead; review the record before editing.");
+    }
     if (!canCreateServerOutreachDraft(lead.doNotContact, lead.contactReviewStatus)) throw new HttpsError("failed-precondition", lead.doNotContact === true && lead.contactReviewStatus !== "pending"
       ? "This lead is suppressed. Remove the restriction before creating an outreach draft."
       : "The lead contact review is pending or unverified; resolve it before creating an outreach draft.");
@@ -411,7 +415,17 @@ export const listOutreachDrafts = onCall(async (request) => {
       const leadId = typeof draft.leadId === "string" ? draft.leadId : "";
       const leadSnapshot = leadById.get(leadId);
       const leadExists = leadSnapshot?.exists === true;
-      const review = getOutreachDraftReviewState(leadExists, leadSnapshot?.data()?.doNotContact, leadSnapshot?.data()?.contactReviewStatus);
+      const lead = leadSnapshot?.data();
+      const relationshipValid = leadExists && hasConsistentDraftCampaign(draft.campaignId, lead?.campaignId);
+      const review = relationshipValid
+        ? getOutreachDraftReviewState(leadExists, lead?.doNotContact, lead?.contactReviewStatus)
+        : {
+          leadSuppressed: false,
+          requiresReview: true,
+          reviewReason: leadExists
+            ? "Draft campaign does not match its lead; review the record before use."
+            : "Lead record is missing; review before use.",
+        };
       return {
         id: doc.id, leadId, campaignId: draft.campaignId, subject: draft.subject, body: draft.body,
         status: "draft" as const, ...review,
