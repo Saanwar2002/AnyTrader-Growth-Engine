@@ -29,7 +29,7 @@ Executed against the branch snapshot copied into the remote workspace:
 |---|---|
 | `npm ci --no-audit --no-fund` | Passed |
 | `npm run typecheck` | Passed |
-| `npm test` | Passed — 39 tests across 4 files, including 6 interactive UI tests and 4 server authorization-guard tests |
+| `npm test` | Passed — 47 tests across 4 files, including 6 interactive UI tests and 12 server authorization-guard tests |
 | `npm run build` | Passed — Vite production bundle generated |
 | Vite development server + HTTP request to `/` | Passed |
 
@@ -52,7 +52,7 @@ These checks confirm type safety, the listed unit-tested logic, interactive test
 1. Create the dedicated Firebase project and configure Auth, Firestore, and emulators.
 2. Add emulator-backed tests for unauthenticated requests, membership failures, role escalation, and cross-tenant isolation.
 3. Connect the frontend to the Functions API through a typed repository while keeping demo mode isolated.
-4. Extend server-side validation and audit events to leads, imports, notes, suppression, and outreach drafts.
+4. Add server-side CSV batch import, cursor pagination, idempotency, and production-grade audit controls.
 5. Evaluate each live data source against current provider terms, permissions, lawful basis, and retention requirements before integration.
 
 ## Repository boundary
