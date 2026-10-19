@@ -44,7 +44,8 @@ describe("parseLeadCsv", () => {
   });
 
   it("skips nameless rows and reports the row number", () => {
-    const result = parseLeadCsv(`"businessName,category
+    const result = parseLeadCsv(`businessName,category
+,Painting
 Example Decorators,Painters`);
     expect(result.rows).toHaveLength(1);
     expect(result.errors).toEqual(["Row 2: business name is required; row skipped."]);
