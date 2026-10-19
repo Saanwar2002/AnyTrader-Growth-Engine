@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { deduplicateLeads, inspectLeadCsvHeaders, normalizeBusinessName, parseLeadCsv, scoreLead, suggestLeadCsvMapping } from "./domain";
+import { canCreateOutreachDraft, deduplicateLeads, inspectLeadCsvHeaders, normalizeBusinessName, parseLeadCsv, scoreLead, suggestLeadCsvMapping } from "./domain";
+
+describe("outreach suppression", () => {
+  it("blocks new outreach drafts for suppressed leads", () => {
+    expect(canCreateOutreachDraft({ doNotContact: true })).toBe(false);
+    expect(canCreateOutreachDraft({ doNotContact: false })).toBe(true);
+  });
+});
 
 describe("normalizeBusinessName", () => {
   it("trims whitespace, collapses spaces and ignores case", () => {
