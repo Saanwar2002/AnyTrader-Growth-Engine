@@ -94,7 +94,18 @@ Example Decorators,Painters`);
 Example Decorators,Painters`);
     expect(result.rows).toHaveLength(1);
     expect(result.rows[0].businessname).toBe("Example Decorators");
-    expect(result.errors).toEqual(["Row 2: unmatched quote; row skipped."]);
+    expect(result.errors).toEqual(["Row 2: malformed or unmatched quote; row skipped."]);
+  });
+
+
+  it.each([
+    'Example "Decorators",Painters',
+    '"Example Decorators"trailing,Painters',
+  ])("rejects malformed quote placement in data rows: %s", (row) => {
+    const result = parseLeadCsv(`businessName,category\\n${row}\\nNorth Star Decorators,Painters`);
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0].businessname).toBe("North Star Decorators");
+    expect(result.errors).toEqual(["Row 2: malformed or unmatched quote; row skipped."]);
   });
 
   it("rejects a header with an unmatched quote", () => {
