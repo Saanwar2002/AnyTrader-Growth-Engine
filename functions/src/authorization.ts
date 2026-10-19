@@ -126,3 +126,13 @@ export function isValidMembershipRecord(value: unknown, expectedUid: string): bo
   const validRole = record.role === "owner" || record.role === "admin" || record.role === "member" || record.role === "viewer";
   return record.uid === expectedUid && validRole;
 }
+
+export function isValidOrganisationCollectionPageToken(value: unknown, organisationId: string, collectionName: "leads" | "outreachDrafts"): value is string {
+  if (typeof value !== "string" || value.length > 512) return false;
+  const segments = value.split("/");
+  return segments.length === 4
+    && segments[0] === "organisations"
+    && segments[1] === organisationId
+    && segments[2] === collectionName
+    && isValidDocumentId(segments[3]);
+}
