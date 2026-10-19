@@ -341,9 +341,11 @@ export const listOutreachDrafts = onCall(async (request) => {
   const leadIds = [...new Set(snapshot.docs
     .map((doc: QueryDocumentSnapshot) => doc.data().leadId)
     .filter((leadId: unknown): leadId is string => isValidDocumentId(leadId)))];
-  const leadSnapshots = await Promise.all(leadIds.map((leadId) =>
-    db.collection("organisations").doc(organisationId).collection("leads").doc(leadId).get()
-  ));
+  const leadSnapshots = leadIds.length
+    ? await db.getAll(...leadIds.map((leadId) =>
+      db.collection("organisations").doc(organisationId).collection("leads").doc(leadId)
+    ))
+    : [];
   const leadById = new Map(leadIds.map((leadId, index) => [leadId, leadSnapshots[index]]));
   return {
     drafts: snapshot.docs.map((doc: QueryDocumentSnapshot) => {
