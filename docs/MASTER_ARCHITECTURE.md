@@ -55,7 +55,8 @@ Retain the existing React + TypeScript + Vite frontend starter unless a verified
 
 ### Backend and deployment
 - Use a trusted server-side API for lead-source adapters, AI calls, sensitive mutations, quotas, audit events, and future billing.
-- Preferred Firebase-compatible starting option: Cloud Functions for Firebase or Cloud Run. Choose one and document the decision before implementing privileged routes.
+- **Decision:** use Cloud Functions for Firebase v2 callable functions for the initial trusted API. This matches Firebase Auth/Firestore and provides a consistent auth context for callable requests. Reassess Cloud Run only if later workloads require it.
+- Initial server scaffold lives in functions/, targets Node.js 22, and currently implements createOrganisation, createCampaign, and listCampaigns. The UI is not connected yet.
 - Keep provider integrations behind typed interfaces/adapters; do not make the UI dependent on one lead provider.
 - Apply request validation, authentication, authorization, rate limiting, timeouts, bounded retries, and safe error responses.
 - Add structured logs with correlation/request IDs while avoiding unnecessary personal data or secrets.
@@ -133,9 +134,12 @@ Later billing phase requirements:
 - Acceptance: all features work against mock data; type-check, tests, and production build pass.
 
 ### Phase 2 — Authentication and tenant-safe persistence
-- Create the separate Firebase project and configure Auth, Firestore, and emulators.
-- Implement authenticated routes, organisations, memberships, role checks, and server-side token verification.
-- Add deny-by-default Firestore rules and tenant-isolation tests.
+- [x] Scaffold Firebase Functions v2 callable endpoints with auth-context checks and organisation membership authorization.
+- [x] Create organisation and owner membership atomically; restrict campaign creation to owner/admin; membership-check campaign listing.
+- [x] Add deny-by-default Firestore rules and emulator port configuration.
+- [ ] Create the separate Firebase project and configure Auth, Firestore, and emulators.
+- [ ] Connect sign-in UI and a typed frontend API/repository adapter.
+- [ ] Add emulator-backed tests for unauthenticated requests, non-members, role escalation, and cross-tenant access.
 - Acceptance: unauthenticated requests fail; users cannot elevate roles or cross tenant boundaries; emulator tests pass.
 
 ### Phase 3 — Campaign and lead workflows
@@ -193,4 +197,4 @@ The MVP is not complete until:
 - Type-check, tests, security rules/emulator tests, and production build pass in a reproducible environment.
 - Deployment, backup, monitoring, and recovery decisions are documented before real customer data is used.
 
-**Current stage:** Architecture baseline established; the Phase 1 local demo MVP is implemented on `development/chatgpt-mvp`. The latest local verification run passed TypeScript type-check, 27 unit tests across 2 files, and the Vite production build. CSV import supports editable column mapping, selection/exclusion review, and campaign-scoped deduplication. Lead-level demo suppression blocks new outreach drafts and flags existing drafts, but is not server-enforced. Automated browser UI tests and Phase 2 authentication/tenant-safe persistence have not started. Do not jump straight to live LinkedIn/Google integrations, automatic outreach, payment collection, or production AnyTrader integration before the relevant phases and gates are complete.
+**Current stage (2026-10-19):** Phase 1 local demo workflows and interactive UI tests are implemented. A Phase 2 Firebase Functions v2 scaffold now contains createOrganisation, createCampaign, and listCampaigns; Firestore rules deny direct client access by default. The backend targets Node.js 22 and has not been deployed or connected to the frontend. Local verification passed frontend typecheck/build, 39 tests across 4 files, Functions TypeScript build, 4 server guard tests, and npm audits reporting zero vulnerabilities for the root and Functions packages. Firebase Emulator Suite integration tests, real Firebase project setup, sign-in UI, and cross-tenant integration tests remain outstanding. Do not use real customer data or jump to live source integrations, automated outreach, billing, or production AnyTrader integration before those gates are complete.
