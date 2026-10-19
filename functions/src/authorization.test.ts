@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateLeadCompleteness, canChangeSuppression, canCreateServerOutreachDraft, canTransitionLeadStatus, hasCampaignWritePermission, hasLeadWritePermission, isValidCampaignStatus, isValidDocumentId, isValidEmailAddress, isValidLeadStatus, isValidOrganisationId, normaliseOptionalText, normaliseRequiredText } from "./authorization";
+import { calculateLeadCompleteness, canChangeSuppression, canCreateServerOutreachDraft, canTransitionLeadStatus, getOutreachDraftReviewState, hasCampaignWritePermission, hasLeadWritePermission, isValidCampaignStatus, isValidDocumentId, isValidEmailAddress, isValidLeadStatus, isValidOrganisationId, normaliseOptionalText, normaliseRequiredText } from "./authorization";
 
 describe("server authorization input guards", () => {
   it("trims required text and rejects missing, non-string, blank, and overlong values", () => {
@@ -111,5 +111,40 @@ describe("server campaign status validation", () => {
     expect(isValidCampaignStatus("completed")).toBe(true);
     expect(isValidCampaignStatus("deleted")).toBe(false);
     expect(isValidCampaignStatus(undefined)).toBe(false);
+  });
+});
+
+
+describe("existing outreach draft review state", () => {
+  it("flags missing leads for human review", () => {
+    expect(getOutreachDraftReviewState(false, false)).toEqual({
+      leadSuppressed: false,
+      requiresReview: true,
+      reviewReason: "Lead record is missing; review before use.",
+    });
+  });
+
+  it("flags suppressed leads and explicitly blocks contact", () => {
+    expect(getOutreachDraftReviewState(true, true)).toEqual({
+      leadSuppressed: true,
+      requiresReview: true,
+      reviewReason: "Lead is suppressed; do not contact.",
+    });
+  });
+
+  it.each([undefined, null, "false", 0])("fails closed when contact permission is unverified (%s)", (value) => {
+    expect(getOutreachDraftReviewState(true, value)).toEqual({
+      leadSuppressed: false,
+      requiresReview: true,
+      reviewReason: "Lead contact restriction could not be verified; review before use.",
+    });
+  });
+
+  it("allows review state only when the lead exists and suppression is explicitly false", () => {
+    expect(getOutreachDraftReviewState(true, false)).toEqual({
+      leadSuppressed: false,
+      requiresReview: false,
+      reviewReason: null,
+    });
   });
 });
