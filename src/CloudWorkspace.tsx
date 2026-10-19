@@ -1,0 +1,142 @@
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { createUserWithEmailAndPassword, onAuthStateChanged, signInWithEmailAndPassword, signOut, type User } from "firebase/auth";
+import { createFirebaseCallableInvoker, createGrowthEngineApi, type CampaignSummary, type LeadSummary, type OrganisationSummary, type OutreachDraftSummary, type ServerLeadStatus } from "./backendApi";
+import { firebaseClient } from "./firebaseClient";
+import "./cloudWorkspace.css";
+
+const leadStatuses: ServerLeadStatus[] = ["new", "reviewing", "qualified", "contacted", "onboarded", "rejected"];
+const statusLabel = (status: string) => status.charAt(0).toUpperCase() + status.slice(1);
+const readableError = (error: unknown) => error instanceof Error ? error.message : "The request could not be completed. Please try again.";
+
+export default function CloudWorkspace() {
+  const client = firebaseClient;
+  const api = useMemo(() => client ? createGrowthEngineApi(createFirebaseCallableInvoker(client.functions)) : null, [client]);
+  const [user, setUser] = useState<User | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [registerMode, setRegisterMode] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [authBusy, setAuthBusy] = useState(false);
+  const [organisations, setOrganisations] = useState<OrganisationSummary[]>([]);
+  const [organisationId, setOrganisationId] = useState("");
+  const [campaigns, setCampaigns] = useState<CampaignSummary[]>([]);
+  const [leads, setLeads] = useState<LeadSummary[]>([]);
+  const [drafts, setDrafts] = useState<OutreachDraftSummary[]>([]);
+  const [organisationName, setOrganisationName] = useState("");
+  const [campaignName, setCampaignName] = useState("");
+  const [campaignBrand, setCampaignBrand] = useState("AnyTrader");
+  const [campaignCategory, setCampaignCategory] = useState("Painters & decorators");
+  const [campaignLocation, setCampaignLocation] = useState("Manchester, UK");
+  const [campaignGoal, setCampaignGoal] = useState("Recruit reliable providers");
+  const [leadCampaignId, setLeadCampaignId] = useState("");
+  const [leadName, setLeadName] = useState("");
+  const [leadCategory, setLeadCategory] = useState("Painters & decorators");
+  const [leadLocation, setLeadLocation] = useState("Manchester, UK");
+  const [leadWebsite, setLeadWebsite] = useState("");
+  const [leadEmail, setLeadEmail] = useState("");
+  const [leadPhone, setLeadPhone] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!client) { setAuthReady(true); return; }
+    return onAuthStateChanged(client.auth, (nextUser) => { setUser(nextUser); setAuthReady(true); });
+  }, [client]);
+
+  const refreshOrganisations = useCallback(async () => {
+    if (!api) return;
+    const result = await api.listMyOrganisations();
+    setOrganisations(result.organisations);
+    setOrganisationId((current) => result.organisations.some((org) => org.organisationId === current) ? current : result.organisations[0]?.organisationId ?? "");
+  }, [api]);
+
+  const refreshWorkspace = useCallback(async (orgId: string) => {
+    if (!api || !orgId) { setCampaigns([]); setLeads([]); setDrafts([]); return; }
+    const [campaignResult, leadResult, draftResult] = await Promise.all([
+      api.listCampaigns({ organisationId: orgId }), api.listLeads({ organisationId: orgId }), api.listOutreachDrafts({ organisationId: orgId }),
+    ]);
+    setCampaigns(campaignResult.campaigns);
+    setLeads(leadResult.leads);
+    setDrafts(draftResult.drafts);
+    setLeadCampaignId((current) => campaignResult.campaigns.some((campaign) => campaign.id === current) ? current : campaignResult.campaigns[0]?.id ?? "");
+  }, [api]);
+
+  useEffect(() => {
+    if (!user || !api) { setOrganisations([]); setOrganisationId(""); return; }
+    void refreshOrganisations().catch((reason: unknown) => setError(readableError(reason)));
+  }, [user, api, refreshOrganisations]);
+
+  useEffect(() => {
+    if (!organisationId) { setCampaigns([]); setLeads([]); setDrafts([]); return; }
+    void refreshWorkspace(organisationId).catch((reason: unknown) => setError(readableError(reason)));
+  }, [organisationId, refreshWorkspace]);
+
+  async function runAction(action: () => Promise<unknown>, success: string, refresh = true) {
+    setBusy(true); setError(""); setNotice("");
+    try {
+      await action();
+      setNotice(success);
+      if (refresh && organisationId) await refreshWorkspace(organisationId);
+    } catch (reason) { setError(readableError(reason)); }
+    finally { setBusy(false); }
+  }
+
+  async function submitAuth(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!client) return;
+    setAuthBusy(true); setError("");
+    try {
+      if (registerMode) await createUserWithEmailAndPassword(client.auth, email.trim(), password);
+      else await signInWithEmailAndPassword(client.auth, email.trim(), password);
+    } catch (reason) { setError(readableError(reason)); }
+    finally { setAuthBusy(false); }
+  }
+
+  async function createOrganisation(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!api || !organisationName.trim()) return;
+    await runAction(async () => { await api.createOrganisation({ name: organisationName.trim() }); await refreshOrganisations(); setOrganisationName(""); }, "Organisation created.", false);
+  }
+
+  async function createCampaign(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!api || !organisationId) return;
+    await runAction(async () => {
+      await api.createCampaign({ organisationId, name: campaignName.trim(), brand: campaignBrand.trim(), category: campaignCategory.trim(), location: campaignLocation.trim(), goal: campaignGoal.trim() });
+      setCampaignName("");
+    }, "Campaign created.");
+  }
+
+  async function createLead(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!api || !organisationId || !leadCampaignId) return;
+    await runAction(async () => {
+      await api.createLead({ organisationId, campaignId: leadCampaignId, businessName: leadName.trim(), category: leadCategory.trim(), location: leadLocation.trim(), website: leadWebsite.trim(), email: leadEmail.trim(), phone: leadPhone.trim() });
+      setLeadName(""); setLeadWebsite(""); setLeadEmail(""); setLeadPhone("");
+    }, "Lead saved securely to the selected organisation.");
+  }
+
+  if (!client || !api) return <main className="cloud-shell"><section className="cloud-card"><h1>Firebase is not configured</h1><p>Cloud mode is disabled. Keep using the clearly labelled synthetic-data demo until a dedicated Growth Engine Firebase project is configured in a local <code>.env.local</code> file.</p></section></main>;
+  if (!authReady) return <main className="cloud-shell"><section className="cloud-card"><p>Checking sign-in status…</p></section></main>;
+  if (!user) return <main className="cloud-shell"><section className="cloud-card auth-card"><div className="cloud-brand">AT <span>Growth Engine</span></div><p className="cloud-eyebrow">SECURE WORKSPACE</p><h1>{registerMode ? "Create your account" : "Sign in to Growth Engine"}</h1><p className="cloud-muted">This connects to the dedicated Firebase project configured for this app, not production AnyTrader.</p><form className="cloud-form" onSubmit={(event) => void submitAuth(event)}><label>Email address<input type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} /></label><label>Password<input type="password" autoComplete={registerMode ? "new-password" : "current-password"} minLength={6} required value={password} onChange={(event) => setPassword(event.target.value)} /></label><button className="cloud-primary" disabled={authBusy}>{authBusy ? "Please wait…" : registerMode ? "Create account" : "Sign in"}</button></form><button className="cloud-link" onClick={() => { setRegisterMode((value) => !value); setError(""); }}>{registerMode ? "Already have an account? Sign in" : "Need an account? Create one"}</button>{error && <p className="cloud-error" role="alert">{error}</p>}<p className="cloud-footnote">Use synthetic/test data only until emulator-backed tenant isolation tests have passed.</p></section></main>;
+
+  const selectedOrganisation = organisations.find((org) => org.organisationId === organisationId);
+  return <main className="cloud-shell cloud-dashboard"><header className="cloud-header"><div><div className="cloud-brand">AT <span>Growth Engine</span></div><p className="cloud-eyebrow">FIREBASE CLOUD MODE</p></div><div className="cloud-user"><span>{user.email}</span><button className="cloud-secondary" onClick={() => void signOut(client.auth)}>Sign out</button></div></header>
+    <section className="cloud-card cloud-intro"><div><p className="cloud-eyebrow">PERSISTED WORKSPACE</p><h1>Provider acquisition workspace</h1><p className="cloud-muted">Changes are stored through authenticated server functions. Outreach remains draft-only.</p></div><span className="cloud-safe-badge">NO AUTOMATIC SENDING</span></section>
+    {notice && <p className="cloud-notice" role="status">{notice}</p>}{error && <p className="cloud-error" role="alert">{error}</p>}
+    <section className="cloud-card"><div className="cloud-section-head"><div><p className="cloud-eyebrow">TENANT CONTEXT</p><h2>Organisation</h2></div></div>{organisations.length > 0 ? <label className="cloud-field">Current organisation<select value={organisationId} onChange={(event) => setOrganisationId(event.target.value)}>{organisations.map((org) => <option key={org.organisationId} value={org.organisationId}>{org.name} · {org.role}</option>)}</select></label> : <p className="cloud-muted">Create an organisation to begin. Your account cannot read other organisations unless you are a member.</p>}
+      <form className="cloud-inline-form" onSubmit={(event) => void createOrganisation(event)}><label className="cloud-field">{organisations.length ? "Create another organisation" : "Organisation name"}<input required maxLength={100} value={organisationName} onChange={(event) => setOrganisationName(event.target.value)} placeholder="e.g. AnyTrader pilot" /></label><button className="cloud-primary" disabled={busy || !organisationName.trim()}>{busy ? "Saving…" : "Create organisation"}</button></form></section>
+    {selectedOrganisation && <><section className="cloud-columns"><article className="cloud-card"><div className="cloud-section-head"><div><p className="cloud-eyebrow">CAMPAIGNS</p><h2>Campaign setup</h2></div><span className="cloud-count">{campaigns.length}</span></div><form className="cloud-form" onSubmit={(event) => void createCampaign(event)}><label>Campaign name<input required maxLength={120} value={campaignName} onChange={(event) => setCampaignName(event.target.value)} placeholder="Manchester painter pilot" /></label><label>Brand<input required maxLength={100} value={campaignBrand} onChange={(event) => setCampaignBrand(event.target.value)} /></label><label>Service category<input required maxLength={100} value={campaignCategory} onChange={(event) => setCampaignCategory(event.target.value)} /></label><label>Target location<input required maxLength={160} value={campaignLocation} onChange={(event) => setCampaignLocation(event.target.value)} /></label><label>Goal<input maxLength={500} value={campaignGoal} onChange={(event) => setCampaignGoal(event.target.value)} /></label><button className="cloud-primary" disabled={busy}>{busy ? "Saving…" : "Create campaign"}</button></form><div className="cloud-list">{campaigns.map((campaign) => <div className="cloud-list-item" key={campaign.id}><div><strong>{campaign.name}</strong><small>{campaign.category} · {campaign.location}</small></div><span className="cloud-status">{statusLabel(campaign.status)}</span></div>)}{!campaigns.length && <p className="cloud-empty">No campaigns yet.</p>}</div></article>
+      <article className="cloud-card"><div className="cloud-section-head"><div><p className="cloud-eyebrow">LEADS</p><h2>Add a provider lead</h2></div><span className="cloud-count">{leads.length}</span></div>{campaigns.length ? <form className="cloud-form" onSubmit={(event) => void createLead(event)}><label>Campaign<select required value={leadCampaignId} onChange={(event) => setLeadCampaignId(event.target.value)}>{campaigns.map((campaign) => <option key={campaign.id} value={campaign.id}>{campaign.name}</option>)}</select></label><label>Business name<input required maxLength={160} value={leadName} onChange={(event) => setLeadName(event.target.value)} /></label><label>Service category<input maxLength={100} value={leadCategory} onChange={(event) => setLeadCategory(event.target.value)} /></label><label>Location<input maxLength={160} value={leadLocation} onChange={(event) => setLeadLocation(event.target.value)} /></label><label>Website<input type="url" maxLength={500} value={leadWebsite} onChange={(event) => setLeadWebsite(event.target.value)} placeholder="https://…" /></label><label>Email<input type="email" maxLength={254} value={leadEmail} onChange={(event) => setLeadEmail(event.target.value)} /></label><label>Phone<input maxLength={80} value={leadPhone} onChange={(event) => setLeadPhone(event.target.value)} /></label><button className="cloud-primary" disabled={busy || !leadCampaignId}>{busy ? "Saving…" : "Save lead"}</button></form> : <p className="cloud-empty">Create a campaign before adding leads.</p>}</article></section>
+      <section className="cloud-card"><div className="cloud-section-head"><div><p className="cloud-eyebrow">REVIEW AND SUPPRESSION</p><h2>Lead directory</h2></div></div><div className="cloud-table-wrap"><table className="cloud-table"><thead><tr><th>Business</th><th>Status</th><th>Contact restriction</th><th>Actions</th></tr></thead><tbody>{leads.map((lead) => <tr key={lead.id}><td><strong>{lead.businessName}</strong><small>{lead.category} · {lead.location}</small></td><td><select aria-label={`Status for ${lead.businessName}`} value={lead.status} disabled={busy} onChange={(event) => void runAction(() => api.updateLeadStatus({ organisationId, leadId: lead.id, status: event.target.value as ServerLeadStatus }), "Lead status updated.")}>{leadStatuses.map((status) => <option key={status} value={status}>{statusLabel(status)}</option>)}</select></td><td>{lead.doNotContact ? <span className="cloud-suppressed">DO NOT CONTACT</span> : <span className="cloud-contactable">Contactable</span>}<button className="cloud-link" disabled={busy} onClick={() => void runAction(() => api.setLeadSuppression({ organisationId, leadId: lead.id, doNotContact: !lead.doNotContact }), lead.doNotContact ? "Restriction removal requested." : "Lead suppressed.")}>{lead.doNotContact ? "Remove restriction" : "Suppress"}</button></td><td><button className="cloud-secondary" disabled={busy || lead.doNotContact} onClick={() => void runAction(() => api.createOutreachDraft({ organisationId, leadId: lead.id, subject: `Provider network opportunity for ${lead.businessName}`, body: `Hello ${lead.businessName},
+
+We are building a trusted local provider network and would like to share details about joining. Please review and personalise this draft before any use.
+
+Kind regards,
+${selectedOrganisation.name}
+
+DRAFT ONLY — NOT SENT.` }), "Draft saved. Nothing was sent.")}>Create draft</button></td></tr>)}</tbody></table>{!leads.length && <p className="cloud-empty">No leads in this organisation yet.</p>}</div></section>
+      <section className="cloud-card"><div className="cloud-section-head"><div><p className="cloud-eyebrow">HUMAN REVIEW REQUIRED</p><h2>Outreach drafts</h2></div><span className="cloud-count">{drafts.length}</span></div><div className="cloud-list">{drafts.map((draft) => <div className="cloud-draft" key={draft.id}><div><strong>{draft.subject}</strong><p>{draft.body}</p><small>DRAFT · NOT SENT</small></div><button className="cloud-secondary" disabled={busy} onClick={() => void runAction(() => api.deleteOutreachDraft({ organisationId, draftId: draft.id }), "Draft deleted.")}>Delete</button></div>)}{!drafts.length && <p className="cloud-empty">No outreach drafts yet.</p>}</div></section></>}
+    <footer className="cloud-footer">Dedicated Firebase project required · tenant access enforced by server functions · no automated outreach</footer></main>;
+}
