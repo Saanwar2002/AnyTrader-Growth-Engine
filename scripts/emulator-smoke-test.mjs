@@ -111,6 +111,64 @@ try {
   const draft = await callOne("createOutreachDraft", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Test draft", body: "Review before use" });
   assert.equal(draft.sent, false);
 
+  // Confirm member lifecycle permissions and viewer denial on existing records.
+  await memberCall("updateLeadContact", {
+    organisationId: orgOne.organisationId,
+    leadId: leadOne.leadId,
+    businessName: "Synthetic Test Painting Ltd (member verified)",
+    category: "Painters",
+    location: "Manchester",
+    email: "hello@example.test",
+  });
+  const memberStatus = await memberCall("updateLeadStatus", {
+    organisationId: orgOne.organisationId,
+    leadId: leadOne.leadId,
+    status: "qualified",
+  });
+  assert.equal(memberStatus.status, "qualified", "member can update lead lifecycle status");
+
+  const memberDraft = await memberCall("createOutreachDraft", {
+    organisationId: orgOne.organisationId,
+    leadId: leadOne.leadId,
+    subject: "Member-owned test draft",
+    body: "Draft only; never sent.",
+  });
+  const editedMemberDraft = await memberCall("updateOutreachDraft", {
+    organisationId: orgOne.organisationId,
+    draftId: memberDraft.draftId,
+    subject: "Member-edited test draft",
+    body: "Updated draft only; never sent.",
+  });
+  assert.equal(editedMemberDraft.subject, "Member-edited test draft", "member can edit a draft");
+  const deletedMemberDraft = await memberCall("deleteOutreachDraft", {
+    organisationId: orgOne.organisationId,
+    draftId: memberDraft.draftId,
+  });
+  assert.equal(deletedMemberDraft.deleted, true, "member can delete a draft");
+
+  await expectCallableFailure(viewerCall("updateLeadContact", {
+    organisationId: orgOne.organisationId,
+    leadId: leadOne.leadId,
+    businessName: "Viewer must not edit",
+    category: "Painters",
+    location: "Manchester",
+  }), "functions/permission-denied", "viewer cannot edit lead contact details");
+  await expectCallableFailure(viewerCall("updateLeadStatus", {
+    organisationId: orgOne.organisationId,
+    leadId: leadOne.leadId,
+    status: "qualified",
+  }), "functions/permission-denied", "viewer cannot change lead status");
+  await expectCallableFailure(viewerCall("updateOutreachDraft", {
+    organisationId: orgOne.organisationId,
+    draftId: draft.draftId,
+    subject: "Viewer must not edit",
+    body: "Must remain unchanged.",
+  }), "functions/permission-denied", "viewer cannot edit an outreach draft");
+  await expectCallableFailure(viewerCall("deleteOutreachDraft", {
+    organisationId: orgOne.organisationId,
+    draftId: draft.draftId,
+  }), "functions/permission-denied", "viewer cannot delete an outreach draft");
+
   // Cursor tokens are untrusted client input; malformed or cross-collection paths must fail closed.
   await expectCallableFailure(callOne("listMyOrganisations", { pageToken: "organisations/org-1/leads/lead-1" }), "functions/invalid-argument", "invalid organisation cursor");
   await expectCallableFailure(callOne("listCampaigns", { organisationId: orgOne.organisationId, pageToken: `organisations/${orgOne.organisationId}/leads/${leadOne.leadId}` }), "functions/invalid-argument", "campaign cursor from another collection");
