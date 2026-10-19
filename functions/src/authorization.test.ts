@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateLeadCompleteness, canChangeSuppression, canMarkLeadContacted, canCreateServerOutreachDraft, canTransitionLeadStatus, getOutreachDraftReviewState, hasCampaignWritePermission, hasLeadWritePermission, isValidCampaignStatus, isValidDocumentId, isValidEmailAddress, isValidLeadStatus, isValidOrganisationId, isValidOrganisationPageToken, isValidMembershipRecord, normaliseOptionalText, normaliseRequiredText } from "./authorization";
+import { calculateLeadCompleteness, canChangeSuppression, canMarkLeadContacted, canCreateServerOutreachDraft, canTransitionLeadStatus, getOutreachDraftReviewState, hasCampaignWritePermission, hasLeadWritePermission, isValidCampaignStatus, isValidDocumentId, isValidEmailAddress, isValidLeadStatus, isValidOrganisationId, isValidOrganisationPageToken, isValidOrganisationCollectionPageToken, isValidMembershipRecord, normaliseOptionalText, normaliseRequiredText } from "./authorization";
 
 describe("server authorization input guards", () => {
   it("trims required text and rejects missing, non-string, blank, and overlong values", () => {
@@ -179,5 +179,18 @@ describe("membership record validation", () => {
     expect(isValidMembershipRecord({ role: "member" }, "user-1")).toBe(false);
     expect(isValidMembershipRecord(null, "user-1")).toBe(false);
     expect(isValidMembershipRecord([], "user-1")).toBe(false);
+  });
+});
+
+
+describe("tenant-scoped collection pagination token validation", () => {
+  it("accepts only safe lead/draft cursors belonging to the selected organisation", () => {
+    expect(isValidOrganisationCollectionPageToken("organisations/org-1/leads/lead-1", "org-1", "leads")).toBe(true);
+    expect(isValidOrganisationCollectionPageToken("organisations/org-1/outreachDrafts/draft-1", "org-1", "outreachDrafts")).toBe(true);
+    expect(isValidOrganisationCollectionPageToken("organisations/org-2/leads/lead-1", "org-1", "leads")).toBe(false);
+    expect(isValidOrganisationCollectionPageToken("organisations/org-1/campaigns/lead-1", "org-1", "leads")).toBe(false);
+    expect(isValidOrganisationCollectionPageToken("organisations/org-1/leads/../other", "org-1", "leads")).toBe(false);
+    expect(isValidOrganisationCollectionPageToken("organisations/org-1/leads/lead-1/extra", "org-1", "leads")).toBe(false);
+    expect(isValidOrganisationCollectionPageToken("x".repeat(513), "org-1", "leads")).toBe(false);
   });
 });
