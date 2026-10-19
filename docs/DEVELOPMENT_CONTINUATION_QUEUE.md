@@ -335,3 +335,11 @@ Continue the callable authorization audit and integration-test reliability work;
 - Follow-up audit found that although legacy records with missing/non-draft status were flagged for review and could not be edited, the list response still normalised their displayed status to `draft`. This could mislead operators about the stored record state.
 - The list now preserves a non-empty stored status (or displays `unknown` when absent), the frontend labels non-draft records as requiring review, and the emulator smoke test asserts a synthetic `sent` record is returned as `sent` rather than `draft`. Editing remains blocked and deletion remains available for cleanup; no sending integration was added.
 - Verification pending for the commit. Keep changes on `development/chatgpt-mvp`; Firebase deployment remains deferred.
+
+
+## Missing legacy outreach status regression — 2026-10-19
+
+- Latest code commit `7fd3b551e2e2498f0307b2c9c5661ec54ab1360c` passed GitHub Actions run [39335801496](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39335801496): frontend typecheck/tests/build and Firebase Functions tests/build both succeeded.
+- Added a second guarded synthetic legacy fixture where the persisted outreach record has no `status` field. The emulator smoke test now verifies it remains visible as `unknown`, requires review, cannot be edited, and can be deleted safely without sending.
+- This complements the existing `sent` status regression, covering both known non-draft and missing status values. Verification of this new test is pending until CI completes.
+- Continue only on `development/chatgpt-mvp`; keep Firebase deployment deferred and outreach draft-only.

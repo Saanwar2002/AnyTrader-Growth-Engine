@@ -52,5 +52,10 @@ await Promise.all([
     subject: "Legacy non-draft status fixture", body: "Synthetic test only", status: "sent",
     createdAt: now,
   }),
+  drafts.doc("legacy-missing-status").set({
+    leadId: validLeadId, campaignId: validCampaignId,
+    subject: "Legacy missing status fixture", body: "Synthetic test only",
+    createdAt: now,
+  }),
 ]);
-console.log("Seeded emulator-only orphan, mismatched-campaign, missing-campaign, and non-draft-status legacy draft fixtures.");
+console.log("Seeded emulator-only orphan, mismatched-campaign, missing-campaign, and non-draft-status and missing-status legacy draft fixtures.");

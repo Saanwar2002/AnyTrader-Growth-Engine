@@ -461,6 +461,7 @@ try {
   }), "functions/failed-precondition", "marking a cleared legacy lead contacted when its campaign is missing");
   const missingCampaignLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-missing-campaign-record-draft");
   const nonDraftStatusLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-non-draft-status");
+  const missingStatusLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-missing-status");
   assert.ok(orphanLegacyDraft, "orphan legacy draft is visible for operator review");
   assert.equal(orphanLegacyDraft.requiresReview, true, "orphan legacy draft requires review");
   assert.match(orphanLegacyDraft.reviewReason, /Lead record is missing/i);
@@ -473,6 +474,9 @@ try {
   assert.ok(nonDraftStatusLegacyDraft, "legacy record with a non-draft status remains visible for review");
   assert.equal(nonDraftStatusLegacyDraft.requiresReview, true, "legacy record with a non-draft status requires review");
   assert.equal(nonDraftStatusLegacyDraft.status, "sent", "legacy sent status is displayed honestly rather than normalised to draft");
+  assert.ok(missingStatusLegacyDraft, "legacy record with a missing status remains visible for review");
+  assert.equal(missingStatusLegacyDraft.requiresReview, true, "legacy record with a missing status requires review");
+  assert.equal(missingStatusLegacyDraft.status, "unknown", "missing legacy status is displayed as unknown rather than draft");
   assert.match(nonDraftStatusLegacyDraft.reviewReason, /status is missing or is not draft/i);
   await expectCallableFailure(callOne("updateOutreachDraft", {
     organisationId: orgOne.organisationId, draftId: "legacy-non-draft-status",
@@ -483,6 +487,15 @@ try {
   });
   assert.equal(nonDraftStatusCleanup.deleted, true, "non-draft legacy record remains deletable for cleanup");
   assert.equal(nonDraftStatusCleanup.sent, false, "cleanup does not send outreach");
+  await expectCallableFailure(callOne("updateOutreachDraft", {
+    organisationId: orgOne.organisationId, draftId: "legacy-missing-status",
+    subject: "Must not reopen an unknown-status record", body: "Status must remain blocked",
+  }), "functions/failed-precondition", "editing a legacy outreach record whose status is missing");
+  const missingStatusCleanup = await callOne("deleteOutreachDraft", {
+    organisationId: orgOne.organisationId, draftId: "legacy-missing-status",
+  });
+  assert.equal(missingStatusCleanup.deleted, true, "missing-status legacy record remains deletable for cleanup");
+  assert.equal(missingStatusCleanup.sent, false, "missing-status cleanup does not send outreach");
   await expectCallableFailure(callOne("updateOutreachDraft", {
     organisationId: orgOne.organisationId, draftId: "legacy-orphan-draft",
     subject: "Should remain blocked", body: "Do not update an orphan",
