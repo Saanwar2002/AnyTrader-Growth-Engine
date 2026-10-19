@@ -14,13 +14,16 @@
 - [x] Draft-only outreach and a demo Do not contact control that blocks new drafts.
 - [x] Interactive UI tests for campaign creation, CSV import confirmation, suppression, draft creation, and local persistence.
 
-## Phase 2 — Backend and tenant-safe persistence (scaffold started; not production-ready)
+## Phase 2 — Backend and tenant-safe persistence (server scaffold; not production-ready)
 
 - [x] Select Firebase Cloud Functions v2 callable endpoints as the initial trusted backend.
-- [x] Add authenticated organisation creation and owner membership creation.
+- [x] Add authenticated organisation creation and atomic owner membership creation.
 - [x] Add owner/admin-only campaign creation and membership-checked campaign listing.
-- [x] Add deny-by-default Firestore rules and strict server input/role guard tests.
-- [x] Add Firebase emulator configuration and placeholder project alias.
+- [x] Add membership-checked lead listing and tenant-scoped lead creation.
+- [x] Add transactional lead status and notes updates with activity events.
+- [x] Add transactional do-not-contact controls; members can suppress, but only owners/admins can remove a restriction.
+- [x] Enforce the suppression gate transactionally when creating draft-only outreach.
+- [x] Add deny-by-default Firestore rules, strict server input/role guards, and emulator configuration.
 - [ ] Create/configure a dedicated Growth Engine Firebase project; do not reuse AnyTrader production.
 - [ ] Add sign-in and account lifecycle UI using Firebase Authentication.
 - [ ] Run callable functions and Firestore rules against Firebase Emulator Suite.
@@ -28,10 +31,11 @@
 - [ ] Connect the frontend through a typed API/repository adapter; keep demo mode as a separate mode.
 - [ ] Add rate limiting/App Check strategy, structured audit events, and safe error handling before external exposure.
 
-## Phase 3 — Harden campaign and lead workflows
+## Phase 3 — Complete persisted workflows
 
-- Server-validate lead creation/import, status transitions, suppression, and activity events.
-- Persist leads, drafts, notes, and activities under the organisation namespace.
+- Implement server-side CSV batch import with validation, deduplication, and bounded batch sizes.
+- Add safe editing of lead contact fields, campaign status changes, draft editing/listing, and paginated reads.
+- Add idempotency protection for retried mutations and durable audit-event policy.
 - Keep provenance, import review, deduplication, and data minimisation.
 
 ## Phase 4 — Approved lead-source adapters
