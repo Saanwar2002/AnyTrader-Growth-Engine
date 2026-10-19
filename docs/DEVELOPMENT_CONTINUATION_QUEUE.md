@@ -367,3 +367,11 @@ Continue the callable authorization audit and integration-test reliability work;
 - CI run [39337157941](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39337157941) passed after the fail-closed contact restriction normalisation fix. Both frontend and Functions jobs succeeded, including emulator integration checks.
 - The next audit found ambiguous wording when deleting a legacy record whose stored status is `sent`: the activity log said “no message was sent,” which could be misread as a claim about the record's entire history. Wording now says the deletion action itself did not send a message. The delete response adds explicit `messageSentByThisAction: false`, and emulator assertions cover this field for non-draft and unknown-status cleanup.
 - Verify the new commit through full CI before treating this follow-up as complete. Continue on `development/chatgpt-mvp` only; no deployment or sending integration.
+
+
+## Pagination cursor validation regression coverage — 2026-10-19
+
+- Latest commit `7a216f5852844a7ac35c28b48c2a2b0f43eb1fad` passed CI run [39337550663](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39337550663): both frontend and Firebase Functions jobs completed successfully, including typecheck, unit tests, builds, and emulator smoke tests.
+- Continued the backend audit with focused unit coverage for pagination token validators used by organisation, campaign, lead, and outreach-draft listings. The tests cover user binding, organisation binding, collection binding, path traversal, extra path segments, overlong tokens, and non-string input.
+- This is regression coverage for the existing path guards; it does not change pagination behaviour or data access. Next review will check cursor document state and pagination behaviour against deleted or malformed legacy records.
+- Verification pending until CI completes for this test-only commit. Continue on `development/chatgpt-mvp` only; Firebase deployment remains deferred and outreach remains draft-only.

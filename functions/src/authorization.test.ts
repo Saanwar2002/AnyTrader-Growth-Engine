@@ -454,3 +454,28 @@ describe("lead and campaign lifecycle validation", () => {
     },
   );
 });
+
+
+describe("pagination cursor path validation", () => {
+  it("accepts only this user's organisation membership document as an organisation cursor", () => {
+    expect(isValidOrganisationPageToken("organisations/org-1/members/user-1", "user-1")).toBe(true);
+    expect(isValidOrganisationPageToken("organisations/org-1/members/user-2", "user-1")).toBe(false);
+    expect(isValidOrganisationPageToken("organisations/org-1/campaigns/campaign-1", "user-1")).toBe(false);
+    expect(isValidOrganisationPageToken("organisations/../members/user-1", "user-1")).toBe(false);
+    expect(isValidOrganisationPageToken("organisations/org-1/members/user-1/extra", "user-1")).toBe(false);
+    expect(isValidOrganisationPageToken("x".repeat(513), "user-1")).toBe(false);
+    expect(isValidOrganisationPageToken(123, "user-1")).toBe(false);
+  });
+
+  it("binds collection cursors to the requested organisation and collection", () => {
+    expect(isValidOrganisationCollectionPageToken("organisations/org-1/campaigns/campaign-1", "org-1", "campaigns")).toBe(true);
+    expect(isValidOrganisationCollectionPageToken("organisations/org-1/leads/lead-1", "org-1", "leads")).toBe(true);
+    expect(isValidOrganisationCollectionPageToken("organisations/org-1/outreachDrafts/draft-1", "org-1", "outreachDrafts")).toBe(true);
+    expect(isValidOrganisationCollectionPageToken("organisations/org-2/leads/lead-1", "org-1", "leads")).toBe(false);
+    expect(isValidOrganisationCollectionPageToken("organisations/org-1/leads/lead-1", "org-1", "campaigns")).toBe(false);
+    expect(isValidOrganisationCollectionPageToken("organisations/org-1/members/user-1", "org-1", "leads")).toBe(false);
+    expect(isValidOrganisationCollectionPageToken("organisations/org-1/leads/../other", "org-1", "leads")).toBe(false);
+    expect(isValidOrganisationCollectionPageToken("x".repeat(513), "org-1", "leads")).toBe(false);
+    expect(isValidOrganisationCollectionPageToken(null, "org-1", "leads")).toBe(false);
+  });
+});
