@@ -282,3 +282,10 @@ Continue the callable authorization audit and integration-test reliability work;
 - The test verifies the contact update does not clear `doNotContact` or the `blocked` review state, and that outreach draft creation remains rejected afterward.
 - This protects against a future regression where an innocent contact-detail edit could accidentally reopen a suppressed lead. Synthetic emulator data only; no production integration.
 - Verification pending until GitHub Actions completes for the new commit.
+
+
+## Suppression persistence across notes and status mutations — 2026-10-19
+
+- Added emulator regression checks that update ordinary lead notes while the lead is suppressed, then verify the persisted `doNotContact` flag remains true and the contact-review status remains `blocked`.
+- Added assertions that a suppressed lead cannot be transitioned to `contacted`, and that note edits do not reopen draft creation.
+- These tests use synthetic data in the local Firebase emulator; they do not configure or contact a production Firebase project. Verification pending until CI completes on the new commit.
