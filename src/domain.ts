@@ -94,38 +94,74 @@ export function scoreLead(input: Pick<Lead, "businessName" | "website" | "email"
 }
 
 export function parseLeadCsv(csv: string): { rows: Array<Record<string, string>>; errors: string[] } {
-  const lines = csv.replace(/^\uFEFF/, "").split(/\r?\n/).filter((line) => line.trim().length > 0);
-  if (lines.length < 2) return { rows: [], errors: ["CSV must contain a header and at least one data row."] };
+  const lines = csv.replace(/^\uFEFF/, "").split(/\r?\n/);
+  const headerLineIndex = lines.findIndex((line) => line.trim().length > 0);
+  if (headerLineIndex < 0) return { rows: [], errors: ["CSV must contain a header and at least one data row."] };
+
   const parseLine = (line: string): string[] | null => {
     const values: string[] = [];
     let current = "";
     let quoted = false;
     for (let i = 0; i < line.length; i += 1) {
       const char = line[i];
-      if (char === '"' && quoted && line[i + 1] === '"') { current += '"'; i += 1; }
-      else if (char === '"') quoted = !quoted;
-      else if (char === "," && !quoted) { values.push(current.trim()); current = ""; }
-      else current += char;
+      if (char === '"' && quoted && line[i + 1] === '"') {
+        current += '"';
+        i += 1;
+      } else if (char === '"') {
+        quoted = !quoted;
+      } else if (char === "," && !quoted) {
+        values.push(current.trim());
+        current = "";
+      } else {
+        current += char;
+      }
     }
     if (quoted) return null;
     values.push(current.trim());
     return values;
   };
-  const parsedHeaders = parseLine(lines[0]);
+
+  const parsedHeaders = parseLine(lines[headerLineIndex]);
   if (!parsedHeaders) return { rows: [], errors: ["CSV header contains an unmatched quote."] };
   const headers = parsedHeaders.map((header) => header.toLocaleLowerCase("en-GB").replace(/\s+/g, ""));
+  if (headers.some((header) => !header)) {
+    return { rows: [], errors: ["CSV contains an empty column header. Give every column a name."] };
+  }
+  const seenHeaders = new Set<string>();
+  const duplicateHeaders = new Set<string>();
+  headers.forEach((header) => {
+    if (seenHeaders.has(header)) duplicateHeaders.add(header);
+    seenHeaders.add(header);
+  });
+  if (duplicateHeaders.size > 0) {
+    return { rows: [], errors: [`CSV contains duplicate column header(s): ${[...duplicateHeaders].join(", ")}. Rename the duplicate columns and try again.`] };
+  }
+
   const nameIndex = headers.findIndex((h) => ["businessname", "business", "company", "name"].includes(h));
   if (nameIndex < 0) return { rows: [], errors: ["Missing required column: businessName (or business/company/name)."] };
+
   const rows: Array<Record<string, string>> = [];
   const errors: string[] = [];
-  lines.slice(1).forEach((line, rowIndex) => {
+  lines.slice(headerLineIndex + 1).forEach((line, offset) => {
+    if (!line.trim()) return;
+    const rowNumber = headerLineIndex + offset + 2;
     const values = parseLine(line);
-    if (!values) { errors.push(`Row ${rowIndex + 2}: unmatched quote; row skipped.`); return; }
-    if (values.every((v) => !v)) return;
+    if (!values) {
+      errors.push(`Row ${rowNumber}: unmatched quote; row skipped.`);
+      return;
+    }
+    if (values.every((value) => !value.trim())) return;
+    if (values.length > headers.length) {
+      errors.push(`Row ${rowNumber}: contains more values than the header has columns; row skipped.`);
+      return;
+    }
     const row: Record<string, string> = {};
     headers.forEach((header, index) => { row[header] = values[index] ?? ""; });
-    if (!values[nameIndex]?.trim()) errors.push(`Row ${rowIndex + 2}: business name is required; row skipped.`);
+    if (!values[nameIndex]?.trim()) errors.push(`Row ${rowNumber}: business name is required; row skipped.`);
     else rows.push(row);
   });
+  if (rows.length === 0 && errors.length === 0) {
+    errors.push("CSV must contain a header and at least one non-empty data row.");
+  }
   return { rows, errors };
 }
