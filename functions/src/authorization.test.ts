@@ -91,6 +91,12 @@ describe("server outreach safeguards", () => {
     expect(canCreateServerOutreachDraft(false, "blocked")).toBe(false);
     expect(canCreateServerOutreachDraft(undefined)).toBe(false);
     expect(canCreateServerOutreachDraft(true)).toBe(false);
+    // The boolean restriction must win even when persisted review metadata conflicts.
+    expect(canCreateServerOutreachDraft(true, "pending")).toBe(false);
+    expect(canCreateServerOutreachDraft(true, "cleared")).toBe(false);
+    expect(canCreateServerOutreachDraft(true, "blocked")).toBe(false);
+    expect(canMarkLeadContacted(true, "pending")).toBe(false);
+    expect(canMarkLeadContacted(true, "cleared")).toBe(false);
     expect(canCreateServerOutreachDraft("false")).toBe(false);
     expect(canCreateServerOutreachDraft("true")).toBe(false);
     expect(canCreateServerOutreachDraft(null)).toBe(false);
