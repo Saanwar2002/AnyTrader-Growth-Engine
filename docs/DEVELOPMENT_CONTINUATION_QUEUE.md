@@ -12,7 +12,9 @@ This is a source-inspection work queue, not a certification or test report.
 - Draft creation and editing check the associated lead's suppression state inside a Firestore transaction.
 - `listOutreachDrafts` resolves current lead records and returns `leadSuppressed`, `requiresReview`, and `reviewReason`; missing lead records and records without an explicit boolean `doNotContact: false` are flagged for human review (fail closed).
 - The cloud UI displays a warning for drafts needing review and disables editing while the warning applies; deletion remains available.
-- UI regression tests now cover the suppression warning/edit lock and the 100-membership truncation warning.
+- UI regression tests now cover the suppression warning/edit lock, the 100-membership truncation warning, and stale responses arriving after a tenant switch.
+- Workspace data refreshes now ignore stale asynchronous results and clear tenant-scoped data on sign-out or when no organisation is selected.
+- Organisation truncation detection now fetches 101 membership records to determine whether more than 100 exist, while returning only the first 100; this avoids warning users who have exactly 100 memberships.
 - Pure authorization tests now cover missing, suppressed, unverified, and explicitly contactable draft review states.
 - The emulator smoke script now checks a suppression restriction added after draft creation, including list warning and server-side rejection of draft edits.
 
