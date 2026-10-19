@@ -16,7 +16,17 @@ const navigation: Array<{ id: View; label: string; icon: string }> = [
   { id: "settings", label: "Workspace settings", icon: "⚙" },
 ];
 
-interface CsvPending { fileName: string; campaignId: string; csv: string; headers: string[]; }\nconst csvFields: Array<{ key: LeadCsvField; label: string; required?: boolean }> = [\n  { key: "businessName", label: "Business name", required: true },\n  { key: "category", label: "Service category" },\n  { key: "location", label: "Location" },\n  { key: "website", label: "Website" },\n  { key: "email", label: "Email" },\n  { key: "phone", label: "Phone" },\n];\n\ninterface CsvImportPreview {
+interface CsvPending { fileName: string; campaignId: string; csv: string; headers: string[]; }
+const csvFields: Array<{ key: LeadCsvField; label: string; required?: boolean }> = [
+  { key: "businessName", label: "Business name", required: true },
+  { key: "category", label: "Service category" },
+  { key: "location", label: "Location" },
+  { key: "website", label: "Website" },
+  { key: "email", label: "Email" },
+  { key: "phone", label: "Phone" },
+];
+
+interface CsvImportPreview {
   fileName: string;
   campaignId: string;
   candidates: Lead[];
@@ -57,7 +67,9 @@ export default function App() {
   const [campaignGoal, setCampaignGoal] = useState("Recruit reliable providers");
   const [notice, setNotice] = useState("");
   const [editingDraft, setEditingDraft] = useState<string | null>(null);
-  const [importPreview, setImportPreview] = useState<CsvImportPreview | null>(null);\n  const [csvPending, setCsvPending] = useState<CsvPending | null>(null);\n  const [csvMapping, setCsvMapping] = useState<LeadCsvMapping>({});
+  const [importPreview, setImportPreview] = useState<CsvImportPreview | null>(null);
+  const [csvPending, setCsvPending] = useState<CsvPending | null>(null);
+  const [csvMapping, setCsvMapping] = useState<LeadCsvMapping>({});
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [leadNotes, setLeadNotes] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
