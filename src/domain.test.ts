@@ -47,6 +47,21 @@ describe("parseLeadCsv", () => {
     expect(result.rows[0].location).toBe("Manchester, UK");
   });
 
+  it("accepts harmless whitespace around quoted CSV fields", () => {
+    const result = parseLeadCsv('businessName,category\n  "North Star Decorators"  , "Painters"  ');
+    expect(result.errors).toEqual([]);
+    expect(result.rows).toEqual([{ businessname: "North Star Decorators", category: "Painters" }]);
+  });
+
+  it("accepts whitespace after a closing quote but still rejects trailing text", () => {
+    const valid = parseLeadCsv('businessName,category\n"North Star Decorators"  , "Painters"  ');
+    expect(valid.errors).toEqual([]);
+    expect(valid.rows[0]).toEqual({ businessname: "North Star Decorators", category: "Painters" });
+    const invalid = parseLeadCsv('businessName,category\n"North Star Decorators"oops,Painters');
+    expect(invalid.rows).toEqual([]);
+    expect(invalid.errors).toEqual(["Row 2: malformed or unmatched quote; row skipped."]);
+  });
+
   it("supports quoted fields spanning physical lines and preserves later row numbers", () => {
     const result = parseLeadCsv('businessName,location,email\nNorth Star Decorators,"Manchester,\nGreater Manchester",hello@example.com\nExample Decorators,Leeds,invalid-email');
     expect(result.rows).toHaveLength(1);
