@@ -9,3 +9,12 @@ coverage/
 functions/node_modules/
 functions/lib/
 functions/coverage/
+
+# Firebase local state and credentials (never commit service-account keys)
+.firebase/
+.firebase-debug.log
+firestore-debug.log
+ui-debug.log
+*-firebase-adminsdk-*.json
+service-account*.json
+firebase-service-account*.json
