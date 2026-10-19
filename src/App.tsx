@@ -20,6 +20,7 @@ interface CsvImportPreview {
   fileName: string;
   campaignId: string;
   candidates: Lead[];
+  selectedCandidateIds: string[];
   duplicates: number;
   errors: string[];
 }
@@ -133,7 +134,7 @@ export default function App() {
         knownKeys.add(key);
         candidates.push(lead);
       }
-      setImportPreview({ fileName: file.name, campaignId: selectedCampaign, candidates, duplicates, errors: parsed.errors });
+      setImportPreview({ fileName: file.name, campaignId: selectedCampaign, candidates, selectedCandidateIds: candidates.map((lead) => lead.id), duplicates, errors: parsed.errors });
       setView("leads");
       setNotice("Review the import summary before adding any records.");
       event.target.value = "";
@@ -144,13 +145,15 @@ export default function App() {
 
   function confirmCsvImport() {
     if (!importPreview) return;
-    const { candidates, duplicates, errors, fileName } = importPreview;
-    if (candidates.length) {
-      const next = { ...state, leads: [...candidates, ...state.leads] };
-      setState({ ...next, activities: [{ id: newId("activity"), leadId: candidates[0].id, message: `CSV import (${fileName}): ${candidates.length} lead(s) added; ${duplicates} duplicate(s) skipped.`, createdAt: new Date().toISOString() }, ...next.activities] });
+    const { candidates, selectedCandidateIds, duplicates, errors, fileName } = importPreview;
+    const selectedCandidates = candidates.filter((lead) => selectedCandidateIds.includes(lead.id));
+    const deselected = candidates.length - selectedCandidates.length;
+    if (selectedCandidates.length) {
+      const next = { ...state, leads: [...selectedCandidates, ...state.leads] };
+      setState({ ...next, activities: [{ id: newId("activity"), leadId: selectedCandidates[0].id, message: `CSV import (${fileName}): ${selectedCandidates.length} lead(s) added; ${duplicates} duplicate(s) skipped; ${deselected} row(s) excluded by review.`, createdAt: new Date().toISOString() }, ...next.activities] });
     }
     const errorText = errors.length ? ` ${errors.length} row warning(s).` : "";
-    setNotice(`Import complete: ${candidates.length} added, ${duplicates} duplicates skipped.${errorText} Review all imported records before contact.`);
+    setNotice(`Import complete: ${selectedCandidates.length} added, ${duplicates} duplicates skipped, ${deselected} rows excluded.${errorText} Review all imported records before contact.`);
     setImportPreview(null);
   }
 
@@ -207,10 +210,10 @@ export default function App() {
 
         {importPreview && <section className="panel-card import-preview-panel">
           <div className="section-heading"><div><p className="eyebrow">IMPORT REVIEW</p><h3>Review CSV before importing</h3><p className="section-description">File: {importPreview.fileName} · Campaign: {state.campaigns.find((campaign) => campaign.id === importPreview.campaignId)?.name ?? "Campaign unavailable"}</p></div><button className="icon-button" aria-label="Cancel import preview" onClick={() => setImportPreview(null)}>×</button></div>
-          <div className="import-summary"><span><strong>{importPreview.candidates.length}</strong><small>Ready to add</small></span><span><strong>{importPreview.duplicates}</strong><small>Duplicates skipped</small></span><span><strong>{importPreview.errors.length}</strong><small>Row warnings</small></span></div>
+          <div className="import-summary"><span><strong>{importPreview.selectedCandidateIds.length}</strong><small>Selected to add</small></span><span><strong>{importPreview.candidates.length - importPreview.selectedCandidateIds.length}</strong><small>Excluded by you</small></span><span><strong>{importPreview.duplicates}</strong><small>Duplicates skipped</small></span><span><strong>{importPreview.errors.length}</strong><small>Row warnings</small></span></div>
           {importPreview.errors.length > 0 && <div className="import-warnings"><strong>Warnings</strong><ul>{importPreview.errors.slice(0, 6).map((error, index) => <li key={index}>{error}</li>)}</ul>{importPreview.errors.length > 6 && <small>And {importPreview.errors.length - 6} more warning(s).</small>}</div>}
-          {importPreview.candidates.length > 0 ? <div className="table-wrap"><table><thead><tr><th>BUSINESS</th><th>CATEGORY</th><th>LOCATION</th><th>CONTACT</th><th>SCORE</th></tr></thead><tbody>{importPreview.candidates.slice(0, 8).map((lead) => <tr key={lead.id}><td><strong>{lead.businessName}</strong></td><td>{lead.category}</td><td>{lead.location || "—"}</td><td>{lead.email || lead.phone || "—"}</td><td>{lead.score}/100</td></tr>)}</tbody></table>{importPreview.candidates.length > 8 && <div className="table-footer">Showing first 8 of {importPreview.candidates.length} records.</div>}</div> : <EmptyState title="No new records to import" detail="All valid rows were duplicates, or the file contained only invalid rows." />}
-          <div className="form-actions"><button className="secondary-button" onClick={() => { setImportPreview(null); setNotice("CSV import cancelled. No records were added."); }}>Cancel import</button><button className="primary-button" disabled={importPreview.candidates.length === 0} onClick={confirmCsvImport}>Confirm import ({importPreview.candidates.length})</button></div>
+          {importPreview.candidates.length > 0 ? <div className="table-wrap"><table><thead><tr><th><input type="checkbox" aria-label="Select all import candidates" checked={importPreview.candidates.length > 0 && importPreview.selectedCandidateIds.length === importPreview.candidates.length} onChange={(event) => setImportPreview({ ...importPreview, selectedCandidateIds: event.target.checked ? importPreview.candidates.map((lead) => lead.id) : [] })} /></th><th>BUSINESS</th><th>CATEGORY</th><th>LOCATION</th><th>CONTACT</th><th>SCORE</th></tr></thead><tbody>{importPreview.candidates.slice(0, 8).map((lead) => <tr key={lead.id}><td><input type="checkbox" aria-label={`Include ${lead.businessName} in import`} checked={importPreview.selectedCandidateIds.includes(lead.id)} onChange={(event) => setImportPreview({ ...importPreview, selectedCandidateIds: event.target.checked ? [...importPreview.selectedCandidateIds, lead.id] : importPreview.selectedCandidateIds.filter((id) => id !== lead.id) })} /></td><td><strong>{lead.businessName}</strong></td><td>{lead.category}</td><td>{lead.location || "—"}</td><td>{lead.email || lead.phone || "—"}</td><td>{lead.score}/100</td></tr>)}</tbody></table>{importPreview.candidates.length > 8 && <div className="table-footer">Showing first 8 of {importPreview.candidates.length} records. Selection applies to all valid candidates, including those not shown in this preview.</div>}</div> : <EmptyState title="No new records to import" detail="All valid rows were duplicates, or the file contained only invalid rows." />}
+          <div className="form-actions"><button className="secondary-button" onClick={() => { setImportPreview(null); setNotice("CSV import cancelled. No records were added."); }}>Cancel import</button><button className="primary-button" disabled={importPreview.selectedCandidateIds.length === 0} onClick={confirmCsvImport}>Confirm import ({importPreview.selectedCandidateIds.length})</button></div>
         </section>}
 
         {view === "overview" && <Overview state={state} activeCampaigns={activeCampaigns} reviewCount={reviewCount} onNavigate={setView} onCreateCampaign={() => setShowCampaignForm(true)} />}
