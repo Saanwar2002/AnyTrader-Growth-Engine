@@ -39,6 +39,7 @@ npm run build
 npm --prefix functions ci
 npm --prefix functions run build
 npm --prefix functions test
+npm run test:emulators # optional; requires Node.js 22, Java, and emulator downloads
 ```
 
 ## CSV import format
@@ -65,7 +66,7 @@ Import starts with a review summary, skips blank-name rows and businesses alread
 
 The local demo is not a secure multi-user service. It uses browser localStorage, not a cloud database; data is local to that browser profile and may be lost if browser storage is cleared. The cloud backend/UI is still a scaffold and must not be treated as production-ready.
 
-- The default demo mode uses browser localStorage and synthetic data only. If all required `VITE_FIREBASE_*` web config values are supplied in `.env.local`, the app instead shows the cloud sign-in and workspace UI, which calls the authenticated Functions API. The cloud UI supports organisation discovery/creation, campaign creation/listing, lead creation/listing/status changes/suppression, and draft creation/listing/deletion. The cloud UI and API have passed local unit/build checks but have not been connected to a configured Firebase project or tested against Firebase emulators.
+- The default demo mode uses browser localStorage and synthetic data only. If all required `VITE_FIREBASE_*` web config values are supplied in `.env.local`, the app instead shows the cloud sign-in and workspace UI, which calls the authenticated Functions API. The cloud UI supports organisation discovery/creation, campaign creation/listing, lead creation/listing/status changes/suppression, and draft creation/listing/deletion. The cloud UI and API have passed local unit/build checks. A single `createOrganisation` callable smoke check passed against a demo Firebase emulator project; the broader emulator smoke suite did not complete in the memory-limited development sandbox. Tenant isolation is not yet proven end-to-end.
 - There is no configured dedicated Firebase project or emulator-backed tenant-isolation test yet. The cloud UI supports email/password sign-in, account creation, sign-out, organisation selection/creation, campaign creation, lead creation/status/suppression, and draft creation/deletion. It is not production-ready; subscription billing and live source-provider integrations are not connected. Server-side draft creation checks suppression transactionally; only owners/admins can remove a contact restriction.
 - Do not use it to store real customer data, sensitive personal data, or production credentials.
 - The scoring model measures record completeness, not trustworthiness, service quality, or business legitimacy.
