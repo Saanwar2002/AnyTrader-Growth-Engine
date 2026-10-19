@@ -77,7 +77,7 @@ export const listMyOrganisations = onCall(async (request) => {
     if (role !== "owner" && role !== "admin" && role !== "member" && role !== "viewer") return null;
     return { organisationId: organisation.id, name: organisation.data()?.name ?? "Unnamed organisation", role };
   }));
-  return { organisations: organisations.filter((item): item is NonNullable<typeof item> => item !== null) };
+  return { organisations: organisations.filter((item): item is NonNullable<typeof item> => item !== null), hasMoreOrganisations: memberships.size === 100 };
 });
 
 export const createOrganisation = onCall(async (request) => {
