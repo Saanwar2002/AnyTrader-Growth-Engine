@@ -204,6 +204,23 @@ describe("cloud authentication gate", () => {
     expect(mocks.api.updateOutreachDraft).toHaveBeenCalledTimes(1);
   });
 
+  it("labels newly created leads as pending review rather than a confirmed opt-out", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
+    mocks.api.listLeads.mockResolvedValue({ leads: [{
+      id: "lead-pending", campaignId: "campaign-1", businessName: "Pending Painter", category: "Painters",
+      location: "Manchester", website: "", email: "", phone: "", source: "manual", status: "new",
+      score: 40, scoreReasons: [], notes: "", doNotContact: true, contactRestrictionVerified: false,
+      contactReviewStatus: "pending", createdAt: null,
+    }] });
+    render(<CloudWorkspace api={mocks.api} />);
+    await screen.findByText("Pending Painter");
+    expect(screen.getByText("PENDING REVIEW")).toBeTruthy();
+    expect(screen.queryByText("DO NOT CONTACT")).toBeNull();
+    expect(screen.getByRole("button", { name: "Review & clear restriction" })).toBeTruthy();
+    expect((screen.getByRole("button", { name: /create draft/i }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
   it("fails closed when a lead contact restriction cannot be verified", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
