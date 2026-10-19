@@ -160,9 +160,24 @@ export function parseLeadCsv(csv: string, fieldMapping?: LeadCsvMapping): { rows
     const char = source[i];
     if (char === "\r" || char === "\n") {
       const newlineLength = char === "\r" && source[i + 1] === "\n" ? 2 : 1;
+      let hasFutureQuote = false;
       if (inQuotedField) {
+        for (let j = i + newlineLength; j < source.length; j += 1) {
+          if (source[j] === '"') {
+            if (source[j + 1] === '"') {
+              j += 1;
+            } else {
+              hasFutureQuote = true;
+              break;
+            }
+          }
+        }
+      }
+      if (inQuotedField && hasFutureQuote) {
         recordText += "\n";
       } else {
+        // Recover at a physical line boundary when an unmatched quote has no closing quote.
+        inQuotedField = false;
         records.push({ text: recordText, lineNumber: recordStartLine });
         recordText = "";
         recordStartLine = physicalLine + 1;
