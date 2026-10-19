@@ -5,7 +5,7 @@ import "./styles.css";
 
 type View = "overview" | "campaigns" | "leads" | "review" | "drafts" | "settings";
 const repository = createDemoRepository();
-const statusLabels: Record<LeadStatus, string> = { new: "New", reviewing: "In review", qualified: "Qualified", contacted: "Draft prepared", onboarded: "Onboarded", rejected: "Rejected" };
+const statusLabels: Record<LeadStatus, string> = { new: "New", reviewing: "In review", qualified: "Qualified", contacted: "Contacted", onboarded: "Onboarded", rejected: "Rejected" };
 const campaignStatusLabels: Record<CampaignStatus, string> = { draft: "Draft", active: "Active", paused: "Paused", completed: "Completed" };
 const navigation: Array<{ id: View; label: string; icon: string }> = [
   { id: "overview", label: "Overview", icon: "⌂" },
