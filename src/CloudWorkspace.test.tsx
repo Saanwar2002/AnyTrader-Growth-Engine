@@ -118,6 +118,37 @@ describe("cloud authentication gate", () => {
     expect(screen.getByText("Second Tenant Lead")).toBeTruthy();
   });
 
+
+  it("clears the previous organisation's records immediately when switching workspaces", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [
+        { organisationId: "org-1", name: "First Workspace", role: "owner" },
+        { organisationId: "org-2", name: "Second Workspace", role: "member" },
+      ],
+      hasMoreOrganisations: false,
+    });
+    const firstLead = {
+      id: "lead-1", campaignId: "campaign-1", businessName: "First Tenant Private Lead",
+      category: "Painters", location: "Manchester", website: "", email: "", phone: "",
+      source: "manual", status: "new", score: 20, scoreReasons: [], notes: "",
+      doNotContact: false, createdAt: null,
+    };
+    let resolveSecondTenant!: (value: { leads: typeof firstLead[] }) => void;
+    const secondTenantLeads = new Promise<{ leads: typeof firstLead[] }>((resolve) => { resolveSecondTenant = resolve; });
+    mocks.api.listLeads.mockImplementation(({ organisationId }: { organisationId: string }) =>
+      organisationId === "org-1" ? Promise.resolve({ leads: [firstLead] }) : secondTenantLeads
+    );
+
+    render(<CloudWorkspace />);
+    expect(await screen.findByText("First Tenant Private Lead")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
+    expect(screen.queryByText("First Tenant Private Lead")).toBeNull();
+
+    resolveSecondTenant({ leads: [] });
+    await waitFor(() => expect(screen.queryByText("First Tenant Private Lead")).toBeNull());
+  });
+
   it("allows an authenticated user to edit a draft without sending it", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
