@@ -41,6 +41,19 @@ describe("Growth Engine interactive workflows", () => {
     expect(screen.getByText("DO NOT CONTACT")).toBeTruthy();
   });
 
+  it("shows newly added local leads as pending review rather than confirmed opt-outs", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /Lead directory/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Add lead/i }));
+    fireEvent.change(screen.getByLabelText(/Business name/i), { target: { value: "Pending Review Decorators" } });
+    fireEvent.click(screen.getByRole("button", { name: /Save lead/i }));
+    const row = screen.getByText("Pending Review Decorators").closest("tr");
+    expect(row).toBeTruthy();
+    expect(within(row as HTMLElement).getByText("PENDING REVIEW")).toBeTruthy();
+    expect(within(row as HTMLElement).queryByText("DO NOT CONTACT")).toBeNull();
+    expect(within(row as HTMLElement).getByRole("button", { name: /Draft/i })).toBeDisabled();
+  });
+
   it("creates a human-review draft for a contactable lead without sending anything", () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: /Lead directory/i }));
@@ -73,7 +86,7 @@ describe("Growth Engine interactive workflows", () => {
     expect(screen.getByRole("status").textContent).toContain("Import complete: 1 added");
     expect(screen.getByText("North Star Roofing")).toBeTruthy();
     const importedRow = screen.getByText("North Star Roofing").closest("tr");
-    expect(within(importedRow as HTMLElement).getByText("DO NOT CONTACT")).toBeTruthy();
+    expect(within(importedRow as HTMLElement).getByText("PENDING REVIEW")).toBeTruthy();
     expect(within(importedRow as HTMLElement).getByRole("button", { name: /Draft/i })).toBeDisabled();
   });
 
