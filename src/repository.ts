@@ -18,32 +18,43 @@ function isAppState(value: unknown): value is AppState {
     && Array.isArray(candidate.activities);
 }
 
-export function createDemoRepository(storage: Storage | null = typeof window === "undefined" ? null : window.localStorage): DemoRepository {
+export function createDemoRepository(storage?: Storage | null): DemoRepository {
+  const getStorage = (): Storage | null => {
+    if (storage !== undefined) return storage;
+    try {
+      return typeof window === "undefined" ? null : window.localStorage;
+    } catch {
+      return null;
+    }
+  };
+
   return {
     load() {
-      if (!storage) return createInitialState();
+      const target = getStorage();
+      if (!target) return createInitialState();
       try {
-        const raw = storage.getItem(STORAGE_KEY);
+        const raw = target.getItem(STORAGE_KEY);
         if (!raw) return createInitialState();
         const parsed: unknown = JSON.parse(raw);
         return isAppState(parsed) ? parsed : createInitialState();
       } catch {
-        // Demo mode should recover gracefully from unavailable storage or invalid data.
         return createInitialState();
       }
     },
     save(state) {
-      if (!storage) return;
+      const target = getStorage();
+      if (!target) return;
       try {
-        storage.setItem(STORAGE_KEY, JSON.stringify(state));
+        target.setItem(STORAGE_KEY, JSON.stringify(state));
       } catch {
         // Storage may be blocked or full. The in-memory UI still remains usable.
       }
     },
     reset() {
       const state = createInitialState();
-      if (storage) {
-        try { storage.removeItem(STORAGE_KEY); } catch { /* best-effort demo reset */ }
+      const target = getStorage();
+      if (target) {
+        try { target.removeItem(STORAGE_KEY); } catch { /* best-effort demo reset */ }
       }
       return state;
     },
