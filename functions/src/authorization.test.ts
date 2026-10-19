@@ -332,7 +332,7 @@ describe("adversarial pagination cursor regression cases", () => {
   it.each([
     "", "/", "organisations//members/user-1", "organisations/org-1/members/",
     "organisations/org-1/members/user-1/", "organisations/org-1/members/user-1?x=1",
-    "organisations/org-1/members/user-1\\n",
+    "organisations/org-1/members/user-1\n",
   ])("rejects malformed organisation cursor %j", (token) => {
     expect(isValidOrganisationPageToken(token, "user-1")).toBe(false);
   });
