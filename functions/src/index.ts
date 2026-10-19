@@ -67,8 +67,8 @@ function normaliseLeadFields(data: Record<string, unknown>) {
 
 export const listMyOrganisations = onCall(async (request) => {
   const uid = requireUid(request.auth?.uid);
-  const memberships = await db.collectionGroup("members").where("uid", "==", uid).limit(100).get();
-  const organisations: Array<{ organisationId: string; name: string; role: "owner" | "admin" | "member" | "viewer" } | null> = await Promise.all(memberships.docs.map(async (membershipDoc: QueryDocumentSnapshot) => {
+  const memberships = await db.collectionGroup("members").where("uid", "==", uid).limit(101).get();
+  const organisations: Array<{ organisationId: string; name: string; role: "owner" | "admin" | "member" | "viewer" } | null> = await Promise.all(memberships.docs.slice(0, 100).map(async (membershipDoc: QueryDocumentSnapshot) => {
     const organisationRef = membershipDoc.ref.parent.parent;
     if (!organisationRef || organisationRef.parent.id !== "organisations") return null;
     const organisation = await organisationRef.get();
@@ -78,7 +78,7 @@ export const listMyOrganisations = onCall(async (request) => {
     if (role !== "owner" && role !== "admin" && role !== "member" && role !== "viewer") return null;
     return { organisationId: organisation.id, name: organisation.data()?.name ?? "Unnamed organisation", role };
   }));
-  return { organisations: organisations.filter((item): item is NonNullable<typeof item> => item !== null), hasMoreOrganisations: memberships.size === 100 };
+  return { organisations: organisations.filter((item): item is NonNullable<typeof item> => item !== null), hasMoreOrganisations: memberships.size > 100 };
 });
 
 export const createOrganisation = onCall(async (request) => {
