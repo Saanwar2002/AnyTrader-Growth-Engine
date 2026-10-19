@@ -18,7 +18,7 @@
 - Human-reviewed outreach drafts with subject/body editing. There is no message-sending capability.
 - Browser-local demo persistence with graceful fallback when storage is unavailable or malformed.
 - Recent activity history and reset-to-synthetic-demo workflow.
-- Vitest unit tests for normalization, scoring, CSV parsing (BOM, escaped quotes, duplicate/empty headers, extra values, missing optional cells and source row numbers), campaign-scoped deduplication (including duplicate rows within the same import batch), and demo repository persistence.
+- Vitest unit tests for normalization, scoring, CSV parsing (BOM, escaped quotes, duplicate/empty headers, extra values, missing optional cells and source row numbers), campaign-scoped deduplication (including duplicate rows within the same import batch), and demo repository persistence, plus server-rendered app-shell smoke tests.
 - Updated README and reproducible npm lockfile.
 
 ## Verification performed
@@ -29,11 +29,11 @@ Executed against the branch snapshot copied into the remote workspace:
 |---|---|
 | `npm ci --no-audit --no-fund` | Passed |
 | `npm run typecheck` | Passed |
-| `npm test` | Passed — 27 tests across 2 files |
+| `npm test` | Passed — 29 tests across 3 files, including 3 server-rendered app-shell smoke tests |
 | `npm run build` | Passed — Vite production bundle generated |
 | Vite development server + HTTP request to `/` | Passed |
 
-These checks confirm type safety, the listed unit-tested logic, a production bundle, and that the development server serves the app shell. They are not a full browser interaction, accessibility, penetration, or production-readiness audit.
+These checks confirm type safety, the listed unit-tested logic, successful server-side rendering of key app-shell content, a production bundle, and that the development server serves the app shell. The new app tests are render smoke checks, not interactive browser tests. These checks are not a full accessibility, penetration, or production-readiness audit.
 
 ## Important limitations
 
@@ -49,7 +49,7 @@ These checks confirm type safety, the listed unit-tested logic, a production bun
 
 ## Next recommended work
 
-1. Add automated UI-level tests for CSV mapping, import selection, suppression controls, and draft blocking.
+1. Add interactive UI-level tests for CSV mapping, import selection/cancellation, suppression controls, and draft blocking. The current app tests only verify server-rendered markup; they do not simulate user interaction.
 2. Continue hardening campaign transitions, lead workflow validation, and activity tracking.
 3. Implement authentication and tenant-safe persistence only after selecting the dedicated Firebase project and trusted server approach.
 4. Add security rules and emulator tests proving cross-tenant isolation before using real customer data.
