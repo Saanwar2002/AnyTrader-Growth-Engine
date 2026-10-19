@@ -29,7 +29,8 @@
 - [x] Add email/password sign-in, account creation, sign-out, and a Firebase-config-gated cloud workspace UI.
 - [ ] Run callable functions and Firestore rules against Firebase Emulator Suite.
 - [ ] Add emulator-backed tests for unauthenticated requests, non-member access, role escalation, and cross-tenant isolation.
-- [x] Scaffold environment-gated Firebase client setup and a typed callable API adapter with unit tests.\n- [x] Connect core organisation, campaign, lead, suppression, and draft workflows through the typed API adapter; keep local demo mode separate.
+- [x] Scaffold environment-gated Firebase client setup and a typed callable API adapter with unit tests.
+- [x] Connect core organisation, campaign, lead, suppression, and draft workflows through the typed API adapter; keep local demo mode separate.
 - [ ] Add rate limiting/App Check strategy, structured audit events, idempotency, and safe error handling before external exposure.
 
 ## Phase 3 — Complete persisted workflows
