@@ -24,7 +24,7 @@ vi.mock("./backendApi", () => ({
 }));
 vi.mock("firebase/auth", () => ({
   createUserWithEmailAndPassword: mocks.register,
-  GoogleAuthProvider: vi.fn(() => ({ providerId: "google.com" })),
+  GoogleAuthProvider: class { providerId = "google.com"; },
   onAuthStateChanged: (_auth: unknown, callback: (user: unknown) => void) => { mocks.authListener(); callback(mocks.currentUser); return () => undefined; },
   signInWithEmailAndPassword: mocks.signIn,
   signInWithPopup: mocks.googleSignIn,
