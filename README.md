@@ -46,7 +46,7 @@ A header row is required. The business name column may be named `businessName`, 
 - `email` or `emailAddress`
 - `phone` or `telephone`
 
-Import starts with a review summary, skips blank-name rows and businesses already present in the selected campaign using case-insensitive whitespace-normalised names, and lets you include/exclude candidate rows before confirming. The table shows up to eight candidates at a time; select-all applies to the complete candidate set. Review every imported record before any outreach. This is a lightweight MVP CSV parser; it does not support quoted fields containing line breaks.
+Import starts with a review summary, skips blank-name rows and businesses already present in the selected campaign using case-insensitive whitespace-normalised names, and lets you include/exclude candidate rows before confirming. The table shows up to eight candidates at a time; select-all applies to the complete candidate set. The parser handles a UTF-8 BOM and escaped quotes, rejects empty or duplicate headers and rows with more values than the header, and reports original source line numbers. Review every imported record before any outreach. This is a lightweight MVP CSV parser; it does not support quoted fields containing line breaks or guarantee full RFC 4180 compliance.
 
 ## Current pilot defaults
 
