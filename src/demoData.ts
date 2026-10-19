@@ -32,6 +32,7 @@ const leads: Lead[] = syntheticLeads.map((item) => {
     score: scored.score,
     scoreReasons: scored.reasons,
     notes: "",
+    doNotContact: false,
     createdAt,
   };
 });
