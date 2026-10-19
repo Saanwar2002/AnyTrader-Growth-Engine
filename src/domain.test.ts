@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deduplicateLeads, normalizeBusinessName, parseLeadCsv, scoreLead } from "./domain";
+import { deduplicateLeads, inspectLeadCsvHeaders, normalizeBusinessName, parseLeadCsv, scoreLead, suggestLeadCsvMapping } from "./domain";
 
 describe("normalizeBusinessName", () => {
   it("trims whitespace, collapses spaces and ignores case", () => {
@@ -41,6 +41,31 @@ describe("parseLeadCsv", () => {
     const result = parseLeadCsv("category,location\nPainters,Manchester");
     expect(result.rows).toEqual([]);
     expect(result.errors[0]).toContain("Missing required column");
+  });
+
+  it("suggests mappings for common alternative column names", () => {
+    const inspected = inspectLeadCsvHeaders("Trading Name,Trade Type,Postcode,Contact Email,Mobile");
+    expect(inspected.errors).toEqual([]);
+    expect(suggestLeadCsvMapping(inspected.headers)).toEqual({
+      businessName: "Trading Name", category: "Trade Type", location: "Postcode", email: "Contact Email", phone: "Mobile",
+    });
+  });
+
+  it("parses using a user-selected mapping for unfamiliar headers", () => {
+    const csv = "Provider,Specialism,Service Area,Contact\nNorth Star Decorators,Painting,Manchester,hello@example.com";
+    const result = parseLeadCsv(csv, {
+      businessName: "Provider", category: "Specialism", location: "Service Area", email: "Contact",
+    });
+    expect(result.errors).toEqual([]);
+    expect(result.rows).toEqual([{
+      businessname: "North Star Decorators", category: "Painting", location: "Manchester", email: "hello@example.com",
+    }]);
+  });
+
+  it("requires a business-name mapping when custom mappings are supplied", () => {
+    const result = parseLeadCsv("Provider,Area\nNorth Star Decorators,Manchester", { location: "Area" });
+    expect(result.rows).toEqual([]);
+    expect(result.errors[0]).toContain("Map a CSV column");
   });
 
   it("skips nameless rows and reports the row number", () => {
