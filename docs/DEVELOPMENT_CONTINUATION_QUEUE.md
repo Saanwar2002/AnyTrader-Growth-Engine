@@ -153,3 +153,11 @@ Continue the callable authorization audit and integration-test reliability work;
 6. **Run CI and use its findings:** GitHub Actions run `39314872146` for commit `842f96ba619cf304fbcb2395a900a5de6fe159e2` completed successfully. Both jobs passed: frontend dependency install, typecheck, unit tests, production build and emulator-smoke-script syntax; Functions dependency install, authorization tests and compilation. The run URL is https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39314872146.
 
 **Remaining release blocker:** full Firebase emulator integration and tenant-isolation checks have not been demonstrated as passing. This CI run does not deploy Firebase or validate a configured project. Keep the dedicated Firebase project deferred until the emulator suite passes.
+
+## Emulator integration follow-up — 2026-10-19
+
+1. **Build Functions before emulator startup:** updated `npm run test:emulators` to compile the TypeScript Functions package before starting the Firebase emulators. This avoids relying on a stale or missing `functions/lib` build output when the emulator loads the configured Functions entry point.
+2. **Make emulator checks part of CI:** added Java 21 setup and a dedicated Firebase Auth/Functions/Firestore emulator smoke-test step to the frontend CI job, with a 15-minute step limit. CI will now execute the integration checks rather than only syntax-checking the smoke script.
+3. **Stale pagination cursor coverage:** added integration assertions that syntactically valid campaign, lead, and outreach-draft cursor paths are rejected when the referenced document no longer exists.
+4. **Verification boundary:** these changes are committed to `development/chatgpt-mvp`; the new emulator-enabled workflow must finish before claiming the integration suite passes. Existing successful CI results predate this change and do not validate emulator startup, transaction completion, tenant isolation, or suppression end-to-end.
+5. **Release gates still open:** verify the emulator run reaches both tenant accounts, confirms cross-organisation reads/writes are denied, validates pending/suppressed lead gates and direct Firestore denial, and completes without the previous `createOrganisation` timeout. Keep Firebase deployment and real data deferred.
