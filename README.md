@@ -10,7 +10,7 @@ A standalone, multi-brand lead discovery and provider acquisition workspace for 
 - Lead directory with search and filters for status and campaign, plus a lead details panel and editable internal notes.
 - Lead status workflow: new, in review, qualified, contacted, onboarded, and rejected.
 - Transparent completeness score (0–100) with an explanation of which fields contributed.
-- CSV import with a 2 MB file limit, basic quoted-field support, row validation, and per-campaign duplicate detection.
+- CSV import with a 2 MB file limit, basic quoted-field support, row validation, per-campaign duplicate detection, and a review table that lets you include/exclude candidates before committing the import.
 - Export currently visible leads to CSV.
 - Create and edit outreach drafts; no send action exists.
 - Local activity history and a demo reset action.
@@ -46,7 +46,7 @@ A header row is required. The business name column may be named `businessName`, 
 - `email` or `emailAddress`
 - `phone` or `telephone`
 
-Import starts with a preview-like validation result, skips blank-name rows, and skips businesses already present in the selected campaign using case-insensitive whitespace-normalised names. Review every imported record before any outreach. This is a lightweight MVP CSV parser; it does not support quoted fields containing line breaks.
+Import starts with a review summary, skips blank-name rows and businesses already present in the selected campaign using case-insensitive whitespace-normalised names, and lets you include/exclude candidate rows before confirming. The table shows up to eight candidates at a time; select-all applies to the complete candidate set. Review every imported record before any outreach. This is a lightweight MVP CSV parser; it does not support quoted fields containing line breaks.
 
 ## Current pilot defaults
 
