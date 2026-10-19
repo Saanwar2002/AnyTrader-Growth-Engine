@@ -89,8 +89,9 @@ describe("cloud authentication gate", () => {
   it("allows an authenticated user to edit a draft without sending it", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
-    mocks.api.listOutreachDrafts.mockResolvedValue({ drafts: [{ id: "draft-1", leadId: "lead-1", campaignId: "campaign-1", subject: "Initial subject", body: "Initial body", status: "draft", createdAt: null }] });
+    mocks.api.listOutreachDrafts.mockResolvedValue({ drafts: [{ id: "draft-1", leadId: "lead-1", campaignId: "campaign-1", subject: "Initial subject", body: "Initial body", status: "draft", leadSuppressed: true, requiresReview: true, reviewReason: "Lead is suppressed; do not contact.", createdAt: null }] });
     render(<CloudWorkspace />);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Lead is suppressed; do not contact.");
     fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
     fireEvent.change(screen.getByLabelText("Draft subject"), { target: { value: "Updated subject" } });
     fireEvent.change(screen.getByLabelText("Draft body"), { target: { value: "Updated body for human review." } });
