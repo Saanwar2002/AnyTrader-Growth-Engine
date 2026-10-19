@@ -289,3 +289,11 @@ Continue the callable authorization audit and integration-test reliability work;
 - Added emulator regression checks that update ordinary lead notes while the lead is suppressed, then verify the persisted `doNotContact` flag remains true and the contact-review status remains `blocked`.
 - Added assertions that a suppressed lead cannot be transitioned to `contacted`, and that note edits do not reopen draft creation.
 - These tests use synthetic data in the local Firebase emulator; they do not configure or contact a production Firebase project. Verification pending until CI completes on the new commit.
+
+
+## Contacted-status campaign integrity — 2026-10-19
+
+- **Confirmed passing:** CI run [39334018538](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39334018538) passed both frontend and Firebase Functions jobs for commit `df6e41634e6df9c0b3aeb451af8513df231b6aa2`, including emulator smoke tests for suppression persistence across contact edits, notes edits, and status changes.
+- Lifecycle review found that a synthetic legacy lead could have an internally cleared contact-review state while its campaign record was missing. Draft creation already rejects this, but changing the lead's status to `contacted` did not independently validate the campaign reference.
+- Updated `updateLeadStatus` to check campaign existence transactionally before permitting `contacted`. Added an emulator regression using the guarded legacy fixture. Other non-contacted lifecycle transitions retain their existing behaviour.
+- Verification pending for the new commit. Emulator-only synthetic data; no production Firebase setup or outreach sending.

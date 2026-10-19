@@ -294,6 +294,14 @@ export const updateLeadStatus = onCall(async (request) => {
         ? "A suppressed lead cannot be marked as contacted."
         : "The lead contact restriction is unverified; it cannot be marked as contacted.");
     }
+    if (status === "contacted") {
+      const campaignId = requireDocumentId(lead.campaignId, "lead campaignId");
+      const campaignRef = db.collection("organisations").doc(organisationId).collection("campaigns").doc(campaignId);
+      const campaignSnapshot = await transaction.get(campaignRef);
+      if (!campaignSnapshot.exists) {
+        throw new HttpsError("failed-precondition", "The lead's campaign no longer exists in this organisation.");
+      }
+    }
     if (!canTransitionLeadStatus(status, lead.doNotContact === true)) {
       throw new HttpsError("failed-precondition", "Lead status is not valid.");
     }

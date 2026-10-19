@@ -454,6 +454,11 @@ try {
     subject: "Missing campaign must block draft",
     body: "Must not be created without the referenced campaign",
   }), "functions/failed-precondition", "draft creation for a cleared legacy lead with a missing campaign");
+  await expectCallableFailure(callOne("updateLeadStatus", {
+    organisationId: orgOne.organisationId,
+    leadId: "legacy-missing-campaign-lead",
+    status: "contacted",
+  }), "functions/failed-precondition", "marking a cleared legacy lead contacted when its campaign is missing");
   const missingCampaignLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-missing-campaign-record-draft");
   assert.ok(orphanLegacyDraft, "orphan legacy draft is visible for operator review");
   assert.equal(orphanLegacyDraft.requiresReview, true, "orphan legacy draft requires review");
