@@ -421,3 +421,36 @@ describe("legacy outreach draft safety regressions", () => {
     expect(hasConsistentDraftCampaign({}, "campaign-1")).toBe(false);
   });
 });
+
+
+describe("lead and campaign lifecycle validation", () => {
+  it.each(["new", "reviewing", "qualified", "contacted", "onboarded", "rejected"])(
+    "accepts supported lead status %s", (status) => {
+      expect(canTransitionLeadStatus(status, false)).toBe(true);
+    },
+  );
+
+  it.each([undefined, null, "", "sent", "archived", "NEW", 1, {}, []])(
+    "rejects unsupported or malformed lead status %j", (status) => {
+      expect(canTransitionLeadStatus(status, false)).toBe(false);
+    },
+  );
+
+  it("blocks contacted status for suppressed leads but does not over-block unrelated lifecycle statuses", () => {
+    expect(canTransitionLeadStatus("contacted", true)).toBe(false);
+    expect(canTransitionLeadStatus("qualified", true)).toBe(true);
+    expect(canTransitionLeadStatus("rejected", true)).toBe(true);
+  });
+
+  it.each(["draft", "active", "paused", "completed"])(
+    "accepts supported campaign status %s", (status) => {
+      expect(isValidCampaignStatus(status)).toBe(true);
+    },
+  );
+
+  it.each([undefined, null, "", "sent", "archived", "ACTIVE", 1, {}, []])(
+    "rejects unsupported or malformed campaign status %j", (status) => {
+      expect(isValidCampaignStatus(status)).toBe(false);
+    },
+  );
+});
