@@ -18,7 +18,7 @@
 - Human-reviewed outreach drafts with subject/body editing. There is no message-sending capability.
 - Browser-local demo persistence with graceful fallback when storage is unavailable or malformed.
 - Recent activity history and reset-to-synthetic-demo workflow.
-- Vitest unit tests for normalization, scoring, CSV parsing (BOM, escaped quotes, duplicate/empty headers, extra values, missing optional cells and source row numbers), campaign-scoped deduplication (including duplicate rows within the same import batch), and demo repository persistence, plus server-rendered app-shell smoke tests.
+- Vitest tests for normalization, scoring, CSV parsing (BOM, escaped quotes, duplicate/empty headers, extra values, missing optional cells and source row numbers), campaign-scoped deduplication, demo repository persistence, interactive campaign creation, CSV import confirmation, suppression/draft blocking, and local persistence across remounts.
 - Updated README and reproducible npm lockfile.
 
 ## Verification performed
@@ -29,11 +29,11 @@ Executed against the branch snapshot copied into the remote workspace:
 |---|---|
 | `npm ci --no-audit --no-fund` | Passed |
 | `npm run typecheck` | Passed |
-| `npm test` | Passed — 29 tests across 3 files, including 3 server-rendered app-shell smoke tests |
+| `npm test` | Passed — 39 tests across 4 files, including 6 interactive UI tests and 4 server authorization-guard tests |
 | `npm run build` | Passed — Vite production bundle generated |
 | Vite development server + HTTP request to `/` | Passed |
 
-These checks confirm type safety, the listed unit-tested logic, successful server-side rendering of key app-shell content, a production bundle, and that the development server serves the app shell. The new app tests are render smoke checks, not interactive browser tests. These checks are not a full accessibility, penetration, or production-readiness audit.
+These checks confirm type safety, the listed unit-tested logic, interactive tests for selected demo workflows, a production bundle, and that the development server serves the app shell. These checks are not a full browser automation, accessibility, penetration, or production-readiness audit.
 
 ## Important limitations
 
@@ -49,10 +49,10 @@ These checks confirm type safety, the listed unit-tested logic, successful serve
 
 ## Next recommended work
 
-1. Add interactive UI-level tests for CSV mapping, import selection/cancellation, suppression controls, and draft blocking. The current app tests only verify server-rendered markup; they do not simulate user interaction.
-2. Continue hardening campaign transitions, lead workflow validation, and activity tracking.
-3. Implement authentication and tenant-safe persistence only after selecting the dedicated Firebase project and trusted server approach.
-4. Add security rules and emulator tests proving cross-tenant isolation before using real customer data.
+1. Create the dedicated Firebase project and configure Auth, Firestore, and emulators.
+2. Add emulator-backed tests for unauthenticated requests, membership failures, role escalation, and cross-tenant isolation.
+3. Connect the frontend to the Functions API through a typed repository while keeping demo mode isolated.
+4. Extend server-side validation and audit events to leads, imports, notes, suppression, and outreach drafts.
 5. Evaluate each live data source against current provider terms, permissions, lawful basis, and retention requirements before integration.
 
 ## Repository boundary
