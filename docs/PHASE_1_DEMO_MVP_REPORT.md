@@ -12,7 +12,7 @@
 - Synthetic pilot data for fictional painter/decorator businesses.
 - Search, campaign/status filtering, and lead status transitions.
 - Explainable completeness scoring. Score values are not a measure of trust, quality, or legitimacy.
-- CSV import with a 2 MB limit, pre-commit review summary, header/name validation, basic quoted-comma handling, unmatched-quote detection, blank-name row skipping, and duplicate checks scoped to the selected campaign.
+- CSV import with a 2 MB limit, pre-commit review summary, selectable include/exclude checkboxes for individual previewed rows, select-all control, selected/excluded counts, header/name validation, basic quoted-comma handling, unmatched-quote detection, blank-name row skipping, and duplicate checks scoped to the selected campaign.
 - CSV export of the currently visible lead list.
 - Lead details panel with contact fields, score explanations, editable internal notes, and activity recording when notes are saved.
 - Human-reviewed outreach drafts with subject/body editing. There is no message-sending capability.
@@ -40,7 +40,7 @@ These checks confirm type safety, the listed unit-tested logic, a production bun
 1. This is not yet multi-tenant SaaS. There is no authentication, backend, cloud database, server-side authorisation, or tenant-isolation enforcement.
 2. localStorage is not a secure data store. Do not enter production lead/customer information or sensitive personal data.
 3. The CSV parser is intentionally lightweight and does not support quoted fields spanning multiple lines. Malformed quoting and complex spreadsheet edge cases need further validation.
-4. CSV preview lists candidate records and row warnings before commit, but it does not yet support field mapping or per-row selection.
+4. CSV preview supports selecting/excluding candidates, but does not yet support configurable field mapping. The table displays the first eight candidates; selection changes apply to the full candidate set.
 5. Activity history is browser-local and best-effort; it is not a tamper-resistant audit log.
 6. There are no live Google Maps/Places, LinkedIn, email, CRM, Gemini, billing, or AnyTrader production integrations.
 7. Outreach is draft-only. No messages are sent.
@@ -48,8 +48,8 @@ These checks confirm type safety, the listed unit-tested logic, a production bun
 
 ## Next recommended work
 
-1. Expand tests for malformed CSV quotes, duplicate detection, campaign transitions, and lead workflow edge cases.
-2. Add field mapping and per-row include/exclude controls to CSV import.
+1. Add configurable CSV field mapping and more detailed import-row validation.
+2. Expand tests for duplicate detection, import selection, campaign transitions, and lead workflow edge cases.
 3. Implement authentication and tenant-safe persistence only after selecting the dedicated Firebase project and trusted server approach.
 4. Add security rules and emulator tests proving cross-tenant isolation before using real customer data.
 5. Evaluate each live data source against current provider terms, permissions, lawful basis, and retention requirements before integration.
