@@ -15,6 +15,7 @@ import {
   isValidEmailAddress,
   isValidOrganisationId,
   isValidOrganisationPageToken,
+  isValidOrganisationCollectionPageToken,
   isValidMembershipRecord,
   normaliseOptionalText,
   normaliseRequiredText,
@@ -177,9 +178,23 @@ export const listLeads = onCall(async (request) => {
   const data = (request.data ?? {}) as Record<string, unknown>;
   const organisationId = requireOrganisationId(data.organisationId);
   await requireMembership(organisationId, uid);
-  const snapshot = await db.collection("organisations").doc(organisationId).collection("leads").orderBy("createdAt", "desc").limit(200).get();
+  let cursorSnapshot: QueryDocumentSnapshot | undefined;
+  if (data.pageToken !== undefined && data.pageToken !== null && data.pageToken !== "") {
+    if (!isValidOrganisationCollectionPageToken(data.pageToken, organisationId, "leads")) {
+      throw new HttpsError("invalid-argument", "Lead page token is invalid for this organisation.");
+    }
+    const cursor = await db.doc(data.pageToken).get();
+    if (!cursor.exists || !cursor.data()?.createdAt) {
+      throw new HttpsError("invalid-argument", "Lead page token is no longer valid.");
+    }
+    cursorSnapshot = cursor as QueryDocumentSnapshot;
+  }
+  let leadsQuery = db.collection("organisations").doc(organisationId).collection("leads").orderBy("createdAt", "desc");
+  if (cursorSnapshot) leadsQuery = leadsQuery.startAfter(cursorSnapshot);
+  const snapshot = await leadsQuery.limit(101).get();
+  const page = snapshot.docs.slice(0, 100);
   return {
-    leads: snapshot.docs.map((doc: QueryDocumentSnapshot) => {
+    leads: page.map((doc: QueryDocumentSnapshot) => {
       const lead = doc.data();
       return {
         id: doc.id, campaignId: lead.campaignId, businessName: lead.businessName,
@@ -191,6 +206,8 @@ export const listLeads = onCall(async (request) => {
         createdAt: lead.createdAt?.toDate?.().toISOString() ?? null,
       };
     }),
+    hasMoreLeads: snapshot.size > 100,
+    nextPageToken: snapshot.size > 100 ? page[page.length - 1]?.ref.path ?? null : null,
   };
 });
 
@@ -345,9 +362,23 @@ export const listOutreachDrafts = onCall(async (request) => {
   const data = (request.data ?? {}) as Record<string, unknown>;
   const organisationId = requireOrganisationId(data.organisationId);
   await requireMembership(organisationId, uid);
-  const snapshot = await db.collection("organisations").doc(organisationId).collection("outreachDrafts").orderBy("createdAt", "desc").limit(200).get();
+  let cursorSnapshot: QueryDocumentSnapshot | undefined;
+  if (data.pageToken !== undefined && data.pageToken !== null && data.pageToken !== "") {
+    if (!isValidOrganisationCollectionPageToken(data.pageToken, organisationId, "outreachDrafts")) {
+      throw new HttpsError("invalid-argument", "Outreach draft page token is invalid for this organisation.");
+    }
+    const cursor = await db.doc(data.pageToken).get();
+    if (!cursor.exists || !cursor.data()?.createdAt) {
+      throw new HttpsError("invalid-argument", "Outreach draft page token is no longer valid.");
+    }
+    cursorSnapshot = cursor as QueryDocumentSnapshot;
+  }
+  let draftsQuery = db.collection("organisations").doc(organisationId).collection("outreachDrafts").orderBy("createdAt", "desc");
+  if (cursorSnapshot) draftsQuery = draftsQuery.startAfter(cursorSnapshot);
+  const snapshot = await draftsQuery.limit(101).get();
+  const page = snapshot.docs.slice(0, 100);
   // Read current lead records so existing drafts reflect later contact restrictions.
-  const leadIds = [...new Set(snapshot.docs
+  const leadIds = [...new Set(page
     .map((doc: QueryDocumentSnapshot) => doc.data().leadId)
     .filter((leadId: unknown): leadId is string => isValidDocumentId(leadId)))];
   const leadSnapshots = leadIds.length
@@ -357,7 +388,7 @@ export const listOutreachDrafts = onCall(async (request) => {
     : [];
   const leadById = new Map(leadIds.map((leadId, index) => [leadId, leadSnapshots[index]]));
   return {
-    drafts: snapshot.docs.map((doc: QueryDocumentSnapshot) => {
+    drafts: page.map((doc: QueryDocumentSnapshot) => {
       const draft = doc.data();
       const leadId = typeof draft.leadId === "string" ? draft.leadId : "";
       const leadSnapshot = leadById.get(leadId);
@@ -369,6 +400,8 @@ export const listOutreachDrafts = onCall(async (request) => {
         createdAt: draft.createdAt?.toDate?.().toISOString() ?? null,
       };
     }),
+    hasMoreDrafts: snapshot.size > 100,
+    nextPageToken: snapshot.size > 100 ? page[page.length - 1]?.ref.path ?? null : null,
   };
 });
 
