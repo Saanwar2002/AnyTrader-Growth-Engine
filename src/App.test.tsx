@@ -78,6 +78,11 @@ describe("Growth Engine interactive workflows", () => {
     fireEvent.change(within(importedRow as HTMLElement).getByRole("combobox", { name: "Change status for North Star Roofing" }), { target: { value: "contacted" } });
     expect(screen.getByRole("status").textContent).toContain("must pass contact review");
     expect((within(importedRow as HTMLElement).getByRole("combobox", { name: "Change status for North Star Roofing" }) as HTMLSelectElement).value).toBe("new");
+    const contactFilter = screen.getByRole("combobox", { name: "Filter by contact permission" });
+    fireEvent.change(contactFilter, { target: { value: "review" } });
+    expect(screen.getByText("North Star Roofing")).toBeTruthy();
+    fireEvent.change(contactFilter, { target: { value: "suppressed" } });
+    expect(screen.queryByText("North Star Roofing")).toBeNull();
   });
 
   it("persists a created campaign when the workspace is remounted", () => {
