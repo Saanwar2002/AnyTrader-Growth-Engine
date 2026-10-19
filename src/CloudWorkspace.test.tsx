@@ -149,6 +149,40 @@ describe("cloud authentication gate", () => {
     await waitFor(() => expect(screen.queryByText("First Tenant Private Lead")).toBeNull());
   });
 
+
+  it("loads additional campaign pages without replacing the first page", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    const campaign = (id: string, name: string) => ({
+      id, name, brand: "AnyTrader", category: "Painters", location: "Manchester",
+      goal: "Recruit providers", status: "active", createdAt: null,
+    });
+    mocks.api.listCampaigns
+      .mockResolvedValueOnce({
+        campaigns: [campaign("campaign-1", "First Campaign")],
+        hasMoreCampaigns: true,
+        nextPageToken: "organisations/org-1/campaigns/campaign-1",
+      })
+      .mockResolvedValueOnce({
+        campaigns: [campaign("campaign-2", "Second Campaign")],
+        hasMoreCampaigns: false,
+        nextPageToken: null,
+      });
+    render(<CloudWorkspace />);
+    expect(await screen.findByText("First Campaign")).toBeTruthy();
+    fireEvent.click(await screen.findByRole("button", { name: "Load more campaigns" }));
+    expect(await screen.findByText("Second Campaign")).toBeTruthy();
+    expect(screen.getByText("First Campaign")).toBeTruthy();
+    await waitFor(() => expect(mocks.api.listCampaigns).toHaveBeenLastCalledWith({
+      organisationId: "org-1",
+      pageToken: "organisations/org-1/campaigns/campaign-1",
+    }));
+    expect(screen.queryByRole("button", { name: "Load more campaigns" })).toBeNull();
+  });
+
   it("allows an authenticated user to edit a draft without sending it", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
