@@ -84,6 +84,31 @@ try {
   assert.equal(draftList.drafts[0].subject, "Updated test draft");
   assert.equal(draftList.drafts[0].sent, undefined);
 
+  // Exercise real server-side pagination beyond the 100-record page size.
+  // Each lead is synthetic and remains blocked pending contact review.
+  for (let index = 0; index < 100; index += 1) {
+    await callOne("createLead", {
+      organisationId: orgOne.organisationId,
+      campaignId: campaignOne.campaignId,
+      businessName: `Synthetic Pagination Lead ${String(index + 1).padStart(3, "0")}`,
+      category: "Painters",
+      location: "Manchester",
+    });
+  }
+  const firstLeadPage = await callOne("listLeads", { organisationId: orgOne.organisationId });
+  assert.equal(firstLeadPage.leads.length, 100, "lead pagination returns a maximum of 100 records");
+  assert.equal(firstLeadPage.hasMoreLeads, true, "lead pagination signals another page");
+  assert.ok(firstLeadPage.nextPageToken, "lead pagination supplies a cursor");
+  const secondLeadPage = await callOne("listLeads", {
+    organisationId: orgOne.organisationId,
+    pageToken: firstLeadPage.nextPageToken,
+  });
+  assert.equal(secondLeadPage.leads.length, 1, "the second lead page returns the remaining record");
+  assert.equal(secondLeadPage.hasMoreLeads, false, "the final lead page has no further cursor");
+  assert.equal(secondLeadPage.nextPageToken, null);
+  const paginatedLeadIds = [...firstLeadPage.leads, ...secondLeadPage.leads].map((lead) => lead.id);
+  assert.equal(new Set(paginatedLeadIds).size, 101, "lead pages do not duplicate records");
+
   await expectCallableFailure(getDoc(doc(first.firestore, `organisations/${orgOne.organisationId}`)), "permission-denied", "direct client Firestore read denial");
 
   const second = connectClient(initializeApp(firebaseConfig, "tenant-two"));
