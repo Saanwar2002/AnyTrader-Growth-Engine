@@ -26,6 +26,7 @@ export interface Lead {
   score: number;
   scoreReasons: string[];
   notes: string;
+  doNotContact: boolean;
   createdAt: string;
 }
 
@@ -73,7 +74,8 @@ export function suggestLeadCsvMapping(headers: string[]): LeadCsvMapping {
 }
 
 export function inspectLeadCsvHeaders(csv: string): { headers: string[]; errors: string[] } {
-  const lines = csv.replace(/^\uFEFF/, "").split(/\r?\n/);
+  const lines = csv.replace(/^\uFEFF/, "").split(/\r?
+/);
   const headerLine = lines.find((line) => line.trim().length > 0);
   if (!headerLine) return { headers: [], errors: ["CSV must contain a header and at least one data row."] };
   const values: string[] = [];
@@ -105,6 +107,10 @@ export interface AppState {
 export const LEAD_STATUSES: LeadStatus[] = [
   "new", "reviewing", "qualified", "contacted", "onboarded", "rejected",
 ];
+
+export function canCreateOutreachDraft(lead: Pick<Lead, "doNotContact">): boolean {
+  return lead.doNotContact !== true;
+}
 
 export function normalizeBusinessName(value: string): string {
   return value.trim().toLocaleLowerCase("en-GB").replace(/\s+/g, " ");
@@ -143,7 +149,8 @@ export function scoreLead(input: Pick<Lead, "businessName" | "website" | "email"
 }
 
 export function parseLeadCsv(csv: string, fieldMapping?: LeadCsvMapping): { rows: Array<Record<string, string>>; errors: string[] } {
-  const lines = csv.replace(/^\uFEFF/, "").split(/\r?\n/);
+  const lines = csv.replace(/^\uFEFF/, "").split(/\r?
+/);
   const headerLineIndex = lines.findIndex((line) => line.trim().length > 0);
   if (headerLineIndex < 0) return { rows: [], errors: ["CSV must contain a header and at least one data row."] };
 
