@@ -29,7 +29,7 @@ Executed against the branch snapshot copied into the remote workspace:
 |---|---|
 | `npm ci --no-audit --no-fund` | Passed |
 | `npm run typecheck` | Passed |
-| `npm test` | Passed — 24 tests across 2 files |
+| `npm test` | Passed — 27 tests across 2 files |
 | `npm run build` | Passed — Vite production bundle generated |
 | Vite development server + HTTP request to `/` | Passed |
 
@@ -40,7 +40,8 @@ These checks confirm type safety, the listed unit-tested logic, a production bun
 1. This is not yet multi-tenant SaaS. There is no authentication, backend, cloud database, server-side authorisation, or tenant-isolation enforcement.
 2. localStorage is not a secure data store. Do not enter production lead/customer information or sensitive personal data.
 3. The CSV parser is intentionally lightweight and does not support quoted fields spanning multiple lines. Strict RFC 4180 compliance, locale-specific delimiters, and complex spreadsheet edge cases are not guaranteed.
-4. CSV mapping now supports automatic suggestions and manual mapping for business name, category, location, website, email, and phone. The table displays the first eight candidates; selection changes apply to the full candidate set.
+4. CSV mapping supports automatic suggestions and manual mapping for business name, category, location, website, email, and phone. The table displays the first eight candidates; selection changes apply to the full candidate set.
+5. Lead-level Do not contact suppression is stored in local demo state, can be filtered, blocks new outreach drafts, flags existing drafts, appears in activity history, and is included in CSV exports. Older local demo records are migrated with a safe default. This is a demo-level control, not a server-enforced compliance system.
 5. Activity history is browser-local and best-effort; it is not a tamper-resistant audit log.
 6. There are no live Google Maps/Places, LinkedIn, email, CRM, Gemini, billing, or AnyTrader production integrations.
 7. Outreach is draft-only. No messages are sent.
@@ -48,9 +49,8 @@ These checks confirm type safety, the listed unit-tested logic, a production bun
 
 ## Next recommended work
 
-1. Add configurable CSV field mapping and automated UI-level tests for import selection and review.
+1. Add automated UI-level tests for CSV mapping, import selection, suppression controls, and draft blocking.
 2. Continue hardening campaign transitions, lead workflow validation, and activity tracking.
-2. Add automated UI-level coverage for row selection and expand tests for campaign transitions and lead workflow edge cases.
 3. Implement authentication and tenant-safe persistence only after selecting the dedicated Firebase project and trusted server approach.
 4. Add security rules and emulator tests proving cross-tenant isolation before using real customer data.
 5. Evaluate each live data source against current provider terms, permissions, lawful basis, and retention requirements before integration.
