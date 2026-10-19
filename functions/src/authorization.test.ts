@@ -167,6 +167,14 @@ describe("existing outreach draft review state", () => {
     });
   });
 
+  it("treats a blocked review state as suppressed even if the boolean field conflicts", () => {
+    expect(getOutreachDraftReviewState(true, false, "blocked")).toEqual({
+      leadSuppressed: true,
+      requiresReview: true,
+      reviewReason: "Lead is suppressed; do not contact.",
+    });
+  });
+
   it("allows review state only when the lead exists and suppression is explicitly false", () => {
     expect(getOutreachDraftReviewState(true, false)).toEqual({
       leadSuppressed: false,
