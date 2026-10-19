@@ -260,3 +260,10 @@ Continue the callable authorization audit and integration-test reliability work;
 - The test now moves the synthetic lead to `qualified`, verifies that status through `listLeads`, moves it to `contacted`, and verifies persistence again. Existing checks still reject `contacted` while the lead is pending review or suppressed.
 - This adds an end-to-end regression for both positive status persistence and the contact-review safety gate without changing production semantics or introducing new services.
 - Verification is pending until GitHub Actions completes for this commit. Firebase deployment remains deferred; outreach remains draft-only.
+
+
+## Suppressed-lead draft creation regression — 2026-10-19
+
+- Extended the emulator smoke test to verify that adding a do-not-contact restriction blocks both editing an existing outreach draft and creating a new draft for that lead.
+- The existing flow also verifies that removing the internal restriction allows draft editing again; this is only an internal review gate and does not establish consent or lawful basis for real-world outreach.
+- The new assertion uses synthetic emulator data and preserves the draft-only product boundary. Verification is pending for the commit that adds this check.
