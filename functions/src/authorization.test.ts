@@ -311,3 +311,19 @@ describe("suppression permission matrix regression", () => {
     expect(canChangeSuppression("owner", value)).toBe(false);
   });
 });
+
+describe("malformed membership records fail closed", () => {
+  it.each([
+    [{ uid: "user-1", role: "owner", extra: true }, true],
+    [{ uid: "user-1", role: "OWNER" }, false],
+    [{ uid: "user-1", role: "owner" }, true],
+    [{ uid: " user-1", role: "owner" }, false],
+    [{ uid: "user-1", role: "" }, false],
+    [{ uid: "user-1", role: ["owner"] }, false],
+    [true, false],
+    ["owner", false],
+    [new Date(), false],
+  ])("validates membership record shape %#", (record, expected) => {
+    expect(isValidMembershipRecord(record, "user-1")).toBe(expected);
+  });
+});
