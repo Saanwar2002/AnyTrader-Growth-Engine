@@ -60,10 +60,9 @@ export function calculateLeadCompleteness(input: {
 }
 
 
-export function canMarkLeadContacted(doNotContact: unknown): boolean {
-  // Contact history must also fail closed when a legacy or malformed lead lacks
-  // an explicit, verified opt-in to contact.
-  return doNotContact === false;
+export function canMarkLeadContacted(doNotContact: unknown, contactReviewStatus?: unknown): boolean {
+  // Contact history must fail closed for legacy/malformed restrictions and pending reviews.
+  return doNotContact === false && (contactReviewStatus === undefined || contactReviewStatus === "cleared");
 }
 
 export function canCreateServerOutreachDraft(doNotContact: unknown, contactReviewStatus?: unknown): boolean {
