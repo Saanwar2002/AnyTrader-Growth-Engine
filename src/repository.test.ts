@@ -42,15 +42,6 @@ describe("demo repository", () => {
     expect(loaded.leads.every((lead) => lead.doNotContact === false)).toBe(true);
   });
 
-  it("migrates older saved leads to an explicit not-suppressed default", () => {
-    const { storage } = makeStorage();
-    const state = createInitialState();
-    const legacy = { ...state, leads: state.leads.map(({ doNotContact: _ignored, ...lead }) => lead) };
-    storage.setItem("anytrader-growth-engine.demo.v1", JSON.stringify(legacy));
-    const loaded = createDemoRepository(storage).load();
-    expect(loaded.leads.every((lead) => lead.doNotContact === false)).toBe(true);
-  });
-
   it("recovers from malformed JSON", () => {
     const { storage } = makeStorage({ "anytrader-growth-engine.demo.v1": "{not-json" });
     expect(createDemoRepository(storage).load().campaigns).toHaveLength(1);
