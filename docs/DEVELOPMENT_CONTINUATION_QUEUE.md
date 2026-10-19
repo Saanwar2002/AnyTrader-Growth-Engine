@@ -63,3 +63,4 @@ Continue the callable authorization audit and integration-test reliability work;
 
 
 - 2026-10-19 follow-up: campaign pagination reset state is now cleared on sign-out, organisation deselection, and tenant switches, preventing a previous tenant's continuation token or loading state from lingering. Added a cloud UI regression test for loading a second campaign page while retaining the first page. Commits: `28f7cf5bd6d682329eb934009286cd395e195f8d` and `81db9f38cf8bafeae96901e40396351bb44a0bb8`. This is source-reviewed only; the test suite and build have not been executed in the current constrained environment.
+- Additional tenant-switch regression coverage now also asserts that the previous organisation's campaign is removed from the UI immediately, alongside its lead, before the newly selected workspace finishes loading (commit `003a7809cf2ae3e836d5b5c0ff2ac2678e7da77c`). Runtime execution remains pending.
