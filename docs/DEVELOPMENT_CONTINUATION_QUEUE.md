@@ -21,7 +21,7 @@ This is a source-inspection work queue, not a certification or test report.
 - The emulator smoke script now checks a suppression restriction added after draft creation, including list warning and server-side rejection of draft edits.
 
 ## Work required before Firebase connection
-1. Run typecheck, unit tests and production build for the current branch when a working execution environment is available; cursor pagination changes also remain unverified by execution.
+1. Run typecheck, unit tests and production build for the current branch when a working execution environment is available; latest membership validation and workspace-switch regression tests also remain unverified by execution.
 2. Add emulator integration coverage for missing lead records and malformed/missing `doNotContact` values, and run a 101+ membership pagination test.
 3. Test cross-tenant references for leads, campaigns and drafts.
 4. Resolve the existing emulator transaction timeout and run the complete integration suite.
@@ -33,5 +33,12 @@ This is a source-inspection work queue, not a certification or test report.
 - Do not use real provider/customer data until the security and integration checks pass.
 - Organisation listing is cursor-paginated in source, but the implementation still needs runtime tests with more than 100 memberships and verification that Firestore accepts the collection-group cursor as expected. No typecheck, unit test, build, or emulator run has been completed for the latest pagination commits.
 
+## Latest security audit updates
+- The shared `requireMembership` guard now validates that the membership document's stored UID matches the authenticated caller and that the role is one of `owner`, `admin`, `member`, or `viewer`. Malformed membership records fail closed.
+- The organisation listing also verifies that the membership document ID matches the caller UID, in addition to checking its stored UID and role. This prevents malformed membership documents from appearing as valid workspace entries.
+- Added unit coverage for the shared membership record validator.
+- Workspace refresh now clears tenant-specific records and draft-editing state immediately while a newly selected organisation loads; a regression test was added.
+- These changes are committed, but no current-branch typecheck, unit test, build, or emulator suite has yet been run.
+
 ## Next build focus
-Continue the callable authorization audit and integration-test reliability work; then address the organisation-list 100-membership cap before broad SaaS rollout. Keep all changes on `development/chatgpt-mvp`; do not modify `main` or the original AnyTrader repository.
+Continue the callable authorization audit and integration-test reliability work; verify cross-tenant campaign/draft references and resolve the emulator transaction timeout before Firebase connection. Keep all changes on `development/chatgpt-mvp`; do not modify `main` or the original AnyTrader repository.
