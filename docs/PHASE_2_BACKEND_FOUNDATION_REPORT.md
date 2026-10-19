@@ -9,7 +9,7 @@
 
 All data endpoints require an authenticated Firebase callable request. Organisation-owned documents are scoped under `organisations/{organisationId}/...`; a supplied organisation ID is never sufficient without a membership check.
 
-- `createOrganisation`: validates the name and transactionally creates an organisation plus its owner membership.
+- `listMyOrganisations`: uses the authenticated UID to find only that user's organisation memberships and validates stored roles before returning summaries.\n- `createOrganisation`: validates the name and transactionally creates an organisation plus its owner membership.
 - `createCampaign`: checks membership, validates bounded fields, and permits creation only for owner/admin.
 - `updateCampaignStatus`: permits only owner/admin to set one of the allowed campaign statuses.
 - `listCampaigns`: checks membership and returns at most 100 campaigns for that organisation.
@@ -39,7 +39,7 @@ All data endpoints require an authenticated Firebase callable request. Organisat
 ## Known gaps — do not expose as production service yet
 
 - No dedicated Firebase project has been configured and no deployment has been performed.
-- The frontend is not connected to Firebase Auth or these endpoints; it remains a browser-local demo. An environment-gated Firebase client initializer and typed callable API adapter are scaffolded but are not yet connected to UI workflows.
+- The frontend is not connected to Firebase Auth or these endpoints; it remains a browser-local demo. An environment-gated Firebase client initializer and typed callable API adapter are scaffolded and unit-tested but are not yet connected to UI workflows.
 - No Firebase Emulator Suite integration tests have run, and tenant isolation is not yet proven end-to-end.
 - No App Check enforcement, rate limiting, idempotency keys, comprehensive security audit log, or usage quotas yet.
 - Server-side CSV batch import and cursor pagination are not implemented.
@@ -50,7 +50,7 @@ All data endpoints require an authenticated Firebase callable request. Organisat
 | Check | Result |
 |---|---|
 | `npm run typecheck` | Passed |
-| `npm test` | Passed — 53 tests across 6 files |
+| `npm test` | Passed — 54 tests across 6 files |
 | `npm run build` | Passed |
 | `npm --prefix functions run build` | Passed |
 | `npm --prefix functions test` | Passed — 12 server guard tests |
