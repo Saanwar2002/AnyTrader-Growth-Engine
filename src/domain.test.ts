@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeBusinessName, parseLeadCsv, scoreLead } from "./domain";
+import { deduplicateLeads, normalizeBusinessName, parseLeadCsv, scoreLead } from "./domain";
 
 describe("normalizeBusinessName", () => {
   it("trims whitespace, collapses spaces and ignores case", () => {
@@ -69,5 +69,25 @@ Example Decorators,Painters`);
     const result = parseLeadCsv(`"businessName,category
 Example Decorators,Painters`);
     expect(result.errors[0]).toContain("header contains an unmatched quote");
+  });
+});
+
+
+describe("deduplicateLeads", () => {
+  const lead = (businessName: string, campaignId = "campaign-a") => ({ businessName, campaignId });
+
+  it("deduplicates case and whitespace variations within the same campaign", () => {
+    const result = deduplicateLeads(
+      [lead(" NORTH  STAR DECORATORS "), lead("Fresh Paint Co"), lead("fresh paint co")],
+      [lead("North Star Decorators")],
+    );
+    expect(result.unique).toEqual([lead("Fresh Paint Co")]);
+    expect(result.duplicateCount).toBe(2);
+  });
+
+  it("keeps the same business name when it belongs to a different campaign", () => {
+    const result = deduplicateLeads([lead("North Star Decorators", "campaign-b")], [lead("North Star Decorators", "campaign-a")]);
+    expect(result.unique).toHaveLength(1);
+    expect(result.duplicateCount).toBe(0);
   });
 });
