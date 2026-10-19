@@ -217,7 +217,7 @@ export const listLeads = onCall(async (request) => {
         category: lead.category, location: lead.location, website: lead.website,
         email: lead.email, phone: lead.phone, source: lead.source, status: lead.status,
         score: lead.score, scoreReasons: lead.scoreReasons, notes: lead.notes,
-        doNotContact: lead.doNotContact === true,
+        doNotContact: lead.doNotContact === true || lead.contactReviewStatus === "blocked",
         contactRestrictionVerified: lead.doNotContact === false && (lead.contactReviewStatus === undefined || lead.contactReviewStatus === "cleared"),
         contactReviewStatus: lead.contactReviewStatus === "pending" || lead.contactReviewStatus === "cleared" || lead.contactReviewStatus === "blocked" ? lead.contactReviewStatus : lead.doNotContact === false ? "cleared" : "blocked",
         createdAt: lead.createdAt?.toDate?.().toISOString() ?? null,
