@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canCreateOutreachDraft, deduplicateLeads, inspectLeadCsvHeaders, normalizeBusinessName, parseLeadCsv, scoreLead, suggestLeadCsvMapping } from "./domain";
+import { canCreateOutreachDraft, deduplicateLeads, escapeCsvCell, inspectLeadCsvHeaders, normalizeBusinessName, parseLeadCsv, scoreLead, suggestLeadCsvMapping } from "./domain";
 
 describe("outreach suppression", () => {
   it("blocks new outreach drafts for suppressed leads", () => {
@@ -176,5 +176,21 @@ describe("CSV import safety edge cases", () => {
     const suppressedLead = { doNotContact: true };
     expect(canCreateOutreachDraft(suppressedLead)).toBe(false);
     expect(canCreateOutreachDraft({ doNotContact: false })).toBe(true);
+  });
+});
+
+
+describe("CSV export safety", () => {
+  it.each(["=1+1", "+SUM(A1:A2)", "-2+3", "@SUM(A1)", "  =1+1", "\\t=1+1", "\\r@formula"])(
+    "prefixes formula-like cell content with a text marker",
+    (value) => {
+      expect(escapeCsvCell(value)).toBe('"' + "'" + value.replace(/"/g, '""') + '"');
+    },
+  );
+
+  it("quotes ordinary text and escapes embedded quotes", () => {
+    expect(escapeCsvCell('North "Star", Decorators')).toBe('"North ""Star"", Decorators"');
+    expect(escapeCsvCell(42)).toBe('"42"');
+    expect(escapeCsvCell("hello@example.com")).toBe('"hello@example.com"');
   });
 });
