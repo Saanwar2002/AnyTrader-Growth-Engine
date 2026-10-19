@@ -203,6 +203,8 @@ describe("contact review status normalisation", () => {
     expect(normaliseContactReviewStatus(false, "cleared")).toBe("cleared");
     expect(normaliseContactReviewStatus(false, "pending")).toBe("pending");
     expect(normaliseContactReviewStatus(true, "blocked")).toBe("blocked");
+    expect(normaliseContactReviewStatus(true, "cleared")).toBe("blocked");
+    expect(normaliseContactReviewStatus(false, "blocked")).toBe("blocked");
   });
 
   it("recognises only the legacy explicitly-unsuppressed record as implicitly cleared", () => {
