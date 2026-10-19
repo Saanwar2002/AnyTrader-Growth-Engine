@@ -12,6 +12,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "firebase": "^11.10.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
@@ -25,5 +26,8 @@
     "typescript": "~5.8.0",
     "vite": "^6.3.0",
     "vitest": "^4.1.12"
+  },
+  "overrides": {
+    "@grpc/grpc-js": "^1.13.6"
   }
 }
