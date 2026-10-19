@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateLeadCompleteness, canChangeSuppression, canCreateServerOutreachDraft, canTransitionLeadStatus, hasCampaignWritePermission, hasLeadWritePermission, isValidDocumentId, isValidEmailAddress, isValidLeadStatus, isValidOrganisationId, normaliseOptionalText, normaliseRequiredText } from "./authorization";
+import { calculateLeadCompleteness, canChangeSuppression, canCreateServerOutreachDraft, canTransitionLeadStatus, hasCampaignWritePermission, hasLeadWritePermission, isValidCampaignStatus, isValidDocumentId, isValidEmailAddress, isValidLeadStatus, isValidOrganisationId, normaliseOptionalText, normaliseRequiredText } from "./authorization";
 
 describe("server authorization input guards", () => {
   it("trims required text and rejects missing, non-string, blank, and overlong values", () => {
@@ -97,5 +97,17 @@ describe("suppression permission rules", () => {
     expect(canChangeSuppression("admin", false)).toBe(true);
     expect(canChangeSuppression("member", false)).toBe(false);
     expect(canChangeSuppression("owner", "false")).toBe(false);
+  });
+});
+
+
+describe("server campaign status validation", () => {
+  it("accepts only known campaign statuses", () => {
+    expect(isValidCampaignStatus("draft")).toBe(true);
+    expect(isValidCampaignStatus("active")).toBe(true);
+    expect(isValidCampaignStatus("paused")).toBe(true);
+    expect(isValidCampaignStatus("completed")).toBe(true);
+    expect(isValidCampaignStatus("deleted")).toBe(false);
+    expect(isValidCampaignStatus(undefined)).toBe(false);
   });
 });
