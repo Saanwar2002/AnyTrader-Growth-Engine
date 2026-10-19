@@ -48,3 +48,5 @@ Continue the callable authorization audit and integration-test reliability work;
 ## Latest implementation note (2026-10-19)
 - `listOutreachDrafts` now uses Firestore Admin SDK `db.getAll(...refs)` to batch-fetch the distinct associated lead documents rather than starting up to 200 separate read promises. Results are associated to lead IDs by the input order returned by Firestore. This is a source-level performance improvement only; it has not been freshly built or integration-tested in the current environment.
 - Still required: verify the batch-read mapping with unit/emulator tests, add explicit emulator cases for missing/malformed suppression fields and cross-tenant list operations, and run the 101+ organisation pagination test.
+
+- Lead listing now exposes `contactRestrictionVerified`; the cloud UI shows `REVIEW RESTRICTION` and disables draft creation when `doNotContact` is missing or malformed instead of displaying the lead as contactable. A UI regression test covers this fail-closed state. This change is source-committed but still requires execution of the frontend tests and build.
