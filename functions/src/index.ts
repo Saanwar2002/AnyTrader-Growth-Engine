@@ -149,12 +149,28 @@ export const listCampaigns = onCall(async (request) => {
   const data = (request.data ?? {}) as Record<string, unknown>;
   const organisationId = requireOrganisationId(data.organisationId);
   await requireMembership(organisationId, uid);
-  const snapshot = await db.collection("organisations").doc(organisationId).collection("campaigns").orderBy("createdAt", "desc").limit(100).get();
+  let cursorSnapshot: QueryDocumentSnapshot | undefined;
+  if (data.pageToken !== undefined && data.pageToken !== null && data.pageToken !== "") {
+    if (!isValidOrganisationCollectionPageToken(data.pageToken, organisationId, "campaigns")) {
+      throw new HttpsError("invalid-argument", "Campaign page token is invalid for this organisation.");
+    }
+    const cursor = await db.doc(data.pageToken).get();
+    if (!cursor.exists || !cursor.data()?.createdAt) {
+      throw new HttpsError("invalid-argument", "Campaign page token is no longer valid.");
+    }
+    cursorSnapshot = cursor as QueryDocumentSnapshot;
+  }
+  let campaignsQuery = db.collection("organisations").doc(organisationId).collection("campaigns").orderBy("createdAt", "desc");
+  if (cursorSnapshot) campaignsQuery = campaignsQuery.startAfter(cursorSnapshot);
+  const snapshot = await campaignsQuery.limit(101).get();
+  const page = snapshot.docs.slice(0, 100);
   return {
-    campaigns: snapshot.docs.map((doc: QueryDocumentSnapshot) => {
-      const data = doc.data();
-      return { id: doc.id, name: data.name, category: data.category, location: data.location, brand: data.brand, goal: data.goal, status: data.status, createdAt: data.createdAt?.toDate?.().toISOString() ?? null };
+    campaigns: page.map((doc: QueryDocumentSnapshot) => {
+      const campaign = doc.data();
+      return { id: doc.id, name: campaign.name, category: campaign.category, location: campaign.location, brand: campaign.brand, goal: campaign.goal, status: campaign.status, createdAt: campaign.createdAt?.toDate?.().toISOString() ?? null };
     }),
+    hasMoreCampaigns: snapshot.size > 100,
+    nextPageToken: snapshot.size > 100 ? page[page.length - 1]?.ref.path ?? null : null,
   };
 });
 
