@@ -58,3 +58,17 @@ describe("typed backend API boundary", () => {
     expect(calls[0]).toEqual({ name: "listLeads", payload: { organisationId: "org-1" } });
   });
 });
+
+  it("passes tenant-scoped pagination tokens to lead and draft listing callables", async () => {
+    const { invoke, calls } = makeInvoker([
+      { leads: [], hasMoreLeads: false, nextPageToken: null },
+      { drafts: [], hasMoreDrafts: false, nextPageToken: null },
+    ]);
+    const api = createGrowthEngineApi(invoke);
+    await api.listLeads({ organisationId: "org-1", pageToken: "organisations/org-1/leads/lead-100" });
+    await api.listOutreachDrafts({ organisationId: "org-1", pageToken: "organisations/org-1/outreachDrafts/draft-100" });
+    expect(calls).toEqual([
+      { name: "listLeads", payload: { organisationId: "org-1", pageToken: "organisations/org-1/leads/lead-100" } },
+      { name: "listOutreachDrafts", payload: { organisationId: "org-1", pageToken: "organisations/org-1/outreachDrafts/draft-100" } },
+    ]);
+  });
