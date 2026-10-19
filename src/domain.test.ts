@@ -79,6 +79,16 @@ describe("parseLeadCsv", () => {
     }]);
   });
 
+  it("rejects a custom mapping that assigns one source column to multiple fields", () => {
+    const result = parseLeadCsv("Provider,Area\\nNorth Star Decorators,Manchester", {
+      businessName: "Provider", category: "Provider",
+    });
+    expect(result.rows).toEqual([]);
+    expect(result.errors).toEqual([
+      "CSV field mapping assigns the same column to multiple fields (businessName, category); choose a different column for each field.",
+    ]);
+  });
+
   it("requires a business-name mapping when custom mappings are supplied", () => {
     const result = parseLeadCsv("Provider,Area\nNorth Star Decorators,Manchester", { location: "Area" });
     expect(result.rows).toEqual([]);
