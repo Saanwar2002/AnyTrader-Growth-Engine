@@ -299,3 +299,15 @@ describe("complete organisation role permission matrix", () => {
     expect(hasLeadWritePermission(role)).toBe(canWriteLead);
   });
 });
+
+describe("suppression permission matrix regression", () => {
+  it.each([
+    ["owner", true, true], ["admin", true, true], ["member", true, false], ["viewer", false, false],
+  ])("role %s can suppress=%s and clear=%s", (role, canSuppress, canClear) => {
+    expect(canChangeSuppression(role, true)).toBe(canSuppress);
+    expect(canChangeSuppression(role, false)).toBe(canClear);
+  });
+  it.each([undefined, null, "true", 1, {}, []])("rejects non-boolean suppression requests (%s)", (value) => {
+    expect(canChangeSuppression("owner", value)).toBe(false);
+  });
+});
