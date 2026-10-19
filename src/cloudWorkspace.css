@@ -2,3 +2,7 @@
 
 .cloud-note-label { display: block; margin-top: 0.6rem; color: var(--muted, #64748b); font-size: 0.78rem; }
 .cloud-note-label textarea { display: block; width: 100%; min-width: 12rem; margin-top: 0.25rem; padding: 0.5rem; border: 1px solid var(--line, #dbe3ec); border-radius: 0.5rem; font: inherit; font-size: 0.85rem; resize: vertical; }
+
+.cloud-draft-editor { flex: 1; }
+.cloud-draft-editor textarea { width: 100%; padding: 0.65rem; border: 1px solid var(--line, #dbe3ec); border-radius: 0.5rem; font: inherit; resize: vertical; }
+.cloud-draft-actions { display: flex; align-items: flex-start; gap: 0.5rem; flex-wrap: wrap; }
