@@ -13,6 +13,7 @@ import {
   isValidDocumentId,
   isValidEmailAddress,
   isValidOrganisationId,
+  isValidOrganisationPageToken,
   normaliseOptionalText,
   normaliseRequiredText,
 } from "./authorization";
@@ -70,11 +71,7 @@ export const listMyOrganisations = onCall(async (request) => {
   const data = (request.data ?? {}) as Record<string, unknown>;
   let cursorSnapshot: QueryDocumentSnapshot | undefined;
   if (data.pageToken !== undefined && data.pageToken !== null && data.pageToken !== "") {
-    if (typeof data.pageToken !== "string" || data.pageToken.length > 512) {
-      throw new HttpsError("invalid-argument", "Organisation page token is invalid.");
-    }
-    const pathSegments = data.pageToken.split("/");
-    if (pathSegments.length !== 4 || pathSegments[0] !== "organisations" || pathSegments[2] !== "members" || pathSegments[3] !== uid || !isValidOrganisationId(pathSegments[1])) {
+    if (!isValidOrganisationPageToken(data.pageToken, uid)) {
       throw new HttpsError("invalid-argument", "Organisation page token is invalid.");
     }
     const cursor = await db.doc(data.pageToken).get();
