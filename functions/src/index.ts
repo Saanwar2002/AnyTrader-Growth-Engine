@@ -218,7 +218,7 @@ export const listLeads = onCall(async (request) => {
         email: lead.email, phone: lead.phone, source: lead.source, status: lead.status,
         score: lead.score, scoreReasons: lead.scoreReasons, notes: lead.notes,
         doNotContact: lead.doNotContact === true,
-        contactRestrictionVerified: lead.doNotContact === false,
+        contactRestrictionVerified: lead.doNotContact === false && (lead.contactReviewStatus === undefined || lead.contactReviewStatus === "cleared"),
         contactReviewStatus: lead.contactReviewStatus === "pending" || lead.contactReviewStatus === "cleared" || lead.contactReviewStatus === "blocked" ? lead.contactReviewStatus : lead.doNotContact === false ? "cleared" : "blocked",
         createdAt: lead.createdAt?.toDate?.().toISOString() ?? null,
       };
@@ -359,7 +359,7 @@ export const createOutreachDraft = onCall(async (request) => {
     const leadSnapshot = await transaction.get(leadRef);
     if (!leadSnapshot.exists) throw new HttpsError("not-found", "Lead was not found in this organisation.");
     const lead = leadSnapshot.data() ?? {};
-    if (!canCreateServerOutreachDraft(lead.doNotContact)) throw new HttpsError("failed-precondition", lead.doNotContact === true
+    if (!canCreateServerOutreachDraft(lead.doNotContact, lead.contactReviewStatus)) throw new HttpsError("failed-precondition", lead.doNotContact === true && lead.contactReviewStatus !== "pending"
       ? "This lead is suppressed. Remove the restriction before creating an outreach draft."
       : "The lead contact restriction is unverified; resolve it before creating an outreach draft.");
     campaignId = requireDocumentId(lead.campaignId, "lead campaignId");
@@ -410,7 +410,7 @@ export const listOutreachDrafts = onCall(async (request) => {
       const leadId = typeof draft.leadId === "string" ? draft.leadId : "";
       const leadSnapshot = leadById.get(leadId);
       const leadExists = leadSnapshot?.exists === true;
-      const review = getOutreachDraftReviewState(leadExists, leadSnapshot?.data()?.doNotContact);
+      const review = getOutreachDraftReviewState(leadExists, leadSnapshot?.data()?.doNotContact, leadSnapshot?.data()?.contactReviewStatus);
       return {
         id: doc.id, leadId, campaignId: draft.campaignId, subject: draft.subject, body: draft.body,
         status: "draft" as const, ...review,
