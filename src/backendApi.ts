@@ -10,6 +10,7 @@ export interface CallableInvoker {
 
 export interface OrganisationSummary { organisationId: string; name: string; role: OrganisationRole; }
 export interface CampaignInput { organisationId: string; name: string; brand: string; category: string; location: string; goal: string; }
+export interface CampaignSummary { id: string; name: string; brand: string; category: string; location: string; goal: string; status: ServerCampaignStatus; createdAt: string | null; }
 export interface LeadInput { organisationId: string; campaignId: string; businessName: string; category?: string; location?: string; website?: string; email?: string; phone?: string; }
 export interface LeadSummary { id: string; campaignId: string; businessName: string; category: string; location: string; website: string; email: string; phone: string; source: string; status: ServerLeadStatus; score: number; scoreReasons: string[]; notes: string; doNotContact: boolean; createdAt: string | null; }
 export interface OutreachDraftSummary { id: string; leadId: string; campaignId: string; subject: string; body: string; status: "draft"; createdAt: string | null; }
@@ -21,7 +22,7 @@ export function createGrowthEngineApi(call: CallableInvoker) {
     createOrganisation: (payload: { name: string }) => call<typeof payload, OrganisationSummary>("createOrganisation", payload),
     createCampaign: (payload: CampaignInput) => call<CampaignInput, { campaignId: string; status: ServerCampaignStatus }>("createCampaign", payload),
     updateCampaignStatus: (payload: { organisationId: string; campaignId: string; status: ServerCampaignStatus }) => call<typeof payload, { campaignId: string; status: ServerCampaignStatus }>("updateCampaignStatus", payload),
-    listCampaigns: (payload: { organisationId: string }) => call<typeof payload, { campaigns: Array<Record<string, unknown>> }>("listCampaigns", payload),
+    listCampaigns: (payload: { organisationId: string }) => call<typeof payload, { campaigns: CampaignSummary[] }>("listCampaigns", payload),
     listLeads: (payload: { organisationId: string }) => call<typeof payload, { leads: LeadSummary[] }>("listLeads", payload),
     createLead: (payload: LeadInput) => call<LeadInput, { leadId: string; status: ServerLeadStatus }>("createLead", payload),
     updateLeadContact: (payload: LeadInput & { leadId: string }) => call<typeof payload, { leadId: string }>("updateLeadContact", payload),
