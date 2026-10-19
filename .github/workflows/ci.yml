@@ -27,7 +27,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          matches="$(git ls-files | grep -E '(^|/)(\.env(\..*)?|service-account[^/]*\.json|firebase-service-account[^/]*\.json|.*-firebase-adminsdk-.*\.json|id_rsa|id_ed25519|[^/]*\.(pem|key|p12|pfx))
+          matches="$(git ls-files | grep -E '(^|/)(\.env(\..*)?|service-account[^/]*\.json|firebase-service-account[^/]*\.json|.*-firebase-adminsdk-.*\.json|id_rsa|id_ed25519|[^/]*\.(pem|key|p12|pfx))$' | grep -vE '(^|/)\.env\.example$' || true)"
           if [[ -n "$matches" ]]; then
             echo "Refusing CI because sensitive environment or Firebase credential files are tracked:"
             echo "$matches"
