@@ -412,3 +412,10 @@ Continue the callable authorization audit and integration-test reliability work;
 - CI run [39339735848](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39339735848) passed Firebase Functions tests/build but the emulator smoke test exposed another brittle assertion: it expected exactly one draft and inspected the first result, although the integration scenario has created additional drafts.
 - The test now finds the original draft by its ID and checks that its subject update persisted and that the record remains draft-only. It no longer assumes the collection has exactly one item or a particular ordering.
 - Full CI verification pending. Continue on `development/chatgpt-mvp` only; no production deployment or automatic outreach sending.
+
+
+## Remove fixed-total assumptions from pagination smoke tests — 2026-10-20
+
+- CI run [39340002191](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39340002191) passed frontend typecheck, 224 unit tests, production build, and Firebase Functions tests/build, but the emulator smoke test failed because it expected exactly one record on the second lead page. The scenario already contains additional valid lead records.
+- Updated lead, campaign, and outreach-draft pagination assertions to validate non-empty later pages, absence of duplicate IDs, and a total beyond the 100-record page limit without assuming the test fixture contains an exact total. The checks still require the final page to report no further cursor.
+- Awaiting full CI rerun for verification. Changes remain limited to `development/chatgpt-mvp`; no Firebase deployment or automated outreach sending.
