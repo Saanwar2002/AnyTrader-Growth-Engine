@@ -95,7 +95,7 @@ export const listMyOrganisations = onCall(async (request) => {
     if (!organisation.exists) return null;
     const membership = membershipDoc.data();
     const role = membership.role;
-    if (membership.uid !== uid || (role !== "owner" && role !== "admin" && role !== "member" && role !== "viewer")) return null;
+    if (membershipDoc.id !== uid || membership.uid !== uid || (role !== "owner" && role !== "admin" && role !== "member" && role !== "viewer")) return null;
     return { organisationId: organisation.id, name: organisation.data()?.name ?? "Unnamed organisation", role };
   }));
   const hasMoreOrganisations = memberships.size > 100;
