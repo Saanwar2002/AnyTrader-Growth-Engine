@@ -1,3 +1,8 @@
+## Organisation-list quota fixture validation fix — 2026-10-20
+
+- CI run [39408134212](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39408134212) passed Functions tests/build but the emulator smoke test failed before asserting the new quota: the local-only seeder rejected the special `global` bucket used for the cross-organisation listing quota.
+- Updated the seeder's organisation-key guard to allow the exact `global` sentinel while continuing to validate ordinary organisation IDs and restricting the operation allowlist. Re-running CI to verify the regression.
+
 ## Organisation-list read quota coverage — 2026-10-20
 
 - CI for commit `c71f984babd413200c9d9851fd7e5b3a88d5d3fa` passed both Firebase Functions and frontend jobs (run [39406076932](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39406076932)).

@@ -9,7 +9,7 @@ if (projectId !== "demo-growth-engine-test" || !emulatorHost || !/^(127\.0\.0\.1
   throw new Error("Refusing to seed a rate-limit fixture outside the local demo Firestore emulator.");
 }
 const [organisationId, uid, operation, state = "exhausted"] = process.argv.slice(2);
-if (!/^[A-Za-z0-9_-]{1,128}$/.test(organisationId ?? "")
+if (!(organisationId === "global" || /^[A-Za-z0-9_-]{1,128}$/.test(organisationId ?? ""))
   || !/^[A-Za-z0-9_-]{1,128}$/.test(uid ?? "")
   || !["updateLeadNotes", "listLeads"].includes(operation)
   || !["exhausted", "invalid", "boundary"].includes(state)) {
