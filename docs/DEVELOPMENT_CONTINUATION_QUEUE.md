@@ -1,3 +1,9 @@
+## Invalid persisted rate-limit state integration regression — 2026-10-20
+
+- Extended the local emulator quota regression to seed both an exhausted quota and a malformed persisted counter for `updateLeadNotes`.
+- The expected behavior is `functions/resource-exhausted` for the exhausted counter and `functions/failed-precondition` for malformed state; both rejected calls must leave the lead unchanged.
+- The seeder remains restricted to the local demo Firestore emulator and the fixed operation. CI verification is pending.
+
 ## Rate-limit boundary regression correction 3 — 2026-10-20
 
 - CI run `39399726469` confirmed the seeded quota was enforced and logged `resource-exhausted`, but the final no-side-effect assertion searched `lead.leadId` instead of the API's `lead.id`, so it could not find the unchanged record.

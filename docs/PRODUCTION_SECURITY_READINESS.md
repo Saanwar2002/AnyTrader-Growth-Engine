@@ -55,3 +55,7 @@ Keep this in synthetic-data development/demo use until the blocking items are im
 - Follow-up fixture correction: `listLeads` returns the document identifier as `id`; the integration test now passes that field to `updateLeadNotes`. Verification is pending CI.
 
 - Follow-up assertion correction: post-call lookup now uses `listLeads`'s `id` field consistently. The prior run confirmed quota enforcement but failed to locate the record for the no-side-effect assertion; correction pending CI.
+
+## Invalid rate-limit state regression
+
+- The emulator smoke suite now checks both an exhausted quota and malformed persisted counter state. Expected results: `resource-exhausted` and fail-closed `failed-precondition`, respectively, with no mutation side effects. CI verification is pending.

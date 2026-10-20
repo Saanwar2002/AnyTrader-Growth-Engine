@@ -971,6 +971,7 @@ try {
     orgOne.organisationId,
     first.auth.currentUser.uid,
     "updateLeadNotes",
+    "exhausted",
   ], { stdio: "inherit" });
   await expectCallableFailure(
     callOne("updateLeadNotes", {
@@ -981,10 +982,26 @@ try {
     "functions/resource-exhausted",
     "mutation rejected at the persisted rate-limit boundary",
   );
+  execFileSync(process.execPath, [
+    "functions/scripts/seed-emulator-rate-limit.mjs",
+    orgOne.organisationId,
+    first.auth.currentUser.uid,
+    "updateLeadNotes",
+    "invalid",
+  ], { stdio: "inherit" });
+  await expectCallableFailure(
+    callOne("updateLeadNotes", {
+      organisationId: orgOne.organisationId,
+      leadId: quotaLeadBefore.id,
+      notes: "This update must fail closed on malformed quota state",
+    }),
+    "functions/failed-precondition",
+    "mutation rejected when persisted rate-limit state is malformed",
+  );
   const afterQuotaTest = await callOne("listLeads", { organisationId: orgOne.organisationId });
   const quotaLeadAfter = afterQuotaTest.leads.find((lead) => lead.id === quotaLeadBefore.id);
-  assert.equal(quotaLeadAfter?.notes, quotaLeadBefore.notes, "rate-limited mutation must not change the lead");
-  console.log("PASS: exhausted transactional quota rejects the mutation without changing protected data.");
+  assert.equal(quotaLeadAfter?.notes, quotaLeadBefore.notes, "rejected quota mutations must not change the lead");
+  console.log("PASS: exhausted and malformed transactional quota states reject mutations without changing protected data.");
 
   await signOut(first.auth);
   await expectCallableFailure(callOne("listMyOrganisations"), "functions/unauthenticated", "unauthenticated callable denial");
