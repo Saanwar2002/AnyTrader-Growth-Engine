@@ -2,7 +2,7 @@
 
 - Updated updateLeadContact to return the server's resulting doNotContact, contactReviewStatus, and contactRestrictionVerified values alongside the edited fields.
 - This makes the callable response reflect when an email, phone, or website edit has reset review to pending, and when a metadata-only edit preserves a valid clearance. Updated the frontend API response type and added emulator assertions for both paths.
-- CI verification pending. Synthetic emulator coverage only; no deployment and no automated outreach sending.
+- CI run [39395349806](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39395349806) passed both jobs for commit `0f7240c13e871e5eefc519731c8f918e31d87c21`: frontend typecheck/tests/build and Firebase Functions tests/build with emulator integration. Synthetic emulator coverage only; no deployment and no automated outreach sending.
 
 ## Contact-review metadata-edit regression added — 2026-10-20
 
@@ -96,18 +96,24 @@ This is a source-inspection work queue, not a certification or test report.
 - The emulator smoke script checks a suppression restriction added after draft creation, including list warning and server-side rejection of draft edits. It checks that one organisation cannot list another organisation's leads, campaigns, or outreach drafts, create a lead using another organisation's campaign, or create/update/delete a draft using another organisation's records.
 - Draft creation and editing now verify that the lead's campaign document exists within the same organisation, and fail closed if the campaign reference is missing.
 
-## Work required before Firebase connection
-1. Run the full frontend typecheck, unit tests and production build. In an isolated remote workspace, the current Functions TypeScript build completed successfully, but the Functions unit test runner terminated with `Bus error`; no test assertions completed. The workspace default Node version is 20 while the Functions package requires Node 22, so repeat under a stable Node 22 environment.
-2. Add emulator integration coverage for missing lead records and malformed/missing `doNotContact` values, and run a 101+ membership pagination test.
-3. Run the expanded cross-tenant draft/lead checks in the emulator and verify campaign-reference validation.
-4. Resolve the existing emulator transaction timeout and run the complete integration suite.
-5. Review Firestore rules and environment configuration before deploying to a dedicated Firebase project.
+## Verification status as of 2026-10-20
 
-## Known limitations
-- End-to-end tenant isolation is not yet verified because the emulator suite did not complete successfully.
-- No dedicated Firebase project is configured or deployed.
-- Do not use real provider/customer data until the security and integration checks pass.
-- Organisation listing is cursor-paginated in source, but the implementation still needs runtime tests with more than 100 memberships and verification that Firestore accepts the collection-group cursor as expected. No typecheck, unit test, build, or emulator run has been completed for the latest pagination commits.
+The previous “Work required before Firebase connection” checklist is historical and has now been exercised in CI on the isolated development branch:
+
+- [x] Frontend typecheck, unit tests, and production build pass in CI.
+- [x] Firebase Functions authorization unit tests and TypeScript build pass in CI.
+- [x] Emulator integration passes in CI, including cross-tenant access checks, suppression/contact-review gates, campaign-reference checks, malformed contact restrictions, and 105+ pagination fixtures for organisations, campaigns, leads, and drafts.
+- [x] Foreign-organisation pagination cursors are rejected; malformed organisation owner membership records fail closed.
+- [x] The emulator smoke test runs in the dedicated demo project ID against local emulators only.
+
+Latest verification: CI run [39395349806](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39395349806) passed both jobs for commit `0f7240c13e871e5eefc519731c8f918e31d87c21`.
+
+## Remaining blockers and limitations
+
+- **Not production ready.** App Check is not enforced; the separate Growth Engine Firebase project and valid app/provider configuration are still prerequisites.
+- Server-side per-user/per-organisation rate limiting, monitoring, budget alerts, retention/deletion/offboarding, backups, and recovery procedures remain to be implemented or operationally verified.
+- Provider terms, contact permissions, privacy, and marketing requirements must be reviewed before any outreach use.
+- Keep using synthetic data only. Do not connect production AnyTrader data, deploy to a public production environment, or enable automatic outreach. Outreach remains draft-only.
 
 ## Latest security audit updates
 - The shared `requireMembership` guard now validates that the membership document's stored UID matches the authenticated caller and that the role is one of `owner`, `admin`, `member`, or `viewer`. Malformed membership records fail closed.
