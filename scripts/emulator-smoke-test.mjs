@@ -436,6 +436,12 @@ try {
     "failed clearance preserves the stricter suppression");
   assert.equal(afterBlockedClearAttempt?.contactReviewStatus, "blocked",
     "failed clearance preserves blocked status");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-no-lead-activity.mjs",
+    orgOne.organisationId,
+    malformedRevisionLead.leadId,
+    "Lead contact restriction removed",
+  ], { stdio: "inherit" });
 
   await expectCallableFailure(callOne("createOutreachDraft", {
     organisationId: orgOne.organisationId,
