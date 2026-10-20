@@ -1136,7 +1136,31 @@ try {
   console.log("PASS: exhausted and malformed transactional quota states reject mutations without changing protected data.");
 
   await signOut(first.auth);
-  await expectCallableFailure(callOne("listMyOrganisations"), "functions/unauthenticated", "unauthenticated callable denial");
+  const unauthenticatedCallableNames = [
+    "listMyOrganisations",
+    "createOrganisation",
+    "createCampaign",
+    "listCampaigns",
+    "updateCampaignStatus",
+    "listLeads",
+    "createLead",
+    "updateLeadContact",
+    "updateLeadStatus",
+    "updateLeadNotes",
+    "setLeadSuppression",
+    "createOutreachDraft",
+    "listOutreachDrafts",
+    "updateOutreachDraft",
+    "deleteOutreachDraft",
+  ];
+  for (const callableName of unauthenticatedCallableNames) {
+    await expectCallableFailure(
+      callOne(callableName, {}),
+      "functions/unauthenticated",
+      `unauthenticated denial for ${callableName}`,
+    );
+  }
+  console.log(`PASS: all ${unauthenticatedCallableNames.length} callable exports reject unauthenticated requests before validating payloads or accessing tenant data.`);
   console.log("PASS: emulator smoke checks verified organisation isolation, unauthenticated denial, default Firestore client denial, suppression gates, and draft-only create/update/delete.");
 } finally {
   await Promise.all(apps.map((app) => deleteApp(app).catch(() => undefined)));

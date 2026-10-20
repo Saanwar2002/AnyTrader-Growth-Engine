@@ -1,3 +1,10 @@
+## Runtime authentication coverage for every callable — 2026-10-20
+
+- Expanded emulator smoke coverage from a single unauthenticated listing check to all 15 exported callable handlers.
+- Each callable is invoked after signing out with an empty payload and must return `functions/unauthenticated`. This verifies authentication rejection occurs before payload-specific validation, tenant reads, or mutations across read and write surfaces.
+- Source-level guard also checks every callable explicitly requires the caller UID before its rate limiter and uses its own operation-specific quota key. Full CI verification pending.
+- Production remains blocked on separate-project App Check configuration/enforcement, deployed alerts, quota calibration, Firestore TTL configuration, and privacy/operational readiness.
+
 ## Verify malformed persisted read-quota state fails closed — 2026-10-20
 
 - Added an emulator smoke regression that seeds a malformed listLeads quota document and verifies the callable rejects with functions/failed-precondition, matching the fail-closed contract already covered for mutations.
