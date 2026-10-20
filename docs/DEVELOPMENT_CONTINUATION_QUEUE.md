@@ -1,3 +1,12 @@
+## Cross-organisation pagination cursor tests verified — 2026-10-20
+
+- Corrected the smoke-test ordering in commit `d4a90c470f7e944de621823719782219e697d98d`.
+- CI run [39393304067](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39393304067) passed both jobs: frontend typecheck/tests/build and Firebase Functions tests/build with emulator integration.
+- Campaign, lead, and outreach-draft list calls now exercise rejection of foreign-organisation cursor paths after the second synthetic organisation exists. Cursor-only target IDs ensure the assertion tests path scoping before target lookup.
+- Continue only on `development/chatgpt-mvp`. No production Firebase deployment; outreach remains draft-only.
+
+
+
 ## Cross-organisation cursor smoke-test ordering correction — 2026-10-20
 
 - CI run [39393008760](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39393008760) passed frontend typecheck, all 250 frontend/unit tests, build, and Firebase Functions tests/build, but emulator integration failed because the new cross-organisation cursor assertions referenced `orgTwo` before its declaration.
