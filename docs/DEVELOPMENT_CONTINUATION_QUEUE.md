@@ -1,3 +1,9 @@
+## Extend contacted-status integration coverage for malformed contact restrictions — 2026-10-20
+
+- Added emulator assertions that leads with a missing `doNotContact` value or malformed string value cannot be transitioned to `contacted`, even when legacy review metadata says `cleared` and the referenced campaign exists.
+- The backend already uses an explicit-false contact gate; this batch adds direct callable regression coverage so the safety property is tested end-to-end, not only through pure helper tests or draft creation.
+- Verification pending CI. Keep the change on `development/chatgpt-mvp`; no production Firebase deployment and no outreach sending.
+
 ## Successful CI verification — 2026-10-20
 
 - CI run [39379763922](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39379763922) completed successfully for commit `3747dfe4f18c022d887ea795fde19a4ebbe7ddc0` on `development/chatgpt-mvp`. Both jobs passed: frontend typecheck/unit tests/production build plus emulator smoke tests, and Firebase Functions authorization tests/build.

@@ -654,6 +654,16 @@ try {
     subject: "Malformed restriction must block",
     body: "Must not be created with a malformed restriction",
   }), "functions/failed-precondition", "draft creation for a lead with a malformed doNotContact value");
+  await expectCallableFailure(callOne("updateLeadStatus", {
+    organisationId: orgOne.organisationId,
+    leadId: "legacy-missing-restriction-lead",
+    status: "contacted",
+  }), "functions/failed-precondition", "marking a lead with a missing doNotContact value contacted");
+  await expectCallableFailure(callOne("updateLeadStatus", {
+    organisationId: orgOne.organisationId,
+    leadId: "legacy-malformed-restriction-lead",
+    status: "contacted",
+  }), "functions/failed-precondition", "marking a lead with a malformed doNotContact value contacted");
   assert.ok(missingRestrictionLegacyDraft, "legacy draft with missing contact restriction remains visible for review");
   assert.equal(missingRestrictionLegacyDraft.requiresReview, true, "missing contact restriction requires review");
   assert.match(missingRestrictionLegacyDraft.reviewReason, /restriction could not be verified/i);
