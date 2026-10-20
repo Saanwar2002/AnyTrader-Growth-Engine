@@ -1,3 +1,10 @@
+## Cross-organisation pagination cursor rejection — 2026-10-20
+
+- CI run [39388129286](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39388129286) passed both jobs for commit `02b359d269184b0266065423f826f07765cf1c53`, including organisation, campaign, lead, and outreach-draft pagination over 100 synthetic records.
+- Added emulator assertions that a syntactically valid campaign, lead, or draft cursor belonging to a different organisation is rejected with `functions/invalid-argument` when used against the first organisation.
+- This is regression coverage for tenant boundaries in pagination; verification of the new assertions is pending CI.
+- Keep this branch isolated; no production Firebase deployment, real provider/customer data, or automated outreach.
+
 ## Tenant-scoped collection pagination integration coverage — 2026-10-20
 
 - Latest CI run [39387266054](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39387266054) passed both jobs for commit `f573beae04e37d9a94b0a7d0f196d6c60edbe876`, including the 105-organisation pagination emulator test.
