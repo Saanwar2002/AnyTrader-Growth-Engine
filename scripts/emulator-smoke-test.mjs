@@ -112,8 +112,24 @@ try {
   const leadOne = await callOne("createLead", { organisationId: orgOne.organisationId, campaignId: campaignOne.campaignId, businessName: "Synthetic Test Painting Ltd", category: "Painters", location: "Manchester", email: "hello@example.test" });
   assert.equal(leadOne.doNotContact, true, "new leads must remain blocked pending review");
   assert.equal(leadOne.contactReviewStatus, "pending", "new leads must expose a distinct pending-review state");
+  const statusBeforeRejectedUpdates = (await callOne("listLeads", { organisationId: orgOne.organisationId }))
+    .leads.find((lead) => lead.id === leadOne.leadId)?.status;
+  const quotaBeforeRejectedLeadStatusUpdates = currentQuotaCount("updateLeadStatus");
   await expectCallableFailure(callOne("updateLeadStatus", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, status: "contacted" }), "functions/failed-precondition", "pending review contacted-status gate");
   await expectCallableFailure(callOne("updateLeadStatus", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, status: "sent" }), "functions/failed-precondition", "unknown lead lifecycle status rejected");
+  assert.equal(currentQuotaCount("updateLeadStatus"), quotaBeforeRejectedLeadStatusUpdates,
+    "rejected lead status transitions do not consume status-update quota");
+  for (const status of ["contacted", "sent"]) {
+    execFileSync(process.execPath, [
+      "functions/scripts/assert-emulator-no-lead-activity.mjs",
+      orgOne.organisationId,
+      leadOne.leadId,
+      `Lead status changed to ${status}`,
+    ], { stdio: "inherit" });
+  }
+  const afterRejectedLeadStatusUpdates = await callOne("listLeads", { organisationId: orgOne.organisationId });
+  assert.equal(afterRejectedLeadStatusUpdates.leads.find((lead) => lead.id === leadOne.leadId)?.status,
+    statusBeforeRejectedUpdates, "rejected lead status transitions preserve the stored lifecycle status");
   await expectCallableFailure(callOne("updateLeadContact", {
     organisationId: orgOne.organisationId,
     leadId: leadOne.leadId,
