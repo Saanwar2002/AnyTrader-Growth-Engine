@@ -943,3 +943,11 @@ Continue the callable authorization audit and integration-test reliability work;
 - Updated the emulator smoke test to create a dedicated synthetic lead immediately before the viewer denial check. The test now asserts no matching activity exists for that lead and verifies its default restriction remains enabled after the denied request.
 - Next batch: test contact-review transitions when contact channels change, confirm a blocked restriction stays blocked, and verify failed or conflicting updates cannot clear restrictions or create misleading activity.
 - CI must pass before this regression is considered closed. All work remains on `development/chatgpt-mvp`; no production deployment or automated outreach sending.
+
+
+## Verify rejected contact edits have no side effects — 2026-10-20
+
+- Added an emulator regression using a dedicated synthetic lead: an update with a malformed email must fail with `functions/invalid-argument`, preserve the original email and pending contact restriction, and create no `Lead contact details updated` activity entry.
+- The prior viewer-suppression and blocked-contact-edit batch passed both CI jobs, including Firebase emulator integration, in run [39446877030](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39446877030).
+- Current change awaits CI. Next: inspect whether contact review and channel edits are transactionally serialized under concurrent requests; use deterministic emulator checks where feasible and avoid claiming race coverage without a reproducible test.
+- Work remains on `development/chatgpt-mvp`; no production deployment or automated outreach sending.
