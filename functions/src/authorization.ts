@@ -85,6 +85,23 @@ export function normaliseContactReviewStatus(doNotContact: unknown, contactRevie
   return "pending";
 }
 
+/** Reject unsafe or ambiguous schemes in user-supplied website fields. Bare domains remain supported. */
+export function isSafeWebsiteAddress(value: string): boolean {
+  if (value === "") return true;
+  if (/[\u0000-\u001F\u007F\\]/.test(value) || /^\s*\/\//.test(value)) return false;
+  const scheme = value.match(/^([a-z][a-z0-9+.-]*):/i)?.[1]?.toLowerCase();
+  if (scheme && scheme !== "http" && scheme !== "https") return false;
+  if (scheme) {
+    try {
+      const parsed = new URL(value);
+      return (parsed.protocol === "http:" || parsed.protocol === "https:") && Boolean(parsed.hostname);
+    } catch {
+      return false;
+    }
+  }
+  return !/\s/.test(value);
+}
+
 export function isValidEmailAddress(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }

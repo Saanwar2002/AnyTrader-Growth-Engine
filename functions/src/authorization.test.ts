@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateLeadCompleteness, canChangeSuppression, canMarkLeadContacted, canCreateServerOutreachDraft, canTransitionLeadStatus, getOutreachDraftReviewState, hasCampaignWritePermission, hasLeadWritePermission, isValidCampaignStatus, isValidDocumentId, isValidEmailAddress, isValidLeadStatus, isValidOrganisationId, isValidOrganisationPageToken, isValidOrganisationCollectionPageToken, isValidMembershipRecord, isValidMembershipForOrganisation, isValidFirestoreTimestamp, normaliseContactReviewStatus, hasConsistentDraftCampaign, normaliseOptionalText, normaliseRequiredText } from "./authorization";
+import { calculateLeadCompleteness, canChangeSuppression, canMarkLeadContacted, canCreateServerOutreachDraft, canTransitionLeadStatus, getOutreachDraftReviewState, hasCampaignWritePermission, hasLeadWritePermission, isValidCampaignStatus, isValidDocumentId, isValidEmailAddress, isValidLeadStatus, isValidOrganisationId, isValidOrganisationPageToken, isValidOrganisationCollectionPageToken, isValidMembershipRecord, isValidMembershipForOrganisation, isValidFirestoreTimestamp, normaliseContactReviewStatus, hasConsistentDraftCampaign, normaliseOptionalText, normaliseRequiredText, isSafeWebsiteAddress } from "./authorization";
 
 describe("server authorization input guards", () => {
   it("trims required text and rejects missing, non-string, blank, and overlong values", () => {
@@ -100,6 +100,23 @@ describe("server outreach safeguards", () => {
     expect(canCreateServerOutreachDraft("false")).toBe(false);
     expect(canCreateServerOutreachDraft("true")).toBe(false);
     expect(canCreateServerOutreachDraft(null)).toBe(false);
+  });
+
+  it.each(["https://example.test", "http://example.test/path", "www.example.test", "example.test", ""])(
+    "accepts ordinary website values: %s",
+    (value) => expect(isSafeWebsiteAddress(value)).toBe(true),
+  );
+
+  it.each([
+    "javascript:alert(1)",
+    "data:text/html,hello",
+    "vbscript:msgbox(1)",
+    "file:///etc/passwd",
+    "ftp://example.test",
+    "//example.test/path",
+    "https://example.test/path with spaces",
+  ])("rejects unsafe or ambiguous website values: %s", (value) => {
+    expect(isSafeWebsiteAddress(value)).toBe(false);
   });
 
   it("rejects malformed email addresses before persistence", () => {

@@ -14,6 +14,7 @@ import {
   isValidCampaignStatus,
   isValidDocumentId,
   isValidEmailAddress,
+  isSafeWebsiteAddress,
   isValidOrganisationId,
   isValidOrganisationPageToken,
   isValidOrganisationCollectionPageToken,
@@ -99,6 +100,9 @@ function normaliseLeadFields(data: Record<string, unknown>) {
   const phone = normaliseOptionalText(data.phone, 80);
   if (!businessName || category === null || location === null || website === null || email === null || phone === null) {
     throw new HttpsError("invalid-argument", "Lead fields are missing or exceed their allowed length.");
+  }
+  if (website && !isSafeWebsiteAddress(website)) {
+    throw new HttpsError("invalid-argument", "Lead website must be a safe HTTP(S) URL or a plain domain.");
   }
   if (email && !isValidEmailAddress(email)) {
     throw new HttpsError("invalid-argument", "Lead email address is not valid.");

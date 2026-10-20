@@ -531,3 +531,11 @@ Continue the callable authorization audit and integration-test reliability work;
 - Audit found 15 callable exports in `functions/src/index.ts` and no `enforceAppCheck` options. Existing server-side authentication, membership, role checks, and tenant isolation remain essential but do not replace App Check.
 - Added `docs/PRODUCTION_SECURITY_READINESS.md` documenting App Check enforcement as a blocker, plus rate limiting, monitoring, privacy/retention, and recovery requirements.
 - Do not deploy publicly until the separate Growth Engine Firebase project is configured and these controls are implemented and verified.
+
+
+## Reject unsafe website schemes in lead data — 2026-10-20
+
+- Added server-side validation for lead website fields. Empty optional values and ordinary domains/HTTP(S) URLs remain accepted; custom schemes such as `javascript:`, `data:`, `vbscript:`, `file:`, FTP, protocol-relative URLs, control characters, backslashes, and whitespace-ambiguous URLs are rejected.
+- `normaliseLeadFields` applies the check before persistence for both lead creation and contact-detail edits, returning `invalid-argument` for unsafe input.
+- Added unit coverage for accepted common values and rejected unsafe/ambiguous cases. This input-hardening change does not imply public-production readiness. App Check, rate limiting, monitoring, and the separate Firebase project remain blockers.
+- Commit is on `development/chatgpt-mvp` only. Verify the next CI run before beginning another commit batch.
