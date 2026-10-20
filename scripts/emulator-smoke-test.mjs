@@ -254,6 +254,8 @@ try {
   assert.equal(metadataEditedLead?.contactReviewStatus, "cleared", "metadata-only edits do not unnecessarily reset contact review");
   assert.equal(metadataEditedLead?.contactRestrictionVerified, true, "metadata-only edits preserve verified restriction state");
 
+  // A clearance decision tied to an old contact revision must not clear a newer channel edit.
+  const revisionBeforeEmailChange = await currentContactReviewRevision(leadOne.leadId);
   // Changing a contact channel invalidates the previous review clearance.
   const changedEmailResponse = await callOne("updateLeadContact", {
     organisationId: orgOne.organisationId,
@@ -270,6 +272,18 @@ try {
   const changedContactLead = changedContactLeadList.leads.find((lead) => lead.id === leadOne.leadId);
   assert.equal(changedContactLead?.doNotContact, true, "changing a contact channel re-applies the contact restriction");
   assert.equal(changedContactLead?.contactReviewStatus, "pending", "changing a contact channel requires fresh review");
+  assert.equal(changedContactLead?.contactReviewRevision, revisionBeforeEmailChange + 1,
+    "changing an email increments the contact-review revision");
+  await expectCallableFailure(callOne("setLeadSuppression", {
+    organisationId: orgOne.organisationId,
+    leadId: leadOne.leadId,
+    doNotContact: false,
+    contactReviewRevision: revisionBeforeEmailChange,
+  }), "functions/failed-precondition", "stale review revision cannot clear a changed contact channel");
+  const afterStaleClearAttempt = await callOne("listLeads", { organisationId: orgOne.organisationId });
+  const leadAfterStaleClear = afterStaleClearAttempt.leads.find((lead) => lead.id === leadOne.leadId);
+  assert.equal(leadAfterStaleClear?.doNotContact, true, "stale clearance leaves the lead suppressed");
+  assert.equal(leadAfterStaleClear?.contactReviewStatus, "pending", "stale clearance leaves review pending");
   await expectCallableFailure(callOne("createOutreachDraft", {
     organisationId: orgOne.organisationId,
     leadId: leadOne.leadId,
