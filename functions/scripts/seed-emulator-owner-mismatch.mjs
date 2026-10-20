@@ -50,4 +50,19 @@ await db.doc("organisations/owner-mismatch-org/outreachDrafts/fixture-draft").se
   status: "draft",
   createdAt: new Date(),
 });
+
+await db.doc("organisations/owner-missing-metadata-org").set({
+  name: "Synthetic missing owner metadata fixture",
+  createdAt: new Date(),
+});
+await db.doc(`organisations/owner-missing-metadata-org/members/${uid}`).set({
+  uid,
+  role: "owner",
+  createdAt: new Date(),
+});
+await db.doc("organisations/owner-missing-metadata-org/campaigns/fixture-campaign").set({
+  name: "Synthetic campaign with missing owner metadata",
+  status: "active",
+  createdAt: new Date(),
+});
 console.log("Seeded emulator-only owner mismatch fixture.");

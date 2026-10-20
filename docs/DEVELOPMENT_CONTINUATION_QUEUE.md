@@ -471,3 +471,11 @@ Continue the callable authorization audit and integration-test reliability work;
 - CI run [39378222608](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39378222608) passed both frontend and Firebase Functions jobs for commit `a879136aad464cd9511c0e559f6d333720a698a0`.
 - Extended the synthetic owner-mismatch emulator fixture with a cleared lead and an unsent draft. Regression checks now cover every existing lead/campaign/draft mutation callable: campaign create/status update; lead create/contact/notes/status/suppression; draft create/edit/delete.
 - These calls must all reject the inconsistent owner membership with `permission-denied`. The fixture remains guarded to the local demo emulator and does not change production behavior.
+
+
+## Fail closed when authoritative owner metadata is missing — 2026-10-20
+
+- CI run [39378526947](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39378526947) passed both frontend and Firebase Functions jobs for the owner-mismatch write-callable coverage.
+- Follow-up integrity review adds a distinct synthetic organisation whose owner membership says `owner` but whose parent organisation has no `ownerUid`. This checks the missing-metadata case separately from an explicit conflicting UID.
+- Emulator smoke tests require campaign listing to fail with `permission-denied` and organisation listing to omit the organisation. The fixture remains restricted to the local demo emulator; no production data or deployment is involved.
+- Full CI verification is pending for this batch. Keep work on `development/chatgpt-mvp`; outreach remains draft-only.

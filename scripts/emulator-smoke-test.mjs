@@ -285,6 +285,19 @@ try {
     "owner membership conflicting with parent ownerUid is omitted",
   );
 
+  // Owner-role membership must also fail closed when authoritative ownerUid metadata is absent.
+  await expectCallableFailure(
+    callOne("listCampaigns", { organisationId: "owner-missing-metadata-org" }),
+    "functions/permission-denied",
+    "owner membership when parent ownerUid metadata is missing",
+  );
+  const missingOwnerMetadataOrganisations = await callOne("listMyOrganisations", {});
+  assert.equal(
+    missingOwnerMetadataOrganisations.organisations.some((item) => item.organisationId === "owner-missing-metadata-org"),
+    false,
+    "owner membership without parent ownerUid metadata is omitted",
+  );
+
   // The same corrupt owner membership must not authorise writes through either
   // the campaign or lead mutation paths, even though the child campaign exists.
   await expectCallableFailure(callOne("createCampaign", {
