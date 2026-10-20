@@ -1,3 +1,8 @@
+## Rejected missing-target request does not consume quota — 2026-10-20
+
+- Added an emulator regression that seeds the updateLeadNotes bucket one request below its limit, attempts to edit a nonexistent synthetic lead, confirms functions/not-found, then proves a valid edit can still consume the final slot.
+- This verifies target-existence failures occur before quota consumption and that rejected operations do not waste a legitimate user's remaining quota. Emulator-only, synthetic data; CI verification pending.
+
 ## Failed status update leaves legacy lead unchanged — 2026-10-20
 
 - Added an emulator regression that snapshots a synthetic legacy lead whose referenced campaign is missing, attempts to mark it contacted, confirms the callable fails with `functions/failed-precondition`, and re-reads the lead to prove its status was not mutated.

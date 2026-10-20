@@ -1142,6 +1142,32 @@ try {
   const quotaLeadAfter = afterQuotaTest.leads.find((lead) => lead.id === quotaLeadBefore.id);
   assert.equal(quotaLeadAfter?.notes, quotaLeadBefore.notes, "rejected quota mutations must not change the lead");
 
+  // A rejected request for a nonexistent target must not spend the final quota slot.
+  execFileSync(process.execPath, [
+    "functions/scripts/seed-emulator-rate-limit.mjs",
+    orgOne.organisationId,
+    first.auth.currentUser.uid,
+    "updateLeadNotes",
+    "boundary",
+  ], { stdio: "inherit" });
+  await expectCallableFailure(
+    callOne("updateLeadNotes", {
+      organisationId: orgOne.organisationId,
+      leadId: "nonexistent-synthetic-lead",
+      notes: "This must fail before consuming quota",
+    }),
+    "functions/not-found",
+    "notes update rejected for a nonexistent lead",
+  );
+  const survivingQuotaRequest = await callOne("updateLeadNotes", {
+    organisationId: orgOne.organisationId,
+    leadId: quotaLeadBefore.id,
+    notes: "Final quota slot remains available after a rejected missing-target request",
+  });
+  assert.equal(survivingQuotaRequest.leadId, quotaLeadBefore.id,
+    "a valid request can still consume the final quota slot after the failed request");
+  console.log("PASS: failed target validation does not consume the transactional mutation quota.");
+
   // Race several requests against the final available quota slot. Firestore transaction
   // conflicts must serialize consumption so exactly one mutation can spend that slot.
   const concurrentQuotaLeads = afterQuotaTest.leads.slice(0, 5);
