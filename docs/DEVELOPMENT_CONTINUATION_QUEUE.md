@@ -545,3 +545,10 @@ Continue the callable authorization audit and integration-test reliability work;
 
 - CI run [39385106975](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39385106975) caught a failing negative test: the WHATWG URL parser normalises spaces in HTTP(S) URLs, so the validator's scheme branch accepted a URL containing whitespace.
 - Tightened the shared validator to reject whitespace before scheme parsing, keeping ordinary trimmed domains and HTTP(S) URLs accepted. Re-run CI before further work.
+
+
+## Reject credential-bearing website URLs — 2026-10-20
+
+- CI run [39385432146](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39385432146) passed both frontend and Firebase Functions jobs for commit `be5c6ca6d73aecf2774b4eac4729a0952c309c98`, including emulator integration.
+- Continued the website-input audit: HTTP(S) URLs containing embedded username/password credentials can disguise the apparent destination (for example, `https://example.test@attacker.test/`). The server validator now rejects URLs with parsed username or password fields, and unit tests cover both userinfo patterns.
+- This remains a validation hardening change; it does not fetch URLs, verify business ownership, or enable outreach. Verify full CI for this commit before starting another batch. Keep work on `development/chatgpt-mvp`; App Check, rate limiting, monitoring, and a separate Firebase project remain production blockers.
