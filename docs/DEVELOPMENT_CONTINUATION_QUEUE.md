@@ -1,3 +1,10 @@
+## Transactional rate limiting for mutation callables — 2026-10-20
+
+- Added server-side fixed-window quotas scoped to user, organisation, and operation. Quota documents use a SHA-256 digest rather than storing identifiers in the document path.
+- Quotas are consumed in the same Firestore transaction as each protected mutation, so concurrent requests cannot race past the counter. Initial limits: organisation creation 5/hour; campaign creation 10/minute; campaign status 30/minute; lead creation/contact edits/suppression 60/minute; lead status/notes 120/minute; draft creation 20/minute; draft edits 30/minute; draft deletion 60/minute.
+- Malformed stored quota state fails closed; exhausted quotas return resource-exhausted. Added pure unit tests for window start, quota boundary, expiry, clock rollback, and malformed state.
+- CI verification pending. Limits are initial safeguards, not a substitute for monitoring, App Check, or provider-level abuse controls. No production deployment; outreach remains draft-only.
+
 ## Return authoritative contact-review state from lead edits — 2026-10-20
 
 - Updated updateLeadContact to return the server's resulting doNotContact, contactReviewStatus, and contactRestrictionVerified values alongside the edited fields.

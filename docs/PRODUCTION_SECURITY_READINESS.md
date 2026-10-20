@@ -21,7 +21,7 @@ Audit on 2026-10-20 found 15 callable exports in `functions/src/index.ts` and ze
 - [ ] Keep authentication, authorisation, and tenant isolation checks. App Check does not replace them.
 
 ## Abuse and operational controls
-- [ ] Add server-side per-user and per-organisation rate limits for high-volume operations.
+- [x] Add initial server-side per-user/per-organisation fixed-window rate limits to organisation creation and campaign, lead, suppression, and outreach-draft mutations. Limits are enforced transactionally and fail closed on malformed persisted quota state. Remaining: calibrate limits against expected usage, add operational monitoring/alerts, and verify production behaviour before public release.
 - [ ] Monitor repeated denials, unusual request volume, errors, and unexpected costs.
 - [ ] Configure budget alerts and an operational response owner.
 - [ ] Define data retention, deletion, offboarding, backups, and recovery.
