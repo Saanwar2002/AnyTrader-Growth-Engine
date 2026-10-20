@@ -935,3 +935,11 @@ Continue the callable authorization audit and integration-test reliability work;
 - This is a regression guard against accidentally adding an unauthenticated callable. It does not replace per-organisation authorization checks or App Check, which remain separate controls.
 - Verify the next CI run before treating this guard as complete. Work remains on `development/chatgpt-mvp`; no deployment or automated outreach sending.
 
+
+
+## Isolate viewer contact-suppression regression fixture — 2026-10-20
+
+- CI exposed a false-positive in the no-side-effects assertion: the test reused a lead that already had a legitimate “Lead marked do not contact” activity from an earlier member operation. The assertion was checking historical activity, not just side effects of the viewer's rejected request.
+- Updated the emulator smoke test to create a dedicated synthetic lead immediately before the viewer denial check. The test now asserts no matching activity exists for that lead and verifies its default restriction remains enabled after the denied request.
+- Next batch: test contact-review transitions when contact channels change, confirm a blocked restriction stays blocked, and verify failed or conflicting updates cannot clear restrictions or create misleading activity.
+- CI must pass before this regression is considered closed. All work remains on `development/chatgpt-mvp`; no production deployment or automated outreach sending.
