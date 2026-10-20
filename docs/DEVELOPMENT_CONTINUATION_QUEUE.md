@@ -1,3 +1,9 @@
+## Failed contact-review operation leaves no activity-log entry — 2026-10-20
+
+- Added a guarded, read-only Admin SDK assertion against the local demo Firestore emulator.
+- After a synthetic missing-lead suppression attempt is rejected with functions/not-found, the test verifies there is no activity-log record for that lead ID. This protects audit history from claiming a review action occurred when the protected mutation failed.
+- The assertion refuses non-emulator/non-demo projects. Synthetic data only; no production deployment or outreach sending.
+
 ## Rejected legacy draft edit does not consume the final quota slot — 2026-10-20
 
 - Expanded the local-emulator-only quota fixture allowlist to seed the `updateOutreachDraft` boundary (119 of 120 requests used).
