@@ -95,7 +95,10 @@ export function isSafeWebsiteAddress(value: string): boolean {
   if (scheme) {
     try {
       const parsed = new URL(value);
-      return (parsed.protocol === "http:" || parsed.protocol === "https:") && Boolean(parsed.hostname);
+      return (parsed.protocol === "http:" || parsed.protocol === "https:")
+        && Boolean(parsed.hostname)
+        && parsed.username === ""
+        && parsed.password === "";
     } catch {
       return false;
     }
