@@ -701,3 +701,10 @@ Continue the callable authorization audit and integration-test reliability work;
 - Documented safe future TTL design and explicitly recorded that this repository does not configure a Firestore TTL policy. The expiry timestamp must be server-managed, tied to the actual quota window plus a safety grace period, and TTL must be configured and verified in the separate Firebase project.
 - The runbook now warns against deleting active quota documents because that resets the bucket and can bypass throttling. This is a documentation-only readiness improvement; it does not implement TTL or claim production readiness.
 - CI verification is pending for this documentation update.
+
+
+## Fixed-window rate-limit clock-rollback retry correction — 2026-10-20
+
+- Corrected the retry-after calculation when the server clock is earlier than the persisted window start. The quota remains blocked, and retry duration now reflects the full remaining time until the original window end rather than understating it by ignoring the clock offset.
+- Updated the unit regression to assert a 61,000 ms retry when the persisted window begins at 10,000 ms and evaluation occurs at 9,000 ms with a 60,000 ms window.
+- CI verification is pending for this change.

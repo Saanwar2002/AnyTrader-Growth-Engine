@@ -551,7 +551,7 @@ describe("server-side rate-limit evaluation", () => {
     expect(evaluateRateLimit({ windowStartedAtMs: 1000, count: 2 }, 61000, 2, 60000).nextState).toEqual({ windowStartedAtMs: 61000, count: 1 });
   });
   it("does not reset early when the local clock moves backwards", () => {
-    expect(evaluateRateLimit({ windowStartedAtMs: 10000, count: 2 }, 9000, 2, 60000)).toEqual({ allowed: false, invalidState: false, nextState: null, retryAfterMs: 60000 });
+    expect(evaluateRateLimit({ windowStartedAtMs: 10000, count: 2 }, 9000, 2, 60000)).toEqual({ allowed: false, invalidState: false, nextState: null, retryAfterMs: 61000 });
   });
   it.each([{ windowStartedAtMs: "1000", count: 1 }, { windowStartedAtMs: 1000, count: 0 }, { windowStartedAtMs: 1000, count: 4 }, { windowStartedAtMs: Number.NaN, count: 1 }, []])("fails closed on malformed persisted state", (state) => {
     expect(evaluateRateLimit(state, 2000, 3, 60000).invalidState).toBe(true);
