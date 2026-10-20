@@ -539,3 +539,9 @@ Continue the callable authorization audit and integration-test reliability work;
 - `normaliseLeadFields` applies the check before persistence for both lead creation and contact-detail edits, returning `invalid-argument` for unsafe input.
 - Added unit coverage for accepted common values and rejected unsafe/ambiguous cases. This input-hardening change does not imply public-production readiness. App Check, rate limiting, monitoring, and the separate Firebase project remain blockers.
 - Commit is on `development/chatgpt-mvp` only. Verify the next CI run before beginning another commit batch.
+
+
+## Website URL validation regression fix — 2026-10-20
+
+- CI run [39385106975](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39385106975) caught a failing negative test: the WHATWG URL parser normalises spaces in HTTP(S) URLs, so the validator's scheme branch accepted a URL containing whitespace.
+- Tightened the shared validator to reject whitespace before scheme parsing, keeping ordinary trimmed domains and HTTP(S) URLs accepted. Re-run CI before further work.

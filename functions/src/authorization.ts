@@ -89,6 +89,7 @@ export function normaliseContactReviewStatus(doNotContact: unknown, contactRevie
 export function isSafeWebsiteAddress(value: string): boolean {
   if (value === "") return true;
   if (/[\u0000-\u001F\u007F\\]/.test(value) || /^\s*\/\//.test(value)) return false;
+  if (/\s/.test(value)) return false;
   const scheme = value.match(/^([a-z][a-z0-9+.-]*):/i)?.[1]?.toLowerCase();
   if (scheme && scheme !== "http" && scheme !== "https") return false;
   if (scheme) {
