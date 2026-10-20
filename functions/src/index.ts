@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase-admin/app";
-import { FieldValue, getFirestore, type QueryDocumentSnapshot, type Transaction } from "firebase-admin/firestore";
+import { FieldValue, Timestamp, getFirestore, type QueryDocumentSnapshot, type Transaction } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import {
@@ -33,6 +33,8 @@ initializeApp();
 const db = getFirestore();
 
 const RATE_LIMIT_WINDOW_MS = 60000;
+// Keep expired quota buckets briefly for incident review, then allow optional Firestore TTL cleanup.
+const RATE_LIMIT_TTL_GRACE_MS = 5 * 60 * 1000;
 
 /** Consume a per-user, per-organisation quota in the protected mutation transaction. */
 async function consumeTransactionalRateLimit(transaction: Transaction, organisationId: string, uid: string, operation: string, maxRequests: number, windowMs = RATE_LIMIT_WINDOW_MS): Promise<void> {
@@ -59,7 +61,12 @@ async function consumeTransactionalRateLimit(transaction: Transaction, organisat
     });
     throw new HttpsError("resource-exhausted", `Too many ${operation} requests. Try again in about ${seconds} seconds.`);
   }
-  transaction.set(ref, { ...evaluation.nextState, updatedAt: FieldValue.serverTimestamp() });
+  transaction.set(ref, {
+    ...evaluation.nextState,
+    updatedAt: FieldValue.serverTimestamp(),
+    // TTL is storage cleanup only; the evaluator remains authoritative for quota enforcement.
+    expireAt: Timestamp.fromMillis(evaluation.nextState.windowStartedAtMs + windowMs + RATE_LIMIT_TTL_GRACE_MS),
+  });
 }
 
  

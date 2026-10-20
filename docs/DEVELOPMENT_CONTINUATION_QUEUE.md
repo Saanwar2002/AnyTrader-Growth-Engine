@@ -1,3 +1,10 @@
+## Rate-limit quota document lifecycle groundwork — 2026-10-20
+
+- The shared quota writer now sets a server-managed Firestore `expireAt` timestamp at the actual fixed-window end plus a five-minute grace period. Repeated requests preserve the same window-based expiry; a reset window advances it.
+- This is only lifecycle groundwork: the quota evaluator still enforces windows and fails closed on malformed state. Firestore TTL is not enabled by repository code and must be configured and verified separately in the intended Firebase project.
+- Corrected the runbook warning label to match the neutral `Rate limit exceeded` log message and updated the lifecycle instructions.
+- CI verification pending. No production deployment; App Check, alert policies, quota calibration, privacy and operational readiness remain release blockers.
+
 ## Clarify rate-limit log wording for read and mutation calls — 2026-10-20
 
 - The rate-limit helper is shared by all mutation and paginated read callables, so its warning message incorrectly labelled exhausted read quotas as mutation events.

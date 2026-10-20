@@ -5,7 +5,7 @@
 ## Signals
 
 The callable backend emits structured Cloud Functions logs for:
-- **Warning — `Mutation rate limit exceeded`:** a user/organisation/operation quota was exhausted. The event contains the operation, a SHA-256 quota key, quota/window settings and approximate retry duration.
+- **Warning — `Rate limit exceeded`:** a user/organisation/operation quota was exhausted. The event contains the operation, a SHA-256 quota key, quota/window settings and approximate retry duration.
 - **Error — `Rate-limit state validation failed`:** persisted state or quota configuration was invalid. The mutation fails closed with `failed-precondition`.
 
 The quota key is a hash of the organisation ID, user UID and operation. Do not attempt to identify a person from the hash alone. Events intentionally do not include raw user or organisation IDs.
@@ -45,7 +45,7 @@ Before production use, configure and verify:
 
 ## Rate-limit document lifecycle and safe cleanup
 
-**Current behavior:** each user/organisation/operation quota uses a stable hashed document under `rateLimits/{hash}`. The document is reused across windows and currently has no expiry field managed by the application. Consequently, the number of distinct quota documents can grow as new users, organisations, or operations appear. No Firestore TTL policy is configured by this repository.
+**Current behavior:** each user/organisation/operation quota uses a stable hashed document under `rateLimits/{hash}`. The document is reused across windows and now carries a server-managed `expireAt` timestamp set to the persisted window end plus a five-minute grace period. This bounds how long stale buckets remain eligible for TTL cleanup, but it does not delete anything by itself. No Firestore TTL policy is configured by this repository or in the separate Firebase project yet.
 
 **Do not delete an active quota document to recover from throttling.** Removing it resets that bucket to its first-request state and can bypass the configured quota. First establish that the stored window has expired according to the server-side evaluator, and preserve evidence before any operator cleanup.
 
