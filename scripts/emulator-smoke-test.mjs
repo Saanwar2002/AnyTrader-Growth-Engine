@@ -69,11 +69,11 @@ try {
       organisationId: orgOne.organisationId, leadId, doNotContact: false, contactReviewRevision,
     });
   }
-  function currentQuotaCount(operation = "setLeadSuppression") {
+  function currentQuotaCount(operation = "setLeadSuppression", uid = first.auth.currentUser.uid) {
     const output = execFileSync(process.execPath, [
       "functions/scripts/assert-emulator-rate-limit-count.mjs",
       orgOne.organisationId,
-      first.auth.currentUser.uid,
+      uid,
       operation,
     ], { encoding: "utf8" });
     const match = output.match(/COUNT:(\d+)/);
@@ -688,7 +688,18 @@ try {
   await expectCallableFailure(viewerCall("createLead", { organisationId: orgOne.organisationId, campaignId: campaignOne.campaignId, businessName: "Viewer denied lead" }), "functions/permission-denied", "viewer cannot create lead");
   await expectCallableFailure(viewerCall("updateLeadNotes", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, notes: "Viewer must not edit" }), "functions/permission-denied", "viewer cannot edit lead notes");
   await expectCallableFailure(viewerCall("createCampaign", { organisationId: orgOne.organisationId, name: "Viewer denied campaign", brand: "Example", category: "Painters", location: "Manchester", goal: "Role test" }), "functions/permission-denied", "viewer cannot create campaign");
-  await expectCallableFailure(viewerCall("updateCampaignStatus", { organisationId: orgOne.organisationId, campaignId: campaignOne.campaignId, status: "paused" }), "functions/permission-denied", "viewer cannot change campaign status");
+  const campaignStatusBeforeViewerAttempt = (await callOne("listCampaigns", { organisationId: orgOne.organisationId }))
+    .campaigns.find((campaign) => campaign.id === campaignOne.campaignId)?.status;
+  const viewerCampaignQuotaBefore = currentQuotaCount("updateCampaignStatus", viewer.auth.currentUser.uid);
+  await expectCallableFailure(viewerCall("updateCampaignStatus", {
+    organisationId: orgOne.organisationId, campaignId: campaignOne.campaignId, status: "paused",
+  }), "functions/permission-denied", "viewer cannot change campaign status");
+  assert.equal(currentQuotaCount("updateCampaignStatus", viewer.auth.currentUser.uid), viewerCampaignQuotaBefore,
+    "role-denied campaign status update does not consume the viewer's quota");
+  const campaignStatusAfterViewerAttempt = (await callOne("listCampaigns", { organisationId: orgOne.organisationId }))
+    .campaigns.find((campaign) => campaign.id === campaignOne.campaignId)?.status;
+  assert.equal(campaignStatusAfterViewerAttempt, campaignStatusBeforeViewerAttempt,
+    "role-denied campaign status update leaves the campaign unchanged");
   const viewerSuppressionLead = await callOne("createLead", {
     organisationId: orgOne.organisationId,
     campaignId: campaignOne.campaignId,
