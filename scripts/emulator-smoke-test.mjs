@@ -310,6 +310,39 @@ try {
     leadId: "fixture-lead",
     doNotContact: true,
   }), "functions/permission-denied", "suppression update with owner membership conflicting with parent ownerUid");
+  await expectCallableFailure(callOne("updateLeadContact", {
+    organisationId: "owner-mismatch-org",
+    leadId: "fixture-lead",
+    businessName: "Must be denied",
+    category: "Painters",
+    location: "Manchester",
+  }), "functions/permission-denied", "lead contact update with owner membership conflicting with parent ownerUid");
+  await expectCallableFailure(callOne("updateLeadNotes", {
+    organisationId: "owner-mismatch-org",
+    leadId: "fixture-lead",
+    notes: "Must be denied",
+  }), "functions/permission-denied", "lead notes update with owner membership conflicting with parent ownerUid");
+  await expectCallableFailure(callOne("updateLeadStatus", {
+    organisationId: "owner-mismatch-org",
+    leadId: "fixture-lead",
+    status: "qualified",
+  }), "functions/permission-denied", "lead status update with owner membership conflicting with parent ownerUid");
+  await expectCallableFailure(callOne("createOutreachDraft", {
+    organisationId: "owner-mismatch-org",
+    leadId: "fixture-lead",
+    subject: "Must be denied",
+    body: "Must not be created",
+  }), "functions/permission-denied", "draft creation with owner membership conflicting with parent ownerUid");
+  await expectCallableFailure(callOne("updateOutreachDraft", {
+    organisationId: "owner-mismatch-org",
+    draftId: "fixture-draft",
+    subject: "Must be denied",
+    body: "Must not be updated",
+  }), "functions/permission-denied", "draft update with owner membership conflicting with parent ownerUid");
+  await expectCallableFailure(callOne("deleteOutreachDraft", {
+    organisationId: "owner-mismatch-org",
+    draftId: "fixture-draft",
+  }), "functions/permission-denied", "draft deletion with owner membership conflicting with parent ownerUid");
 
   // Orphaned subcollections must not remain accessible after the organisation parent is deleted.
   execFileSync(process.execPath, [

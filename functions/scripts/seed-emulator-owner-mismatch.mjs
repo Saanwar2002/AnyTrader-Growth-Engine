@@ -28,4 +28,26 @@ await db.doc("organisations/owner-mismatch-org/campaigns/fixture-campaign").set(
   status: "active",
   createdAt: new Date(),
 });
+await db.doc("organisations/owner-mismatch-org/leads/fixture-lead").set({
+  campaignId: "fixture-campaign",
+  businessName: "Synthetic mismatch lead",
+  category: "Painters",
+  location: "Manchester",
+  website: "",
+  email: "",
+  phone: "",
+  notes: "",
+  status: "qualified",
+  doNotContact: false,
+  contactReviewStatus: "cleared",
+  createdAt: new Date(),
+});
+await db.doc("organisations/owner-mismatch-org/outreachDrafts/fixture-draft").set({
+  leadId: "fixture-lead",
+  campaignId: "fixture-campaign",
+  subject: "Synthetic draft",
+  body: "Never sent; authorization test fixture only.",
+  status: "draft",
+  createdAt: new Date(),
+});
 console.log("Seeded emulator-only owner mismatch fixture.");
