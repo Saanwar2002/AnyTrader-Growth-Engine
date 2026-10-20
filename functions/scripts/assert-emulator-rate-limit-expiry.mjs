@@ -13,7 +13,7 @@ const [organisationId, uid, operation] = process.argv.slice(2);
 if (!(organisationId === "global" || /^[A-Za-z0-9_-]{1,128}$/.test(organisationId ?? ""))
   || !/^[A-Za-z0-9_-]{1,128}$/.test(uid ?? "")
   || !["listMyOrganisations", "createOrganisation"].includes(operation)) {
-  throw new Error("Usage: node assert-emulator-rate-limit-expiry.mjs <global|organisation-id> <authenticated-uid> listMyOrganisations");
+  throw new Error("Usage: node assert-emulator-rate-limit-expiry.mjs <global|organisation-id> <authenticated-uid> <listMyOrganisations|createOrganisation>");
 }
 initializeApp({ projectId });
 const db = getFirestore();
