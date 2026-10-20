@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { calculateLeadCompleteness, canChangeSuppression, canMarkLeadContacted, canCreateServerOutreachDraft, canTransitionLeadStatus, getOutreachDraftReviewState, hasCampaignWritePermission, hasLeadWritePermission, isValidCampaignStatus, isValidDocumentId, isValidEmailAddress, isValidLeadStatus, isValidOrganisationId, isValidOrganisationPageToken, isValidOrganisationCollectionPageToken, isValidMembershipRecord, isValidMembershipForOrganisation, isValidFirestoreTimestamp, normaliseContactReviewStatus, hasConsistentDraftCampaign, normaliseOptionalText, normaliseRequiredText, isSafeWebsiteAddress, evaluateRateLimit, createRateLimitDocumentId } from "./authorization";
 
@@ -601,5 +602,25 @@ describe("rate-limit document key isolation", () => {
     expect(createRateLimitDocumentId("org-1", "other-user", "updateLeadNotes")).not.toBe(baseline);
     expect(createRateLimitDocumentId("org-1", "user:part", "createLead")).not.toBe(baseline);
     expect(createRateLimitDocumentId("org-1", "user", "part:updateLeadNotes")).not.toBe(baseline);
+  });
+});
+
+
+describe("callable rate-limit coverage guard", () => {
+  it("requires every exported callable to consume a server-side rate limit", () => {
+    const source = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
+    const callableStarts = [...source.matchAll(/export const ([A-Za-z][A-Za-z0-9]*) = onCall\\(/g)];
+    expect(callableStarts.length).toBeGreaterThan(0);
+
+    for (let index = 0; index < callableStarts.length; index += 1) {
+      const start = callableStarts[index].index ?? 0;
+      const end = callableStarts[index + 1]?.index ?? source.length;
+      const name = callableStarts[index][1];
+      const handlerSource = source.slice(start, end);
+      expect(
+        /consumeTransactionalRateLimit\\(|consumeReadRateLimit\\(/.test(handlerSource),
+        `callable ${name} must enforce a server-side rate limit`,
+      ).toBe(true);
+    }
   });
 });

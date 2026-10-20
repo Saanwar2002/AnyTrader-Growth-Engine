@@ -1,3 +1,8 @@
+## Guard against unthrottled callable additions — 2026-10-20
+
+- Added a Functions unit-test guard that discovers every exported `onCall` handler in `functions/src/index.ts` and fails if its handler body does not invoke the transactional mutation limiter or read limiter.
+- This is a regression guard against adding a new callable that accidentally bypasses server-side quota enforcement. It does not prove quota values are appropriate or replace runtime emulator coverage. CI verification pending.
+
 ## Verify expired mutation rate-limit bucket reset — 2026-10-20
 
 - Extended the emulator-only quota seeder to support the createOrganisation bucket, while keeping it restricted to the local demo emulator and fixed operation allowlist.
