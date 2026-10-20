@@ -832,3 +832,10 @@ Continue the callable authorization audit and integration-test reliability work;
 - Added a local-demo-only expired-bucket fixture for `listMyOrganisations` and extended the expiry assertion to verify the next successful call resets the counter to one and persists a fresh window start.
 - The emulator smoke test now exercises a stale bucket while its document still exists, proving the evaluator—not TTL deletion—controls expiry and that the read returns unchanged organisation data.
 - CI verification pending. TTL policy is still not configured in Firebase; production App Check and operational controls remain release blockers.
+
+
+## Reject unsafe millisecond values in pagination timestamp cursors — 2026-10-20
+
+- Tightened `isValidFirestoreTimestamp` to require a safe-integer millisecond value from `toMillis()`, rather than accepting any finite number.
+- Added unit regressions for normal and zero timestamps, missing/malformed values, thrown conversions, NaN/infinity, fractional milliseconds, and values outside JavaScript's safe-integer range.
+- This protects cursor validation for paginated campaigns, leads, and outreach drafts. CI verification pending; no production deployment.

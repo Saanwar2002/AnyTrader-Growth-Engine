@@ -589,6 +589,28 @@ describe("server-side rate-limit evaluation", () => {
 });
 
 
+describe("Firestore timestamp cursor validation", () => {
+  it("accepts finite safe-integer millisecond timestamps", () => {
+    expect(isValidFirestoreTimestamp({ toMillis: () => 1_700_000_000_000 })).toBe(true);
+    expect(isValidFirestoreTimestamp({ toMillis: () => 0 })).toBe(true);
+  });
+
+  it.each([
+    undefined,
+    null,
+    {},
+    { toMillis: 1 },
+    { toMillis: () => Number.NaN },
+    { toMillis: () => Number.POSITIVE_INFINITY },
+    { toMillis: () => 1.5 },
+    { toMillis: () => Number.MAX_SAFE_INTEGER + 1 },
+    { toMillis: () => { throw new Error("invalid timestamp"); } },
+  ])("rejects malformed timestamp-like values: %j", (value) => {
+    expect(isValidFirestoreTimestamp(value)).toBe(false);
+  });
+});
+
+
 describe("rate-limit document key isolation", () => {
   it("uses stable 64-character SHA-256 keys", () => {
     const key = createRateLimitDocumentId("org-1", "user-1", "updateLeadNotes");

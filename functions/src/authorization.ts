@@ -205,7 +205,9 @@ export function isValidFirestoreTimestamp(value: unknown): boolean {
   if (typeof timestamp.toMillis !== "function") return false;
   try {
     const milliseconds = (timestamp.toMillis as () => unknown).call(value);
-    return typeof milliseconds === "number" && Number.isFinite(milliseconds);
+    // Pagination cursors are persisted Firestore timestamps; reject fractional or unsafe
+    // millisecond values so malformed cursor data cannot create unstable ordering.
+    return typeof milliseconds === "number" && Number.isSafeInteger(milliseconds);
   } catch {
     return false;
   }
