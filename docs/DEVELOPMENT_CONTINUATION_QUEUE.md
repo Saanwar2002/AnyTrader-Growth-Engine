@@ -1,3 +1,9 @@
+## Rate-limit transaction ordering correction — 2026-10-20
+
+- CI run [39396886505](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39396886505) passed frontend typecheck, 259 unit tests, production build, and Functions unit tests/build, but emulator integration exposed that the quota helper queued a write before some protected callables finished reading their target documents.
+- Moved quota consumption to after all transaction reads and immediately before the protected mutation writes. This preserves atomic quota enforcement while respecting Firestore's read-before-write transaction requirement. Full CI rerun pending.
+- Remain on development/chatgpt-mvp; no production deployment or automated outreach sending.
+
 ## Transactional rate limiting for mutation callables — 2026-10-20
 
 - Added server-side fixed-window quotas scoped to user, organisation, and operation. Quota documents use a SHA-256 digest rather than storing identifiers in the document path.

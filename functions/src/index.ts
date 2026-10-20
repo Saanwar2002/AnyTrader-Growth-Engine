@@ -265,9 +265,9 @@ export const updateCampaignStatus = onCall(async (request) => {
   const campaignRef = db.collection("organisations").doc(organisationId).collection("campaigns").doc(campaignId);
   await db.runTransaction(async (transaction: Transaction) => {
     await requireTransactionalRole(transaction, organisationId, uid, "campaign");
-    await consumeTransactionalRateLimit(transaction, organisationId, uid, "updateCampaignStatus", 30);
     const campaignSnapshot = await transaction.get(campaignRef);
     if (!campaignSnapshot.exists) throw new HttpsError("not-found", "Campaign was not found in this organisation.");
+    await consumeTransactionalRateLimit(transaction, organisationId, uid, "updateCampaignStatus", 30);
     transaction.update(campaignRef, { status: data.status, updatedAt: FieldValue.serverTimestamp(), updatedBy: uid });
   });
   return { campaignId, status: data.status };
@@ -327,11 +327,11 @@ export const createLead = onCall(async (request) => {
   const now = FieldValue.serverTimestamp();
   await db.runTransaction(async (transaction: Transaction) => {
     await requireTransactionalRole(transaction, organisationId, uid, "lead");
-    await consumeTransactionalRateLimit(transaction, organisationId, uid, "createLead", 60);
     // Check campaign existence in the same transaction as lead creation so a
     // stale/deleted campaign cannot race past the precondition.
     const campaignSnapshot = await transaction.get(campaignRef);
     if (!campaignSnapshot.exists) throw new HttpsError("not-found", "Campaign was not found in this organisation.");
+    await consumeTransactionalRateLimit(transaction, organisationId, uid, "createLead", 60);
     transaction.create(lead, { ...fields, campaignId, status: "new", source: "manual", score: completeness.score, scoreReasons: completeness.reasons, notes: "", doNotContact: true, contactReviewStatus: "pending", createdBy: uid, createdAt: now, updatedAt: now });
     transaction.create(activity, { leadId: lead.id, actorUid: uid, message: `Lead created: ${fields.businessName}`, createdAt: now });
   });
@@ -355,7 +355,6 @@ export const updateLeadContact = onCall(async (request) => {
   } | undefined;
   await db.runTransaction(async (transaction: Transaction) => {
     await requireTransactionalRole(transaction, organisationId, uid, "lead");
-    await consumeTransactionalRateLimit(transaction, organisationId, uid, "updateLeadContact", 60);
     const leadSnapshot = await transaction.get(leadRef);
     if (!leadSnapshot.exists) throw new HttpsError("not-found", "Lead was not found in this organisation.");
     const now = FieldValue.serverTimestamp();
@@ -383,6 +382,7 @@ export const updateLeadContact = onCall(async (request) => {
         && existingLead.doNotContact === false
         && (existingLead.contactReviewStatus === undefined || existingLead.contactReviewStatus === "cleared"),
     };
+    await consumeTransactionalRateLimit(transaction, organisationId, uid, "updateLeadContact", 60);
     transaction.update(leadRef, { ...fields, ...restrictionUpdate, score: completeness.score, scoreReasons: completeness.reasons, updatedAt: now, updatedBy: uid });
     transaction.create(activity, { leadId, actorUid: uid, message: "Lead contact details updated", createdAt: now });
   });
@@ -400,7 +400,6 @@ export const updateLeadStatus = onCall(async (request) => {
   const activity = db.collection("organisations").doc(organisationId).collection("leadActivities").doc();
   await db.runTransaction(async (transaction: Transaction) => {
     await requireTransactionalRole(transaction, organisationId, uid, "lead");
-    await consumeTransactionalRateLimit(transaction, organisationId, uid, "updateLeadStatus", 120);
     const leadSnapshot = await transaction.get(leadRef);
     if (!leadSnapshot.exists) throw new HttpsError("not-found", "Lead was not found in this organisation.");
     const lead = leadSnapshot.data() ?? {};
@@ -421,6 +420,7 @@ export const updateLeadStatus = onCall(async (request) => {
       throw new HttpsError("failed-precondition", "Lead status is not valid.");
     }
     const now = FieldValue.serverTimestamp();
+    await consumeTransactionalRateLimit(transaction, organisationId, uid, "updateLeadStatus", 120);
     transaction.update(leadRef, { status, updatedAt: now, updatedBy: uid });
     transaction.create(activity, { leadId, actorUid: uid, message: `Lead status changed to ${status}`, createdAt: now });
   });
@@ -439,10 +439,10 @@ export const updateLeadNotes = onCall(async (request) => {
   const activity = db.collection("organisations").doc(organisationId).collection("leadActivities").doc();
   await db.runTransaction(async (transaction: Transaction) => {
     await requireTransactionalRole(transaction, organisationId, uid, "lead");
-    await consumeTransactionalRateLimit(transaction, organisationId, uid, "updateLeadNotes", 120);
     const leadSnapshot = await transaction.get(leadRef);
     if (!leadSnapshot.exists) throw new HttpsError("not-found", "Lead was not found in this organisation.");
     const now = FieldValue.serverTimestamp();
+    await consumeTransactionalRateLimit(transaction, organisationId, uid, "updateLeadNotes", 120);
     transaction.update(leadRef, { notes, updatedAt: now, updatedBy: uid });
     transaction.create(activity, { leadId, actorUid: uid, message: notes ? "Lead notes updated" : "Lead notes cleared", createdAt: now });
   });
@@ -465,13 +465,13 @@ export const setLeadSuppression = onCall(async (request) => {
     // Revalidate both the parent organisation and current membership inside
     // the write transaction so orphaned subcollections and stale roles fail closed.
     const currentMembership = await requireTransactionalRole(transaction, organisationId, uid, "lead");
-    await consumeTransactionalRateLimit(transaction, organisationId, uid, "setLeadSuppression", 60);
     if (!canChangeSuppression(currentMembership.role, data.doNotContact)) {
       throw new HttpsError("permission-denied", data.doNotContact ? "Your organisation role cannot change lead suppression." : "Only organisation owners and admins can remove a contact restriction.");
     }
     const leadSnapshot = await transaction.get(leadRef);
     if (!leadSnapshot.exists) throw new HttpsError("not-found", "Lead was not found in this organisation.");
     const now = FieldValue.serverTimestamp();
+    await consumeTransactionalRateLimit(transaction, organisationId, uid, "setLeadSuppression", 60);
     transaction.update(leadRef, { doNotContact: data.doNotContact, contactReviewStatus: data.doNotContact ? "blocked" : "cleared", updatedAt: now, updatedBy: uid });
     transaction.create(activity, { leadId, actorUid: uid, message: data.doNotContact ? "Lead marked do not contact" : "Lead contact restriction removed", createdAt: now });
   });
@@ -493,7 +493,6 @@ export const createOutreachDraft = onCall(async (request) => {
   let campaignId = "";
   await db.runTransaction(async (transaction: Transaction) => {
     await requireTransactionalRole(transaction, organisationId, uid, "lead");
-    await consumeTransactionalRateLimit(transaction, organisationId, uid, "createOutreachDraft", 20);
     // Reading the lead and creating the draft in one transaction prevents a concurrent
     // suppression change from racing past the do-not-contact gate.
     const leadSnapshot = await transaction.get(leadRef);
@@ -507,6 +506,7 @@ export const createOutreachDraft = onCall(async (request) => {
     const campaignSnapshot = await transaction.get(campaignRef);
     if (!campaignSnapshot.exists) throw new HttpsError("failed-precondition", "The lead's campaign no longer exists in this organisation.");
     const now = FieldValue.serverTimestamp();
+    await consumeTransactionalRateLimit(transaction, organisationId, uid, "createOutreachDraft", 20);
     transaction.create(draft, { leadId, campaignId, subject, body, status: "draft", createdBy: uid, createdAt: now, updatedAt: now });
     transaction.create(activity, { leadId, actorUid: uid, message: "Outreach draft created; not sent", createdAt: now });
   });
@@ -618,7 +618,6 @@ export const updateOutreachDraft = onCall(async (request) => {
   let leadId = "";
   await db.runTransaction(async (transaction: Transaction) => {
     await requireTransactionalRole(transaction, organisationId, uid, "lead");
-    await consumeTransactionalRateLimit(transaction, organisationId, uid, "updateOutreachDraft", 30);
     const draftSnapshot = await transaction.get(draftRef);
     if (!draftSnapshot.exists) throw new HttpsError("not-found", "Outreach draft was not found in this organisation.");
     const draft = draftSnapshot.data() ?? {};
@@ -641,6 +640,7 @@ export const updateOutreachDraft = onCall(async (request) => {
     const campaignSnapshot = await transaction.get(campaignRef);
     if (!campaignSnapshot.exists) throw new HttpsError("failed-precondition", "The lead's campaign no longer exists in this organisation.");
     const now = FieldValue.serverTimestamp();
+    await consumeTransactionalRateLimit(transaction, organisationId, uid, "updateOutreachDraft", 30);
     transaction.update(draftRef, { subject, body, updatedAt: now, updatedBy: uid });
     transaction.create(activity, { leadId, actorUid: uid, message: "Outreach draft updated; not sent", createdAt: now });
   });
@@ -657,13 +657,13 @@ export const deleteOutreachDraft = onCall(async (request) => {
   const activity = db.collection("organisations").doc(organisationId).collection("leadActivities").doc();
   await db.runTransaction(async (transaction: Transaction) => {
     await requireTransactionalRole(transaction, organisationId, uid, "lead");
-    await consumeTransactionalRateLimit(transaction, organisationId, uid, "deleteOutreachDraft", 60);
     const draftSnapshot = await transaction.get(draftRef);
     if (!draftSnapshot.exists) throw new HttpsError("not-found", "Outreach draft was not found in this organisation.");
     // Deletion must remain possible for malformed legacy drafts so an operator
     // can clean up the record instead of being trapped by its invalid lead reference.
     const rawLeadId = draftSnapshot.data()?.leadId;
     const leadId = isValidDocumentId(rawLeadId) ? rawLeadId : null;
+    await consumeTransactionalRateLimit(transaction, organisationId, uid, "deleteOutreachDraft", 60);
     transaction.delete(draftRef);
     transaction.create(activity, {
       ...(leadId ? { leadId } : {}),
