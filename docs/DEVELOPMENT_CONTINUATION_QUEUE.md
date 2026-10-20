@@ -1,3 +1,10 @@
+## Verify rate-limit guard operation-key alignment — 2026-10-20
+
+- Strengthened the callable coverage unit test so each exported callable must use its own exact operation name as the rate-limit bucket key, not merely mention either limiter somewhere in its source segment.
+- This guards against accidental copy/paste errors that would make unrelated callable quotas share one bucket or bypass the intended operation-specific quota.
+- The baseline callable-coverage guard passed both CI jobs in run [39418278746](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39418278746). The strengthened operation-key assertion is pending CI.
+- Production remains blocked on separate-project App Check configuration/enforcement, deployed alerts, quota calibration, Firestore TTL configuration, and privacy/operational readiness.
+
 ## Guard against unthrottled callable additions — 2026-10-20
 
 - Added a Functions unit-test guard that discovers every exported `onCall` handler in `functions/src/index.ts` and fails if its handler body does not invoke the transactional mutation limiter or read limiter.

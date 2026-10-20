@@ -618,8 +618,8 @@ describe("callable rate-limit coverage guard", () => {
       const name = callableStarts[index][1];
       const handlerSource = source.slice(start, end);
       expect(
-        /consumeTransactionalRateLimit\(|consumeReadRateLimit\(/.test(handlerSource),
-        `callable ${name} must enforce a server-side rate limit`,
+        new RegExp(`consume(?:Transactional|Read)RateLimit\\\\([^)]*["']${name}["']`).test(handlerSource),
+        `callable ${name} must enforce a server-side rate limit using its own operation key`,
       ).toBe(true);
     }
   });
