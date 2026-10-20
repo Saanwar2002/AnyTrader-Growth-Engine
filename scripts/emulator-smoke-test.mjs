@@ -873,16 +873,48 @@ try {
     viewerStatusLead.leadId,
     "Lead status changed to qualified",
   ], { stdio: "inherit" });
+  const viewerDraftBefore = (await callOne("listOutreachDrafts", {
+    organisationId: orgOne.organisationId,
+  })).drafts.find((item) => item.id === draft.draftId);
+  assert.ok(viewerDraftBefore, "owner-created draft exists before viewer mutation attempts");
+  const viewerDraftEditQuotaBefore = currentQuotaCount("updateOutreachDraft", viewer.auth.currentUser.uid);
   await expectCallableFailure(viewerCall("updateOutreachDraft", {
     organisationId: orgOne.organisationId,
     draftId: draft.draftId,
     subject: "Viewer must not edit",
     body: "Must remain unchanged.",
   }), "functions/permission-denied", "viewer cannot edit an outreach draft");
+  assert.equal(currentQuotaCount("updateOutreachDraft", viewer.auth.currentUser.uid), viewerDraftEditQuotaBefore,
+    "role-denied draft edit does not consume the viewer's quota");
+  const viewerDraftAfterEditAttempt = (await callOne("listOutreachDrafts", {
+    organisationId: orgOne.organisationId,
+  })).drafts.find((item) => item.id === draft.draftId);
+  assert.equal(viewerDraftAfterEditAttempt?.subject, viewerDraftBefore.subject,
+    "role-denied draft edit preserves stored subject");
+  assert.equal(viewerDraftAfterEditAttempt?.body, viewerDraftBefore.body,
+    "role-denied draft edit preserves stored body");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-no-lead-activity.mjs",
+    orgOne.organisationId,
+    leadOne.leadId,
+    "Outreach draft updated; not sent",
+  ], { stdio: "inherit" });
+
+  const viewerDraftDeleteQuotaBefore = currentQuotaCount("deleteOutreachDraft", viewer.auth.currentUser.uid);
   await expectCallableFailure(viewerCall("deleteOutreachDraft", {
     organisationId: orgOne.organisationId,
     draftId: draft.draftId,
   }), "functions/permission-denied", "viewer cannot delete an outreach draft");
+  assert.equal(currentQuotaCount("deleteOutreachDraft", viewer.auth.currentUser.uid), viewerDraftDeleteQuotaBefore,
+    "role-denied draft deletion does not consume the viewer's quota");
+  const viewerDraftAfterDeleteAttempt = (await callOne("listOutreachDrafts", {
+    organisationId: orgOne.organisationId,
+  })).drafts.find((item) => item.id === draft.draftId);
+  assert.ok(viewerDraftAfterDeleteAttempt, "role-denied draft deletion preserves the draft record");
+  assert.equal(viewerDraftAfterDeleteAttempt?.subject, viewerDraftBefore.subject,
+    "role-denied draft deletion preserves stored subject");
+  assert.equal(viewerDraftAfterDeleteAttempt?.body, viewerDraftBefore.body,
+    "role-denied draft deletion preserves stored body");
 
   // Cursor tokens are untrusted client input. Reject wrong JSON types and oversized strings
   // consistently before attempting to resolve a Firestore document path.
