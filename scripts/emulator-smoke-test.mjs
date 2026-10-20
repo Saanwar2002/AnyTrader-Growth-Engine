@@ -37,6 +37,11 @@ try {
 
   const initialOrgs = await callOne("listMyOrganisations");
   assert.deepEqual(initialOrgs.organisations, []);
+  // A successful read must persist a server-managed TTL timestamp aligned to the quota window.
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-rate-limit-expiry.mjs",
+    "global", first.auth.currentUser.uid, "listMyOrganisations",
+  ], { stdio: "inherit" });
   const orgOne = await callOne("createOrganisation", { name: "Tenant One" });
   assert.equal(orgOne.role, "owner");
   const campaignOne = await callOne("createCampaign", { organisationId: orgOne.organisationId, name: "Painter pilot", brand: "Example", category: "Painters", location: "Manchester", goal: "Recruit providers" });

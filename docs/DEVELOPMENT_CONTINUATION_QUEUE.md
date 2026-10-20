@@ -1,3 +1,10 @@
+## Verify server-managed rate-limit expiry metadata — 2026-10-20
+
+- Added a local-emulator-only assertion script and wired it into the smoke test immediately after the first successful `listMyOrganisations` call.
+- The integration assertion reads the quota document using the same SHA-256 tuple key and verifies that `expireAt` is a Firestore Timestamp exactly equal to the persisted window start plus the 60-second window and five-minute grace period.
+- The assertion refuses to run unless the project is `demo-growth-engine-test` and Firestore is the local emulator. This verifies expiry metadata, not actual TTL deletion; enabling and validating TTL in the separate project remains an operational step.
+- CI verification pending. App Check, production alert policies, quota calibration, privacy and operational readiness remain release blockers.
+
 ## Rate-limit quota document lifecycle groundwork — 2026-10-20
 
 - The shared quota writer now sets a server-managed Firestore `expireAt` timestamp at the actual fixed-window end plus a five-minute grace period. Repeated requests preserve the same window-based expiry; a reset window advances it.
