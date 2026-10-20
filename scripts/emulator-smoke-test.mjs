@@ -323,6 +323,38 @@ try {
   assert.equal(staleClearSideEffectState?.contactReviewRevision, staleClearInitialRevision + 1,
     "rejected stale clearance preserves the newer contact revision");
 
+  // A malformed persisted revision must fail closed during clearance and create no activity.
+  const malformedRevisionLead = await callOne("createLead", {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    businessName: "Synthetic Malformed Review Revision Guard Ltd",
+    category: "Painters",
+    location: "Manchester",
+    email: "malformed-revision@example.test",
+  });
+  const revisionBeforeCorruption = await currentContactReviewRevision(malformedRevisionLead.leadId);
+  execFileSync(process.execPath, [
+    "functions/scripts/seed-emulator-contact-review-revision.mjs",
+    orgOne.organisationId,
+    malformedRevisionLead.leadId,
+  ], { stdio: "inherit" });
+  await expectCallableFailure(callOne("setLeadSuppression", {
+    organisationId: orgOne.organisationId,
+    leadId: malformedRevisionLead.leadId,
+    doNotContact: false,
+    contactReviewRevision: revisionBeforeCorruption,
+  }), "functions/failed-precondition", "malformed persisted review revision fails closed");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-no-lead-activity.mjs",
+    orgOne.organisationId,
+    malformedRevisionLead.leadId,
+    "Lead contact restriction removed",
+  ], { stdio: "inherit" });
+  const malformedRevisionStateList = await callOne("listLeads", { organisationId: orgOne.organisationId });
+  const malformedRevisionState = malformedRevisionStateList.leads.find((lead) => lead.id === malformedRevisionLead.leadId);
+  assert.equal(malformedRevisionState?.doNotContact, true, "malformed revision preserves suppression");
+  assert.equal(malformedRevisionState?.contactReviewStatus, "pending", "malformed revision preserves pending review");
+
   await expectCallableFailure(callOne("createOutreachDraft", {
     organisationId: orgOne.organisationId,
     leadId: leadOne.leadId,
