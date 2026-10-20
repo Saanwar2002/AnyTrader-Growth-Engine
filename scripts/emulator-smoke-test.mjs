@@ -330,7 +330,27 @@ try {
     draftId: draft.draftId,
   }), "functions/permission-denied", "viewer cannot delete an outreach draft");
 
-  // Cursor tokens are untrusted client input; malformed or cross-collection paths must fail closed.
+  // Cursor tokens are untrusted client input. Reject wrong JSON types and oversized strings
+  // consistently before attempting to resolve a Firestore document path.
+  for (const [callableName, payload] of [
+    ["listMyOrganisations", {}],
+    ["listCampaigns", { organisationId: orgOne.organisationId }],
+    ["listLeads", { organisationId: orgOne.organisationId }],
+    ["listOutreachDrafts", { organisationId: orgOne.organisationId }],
+  ]) {
+    await expectCallableFailure(
+      callOne(callableName, { ...payload, pageToken: { path: "organisations/forged/path" } }),
+      "functions/invalid-argument",
+      `${callableName} rejects an object page token`,
+    );
+    await expectCallableFailure(
+      callOne(callableName, { ...payload, pageToken: "x".repeat(513) }),
+      "functions/invalid-argument",
+      `${callableName} rejects an oversized page token`,
+    );
+  }
+
+  // Existing malformed and cross-collection paths must also fail closed.
   await expectCallableFailure(callOne("listMyOrganisations", { pageToken: "organisations/org-1/leads/lead-1" }), "functions/invalid-argument", "invalid organisation cursor");
   await expectCallableFailure(callOne("listCampaigns", { organisationId: orgOne.organisationId, pageToken: `organisations/${orgOne.organisationId}/leads/${leadOne.leadId}` }), "functions/invalid-argument", "campaign cursor from another collection");
   await expectCallableFailure(callOne("listLeads", { organisationId: orgOne.organisationId, pageToken: `organisations/${orgOne.organisationId}/outreachDrafts/not-a-lead` }), "functions/invalid-argument", "lead cursor from another collection");

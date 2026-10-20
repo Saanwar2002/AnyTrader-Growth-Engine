@@ -1,3 +1,9 @@
+## Reject non-string and oversized pagination tokens — 2026-10-20
+
+- Extended emulator integration coverage for all four paginated callable endpoints: organisation, campaign, lead, and outreach-draft listings.
+- Each endpoint must reject object-shaped cursor tokens and strings longer than the 512-character bound with `functions/invalid-argument`, before cursor document resolution.
+- Existing cross-collection, cross-tenant, missing-document, malformed-timestamp, and full multi-page coverage remains in place. CI verification pending; fixtures remain synthetic and emulator-only.
+
 ## Fail closed on malformed persisted campaign and lead fields — 2026-10-20
 
 - Hardened campaign and lead list serialization so corrupted/non-string persisted values cannot pass through to frontend responses. Text fields are bounded, unknown status values are represented as `unknown`, lead scores are finite and clamped to 0–100, and score reasons are restricted to a bounded string array.
