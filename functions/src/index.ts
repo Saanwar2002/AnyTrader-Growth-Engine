@@ -373,7 +373,7 @@ export const listLeads = onCall(async (request) => {
         doNotContact: lead.doNotContact === true || lead.contactReviewStatus === "blocked",
         contactRestrictionVerified: lead.doNotContact === false && (lead.contactReviewStatus === undefined || lead.contactReviewStatus === "cleared"),
         contactReviewStatus: normaliseContactReviewStatus(lead.doNotContact, lead.contactReviewStatus),
-        contactReviewRevision: Number.isSafeInteger(lead.contactReviewRevision) && lead.contactReviewRevision >= 0 ? lead.contactReviewRevision : 0,
+        contactReviewRevision: typeof lead.contactReviewRevision === "number" && Number.isSafeInteger(lead.contactReviewRevision) && lead.contactReviewRevision >= 0 ? lead.contactReviewRevision : 0,
         createdAt: safeTimestampToIso(lead.createdAt),
       };
     }),
@@ -432,7 +432,7 @@ export const updateLeadContact = onCall(async (request) => {
     const existingLead = leadSnapshot.data() ?? {};
     const storedContactReviewRevision = existingLead.contactReviewRevision;
     if (storedContactReviewRevision !== undefined
-      && (!Number.isSafeInteger(storedContactReviewRevision) || storedContactReviewRevision < 0)) {
+      && (typeof storedContactReviewRevision !== "number" || !Number.isSafeInteger(storedContactReviewRevision) || storedContactReviewRevision < 0)) {
       throw new HttpsError("failed-precondition", "Lead contact-review revision is invalid and requires operator review.");
     }
     const currentContactReviewRevision = storedContactReviewRevision === undefined ? 0 : storedContactReviewRevision as number;
@@ -537,7 +537,7 @@ export const setLeadSuppression = onCall(async (request) => {
   const organisationId = requireOrganisationId(data.organisationId);
   const leadId = requireDocumentId(data.leadId, "leadId");
   if (typeof data.doNotContact !== "boolean") throw new HttpsError("invalid-argument", "doNotContact must be a boolean.");
-  if (!data.doNotContact && (!Number.isSafeInteger(data.contactReviewRevision) || (data.contactReviewRevision as number) < 0)) {
+  if (!data.doNotContact && (typeof data.contactReviewRevision !== "number" || !Number.isSafeInteger(data.contactReviewRevision) || data.contactReviewRevision < 0)) {
     throw new HttpsError("invalid-argument", "A valid contactReviewRevision is required to clear a contact restriction.");
   }
   const membership = await requireLeadEditor(organisationId, uid);
@@ -557,7 +557,7 @@ export const setLeadSuppression = onCall(async (request) => {
     if (!leadSnapshot.exists) throw new HttpsError("not-found", "Lead was not found in this organisation.");
     const lead = leadSnapshot.data() ?? {};
     const storedRevision = lead.contactReviewRevision;
-    if (storedRevision !== undefined && (!Number.isSafeInteger(storedRevision) || storedRevision < 0)) {
+    if (storedRevision !== undefined && (typeof storedRevision !== "number" || !Number.isSafeInteger(storedRevision) || storedRevision < 0)) {
       throw new HttpsError("failed-precondition", "Lead contact-review revision is invalid and requires operator review.");
     }
     const currentRevision = storedRevision === undefined ? 0 : storedRevision as number;
