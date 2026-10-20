@@ -617,7 +617,7 @@ describe("callable rate-limit coverage guard", () => {
       const end = callableStarts[index + 1]?.index ?? source.length;
       const name = callableStarts[index][1];
       const handlerSource = source.slice(start, end);
-      const limiterCall = handlerSource.match(/consume(?:Transactional|Read)RateLimit\\([^;]+;/s)?.[0] ?? "";
+      const limiterCall = handlerSource.match(/consume(?:Transactional|Read)RateLimit[^;]+;/s)?.[0] ?? "";]+;/s)?.[0] ?? "";
       expect(
         limiterCall,
         `callable ${name} must enforce a server-side rate limit`,
