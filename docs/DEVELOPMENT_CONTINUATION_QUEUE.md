@@ -1,3 +1,10 @@
+## Cross-tenant draft write verification fixture correction — 2026-10-20
+
+- The first CI run for the cross-tenant campaign/draft denial batch exposed a test-fixture issue, not an authorization failure: the draft selected for post-denial verification was older than 100 newer pagination fixtures, so it correctly did not appear on the first page.
+- The smoke test now creates a dedicated synthetic victim draft after pagination setup and verifies that this exact draft remains unchanged and present after denied cross-tenant edit/delete attempts.
+- The Functions tests/build passed; the emulator smoke job failed only at the stale fixture lookup. Reverification is pending in CI run [39426525880](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39426525880).
+- Continue with malformed input and persisted-record integrity coverage after this regression is green. No production data or services used.
+
 ## Cross-tenant campaign and draft write denial — 2026-10-20
 
 - Added emulator checks for an authenticated user with no membership attempting campaign creation and outreach-draft create/edit/delete against another organisation's actual tenant ID.
