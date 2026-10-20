@@ -195,6 +195,17 @@ try {
     location: "Manchester",
     email: "hello@example.test",
   });
+  const memberEditedLeadList = await memberCall("listLeads", { organisationId: orgOne.organisationId });
+  const memberEditedLead = memberEditedLeadList.leads.find((lead) => lead.id === leadOne.leadId);
+  assert.equal(memberEditedLead?.doNotContact, true, "member contact-channel edits require fresh review");
+  assert.equal(memberEditedLead?.contactReviewStatus, "pending", "member contact-channel edits invalidate old clearance");
+  await expectCallableFailure(memberCall("createOutreachDraft", {
+    organisationId: orgOne.organisationId,
+    leadId: leadOne.leadId,
+    subject: "Fresh review required",
+    body: "Must not be created after contact details change",
+  }), "functions/failed-precondition", "member cannot draft after contact-channel edit until re-reviewed");
+  await adminCall("setLeadSuppression", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, doNotContact: false });
   const memberStatus = await memberCall("updateLeadStatus", {
     organisationId: orgOne.organisationId,
     leadId: leadOne.leadId,
