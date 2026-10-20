@@ -1,3 +1,9 @@
+## Contact-review metadata-edit regression added — 2026-10-20
+
+- Added emulator integration assertions that changing a lead's business name/category/location while preserving email, phone, and website does not reset an explicit contact-review decision.
+- The test verifies the record remains explicitly contactable only because its persisted restriction is still `doNotContact: false` and review state remains `cleared`; the adjacent channel-change cases still require fresh review.
+- Verification is pending the next CI run. This is synthetic emulator coverage only; no production Firebase deployment and no automated outreach.
+
 ## Cross-organisation pagination cursor tests verified — 2026-10-20
 
 - Corrected the smoke-test ordering in commit `d4a90c470f7e944de621823719782219e697d98d`.

@@ -102,6 +102,24 @@ try {
   const clearedLeadList = await callOne("listLeads", { organisationId: orgOne.organisationId });
   assert.equal(clearedLeadList.leads.find((lead) => lead.id === leadOne.leadId)?.contactReviewStatus, "cleared");
 
+  // Editing non-contact business metadata must not discard a still-valid review.
+  const clearedLeadBeforeMetadataEdit = clearedLeadList.leads.find((lead) => lead.id === leadOne.leadId);
+  await callOne("updateLeadContact", {
+    organisationId: orgOne.organisationId,
+    leadId: leadOne.leadId,
+    businessName: "Synthetic Test Painting Ltd (metadata-only edit)",
+    category: "Painters",
+    location: "Manchester",
+    email: clearedLeadBeforeMetadataEdit?.email ?? "",
+    phone: clearedLeadBeforeMetadataEdit?.phone ?? "",
+    website: clearedLeadBeforeMetadataEdit?.website ?? "",
+  });
+  const metadataEditedLeadList = await callOne("listLeads", { organisationId: orgOne.organisationId });
+  const metadataEditedLead = metadataEditedLeadList.leads.find((lead) => lead.id === leadOne.leadId);
+  assert.equal(metadataEditedLead?.doNotContact, false, "metadata-only edits preserve the explicit contact-review decision");
+  assert.equal(metadataEditedLead?.contactReviewStatus, "cleared", "metadata-only edits do not unnecessarily reset contact review");
+  assert.equal(metadataEditedLead?.contactRestrictionVerified, true, "metadata-only edits preserve verified restriction state");
+
   // Changing a contact channel invalidates the previous review clearance.
   await callOne("updateLeadContact", {
     organisationId: orgOne.organisationId,
