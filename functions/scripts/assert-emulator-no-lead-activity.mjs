@@ -8,13 +8,17 @@ const emulatorHost = process.env.FIRESTORE_EMULATOR_HOST;
 if (projectId !== "demo-growth-engine-test" || !emulatorHost || !/^(127\.0\.0\.1:8080|localhost:8080)$/.test(emulatorHost)) {
   throw new Error("Refusing to inspect activity logs unless running against the local demo Firestore emulator.");
 }
-const [organisationId, leadId] = process.argv.slice(2);
+const [organisationId, leadId, forbiddenMessage] = process.argv.slice(2);
 const validId = (value) => typeof value === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(value);
 if (!validId(organisationId) || !validId(leadId)) {
   throw new Error("Usage: node assert-emulator-no-lead-activity.mjs <organisationId> <leadId>");
 }
 initializeApp({ projectId });
 const db = getFirestore();
-const activities = await db.collection("organisations").doc(organisationId).collection("leadActivities").where("leadId", "==", leadId).limit(1).get();
-assert.equal(activities.empty, true, "rejected contact-review operation must not create an activity-log record");
-console.log("Verified rejected contact-review operation created no activity-log entry.");
+const activities = await db.collection("organisations").doc(organisationId).collection("leadActivities").where("leadId", "==", leadId).get();
+if (forbiddenMessage) {
+  assert.equal(activities.docs.some((activity) => activity.data().message === forbiddenMessage), false, "rejected contact-review operation must not create its corresponding activity-log entry");
+} else {
+  assert.equal(activities.empty, true, "rejected contact-review operation must not create an activity-log record");
+}
+console.log("Verified rejected contact-review operation created no matching activity-log entry.");
