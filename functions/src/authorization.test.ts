@@ -640,6 +640,16 @@ describe("callable rate-limit coverage guard", () => {
       const end = callableStarts[index + 1]?.index ?? source.length;
       const name = callableStarts[index][1];
       const handlerSource = source.slice(start, end);
+      const uidGuardIndex = handlerSource.indexOf("requireUid(request.auth?.uid)");
+      const limiterCallIndex = handlerSource.search(/consume(?:Transactional|Read)RateLimit/);
+      expect(
+        uidGuardIndex,
+        `callable ${name} must require an authenticated UID`,
+      ).toBeGreaterThanOrEqual(0);
+      expect(
+        uidGuardIndex,
+        `callable ${name} must authenticate before consuming quota`,
+      ).toBeLessThan(limiterCallIndex);
       const limiterCall = handlerSource.match(/consume(?:Transactional|Read)RateLimit[^;]+;/s)?.[0] ?? "";
       expect(
         limiterCall,

@@ -846,3 +846,11 @@ Continue the callable authorization audit and integration-test reliability work;
 - Follow-up review identified that Firestore Timestamp values can retain nanosecond precision, making `toMillis()` legitimately fractional. Requiring integer milliseconds could reject valid pagination cursors.
 - Updated the validator to accept finite values within JavaScript's safe numeric range, including fractional milliseconds, while still rejecting NaN, infinities, unsafe magnitudes, missing methods, and thrown conversions.
 - Updated unit tests to capture the valid precision case. CI verification pending.
+
+## Guard authentication on every callable export — 2026-10-20
+
+- The full CI run [39420305640](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39420305640) passed both frontend/emulator and Firebase Functions jobs for commit `f6fecdc28c5fa26710ea806b60cd1aeccd5c85e7`; fractional Firestore timestamp cursor precision is verified.
+- Extended the source-level callable security guard so every exported `onCall` handler must explicitly require `request.auth?.uid` before consuming its server-side quota, in addition to using its own operation-specific rate-limit key.
+- This is a regression guard against accidentally adding an unauthenticated callable. It does not replace per-organisation authorization checks or App Check, which remain separate controls.
+- Verify the next CI run before treating this guard as complete. Work remains on `development/chatgpt-mvp`; no deployment or automated outreach sending.
+
