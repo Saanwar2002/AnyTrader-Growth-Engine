@@ -783,6 +783,27 @@ try {
     campaignOne.campaignId,
   ], { stdio: "inherit", env: process.env });
   const legacyDraftList = await callOne("listOutreachDrafts", { organisationId: orgOne.organisationId });
+  const malformedCampaignFields = (await callOne("listCampaigns", { organisationId: orgOne.organisationId }))
+    .campaigns.find((item) => item.id === "legacy-malformed-campaign-fields");
+  assert.ok(malformedCampaignFields, "malformed legacy campaign remains visible for review");
+  for (const field of ["name", "category", "location", "brand", "goal"]) {
+    assert.equal(typeof malformedCampaignFields[field], "string", `malformed campaign ${field} is serialized as a string`);
+  }
+  assert.equal(malformedCampaignFields.name, "", "non-string campaign name is not exposed");
+  assert.equal(malformedCampaignFields.status, "unknown", "invalid campaign status is not exposed as a trusted status");
+  const malformedLeadFields = (await callOne("listLeads", { organisationId: orgOne.organisationId }))
+    .leads.find((item) => item.id === "legacy-malformed-list-fields");
+  assert.ok(malformedLeadFields, "malformed legacy lead remains visible for review");
+  for (const field of ["campaignId", "businessName", "category", "location", "website", "email", "phone", "source", "status", "notes"]) {
+    assert.equal(typeof malformedLeadFields[field], "string", `malformed lead ${field} is serialized as a string`);
+  }
+  assert.equal(malformedLeadFields.businessName, "", "non-string lead business name is not exposed");
+  assert.equal(malformedLeadFields.campaignId, "", "invalid campaign reference is not exposed");
+  assert.equal(malformedLeadFields.status, "unknown", "invalid lead status is not exposed as a trusted status");
+  assert.equal(malformedLeadFields.score, 0, "non-numeric lead score falls back to zero");
+  assert.deepEqual(malformedLeadFields.scoreReasons, [], "non-array score reasons are not exposed");
+  assert.equal(malformedLeadFields.doNotContact, true, "malformed lead remains suppressed");
+  assert.equal(malformedLeadFields.contactRestrictionVerified, false, "malformed lead is not marked contact-verified");
   const orphanLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-orphan-draft");
   const mismatchedLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-mismatched-campaign-draft");
   // Even a legacy lead marked internally cleared must not get a new draft if its campaign record is gone.

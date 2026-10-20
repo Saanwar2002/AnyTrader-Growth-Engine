@@ -13,6 +13,7 @@ import {
   getOutreachDraftReviewState,
   hasConsistentDraftCampaign,
   isValidCampaignStatus,
+  isValidLeadStatus,
   isValidDocumentId,
   isValidEmailAddress,
   isSafeWebsiteAddress,
@@ -32,6 +33,20 @@ import {
 
 initializeApp();
 const db = getFirestore();
+
+// Persisted records can predate current validation rules or be corrupted by manual
+// imports. Keep list responses JSON-safe and bounded rather than trusting Firestore shape.
+function safePersistedText(value: unknown, maxLength: number): string {
+  return typeof value === "string" ? value.slice(0, maxLength) : "";
+}
+
+function safePersistedStringArray(value: unknown, maxItems: number, maxLength: number): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is string => typeof item === "string")
+    .slice(0, maxItems)
+    .map((item) => item.slice(0, maxLength));
+}
 
 const RATE_LIMIT_WINDOW_MS = 60000;
 // Keep expired quota buckets briefly for incident review, then allow optional Firestore TTL cleanup.
@@ -280,7 +295,16 @@ export const listCampaigns = onCall(async (request) => {
   return {
     campaigns: page.map((doc: QueryDocumentSnapshot) => {
       const campaign = doc.data();
-      return { id: doc.id, name: campaign.name, category: campaign.category, location: campaign.location, brand: campaign.brand, goal: campaign.goal, status: campaign.status, createdAt: safeTimestampToIso(campaign.createdAt) };
+      return {
+        id: doc.id,
+        name: safePersistedText(campaign.name, 160),
+        category: safePersistedText(campaign.category, 100),
+        location: safePersistedText(campaign.location, 160),
+        brand: safePersistedText(campaign.brand, 160),
+        goal: safePersistedText(campaign.goal, 500),
+        status: isValidCampaignStatus(campaign.status) ? campaign.status : "unknown",
+        createdAt: safeTimestampToIso(campaign.createdAt),
+      };
     }),
     hasMoreCampaigns: snapshot.size > 100,
     nextPageToken: snapshot.size > 100 ? page[page.length - 1]?.ref.path ?? null : null,
@@ -331,10 +355,21 @@ export const listLeads = onCall(async (request) => {
     leads: page.map((doc: QueryDocumentSnapshot) => {
       const lead = doc.data();
       return {
-        id: doc.id, campaignId: lead.campaignId, businessName: lead.businessName,
-        category: lead.category, location: lead.location, website: lead.website,
-        email: lead.email, phone: lead.phone, source: lead.source, status: lead.status,
-        score: lead.score, scoreReasons: lead.scoreReasons, notes: lead.notes,
+        id: doc.id,
+        campaignId: isValidDocumentId(lead.campaignId) ? lead.campaignId : "",
+        businessName: safePersistedText(lead.businessName, 160),
+        category: safePersistedText(lead.category, 100),
+        location: safePersistedText(lead.location, 160),
+        website: safePersistedText(lead.website, 500),
+        email: safePersistedText(lead.email, 254),
+        phone: safePersistedText(lead.phone, 80),
+        source: safePersistedText(lead.source, 80),
+        status: isValidLeadStatus(lead.status) ? lead.status : "unknown",
+        score: typeof lead.score === "number" && Number.isFinite(lead.score)
+          ? Math.min(100, Math.max(0, lead.score))
+          : 0,
+        scoreReasons: safePersistedStringArray(lead.scoreReasons, 12, 160),
+        notes: safePersistedText(lead.notes, 5000),
         doNotContact: lead.doNotContact === true || lead.contactReviewStatus === "blocked",
         contactRestrictionVerified: lead.doNotContact === false && (lead.contactReviewStatus === undefined || lead.contactReviewStatus === "cleared"),
         contactReviewStatus: normaliseContactReviewStatus(lead.doNotContact, lead.contactReviewStatus),

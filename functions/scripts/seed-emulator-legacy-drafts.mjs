@@ -16,6 +16,21 @@ initializeApp({ projectId });
 const db = getFirestore();
 const drafts = db.collection("organisations").doc(organisationId).collection("outreachDrafts");
 const now = FieldValue.serverTimestamp();
+// Corrupt persisted list fields deliberately to verify list APIs return safe bounded values.
+await Promise.all([
+  db.collection("organisations").doc(organisationId).collection("campaigns").doc("legacy-malformed-campaign-fields").set({
+    name: { unexpected: "object" }, category: 42, location: ["unexpected"], brand: null,
+    goal: { unexpected: true }, status: { invalid: "status" }, createdAt: now,
+  }),
+  db.collection("organisations").doc(organisationId).collection("leads").doc("legacy-malformed-list-fields").set({
+    campaignId: { unexpected: "object" },
+    businessName: { unexpected: "object" }, category: 42, location: ["unexpected"],
+    website: { unsafe: true }, email: 123, phone: null, source: { unexpected: true },
+    status: { invalid: "status" }, score: { unexpected: true },
+    scoreReasons: "not-an-array", notes: ["unexpected"], doNotContact: true,
+    contactReviewStatus: "blocked", createdAt: now, updatedAt: now,
+  }),
+]);
 // Model a legacy lead whose campaign reference points to a deleted campaign.
 await db.collection("organisations").doc(organisationId).collection("leads").doc("legacy-missing-campaign-lead").set({
   businessName: "Synthetic Missing Campaign Lead",
