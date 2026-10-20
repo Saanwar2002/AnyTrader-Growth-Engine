@@ -6,13 +6,13 @@ import { getFirestore } from "firebase-admin/firestore";
 // Read-only rate-limit assertion restricted to the local synthetic-data emulator.
 const projectId = process.env.GCLOUD_PROJECT ?? process.env.FIREBASE_PROJECT ?? "demo-growth-engine-test";
 const emulatorHost = process.env.FIRESTORE_EMULATOR_HOST;
-if (projectId !== "demo-growth-engine-test" || !emulatorHost || !/^(127\\.0\\.0\\.1:8080|localhost:8080)$/.test(emulatorHost)) {
+if (projectId !== "demo-growth-engine-test" || !emulatorHost || !/^(127\.0\.0\.1:8080|localhost:8080)$/.test(emulatorHost)) {
   throw new Error("Refusing to inspect rate-limit counters outside the local demo Firestore emulator.");
 }
 const [organisationId, uid, operation, expectedArg] = process.argv.slice(2);
 const validId = (value) => typeof value === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(value);
 if (!validId(organisationId) || !validId(uid) || operation !== "setLeadSuppression"
-  || (expectedArg !== undefined && !/^\\d+$/.test(expectedArg))) {
+  || (expectedArg !== undefined && !/^\d+$/.test(expectedArg))) {
   throw new Error("Usage: node assert-emulator-rate-limit-count.mjs <organisationId> <uid> setLeadSuppression [expectedCount]");
 }
 initializeApp({ projectId });
