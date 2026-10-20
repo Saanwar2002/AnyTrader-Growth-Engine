@@ -1,3 +1,9 @@
+## Clarify rate-limit log wording for read and mutation calls — 2026-10-20
+
+- The rate-limit helper is shared by all mutation and paginated read callables, so its warning message incorrectly labelled exhausted read quotas as mutation events.
+- Changed the warning text to the neutral `Rate limit exceeded`; structured fields and enforcement behavior are unchanged.
+- The preceding batch passed CI run [39410924491](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39410924491), including Firebase Functions tests/build and emulator integration coverage for all four paginated read quotas. This logging correction is pending CI.
+
 ## Verify rate limits on every paginated read callable — 2026-10-20
 
 - Extended the local-emulator-only rate-limit fixture seeder to support `listCampaigns` and `listOutreachDrafts`, with each operation's actual quota boundary (120/minute for campaigns, 60/minute for drafts).

@@ -50,7 +50,7 @@ async function consumeTransactionalRateLimit(transaction: Transaction, organisat
   }
   if (!evaluation.allowed || !evaluation.nextState) {
     const seconds = Math.max(1, Math.ceil(evaluation.retryAfterMs / 1000));
-    logger.warn("Mutation rate limit exceeded", {
+    logger.warn("Rate limit exceeded", {
       operation,
       quotaKey: key,
       retryAfterSeconds: seconds,
