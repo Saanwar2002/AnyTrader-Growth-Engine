@@ -877,6 +877,63 @@ try {
   assert.ok(organisationPageCount >= 2, "more than 100 memberships require multiple pages");
   assert.equal(seenOrganisationIds.size, 105, "all 105 synthetic organisations appear exactly once across pages");
 
+
+  // Exercise all tenant-scoped collection pagers beyond 100 records using emulator-only fixtures.
+  execFileSync(process.execPath, [
+    "functions/scripts/seed-emulator-collection-pagination.mjs",
+    orgOne.organisationId,
+  ], { stdio: "inherit" });
+
+  async function collectFixturePages({ callableName, tokenField, itemsField, fixturePrefix, pageToken = undefined }) {
+    const seen = new Set();
+    let page = await callOne(callableName, {
+      organisationId: orgOne.organisationId,
+      ...(pageToken ? { pageToken } : {}),
+    });
+    let pageCount = 0;
+    while (true) {
+      pageCount += 1;
+      for (const item of page[itemsField]) {
+        if (!item.id.startsWith(fixturePrefix)) continue;
+        assert.equal(seen.has(item.id), false, `${callableName} pagination must not duplicate ${item.id}`);
+        seen.add(item.id);
+        if (callableName === "listLeads") {
+          assert.equal(item.contactRestrictionVerified, true, "pagination fixtures are explicitly marked as reviewed");
+        }
+        if (callableName === "listOutreachDrafts") {
+          assert.equal(item.requiresReview, false, "valid pagination draft fixtures do not require review");
+        }
+      }
+      const hasMoreKey = callableName === "listCampaigns" ? "hasMoreCampaigns"
+        : callableName === "listLeads" ? "hasMoreLeads" : "hasMoreDrafts";
+      if (!page[hasMoreKey]) {
+        assert.equal(page.nextPageToken, null, `${callableName} final page has no continuation token`);
+        break;
+      }
+      assert.ok(page.nextPageToken, `${callableName} page with more results includes a cursor`);
+      page = await callOne(callableName, { organisationId: orgOne.organisationId, pageToken: page.nextPageToken });
+      assert.ok(pageCount < 5, `${callableName} pagination terminates within a bounded number of pages`);
+    }
+    assert.ok(pageCount >= 2, `${callableName} fixtures require multiple pages`);
+    assert.equal(seen.size, 105, `${callableName} returns all 105 fixture records exactly once`);
+  }
+
+  await collectFixturePages({
+    callableName: "listCampaigns",
+    itemsField: "campaigns",
+    fixturePrefix: "pagination-fixture-campaign-",
+  });
+  await collectFixturePages({
+    callableName: "listLeads",
+    itemsField: "leads",
+    fixturePrefix: "pagination-fixture-lead-",
+  });
+  await collectFixturePages({
+    callableName: "listOutreachDrafts",
+    itemsField: "drafts",
+    fixturePrefix: "pagination-fixture-draft-",
+  });
+
   await signOut(first.auth);
   await expectCallableFailure(callOne("listMyOrganisations"), "functions/unauthenticated", "unauthenticated callable denial");
   console.log("PASS: emulator smoke checks verified organisation isolation, unauthenticated denial, default Firestore client denial, suppression gates, and draft-only create/update/delete.");

@@ -1,3 +1,10 @@
+## Tenant-scoped collection pagination integration coverage — 2026-10-20
+
+- Latest CI run [39387266054](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39387266054) passed both jobs for commit `f573beae04e37d9a94b0a7d0f196d6c60edbe876`, including the 105-organisation pagination emulator test.
+- Added emulator-only fixtures for 105 campaigns, 105 leads, and 105 outreach drafts in one synthetic organisation; the smoke test now walks every page and asserts each fixture appears exactly once, continuation tokens terminate, and valid draft/lead review states remain intact.
+- The new seed script refuses to write outside the local `demo-growth-engine-test` Firestore emulator. Verification of this follow-up batch is pending CI.
+- Keep this branch isolated; no production Firebase deployment, real provider/customer data, or automated outreach.
+
 ## Organisation pagination integration coverage — 2026-10-20
 
 - CI run [39386902786](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39386902786) passed both jobs for commit `ef53bf6a7e7a485742be46cc0f85238674fff05a`: frontend typecheck/unit tests/build plus emulator smoke tests, and Firebase Functions tests/build.
