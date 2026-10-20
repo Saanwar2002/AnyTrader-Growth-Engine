@@ -218,7 +218,7 @@ export const createCampaign = onCall(async (request) => {
   const campaign = db.collection("organisations").doc(organisationId).collection("campaigns").doc();
   await db.runTransaction(async (transaction: Transaction) => {
     await requireTransactionalRole(transaction, organisationId, uid, "campaign");
-    await consumeTransactionalRateLimit(transaction, organisationId, uid, "createCampaign", 10);
+    await consumeTransactionalRateLimit(transaction, organisationId, uid, "createCampaign", 150);
     transaction.create(campaign, { name, category, location, brand, goal, status: "active", createdBy: uid, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
   });
   return { campaignId: campaign.id, organisationId, name, category, location, brand, goal, status: "active" as const };
@@ -506,7 +506,7 @@ export const createOutreachDraft = onCall(async (request) => {
     const campaignSnapshot = await transaction.get(campaignRef);
     if (!campaignSnapshot.exists) throw new HttpsError("failed-precondition", "The lead's campaign no longer exists in this organisation.");
     const now = FieldValue.serverTimestamp();
-    await consumeTransactionalRateLimit(transaction, organisationId, uid, "createOutreachDraft", 100);
+    await consumeTransactionalRateLimit(transaction, organisationId, uid, "createOutreachDraft", 200);
     transaction.create(draft, { leadId, campaignId, subject, body, status: "draft", createdBy: uid, createdAt: now, updatedAt: now });
     transaction.create(activity, { leadId, actorUid: uid, message: "Outreach draft created; not sent", createdAt: now });
   });

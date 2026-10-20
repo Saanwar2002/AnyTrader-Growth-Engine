@@ -1,3 +1,9 @@
+## Tune quotas for pagination integration coverage — 2026-10-20
+
+- CI run [39397419151](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39397419151) passed Functions tests/build but the emulator smoke suite hit the 10/minute campaign-creation quota while creating 99 synthetic campaigns through the callable to verify pagination.
+- Raised campaign creation to 150/minute and draft creation to 200/minute so the existing 100-record callable pagination regression can run while quotas still bound sustained request volume. Lead creation remains 200/minute. These are initial settings and must be recalibrated with observed legitimate traffic before public release.
+- Full CI verification pending; no deployment or automated outreach sending.
+
 ## Tune initial mutation quotas to accommodate integration workloads — 2026-10-20
 
 - CI run [39397141770](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39397141770) confirmed the Firestore read/write ordering correction, but the emulator suite then reached the initial 60/minute createLead quota during its high-volume synthetic regression run.
