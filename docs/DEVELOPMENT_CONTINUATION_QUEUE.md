@@ -979,3 +979,11 @@ Continue the callable authorization audit and integration-test reliability work;
 - The callable must reject with `functions/invalid-argument`; the stored website must remain unchanged, the default do-not-contact/pending-review state must remain intact, and no contact-update activity may be recorded.
 - The concurrent contact-edit/draft-creation regression from the preceding batch is covered by the CI run [39450150476](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39450150476), where both jobs passed including emulator integration. This new unsafe-website regression awaits CI.
 - Work remains on `development/chatgpt-mvp`; no production deployment or automated outreach sending.
+
+
+## Expand unsafe website edit validation matrix — 2026-10-20
+
+- Expanded the synthetic emulator regression from a single `javascript:` payload to six unsafe URL forms: `javascript:`, `data:`, protocol-relative URLs, credential-bearing HTTPS URLs, backslash URLs, and embedded whitespace.
+- Each variant must fail with `functions/invalid-argument`. The test then verifies the stored website remains the original safe URL, contact restriction remains enabled with pending review, and no contact-update activity was created.
+- The preceding website-scheme regression's documentation commit passed both CI jobs including emulator integration in run [39452295459](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39452295459). This expanded matrix is a new commit and still requires its own CI verification.
+- Work remains on `development/chatgpt-mvp`; no production deployment or automated outreach sending.
