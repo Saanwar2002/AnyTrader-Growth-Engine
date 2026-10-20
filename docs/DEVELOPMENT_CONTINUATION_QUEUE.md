@@ -1,3 +1,9 @@
+## Tune initial mutation quotas to accommodate integration workloads — 2026-10-20
+
+- CI run [39397141770](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39397141770) confirmed the Firestore read/write ordering correction, but the emulator suite then reached the initial 60/minute createLead quota during its high-volume synthetic regression run.
+- Raised initial limits to createLead 200/minute, contact edits and suppression 120/minute, status/notes 240/minute, draft creation 100/minute, draft edits/deletion 120/minute. Campaign limits remain 10/minute for creation and 30/minute for status changes; organisation creation remains 5/hour. All remain transactionally enforced per user, organisation and operation.
+- These are initial conservative service guardrails and require production traffic calibration plus monitoring. Full CI verification pending.
+
 ## Rate-limit transaction ordering correction — 2026-10-20
 
 - CI run [39396886505](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39396886505) passed frontend typecheck, 259 unit tests, production build, and Functions unit tests/build, but emulator integration exposed that the quota helper queued a write before some protected callables finished reading their target documents.
