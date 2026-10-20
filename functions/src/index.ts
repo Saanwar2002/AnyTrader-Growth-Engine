@@ -373,6 +373,7 @@ export const listLeads = onCall(async (request) => {
         doNotContact: lead.doNotContact === true || lead.contactReviewStatus === "blocked",
         contactRestrictionVerified: lead.doNotContact === false && (lead.contactReviewStatus === undefined || lead.contactReviewStatus === "cleared"),
         contactReviewStatus: normaliseContactReviewStatus(lead.doNotContact, lead.contactReviewStatus),
+        contactReviewRevision: Number.isSafeInteger(lead.contactReviewRevision) && lead.contactReviewRevision >= 0 ? lead.contactReviewRevision : 0,
         createdAt: safeTimestampToIso(lead.createdAt),
       };
     }),
@@ -401,10 +402,10 @@ export const createLead = onCall(async (request) => {
     const campaignSnapshot = await transaction.get(campaignRef);
     if (!campaignSnapshot.exists) throw new HttpsError("not-found", "Campaign was not found in this organisation.");
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "createLead", 200);
-    transaction.create(lead, { ...fields, campaignId, status: "new", source: "manual", score: completeness.score, scoreReasons: completeness.reasons, notes: "", doNotContact: true, contactReviewStatus: "pending", createdBy: uid, createdAt: now, updatedAt: now });
+    transaction.create(lead, { ...fields, campaignId, status: "new", source: "manual", score: completeness.score, scoreReasons: completeness.reasons, notes: "", doNotContact: true, contactReviewStatus: "pending", contactReviewRevision: 0, createdBy: uid, createdAt: now, updatedAt: now });
     transaction.create(activity, { leadId: lead.id, actorUid: uid, message: `Lead created: ${fields.businessName}`, createdAt: now });
   });
-  return { leadId: lead.id, organisationId, campaignId, ...fields, status: "new" as const, source: "manual" as const, score: completeness.score, scoreReasons: completeness.reasons, doNotContact: true, contactReviewStatus: "pending" as const };
+  return { leadId: lead.id, organisationId, campaignId, ...fields, status: "new" as const, source: "manual" as const, score: completeness.score, scoreReasons: completeness.reasons, doNotContact: true, contactReviewStatus: "pending" as const, contactReviewRevision: 0 };
 });
 
 export const updateLeadContact = onCall(async (request) => {
@@ -421,6 +422,7 @@ export const updateLeadContact = onCall(async (request) => {
     doNotContact: boolean;
     contactReviewStatus: "pending" | "cleared" | "blocked";
     contactRestrictionVerified: boolean;
+    contactReviewRevision: number;
   } | undefined;
   await db.runTransaction(async (transaction: Transaction) => {
     await requireTransactionalRole(transaction, organisationId, uid, "lead");
@@ -428,9 +430,19 @@ export const updateLeadContact = onCall(async (request) => {
     if (!leadSnapshot.exists) throw new HttpsError("not-found", "Lead was not found in this organisation.");
     const now = FieldValue.serverTimestamp();
     const existingLead = leadSnapshot.data() ?? {};
+    const storedContactReviewRevision = existingLead.contactReviewRevision;
+    if (storedContactReviewRevision !== undefined
+      && (!Number.isSafeInteger(storedContactReviewRevision) || storedContactReviewRevision < 0)) {
+      throw new HttpsError("failed-precondition", "Lead contact-review revision is invalid and requires operator review.");
+    }
+    const currentContactReviewRevision = storedContactReviewRevision === undefined ? 0 : storedContactReviewRevision as number;
     const contactChannelsChanged = fields.email !== existingLead.email
       || fields.phone !== existingLead.phone
       || fields.website !== existingLead.website;
+    if (contactChannelsChanged && currentContactReviewRevision >= Number.MAX_SAFE_INTEGER) {
+      throw new HttpsError("failed-precondition", "Lead contact-review revision cannot be incremented safely.");
+    }
+    const nextContactReviewRevision = currentContactReviewRevision + (contactChannelsChanged ? 1 : 0);
     const existingReviewStatus = normaliseContactReviewStatus(existingLead.doNotContact, existingLead.contactReviewStatus);
     const restrictionUpdate = contactChannelsChanged
       ? (existingLead.doNotContact === true || existingReviewStatus === "blocked"
@@ -450,9 +462,10 @@ export const updateLeadContact = onCall(async (request) => {
       contactRestrictionVerified: !contactChannelsChanged
         && existingLead.doNotContact === false
         && (existingLead.contactReviewStatus === undefined || existingLead.contactReviewStatus === "cleared"),
+      contactReviewRevision: nextContactReviewRevision,
     };
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "updateLeadContact", 120);
-    transaction.update(leadRef, { ...fields, ...restrictionUpdate, score: completeness.score, scoreReasons: completeness.reasons, updatedAt: now, updatedBy: uid });
+    transaction.update(leadRef, { ...fields, ...restrictionUpdate, contactReviewRevision: nextContactReviewRevision, score: completeness.score, scoreReasons: completeness.reasons, updatedAt: now, updatedBy: uid });
     transaction.create(activity, { leadId, actorUid: uid, message: "Lead contact details updated", createdAt: now });
   });
   return { leadId, ...fields, score: completeness.score, scoreReasons: completeness.reasons, ...contactRestriction };
@@ -524,6 +537,9 @@ export const setLeadSuppression = onCall(async (request) => {
   const organisationId = requireOrganisationId(data.organisationId);
   const leadId = requireDocumentId(data.leadId, "leadId");
   if (typeof data.doNotContact !== "boolean") throw new HttpsError("invalid-argument", "doNotContact must be a boolean.");
+  if (!data.doNotContact && (!Number.isSafeInteger(data.contactReviewRevision) || (data.contactReviewRevision as number) < 0)) {
+    throw new HttpsError("invalid-argument", "A valid contactReviewRevision is required to clear a contact restriction.");
+  }
   const membership = await requireLeadEditor(organisationId, uid);
   if (!canChangeSuppression(membership.role, data.doNotContact)) {
     throw new HttpsError("permission-denied", data.doNotContact ? "Your organisation role cannot change lead suppression." : "Only organisation owners and admins can remove a contact restriction.");
@@ -539,9 +555,18 @@ export const setLeadSuppression = onCall(async (request) => {
     }
     const leadSnapshot = await transaction.get(leadRef);
     if (!leadSnapshot.exists) throw new HttpsError("not-found", "Lead was not found in this organisation.");
+    const lead = leadSnapshot.data() ?? {};
+    const storedRevision = lead.contactReviewRevision;
+    if (storedRevision !== undefined && (!Number.isSafeInteger(storedRevision) || storedRevision < 0)) {
+      throw new HttpsError("failed-precondition", "Lead contact-review revision is invalid and requires operator review.");
+    }
+    const currentRevision = storedRevision === undefined ? 0 : storedRevision as number;
+    if (!data.doNotContact && data.contactReviewRevision !== currentRevision) {
+      throw new HttpsError("failed-precondition", "Contact details changed after review began. Refresh the lead and review the current contact details before clearing the restriction.");
+    }
     const now = FieldValue.serverTimestamp();
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "setLeadSuppression", 120);
-    transaction.update(leadRef, { doNotContact: data.doNotContact, contactReviewStatus: data.doNotContact ? "blocked" : "cleared", updatedAt: now, updatedBy: uid });
+    transaction.update(leadRef, { doNotContact: data.doNotContact, contactReviewStatus: data.doNotContact ? "blocked" : "cleared", contactReviewRevision: currentRevision, updatedAt: now, updatedBy: uid });
     transaction.create(activity, { leadId, actorUid: uid, message: data.doNotContact ? "Lead marked do not contact" : "Lead contact restriction removed", createdAt: now });
   });
   return { leadId, doNotContact: data.doNotContact };
