@@ -982,7 +982,7 @@ try {
     "mutation rejected at the persisted rate-limit boundary",
   );
   const afterQuotaTest = await callOne("listLeads", { organisationId: orgOne.organisationId });
-  const quotaLeadAfter = afterQuotaTest.leads.find((lead) => lead.leadId === quotaLeadBefore.id);
+  const quotaLeadAfter = afterQuotaTest.leads.find((lead) => lead.id === quotaLeadBefore.id);
   assert.equal(quotaLeadAfter?.notes, quotaLeadBefore.notes, "rate-limited mutation must not change the lead");
   console.log("PASS: exhausted transactional quota rejects the mutation without changing protected data.");
 

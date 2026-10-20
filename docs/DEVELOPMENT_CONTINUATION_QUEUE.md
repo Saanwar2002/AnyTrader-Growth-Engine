@@ -1,3 +1,8 @@
+## Rate-limit boundary regression correction 3 — 2026-10-20
+
+- CI run `39399726469` confirmed the seeded quota was enforced and logged `resource-exhausted`, but the final no-side-effect assertion searched `lead.leadId` instead of the API's `lead.id`, so it could not find the unchanged record.
+- Corrected the post-call lookup to use `id`. This correction is pending CI verification.
+
 ## Rate-limit boundary regression correction 2 — 2026-10-20
 
 - CI run `39399378339` reached the quota assertion but the callable returned `functions/invalid-argument`: `listLeads` exposes the document key as `id`, not `leadId`.
