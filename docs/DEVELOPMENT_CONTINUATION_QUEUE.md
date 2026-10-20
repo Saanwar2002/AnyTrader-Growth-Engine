@@ -2,7 +2,7 @@
 
 - Added Cloud Functions structured warning logs when mutation quotas are exhausted and error logs when stored quota state or quota configuration is invalid.
 - Events include operation, a SHA-256 quota key, configured request/window limits, and retry duration; raw user IDs and organisation IDs are intentionally omitted.
-- Logging code change is pending CI verification. Alert policies, log retention and incident-response procedures still need configuration in the separate Firebase project. This is observability groundwork, not a production readiness claim.
+- CI run [39398354009](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39398354009) passed both jobs for commit `83c5138732051e1d87a0dc2c1a225f381f6efad3`, including Functions tests/build and the emulator integration suite. Alert policies, log retention and incident-response procedures still need configuration in the separate Firebase project. This is observability groundwork, not a production readiness claim.
 
 ## Transactional mutation rate limits verified — 2026-10-20
 

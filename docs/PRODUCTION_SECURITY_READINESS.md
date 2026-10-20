@@ -36,3 +36,10 @@ Keep this in synthetic-data development/demo use until the blocking items are im
 - Mutation quota exhaustion emits a structured warning with operation, hashed quota key, quota/window settings and retry duration.
 - Invalid persisted quota state emits a structured error with the operation and hashed quota key. Raw user and organisation IDs are not included in these events.
 - Log emission is implemented, but alert policies, retention configuration and operational response procedures still require configuration in the separate Firebase project. This does not remove the production-readiness blocker.
+
+
+## Rate-limit observability
+
+- Mutation quota exhaustion emits a structured warning with operation, hashed quota key, quota/window settings and retry duration.
+- Invalid persisted quota state emits a structured error with the operation and hashed quota key. Raw user and organisation IDs are not included in these events.
+- Structured logging passed CI run [39398354009](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39398354009). Alert policies, retention configuration and incident-response procedures still need configuration in the separate Firebase project.
