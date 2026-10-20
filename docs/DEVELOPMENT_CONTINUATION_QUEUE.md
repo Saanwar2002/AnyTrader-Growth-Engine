@@ -1,3 +1,10 @@
+## Contact-review regression found and fixed — 2026-10-20
+
+- The new fresh-lead stale-clearance test exposed a state-classification bug: editing contact details on a lead already suppressed as `pending` could incorrectly change its review status to `blocked`.
+- Updated `updateLeadContact` to preserve `blocked` only when the normalized existing review status is actually `blocked`; other contact changes remain suppressed and pending review.
+- This distinguishes a restriction awaiting review from an explicit block, while keeping both states suppressed.
+- The first CI run failed on this assertion; the fix is committed and awaits a complete rerun.
+
 ## Malformed persisted contact-review revision fails closed — 2026-10-20
 
 - Added a local-emulator-only seeder that corrupts the revision on a synthetic lead, guarded by the demo project ID and local Firestore emulator host.
