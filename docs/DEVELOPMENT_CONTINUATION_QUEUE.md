@@ -479,3 +479,10 @@ Continue the callable authorization audit and integration-test reliability work;
 - Follow-up integrity review adds a distinct synthetic organisation whose owner membership says `owner` but whose parent organisation has no `ownerUid`. This checks the missing-metadata case separately from an explicit conflicting UID.
 - Emulator smoke tests require campaign listing to fail with `permission-denied` and organisation listing to omit the organisation. The fixture remains restricted to the local demo emulator; no production data or deployment is involved.
 - Full CI verification is pending for this batch. Keep work on `development/chatgpt-mvp`; outreach remains draft-only.
+
+
+## Reject malformed authoritative owner metadata — 2026-10-20
+
+- CI run [39378824645](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39378824645) passed both frontend and Firebase Functions jobs for the missing-owner-metadata emulator regression.
+- Added unit-test coverage for malformed `ownerUid` values (null, blank strings, numbers, booleans, objects and arrays), ensuring an `owner` membership is accepted only when the authoritative owner UID is a non-empty matching string.
+- This is focused validator regression coverage; no production behavior change. Full CI verification is pending.

@@ -312,6 +312,17 @@ describe("organisation membership role integrity", () => {
     expect(isValidMembershipForOrganisation({ uid: "user-1", role: "owner" }, "user-1", undefined)).toBe(false);
   });
 
+  it.each([undefined, null, "", " ", 0, false, {}, []])(
+    "rejects owner membership when authoritative ownerUid is malformed (%j)",
+    (ownerUid) => {
+      expect(isValidMembershipForOrganisation(
+        { uid: "user-1", role: "owner" },
+        "user-1",
+        ownerUid,
+      )).toBe(false);
+    },
+  );
+
   it("does not require non-owner memberships to match ownerUid", () => {
     expect(isValidMembershipForOrganisation({ uid: "user-1", role: "admin" }, "user-1", "other-owner")).toBe(true);
     expect(isValidMembershipForOrganisation({ uid: "user-1", role: "member" }, "user-1", undefined)).toBe(true);
