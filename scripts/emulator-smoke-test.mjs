@@ -69,6 +69,17 @@ try {
       organisationId: orgOne.organisationId, leadId, doNotContact: false, contactReviewRevision,
     });
   }
+  function currentSuppressionQuotaCount() {
+    const output = execFileSync(process.execPath, [
+      "functions/scripts/assert-emulator-rate-limit-count.mjs",
+      orgOne.organisationId,
+      first.auth.currentUser.uid,
+      "setLeadSuppression",
+    ], { encoding: "utf8" });
+    const match = output.match(/COUNT:(\\d+)/);
+    assert.ok(match, "emulator quota assertion returns the current suppression count");
+    return Number(match[1]);
+  }
   // A successful mutation must also persist expiry metadata using its one-hour quota window.
   execFileSync(process.execPath, [
     "functions/scripts/assert-emulator-rate-limit-expiry.mjs",
@@ -304,12 +315,15 @@ try {
     location: "Manchester",
     email: "stale-after@example.test",
   });
+  const suppressionQuotaBeforeStaleClear = currentSuppressionQuotaCount();
   await expectCallableFailure(callOne("setLeadSuppression", {
     organisationId: orgOne.organisationId,
     leadId: staleClearSideEffectLead.leadId,
     doNotContact: false,
     contactReviewRevision: staleClearInitialRevision,
   }), "functions/failed-precondition", "fresh lead stale clearance is rejected");
+  assert.equal(currentSuppressionQuotaCount(), suppressionQuotaBeforeStaleClear,
+    "rejected stale clearance does not consume suppression quota");
   execFileSync(process.execPath, [
     "functions/scripts/assert-emulator-no-lead-activity.mjs",
     orgOne.organisationId,
@@ -338,12 +352,15 @@ try {
     orgOne.organisationId,
     malformedRevisionLead.leadId,
   ], { stdio: "inherit" });
+  const suppressionQuotaBeforeMalformedRevision = currentSuppressionQuotaCount();
   await expectCallableFailure(callOne("setLeadSuppression", {
     organisationId: orgOne.organisationId,
     leadId: malformedRevisionLead.leadId,
     doNotContact: false,
     contactReviewRevision: revisionBeforeCorruption,
   }), "functions/failed-precondition", "malformed persisted review revision fails closed");
+  assert.equal(currentSuppressionQuotaCount(), suppressionQuotaBeforeMalformedRevision,
+    "rejected malformed revision does not consume suppression quota");
   execFileSync(process.execPath, [
     "functions/scripts/assert-emulator-no-lead-activity.mjs",
     orgOne.organisationId,
