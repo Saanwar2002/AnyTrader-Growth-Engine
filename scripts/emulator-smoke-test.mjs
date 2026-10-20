@@ -443,6 +443,45 @@ try {
     "Lead contact restriction removed",
   ], { stdio: "inherit" });
 
+  // A valid but exhausted revision counter must not overflow when contact channels change.
+  const maxRevisionLead = await callOne("createLead", {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    businessName: "Synthetic Maximum Review Revision Guard Ltd",
+    category: "Painters",
+    location: "Manchester",
+    email: "max-revision@example.test",
+  });
+  execFileSync(process.execPath, [
+    "functions/scripts/seed-emulator-contact-review-revision.mjs",
+    orgOne.organisationId,
+    maxRevisionLead.leadId,
+    "max-safe-integer",
+  ], { stdio: "inherit" });
+  const editQuotaBeforeRevisionOverflow = currentQuotaCount("updateLeadContact");
+  await expectCallableFailure(callOne("updateLeadContact", {
+    organisationId: orgOne.organisationId,
+    leadId: maxRevisionLead.leadId,
+    businessName: "Synthetic Maximum Review Revision Guard Ltd",
+    category: "Painters",
+    location: "Manchester",
+    email: "attempted-overflow-change@example.test",
+  }), "functions/failed-precondition", "maximum safe contact-review revision cannot overflow");
+  assert.equal(currentQuotaCount("updateLeadContact"), editQuotaBeforeRevisionOverflow,
+    "revision overflow rejection does not consume contact-edit quota");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-no-lead-activity.mjs",
+    orgOne.organisationId,
+    maxRevisionLead.leadId,
+    "Lead contact details updated",
+  ], { stdio: "inherit" });
+  const maxRevisionStateList = await callOne("listLeads", { organisationId: orgOne.organisationId });
+  const maxRevisionState = maxRevisionStateList.leads.find((lead) => lead.id === maxRevisionLead.leadId);
+  assert.equal(maxRevisionState?.email, "max-revision@example.test",
+    "revision overflow rejection preserves original contact data");
+  assert.equal(maxRevisionState?.doNotContact, true,
+    "revision overflow rejection preserves suppression");
+
   await expectCallableFailure(callOne("createOutreachDraft", {
     organisationId: orgOne.organisationId,
     leadId: leadOne.leadId,
