@@ -150,6 +150,20 @@ export function isValidMembershipRecord(value: unknown, expectedUid: string): bo
   return record.uid === expectedUid && validRole;
 }
 
+/** Validates membership role integrity against the parent organisation record. */
+export function isValidMembershipForOrganisation(
+  value: unknown,
+  expectedUid: string,
+  organisationOwnerUid: unknown,
+): boolean {
+  if (!isValidMembershipRecord(value, expectedUid)) return false;
+  const record = value as Record<string, unknown>;
+  // Owner-role membership must match the organisation's authoritative ownerUid.
+  // Missing or conflicting ownership metadata must not silently grant owner powers.
+  if (record.role === "owner") return typeof organisationOwnerUid === "string" && organisationOwnerUid === expectedUid;
+  return true;
+}
+
 export function isValidOrganisationCollectionPageToken(value: unknown, organisationId: string, collectionName: "campaigns" | "leads" | "outreachDrafts"): value is string {
   if (typeof value !== "string" || value.length > 512) return false;
   const segments = value.split("/");

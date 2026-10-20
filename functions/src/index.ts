@@ -18,6 +18,7 @@ import {
   isValidOrganisationPageToken,
   isValidOrganisationCollectionPageToken,
   isValidMembershipRecord,
+  isValidMembershipForOrganisation,
   isValidFirestoreTimestamp,
   normaliseContactReviewStatus,
   normaliseOptionalText,
@@ -48,7 +49,7 @@ async function requireMembership(organisationId: string, uid: string) {
     db.doc(`organisations/${organisationId}/members/${uid}`).get(),
   ]);
   const membership = snapshot.data();
-  if (!organisationSnapshot.exists || !snapshot.exists || !isValidMembershipRecord(membership, uid)) {
+  if (!organisationSnapshot.exists || !snapshot.exists || !isValidMembershipForOrganisation(membership, uid, organisationSnapshot.data()?.ownerUid)) {
     throw new HttpsError("permission-denied", "You do not have access to this organisation.");
   }
   return membership ?? {};
@@ -75,7 +76,7 @@ async function requireTransactionalRole(
     transaction.get(membershipRef),
   ]);
   const membership = membershipSnapshot.data();
-  if (!organisationSnapshot.exists || !membershipSnapshot.exists || !membership || !isValidMembershipRecord(membership, uid)) {
+  if (!organisationSnapshot.exists || !membershipSnapshot.exists || !membership || !isValidMembershipForOrganisation(membership, uid, organisationSnapshot.data()?.ownerUid)) {
     throw new HttpsError("permission-denied", "You do not have access to this organisation.");
   }
   const allowed = permission === "campaign"
@@ -145,7 +146,7 @@ export const listMyOrganisations = onCall(async (request) => {
     if (!organisation.exists) return null;
     const membership = membershipDoc.data();
     const role = membership.role;
-    if (membershipDoc.id !== uid || membership.uid !== uid || (role !== "owner" && role !== "admin" && role !== "member" && role !== "viewer")) return null;
+    if (membershipDoc.id !== uid || !isValidMembershipForOrganisation(membership, uid, organisation.data()?.ownerUid)) return null;
     return { organisationId: organisation.id, name: organisation.data()?.name ?? "Unnamed organisation", role };
   }));
   const hasMoreOrganisations = memberships.size > 100;

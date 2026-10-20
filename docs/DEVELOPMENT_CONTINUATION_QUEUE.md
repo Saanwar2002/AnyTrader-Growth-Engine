@@ -448,3 +448,12 @@ Continue the callable authorization audit and integration-test reliability work;
 - Follow-up pagination review found that `listMyOrganisations` returned a page token based on the final raw membership row, but rejected that token on the next request if the row had an invalid role. A malformed legacy row could therefore break pagination even though it was correctly omitted from results.
 - A page token is now treated only as a scoped cursor: it must point to the signed-in user's membership path, contain that user's UID, and belong to an existing organisation, but its role need not be valid merely to advance past the row. Result rows still require a valid membership role, so the cursor cannot grant access to the malformed organisation.
 - Updated the guarded emulator fixture and smoke test to verify the malformed row is omitted while the cursor can safely advance. Full CI verification is pending; remain on `development/chatgpt-mvp`, with no production Firebase setup or outreach sending.
+
+
+## Bind owner-role permissions to the organisation's authoritative owner — 2026-10-20
+
+- The prior pagination-hardening commit passed CI run [39377547709](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39377547709), with both jobs successful.
+- Continued the membership integrity audit and found that a membership document with role `owner` was trusted without checking it against the parent organisation's `ownerUid`. Although direct client writes are denied and no membership-management endpoint exists, a corrupt or incorrectly provisioned owner record could otherwise grant owner/admin-only capabilities.
+- Added a shared organisation-aware membership validator. Owner-role membership must match the parent's recorded `ownerUid`; missing or conflicting owner metadata fails closed. Admin/member/viewer roles remain governed by the membership record.
+- Applied the check to read and transactional authorization plus organisation listing. Added unit tests and a guarded local-emulator regression proving a mismatched owner membership cannot access campaign data and is omitted from organisation results.
+- Full CI verification pending. Work remains on `development/chatgpt-mvp`; production Firebase setup remains deferred and outreach remains draft-only.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateLeadCompleteness, canChangeSuppression, canMarkLeadContacted, canCreateServerOutreachDraft, canTransitionLeadStatus, getOutreachDraftReviewState, hasCampaignWritePermission, hasLeadWritePermission, isValidCampaignStatus, isValidDocumentId, isValidEmailAddress, isValidLeadStatus, isValidOrganisationId, isValidOrganisationPageToken, isValidOrganisationCollectionPageToken, isValidMembershipRecord, isValidFirestoreTimestamp, normaliseContactReviewStatus, hasConsistentDraftCampaign, normaliseOptionalText, normaliseRequiredText } from "./authorization";
+import { calculateLeadCompleteness, canChangeSuppression, canMarkLeadContacted, canCreateServerOutreachDraft, canTransitionLeadStatus, getOutreachDraftReviewState, hasCampaignWritePermission, hasLeadWritePermission, isValidCampaignStatus, isValidDocumentId, isValidEmailAddress, isValidLeadStatus, isValidOrganisationId, isValidOrganisationPageToken, isValidOrganisationCollectionPageToken, isValidMembershipRecord, isValidMembershipForOrganisation, isValidFirestoreTimestamp, normaliseContactReviewStatus, hasConsistentDraftCampaign, normaliseOptionalText, normaliseRequiredText } from "./authorization";
 
 describe("server authorization input guards", () => {
   it("trims required text and rejects missing, non-string, blank, and overlong values", () => {
@@ -302,6 +302,20 @@ describe("membership record validation", () => {
     expect(isValidMembershipRecord({ role: "member" }, "user-1")).toBe(false);
     expect(isValidMembershipRecord(null, "user-1")).toBe(false);
     expect(isValidMembershipRecord([], "user-1")).toBe(false);
+  });
+});
+
+describe("organisation membership role integrity", () => {
+  it("requires owner-role membership to match the parent organisation owner", () => {
+    expect(isValidMembershipForOrganisation({ uid: "user-1", role: "owner" }, "user-1", "user-1")).toBe(true);
+    expect(isValidMembershipForOrganisation({ uid: "user-1", role: "owner" }, "user-1", "other-owner")).toBe(false);
+    expect(isValidMembershipForOrganisation({ uid: "user-1", role: "owner" }, "user-1", undefined)).toBe(false);
+  });
+
+  it("does not require non-owner memberships to match ownerUid", () => {
+    expect(isValidMembershipForOrganisation({ uid: "user-1", role: "admin" }, "user-1", "other-owner")).toBe(true);
+    expect(isValidMembershipForOrganisation({ uid: "user-1", role: "member" }, "user-1", undefined)).toBe(true);
+    expect(isValidMembershipForOrganisation({ uid: "user-1", role: "viewer" }, "user-1", "other-owner")).toBe(true);
   });
 });
 

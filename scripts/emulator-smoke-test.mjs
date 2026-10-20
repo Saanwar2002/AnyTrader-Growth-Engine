@@ -268,6 +268,23 @@ try {
     "malformed membership cursor does not grant organisation access",
   );
 
+  // A corrupt owner-role membership must not override the parent organisation's ownerUid.
+  execFileSync(process.execPath, [
+    "functions/scripts/seed-emulator-owner-mismatch.mjs",
+    first.auth.currentUser.uid,
+  ], { stdio: "inherit" });
+  await expectCallableFailure(
+    callOne("listCampaigns", { organisationId: "owner-mismatch-org" }),
+    "functions/permission-denied",
+    "owner membership that conflicts with parent ownerUid",
+  );
+  const ownerMismatchOrganisations = await callOne("listMyOrganisations", {});
+  assert.equal(
+    ownerMismatchOrganisations.organisations.some((item) => item.organisationId === "owner-mismatch-org"),
+    false,
+    "owner membership conflicting with parent ownerUid is omitted",
+  );
+
   // Orphaned subcollections must not remain accessible after the organisation parent is deleted.
   execFileSync(process.execPath, [
     "functions/scripts/seed-emulator-orphaned-organisation.mjs",
