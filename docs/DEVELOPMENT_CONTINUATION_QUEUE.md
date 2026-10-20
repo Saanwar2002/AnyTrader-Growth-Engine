@@ -1,3 +1,9 @@
+## Viewer contact-review denial has no side effects — 2026-10-20
+
+- Extended the emulator-only activity assertion to optionally forbid a specific activity message while allowing legitimate prior history for the same lead.
+- After a viewer's `setLeadSuppression(..., doNotContact: true)` request is denied, the smoke test verifies no matching `Lead marked do not contact` activity exists and the lead remains unsuppressed.
+- This tests both audit-trail integrity and state preservation after a role-denied contact-review operation. Emulator-only, synthetic data.
+
 ## Failed contact-review operation leaves no activity-log entry — 2026-10-20
 
 - Added a guarded, read-only Admin SDK assertion against the local demo Firestore emulator.
