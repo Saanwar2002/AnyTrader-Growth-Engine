@@ -251,21 +251,20 @@ try {
     "draft cursor with malformed createdAt",
   );
 
-  // A cursor is a pagination bookmark, not an authorization grant. A malformed
-  // membership may be used to advance past a row, but must never appear as an organisation.
+  // A pagination cursor must reference a valid membership and parent organisation.
+  // Malformed memberships are rejected as cursors and can never grant organisation access.
   // The fixture is restricted to the guarded local emulator project.
   execFileSync(process.execPath, [
     "functions/scripts/seed-emulator-invalid-membership.mjs",
     "cursor-fixture-org",
     first.auth.currentUser.uid,
   ], { stdio: "inherit" });
-  const malformedMembershipCursorPage = await callOne("listMyOrganisations", {
-    pageToken: `organisations/cursor-fixture-org/members/${first.auth.currentUser.uid}`,
-  });
-  assert.equal(
-    malformedMembershipCursorPage.organisations.some((item) => item.organisationId === "cursor-fixture-org"),
-    false,
-    "malformed membership cursor does not grant organisation access",
+  await expectCallableFailure(
+    callOne("listMyOrganisations", {
+      pageToken: `organisations/cursor-fixture-org/members/${first.auth.currentUser.uid}`,
+    }),
+    "functions/invalid-argument",
+    "organisation cursor whose membership record is malformed",
   );
 
   // A corrupt owner-role membership must not override the parent organisation's ownerUid.
