@@ -873,14 +873,29 @@ try {
     viewerStatusLead.leadId,
     "Lead status changed to qualified",
   ], { stdio: "inherit" });
+  const viewerDraftGuardLead = await callOne("createLead", {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    businessName: "Synthetic Viewer Draft Guard Ltd",
+    category: "Security regression",
+    location: "Manchester",
+    email: "viewer-draft-guard@example.test",
+  });
+  await clearLeadRestriction(viewerDraftGuardLead.leadId);
+  const viewerGuardDraft = await callOne("createOutreachDraft", {
+    organisationId: orgOne.organisationId,
+    leadId: viewerDraftGuardLead.leadId,
+    subject: "Dedicated viewer draft guard",
+    body: "Synthetic draft must remain unchanged.",
+  });
   const viewerDraftBefore = (await callOne("listOutreachDrafts", {
     organisationId: orgOne.organisationId,
-  })).drafts.find((item) => item.id === draft.draftId);
-  assert.ok(viewerDraftBefore, "owner-created draft exists before viewer mutation attempts");
+  })).drafts.find((item) => item.id === viewerGuardDraft.draftId);
+  assert.ok(viewerDraftBefore, "dedicated owner-created draft exists before viewer mutation attempts");
   const viewerDraftEditQuotaBefore = currentQuotaCount("updateOutreachDraft", viewer.auth.currentUser.uid);
   await expectCallableFailure(viewerCall("updateOutreachDraft", {
     organisationId: orgOne.organisationId,
-    draftId: draft.draftId,
+    draftId: viewerGuardDraft.draftId,
     subject: "Viewer must not edit",
     body: "Must remain unchanged.",
   }), "functions/permission-denied", "viewer cannot edit an outreach draft");
@@ -888,7 +903,7 @@ try {
     "role-denied draft edit does not consume the viewer's quota");
   const viewerDraftAfterEditAttempt = (await callOne("listOutreachDrafts", {
     organisationId: orgOne.organisationId,
-  })).drafts.find((item) => item.id === draft.draftId);
+  })).drafts.find((item) => item.id === viewerGuardDraft.draftId);
   assert.equal(viewerDraftAfterEditAttempt?.subject, viewerDraftBefore.subject,
     "role-denied draft edit preserves stored subject");
   assert.equal(viewerDraftAfterEditAttempt?.body, viewerDraftBefore.body,
@@ -896,25 +911,29 @@ try {
   execFileSync(process.execPath, [
     "functions/scripts/assert-emulator-no-lead-activity.mjs",
     orgOne.organisationId,
-    leadOne.leadId,
+    viewerDraftGuardLead.leadId,
     "Outreach draft updated; not sent",
   ], { stdio: "inherit" });
 
   const viewerDraftDeleteQuotaBefore = currentQuotaCount("deleteOutreachDraft", viewer.auth.currentUser.uid);
   await expectCallableFailure(viewerCall("deleteOutreachDraft", {
     organisationId: orgOne.organisationId,
-    draftId: draft.draftId,
+    draftId: viewerGuardDraft.draftId,
   }), "functions/permission-denied", "viewer cannot delete an outreach draft");
   assert.equal(currentQuotaCount("deleteOutreachDraft", viewer.auth.currentUser.uid), viewerDraftDeleteQuotaBefore,
     "role-denied draft deletion does not consume the viewer's quota");
   const viewerDraftAfterDeleteAttempt = (await callOne("listOutreachDrafts", {
     organisationId: orgOne.organisationId,
-  })).drafts.find((item) => item.id === draft.draftId);
+  })).drafts.find((item) => item.id === viewerGuardDraft.draftId);
   assert.ok(viewerDraftAfterDeleteAttempt, "role-denied draft deletion preserves the draft record");
   assert.equal(viewerDraftAfterDeleteAttempt?.subject, viewerDraftBefore.subject,
     "role-denied draft deletion preserves stored subject");
   assert.equal(viewerDraftAfterDeleteAttempt?.body, viewerDraftBefore.body,
     "role-denied draft deletion preserves stored body");
+  await callOne("deleteOutreachDraft", {
+    organisationId: orgOne.organisationId,
+    draftId: viewerGuardDraft.draftId,
+  });
 
   // Cursor tokens are untrusted client input. Reject wrong JSON types and oversized strings
   // consistently before attempting to resolve a Firestore document path.
