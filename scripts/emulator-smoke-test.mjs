@@ -158,6 +158,7 @@ try {
     location: "Manchester",
     website: "https://before-edit.example.test",
   });
+  const quotaBeforeUnsafeWebsiteEdits = currentQuotaCount("updateLeadContact");
   for (const [label, unsafeWebsite] of [
     ["javascript scheme", "javascript:alert(1)"],
     ["data scheme", "data:text/html,unsafe"],
@@ -175,6 +176,8 @@ try {
       website: unsafeWebsite,
     }), "functions/invalid-argument", `unsafe website edit rejected: ${label}`);
   }
+  assert.equal(currentQuotaCount("updateLeadContact"), quotaBeforeUnsafeWebsiteEdits,
+    "rejected unsafe website edits do not consume contact-edit quota");
   execFileSync(process.execPath, [
     "functions/scripts/assert-emulator-no-lead-activity.mjs",
     orgOne.organisationId,
