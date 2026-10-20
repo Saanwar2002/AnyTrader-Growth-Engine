@@ -1,3 +1,9 @@
+## Reject malformed contact-review flags without side effects — 2026-10-20
+
+- Added an emulator regression that submits the string `"false"` to the boolean `doNotContact` field. The callable must reject it with `functions/invalid-argument` rather than interpreting a truthy/falsy value as a review decision.
+- Verifies the synthetic lead remains suppressed with `contactReviewStatus: "pending"` and that neither the “marked do not contact” nor “restriction removed” activity is written.
+- Synthetic local-emulator data only. No production deployment or outreach sending.
+
 ## Viewer contact-review denial has no side effects — 2026-10-20
 
 - Extended the emulator-only activity assertion to optionally forbid a specific activity message while allowing legitimate prior history for the same lead.
