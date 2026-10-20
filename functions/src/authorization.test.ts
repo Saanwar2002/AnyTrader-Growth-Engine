@@ -115,6 +115,8 @@ describe("server outreach safeguards", () => {
     "ftp://example.test",
     "//example.test/path",
     "https://example.test/path with spaces",
+    "https://user:password@example.test/path",
+    "https://example.test@attacker.test/path",
   ])("rejects unsafe or ambiguous website values: %s", (value) => {
     expect(isSafeWebsiteAddress(value)).toBe(false);
   });
