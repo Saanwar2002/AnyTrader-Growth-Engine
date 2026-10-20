@@ -1035,6 +1035,21 @@ try {
   });
   assert.equal(changedLeads.length, 1, "only the successful concurrent request may change lead notes");
   console.log("PASS: concurrent requests serialize quota consumption; exactly one succeeds at the final slot.");
+  
+  // Read callables have independent quotas to limit repeated, potentially expensive collection reads.
+  execFileSync(process.execPath, [
+    "functions/scripts/seed-emulator-rate-limit.mjs",
+    orgOne.organisationId,
+    first.auth.currentUser.uid,
+    "listLeads",
+    "exhausted",
+  ], { stdio: "inherit" });
+  await expectCallableFailure(
+    callOne("listLeads", { organisationId: orgOne.organisationId }),
+    "functions/resource-exhausted",
+    "read callable rejected at its persisted rate-limit boundary",
+  );
+  console.log("PASS: listLeads enforces its per-user/per-organisation read quota.");
 
   console.log("PASS: exhausted and malformed transactional quota states reject mutations without changing protected data.");
 

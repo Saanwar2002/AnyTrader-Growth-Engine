@@ -62,6 +62,14 @@ async function consumeTransactionalRateLimit(transaction: Transaction, organisat
   transaction.set(ref, { ...evaluation.nextState, updatedAt: FieldValue.serverTimestamp() });
 }
 
+ 
+/** Consume a quota for a read callable in its own transaction before the read query runs. */
+async function consumeReadRateLimit(organisationId: string, uid: string, operation: string, maxRequests: number): Promise<void> {
+  await db.runTransaction(async (transaction: Transaction) => {
+    await consumeTransactionalRateLimit(transaction, organisationId, uid, operation, maxRequests);
+  });
+}
+
 
 function requireUid(uid: string | undefined): string {
   if (!uid) throw new HttpsError("unauthenticated", "Sign in to continue.");
@@ -244,6 +252,7 @@ export const listCampaigns = onCall(async (request) => {
   const data = (request.data ?? {}) as Record<string, unknown>;
   const organisationId = requireOrganisationId(data.organisationId);
   await requireMembership(organisationId, uid);
+  await consumeReadRateLimit(organisationId, uid, "listCampaigns", 120);
   let cursorSnapshot: QueryDocumentSnapshot | undefined;
   if (data.pageToken !== undefined && data.pageToken !== null && data.pageToken !== "") {
     if (!isValidOrganisationCollectionPageToken(data.pageToken, organisationId, "campaigns")) {
@@ -293,6 +302,7 @@ export const listLeads = onCall(async (request) => {
   const data = (request.data ?? {}) as Record<string, unknown>;
   const organisationId = requireOrganisationId(data.organisationId);
   await requireMembership(organisationId, uid);
+  await consumeReadRateLimit(organisationId, uid, "listLeads", 120);
   let cursorSnapshot: QueryDocumentSnapshot | undefined;
   if (data.pageToken !== undefined && data.pageToken !== null && data.pageToken !== "") {
     if (!isValidOrganisationCollectionPageToken(data.pageToken, organisationId, "leads")) {
@@ -534,6 +544,7 @@ export const listOutreachDrafts = onCall(async (request) => {
   const data = (request.data ?? {}) as Record<string, unknown>;
   const organisationId = requireOrganisationId(data.organisationId);
   await requireMembership(organisationId, uid);
+  await consumeReadRateLimit(organisationId, uid, "listOutreachDrafts", 60);
   let cursorSnapshot: QueryDocumentSnapshot | undefined;
   if (data.pageToken !== undefined && data.pageToken !== null && data.pageToken !== "") {
     if (!isValidOrganisationCollectionPageToken(data.pageToken, organisationId, "outreachDrafts")) {

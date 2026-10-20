@@ -721,3 +721,10 @@ Continue the callable authorization audit and integration-test reliability work;
 - CI run [39405136123](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39405136123) passed both frontend/emulator and Firebase Functions jobs for the rate-limit evaluator boundary tests.
 - Centralised quota document ID generation and switched the SHA-256 input to a JSON-encoded tuple of organisation ID, authenticated UID, and operation. This avoids ambiguous delimiter-based encodings and keeps each quota dimension isolated.
 - Updated the local-emulator fixture seeder to use the identical key format and added tests for deterministic 64-character hashes and organisation/user/operation isolation. CI verification for this change is pending.
+
+
+## Add server-side quotas to paginated read callables — 2026-10-20
+
+- Added fixed-window quotas for organisation, campaign, lead, and outreach-draft list endpoints to reduce the risk of repeated calls driving unbounded read/invocation costs. Tenant-scoped list quotas are keyed by organisation, authenticated user, and callable; organisation listing uses a global per-user bucket.
+- Quota consumption runs in a Firestore transaction before the list query. The emulator smoke suite seeds an exhausted `listLeads` bucket and expects `functions/resource-exhausted`. Initial quotas are provisional; monitor and recalibrate before public release.
+- CI verification pending. No production Firebase deployment or automated outreach sending.

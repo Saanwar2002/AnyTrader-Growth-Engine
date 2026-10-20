@@ -11,9 +11,9 @@ if (projectId !== "demo-growth-engine-test" || !emulatorHost || !/^(127\.0\.0\.1
 const [organisationId, uid, operation, state = "exhausted"] = process.argv.slice(2);
 if (!/^[A-Za-z0-9_-]{1,128}$/.test(organisationId ?? "")
   || !/^[A-Za-z0-9_-]{1,128}$/.test(uid ?? "")
-  || operation !== "updateLeadNotes"
+  || !["updateLeadNotes", "listLeads"].includes(operation)
   || !["exhausted", "invalid", "boundary"].includes(state)) {
-  throw new Error("Usage: node seed-emulator-rate-limit.mjs <organisation-id> <authenticated-uid> updateLeadNotes [exhausted|invalid|boundary]");
+  throw new Error("Usage: node seed-emulator-rate-limit.mjs <organisation-id> <authenticated-uid> <updateLeadNotes|listLeads> [exhausted|invalid|boundary]");
 }
 initializeApp({ projectId });
 const db = getFirestore();
@@ -21,7 +21,7 @@ const key = createHash("sha256").update(JSON.stringify([organisationId, uid, ope
 const now = Date.now();
 await db.collection("rateLimits").doc(key).set({
   windowStartedAtMs: now,
-  count: state === "exhausted" ? 240 : state === "boundary" ? 239 : "corrupt",
+  count: state === "exhausted" ? (operation === "updateLeadNotes" ? 240 : 120) : state === "boundary" ? (operation === "updateLeadNotes" ? 239 : 119) : "corrupt",
   updatedAt: new Date(now),
 });
-console.log(`Seeded an emulator-only ${state} updateLeadNotes quota fixture.`);
+console.log(`Seeded an emulator-only ${state} ${operation} quota fixture.`);

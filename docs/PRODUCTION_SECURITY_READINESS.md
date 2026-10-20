@@ -21,7 +21,8 @@ Audit on 2026-10-20 found 15 callable exports in `functions/src/index.ts` and ze
 - [ ] Keep authentication, authorisation, and tenant isolation checks. App Check does not replace them.
 
 ## Abuse and operational controls
-- [x] Add initial server-side per-user/per-organisation fixed-window rate limits to organisation creation and campaign, lead, suppression, and outreach-draft mutations. Limits are enforced transactionally and fail closed on malformed persisted quota state. Remaining: calibrate limits against expected usage, add operational monitoring/alerts, and verify production behaviour before public release.
+- [x] Add initial server-side per-user/per-organisation fixed-window rate limits to organisation creation and campaign, lead, suppression, and outreach-draft mutations. Limits are enforced transactionally and fail closed on malformed persisted quota state.
+- [x] Add per-user/per-organisation fixed-window limits to paginated list callables (120/minute for organisation, campaign, and lead lists; 60/minute for outreach drafts), with quota consumption committed before collection reads. Remaining: calibrate limits against expected usage, add operational monitoring/alerts, and verify production behaviour before public release.
 - [ ] Monitor repeated denials, unusual request volume, errors, and unexpected costs.
 - [ ] Configure budget alerts and an operational response owner.
 - [ ] Define data retention, deletion, offboarding, backups, and recovery.
@@ -73,3 +74,10 @@ Keep this in synthetic-data development/demo use until the blocking items are im
 - [ ] Monitor quota-document growth and TTL cleanup lag, and document a safe rollback/incident process.
 
 Until these controls are implemented, quota documents may accumulate. Do not manually bulk-delete active quota state; doing so can reset rate limits. Storage lifecycle work remains a pre-production operational task.
+
+
+## Read-callable abuse guard — 2026-10-20
+
+- Audit found that all four paginated list callables authenticated and checked tenant membership but had no server-side invocation quota. Repeated listing requests could still drive Firestore read and Functions costs despite mutation limits.
+- Added transactionally consumed per-user/per-organisation quotas before list queries: 120/minute for organisation, campaign, and lead lists; 60/minute for outreach drafts because that endpoint also reads referenced lead and campaign documents.
+- Extended the emulator-only seeder to support the `listLeads` quota and added an integration assertion that an exhausted read quota returns `resource-exhausted`. Limits are initial guardrails and must be calibrated with real traffic before production; CI verification is pending.
