@@ -55,6 +55,20 @@ try {
   ], { stdio: "inherit" });
   const orgOne = await callOne("createOrganisation", { name: "Tenant One" });
   assert.equal(orgOne.role, "owner");
+  async function currentContactReviewRevision(leadId) {
+    const result = await callOne("listLeads", { organisationId: orgOne.organisationId });
+    const lead = result.leads.find((item) => item.id === leadId);
+    assert.ok(lead, `synthetic lead ${leadId} must exist before contact review`);
+    assert.ok(Number.isSafeInteger(lead.contactReviewRevision) && lead.contactReviewRevision >= 0,
+      "lead listing exposes a valid contact-review revision");
+    return lead.contactReviewRevision;
+  }
+  async function clearLeadRestriction(leadId, caller = callOne) {
+    const contactReviewRevision = await currentContactReviewRevision(leadId);
+    return caller("setLeadSuppression", {
+      organisationId: orgOne.organisationId, leadId, doNotContact: false, contactReviewRevision,
+    });
+  }
   // A successful mutation must also persist expiry metadata using its one-hour quota window.
   execFileSync(process.execPath, [
     "functions/scripts/assert-emulator-rate-limit-expiry.mjs",
@@ -215,7 +229,7 @@ try {
   assert.equal(suppressedLeadAfterContactEdit?.contactReviewStatus, "blocked", "contact-detail edits preserve blocked review state");
   await expectCallableFailure(callOne("createOutreachDraft", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Blocked", body: "Must not be created" }), "functions/failed-precondition", "suppressed lead draft gate after contact edit");
   await expectCallableFailure(callOne("updateLeadStatus", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, status: "contacted" }), "functions/failed-precondition", "suppressed lead contacted status gate");
-  await callOne("setLeadSuppression", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, doNotContact: false });
+  await clearLeadRestriction(leadOne.leadId);
   const clearedLeadList = await callOne("listLeads", { organisationId: orgOne.organisationId });
   assert.equal(clearedLeadList.leads.find((lead) => lead.id === leadOne.leadId)?.contactReviewStatus, "cleared");
 
@@ -274,11 +288,7 @@ try {
     location: "Manchester",
     email: "before-race@example.test",
   });
-  await callOne("setLeadSuppression", {
-    organisationId: orgOne.organisationId,
-    leadId: concurrentReviewLead.leadId,
-    doNotContact: false,
-  });
+  await clearLeadRestriction(concurrentReviewLead.leadId);
   const concurrentDraftAttempt = callOne("createOutreachDraft", {
     organisationId: orgOne.organisationId,
     leadId: concurrentReviewLead.leadId,
@@ -314,7 +324,7 @@ try {
   console.log("PASS: concurrent contact edits and draft creation leave the lead suppressed; any earlier draft is flagged for review.");
 
   // Explicitly re-review the updated contact details before lifecycle tests continue.
-  await callOne("setLeadSuppression", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, doNotContact: false });
+  await clearLeadRestriction(leadOne.leadId);
 
   // Phone and website changes must invalidate clearance just like email changes.
   for (const [channel, value] of [
@@ -343,7 +353,7 @@ try {
       subject: "Changed contact channel requires review",
       body: `A ${channel} change must not retain old clearance`,
     }), "functions/failed-precondition", `changed ${channel} invalidates old clearance`);
-    await callOne("setLeadSuppression", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, doNotContact: false });
+    await clearLeadRestriction(leadOne.leadId);
   }
 
   // A reviewed lead may advance through lifecycle states; verify the server persists each update.
@@ -385,7 +395,7 @@ try {
   const adminCampaign = await adminCall("createCampaign", { organisationId: orgOne.organisationId, name: "Admin role campaign", brand: "Example", category: "Painters", location: "Manchester", goal: "Role test" });
   assert.equal(adminCampaign.status, "active", "admin can create a campaign");
   await adminCall("updateCampaignStatus", { organisationId: orgOne.organisationId, campaignId: adminCampaign.campaignId, status: "paused" });
-  await adminCall("setLeadSuppression", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, doNotContact: false });
+  await clearLeadRestriction(leadOne.leadId, adminCall);
   const adminClearedLeadList = await adminCall("listLeads", { organisationId: orgOne.organisationId });
   assert.equal(adminClearedLeadList.leads.find((lead) => lead.id === leadOne.leadId)?.contactReviewStatus, "cleared", "admin can clear lead suppression");
 
@@ -441,7 +451,7 @@ try {
     subject: "Fresh review required",
     body: "Must not be created after contact details change",
   }), "functions/failed-precondition", "member cannot draft after contact-channel edit until re-reviewed");
-  await adminCall("setLeadSuppression", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, doNotContact: false });
+  await clearLeadRestriction(leadOne.leadId, adminCall);
   const memberStatus = await memberCall("updateLeadStatus", {
     organisationId: orgOne.organisationId,
     leadId: leadOne.leadId,
@@ -725,7 +735,7 @@ try {
   await expectCallableFailure(callOne("updateLeadStatus", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, status: "contacted" }), "functions/failed-precondition", "suppressed lead cannot be marked contacted");
   await expectCallableFailure(callOne("createOutreachDraft", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Still blocked after note edit", body: "Must remain blocked" }), "functions/failed-precondition", "notes edit cannot reopen outreach eligibility");
 
-  await callOne("setLeadSuppression", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, doNotContact: false });
+  await clearLeadRestriction(leadOne.leadId);
   await callOne("updateOutreachDraft", { organisationId: orgOne.organisationId, draftId: draft.draftId, subject: "Updated test draft", body: "Still draft only" });
   const draftList = await callOne("listOutreachDrafts", { organisationId: orgOne.organisationId });
   const updatedDraft = draftList.drafts.find((item) => item.id === draft.draftId);
