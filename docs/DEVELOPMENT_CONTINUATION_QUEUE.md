@@ -1,3 +1,9 @@
+## Fail closed on malformed persisted campaign and lead fields — 2026-10-20
+
+- Hardened campaign and lead list serialization so corrupted/non-string persisted values cannot pass through to frontend responses. Text fields are bounded, unknown status values are represented as `unknown`, lead scores are finite and clamped to 0–100, and score reasons are restricted to a bounded string array.
+- Added emulator-only malformed campaign/lead fixtures and assertions that list APIs return JSON-safe values while preserving the malformed lead's suppressed/unverified contact state.
+- CI verification pending. No production data or services used; outreach remains draft-only.
+
 ## Safe serialization of malformed persisted timestamps — 2026-10-20
 
 - Added a defensive timestamp serializer for campaign, lead, and outreach-draft list responses. It returns an ISO string only when the persisted value exposes a callable toDate() that returns a valid Date; malformed values, invalid dates, and thrown conversions become null rather than failing the whole list response.
