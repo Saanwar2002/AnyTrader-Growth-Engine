@@ -1,3 +1,8 @@
+## Failed status update leaves legacy lead unchanged — 2026-10-20
+
+- Added an emulator regression that snapshots a synthetic legacy lead whose referenced campaign is missing, attempts to mark it contacted, confirms the callable fails with `functions/failed-precondition`, and re-reads the lead to prove its status was not mutated.
+- This complements the existing missing-campaign failure assertion by checking the protected record remains unchanged after rejection. Local emulator/synthetic data only; no production deployment or outreach sending. CI verification pending.
+
 ## Reject non-string and oversized pagination tokens — 2026-10-20
 
 - Extended emulator integration coverage for all four paginated callable endpoints: organisation, campaign, lead, and outreach-draft listings.

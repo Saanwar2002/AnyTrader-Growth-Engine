@@ -833,11 +833,20 @@ try {
     subject: "Missing campaign must block draft",
     body: "Must not be created without the referenced campaign",
   }), "functions/failed-precondition", "draft creation for a cleared legacy lead with a missing campaign");
+  const missingCampaignLeadBefore = (await callOne("listLeads", {
+    organisationId: orgOne.organisationId,
+  })).leads.find((item) => item.id === "legacy-missing-campaign-lead");
+  assert.ok(missingCampaignLeadBefore, "legacy lead with a missing campaign exists before the rejected status update");
   await expectCallableFailure(callOne("updateLeadStatus", {
     organisationId: orgOne.organisationId,
     leadId: "legacy-missing-campaign-lead",
     status: "contacted",
   }), "functions/failed-precondition", "marking a cleared legacy lead contacted when its campaign is missing");
+  const missingCampaignLeadAfter = (await callOne("listLeads", {
+    organisationId: orgOne.organisationId,
+  })).leads.find((item) => item.id === "legacy-missing-campaign-lead");
+  assert.equal(missingCampaignLeadAfter?.status, missingCampaignLeadBefore.status,
+    "failed status update for a lead with a missing campaign leaves lead status unchanged");
   const missingCampaignLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-missing-campaign-record-draft");
   const nonDraftStatusLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-non-draft-status");
   const missingStatusLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-missing-status");
