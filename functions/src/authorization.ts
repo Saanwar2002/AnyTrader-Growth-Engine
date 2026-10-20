@@ -222,7 +222,7 @@ export interface RateLimitEvaluation { allowed: boolean; invalidState: boolean; 
 
 /** Evaluate a fixed-window quota; malformed persisted state fails closed. */
 export function evaluateRateLimit(state: unknown, nowMs: number, maxRequests: number, windowMs: number): RateLimitEvaluation {
-  if (!Number.isSafeInteger(nowMs) || nowMs < 0 || !Number.isInteger(maxRequests) || maxRequests < 1 || !Number.isSafeInteger(windowMs) || windowMs < 1) {
+  if (!Number.isSafeInteger(nowMs) || nowMs < 0 || !Number.isSafeInteger(maxRequests) || maxRequests < 1 || !Number.isSafeInteger(windowMs) || windowMs < 1) {
     return { allowed: false, invalidState: true, nextState: null, retryAfterMs: 0 };
   }
   if (state === undefined || state === null) {
@@ -232,7 +232,7 @@ export function evaluateRateLimit(state: unknown, nowMs: number, maxRequests: nu
   const value = state as Record<string, unknown>;
   const started = value.windowStartedAtMs;
   const count = value.count;
-  if (typeof started !== "number" || !Number.isSafeInteger(started) || started < 0 || typeof count !== "number" || !Number.isInteger(count) || count < 1 || count > maxRequests) {
+  if (typeof started !== "number" || !Number.isSafeInteger(started) || started < 0 || typeof count !== "number" || !Number.isSafeInteger(count) || count < 1 || count > maxRequests) {
     return { allowed: false, invalidState: true, nextState: null, retryAfterMs: 0 };
   }
   const elapsed = nowMs - started;

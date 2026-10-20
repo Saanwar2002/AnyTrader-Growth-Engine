@@ -793,3 +793,10 @@ Continue the callable authorization audit and integration-test reliability work;
 - Follow-up evaluator review found that finite fractional millisecond values were accepted for the current time, window duration, and persisted window start. Runtime values from `Date.now()` and configured millisecond windows are integers, so accepting fractional values weakens persisted-state validation without serving a valid use case.
 - Tightened validation to require safe integer current-time/window values and integer persisted window starts. Added unit regressions for fractional configuration and malformed persisted starts.
 - Verification pending in CI. Work remains on `development/chatgpt-mvp`; no deployment or automated outreach sending.
+
+
+## Require safe integer rate-limit counts — 2026-10-20
+
+- The rate-limit evaluator already required safe integer millisecond timestamps, but accepted any `Number.isInteger` quota maximum and persisted count. JavaScript can report very large imprecise numeric values as integers, which are not suitable for reliable quota arithmetic.
+- Tightened configuration and persisted-state validation to require safe integer `maxRequests` and `count` values. Added regressions for an unsafe quota maximum and an unsafe stored count; malformed values continue to fail closed.
+- CI verification pending. Work remains on `development/chatgpt-mvp`; no production Firebase deployment or automated outreach sending.
