@@ -418,6 +418,25 @@ try {
     body: "This draft must be rejected for a blocked synthetic lead.",
   }), "functions/failed-precondition", "blocked malformed-revision lead cannot create outreach draft");
 
+  // Applying a block must not repair or silently reset corrupt review metadata:
+  // subsequent clearance must still require operator remediation.
+  const blockedRevisionBeforeClearAttempt = await currentContactReviewRevision(malformedRevisionLead.leadId);
+  const blockedClearQuotaBefore = currentQuotaCount();
+  await expectCallableFailure(callOne("setLeadSuppression", {
+    organisationId: orgOne.organisationId,
+    leadId: malformedRevisionLead.leadId,
+    doNotContact: false,
+    contactReviewRevision: blockedRevisionBeforeClearAttempt,
+  }), "functions/failed-precondition", "blocked malformed-revision lead cannot be cleared using a fallback revision");
+  assert.equal(currentQuotaCount(), blockedClearQuotaBefore,
+    "rejected clearance after stricter block does not consume suppression quota");
+  const afterBlockedClearAttemptList = await callOne("listLeads", { organisationId: orgOne.organisationId });
+  const afterBlockedClearAttempt = afterBlockedClearAttemptList.leads.find((lead) => lead.id === malformedRevisionLead.leadId);
+  assert.equal(afterBlockedClearAttempt?.doNotContact, true,
+    "failed clearance preserves the stricter suppression");
+  assert.equal(afterBlockedClearAttempt?.contactReviewStatus, "blocked",
+    "failed clearance preserves blocked status");
+
   await expectCallableFailure(callOne("createOutreachDraft", {
     organisationId: orgOne.organisationId,
     leadId: leadOne.leadId,
