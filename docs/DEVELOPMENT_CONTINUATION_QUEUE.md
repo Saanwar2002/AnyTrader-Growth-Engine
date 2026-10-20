@@ -1,3 +1,9 @@
+## Contact-review flag type matrix — 2026-10-20
+
+- Expanded the malformed contact-review regression from a single string to a small type matrix: string `"false"`, numeric zero, object, array, and null.
+- Each malformed `doNotContact` value must fail with `functions/invalid-argument`; the test then verifies the synthetic lead remains suppressed/pending and neither block nor clear activity is written.
+- This is input-validation coverage, not a concurrency proof. All checks use the local Firebase emulator and synthetic records.
+
 ## Reject malformed contact-review flags without side effects — 2026-10-20
 
 - Added an emulator regression that submits the string `"false"` to the boolean `doNotContact` field. The callable must reject it with `functions/invalid-argument` rather than interpreting a truthy/falsy value as a review decision.
