@@ -296,6 +296,15 @@ try {
     "functions/permission-denied",
     "lead creation under deleted organisation parent",
   );
+  await expectCallableFailure(
+    callOne("setLeadSuppression", {
+      organisationId: "orphaned-org",
+      leadId: "orphaned-lead",
+      doNotContact: false,
+    }),
+    "functions/permission-denied",
+    "suppression update under deleted organisation parent",
+  );
 
   // A restriction added after draft creation must be reflected by list and enforced by update.
   await callOne("setLeadSuppression", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, doNotContact: true });

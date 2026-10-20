@@ -433,3 +433,10 @@ Continue the callable authorization audit and integration-test reliability work;
 - Added a regression case where an unclosed quoted field is followed by a valid row whose business name is quoted. The parser previously could mistake that later row's closing quote for the missing quote and consume the valid row.
 - Adjusted physical-line recovery to recognise a likely new quoted record at the start of a later line, while retaining support for valid multiline fields and closing quotes at line starts.
 - CI verification pending. Changes remain on `development/chatgpt-mvp`; no production Firebase deployment or automated outreach sending.
+
+
+## Revalidate organisation parent when changing lead suppression — 2026-10-20
+
+- Found that `setLeadSuppression` re-read membership transactionally but did not re-check the parent organisation document. If the parent were deleted after the initial authorization check, the remaining membership subcollection could still pass the transactional guard.
+- Reused the shared transactional role guard, which validates both parent organisation and membership, while retaining the stricter owner/admin rule for clearing a contact restriction. Added an emulator regression assertion for suppression updates against an orphaned organisation.
+- Full CI verification pending. Changes remain on `development/chatgpt-mvp`; no production Firebase deployment or automated outreach sending.

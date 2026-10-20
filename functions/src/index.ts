@@ -396,16 +396,10 @@ export const setLeadSuppression = onCall(async (request) => {
   const leadRef = db.collection("organisations").doc(organisationId).collection("leads").doc(leadId);
   const activity = db.collection("organisations").doc(organisationId).collection("leadActivities").doc();
   await db.runTransaction(async (transaction: Transaction) => {
-    // Re-read the membership inside the write transaction. In particular, a
-    // recently demoted admin must not retain permission to clear suppression
-    // based only on a role snapshot fetched before the transaction began.
-    const membershipRef = db.doc(`organisations/${organisationId}/members/${uid}`);
-    const membershipSnapshot = await transaction.get(membershipRef);
-    const currentMembership = membershipSnapshot.data();
-    if (!membershipSnapshot.exists || !currentMembership || !isValidMembershipRecord(currentMembership, uid)) {
-      throw new HttpsError("permission-denied", "You do not have access to this organisation.");
-    }
-    if (!hasLeadWritePermission(currentMembership.role) || !canChangeSuppression(currentMembership.role, data.doNotContact)) {
+    // Revalidate both the parent organisation and current membership inside
+    // the write transaction so orphaned subcollections and stale roles fail closed.
+    const currentMembership = await requireTransactionalRole(transaction, organisationId, uid, "lead");
+    if (!canChangeSuppression(currentMembership.role, data.doNotContact)) {
       throw new HttpsError("permission-denied", data.doNotContact ? "Your organisation role cannot change lead suppression." : "Only organisation owners and admins can remove a contact restriction.");
     }
     const leadSnapshot = await transaction.get(leadRef);
