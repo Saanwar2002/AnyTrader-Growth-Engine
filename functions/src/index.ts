@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { initializeApp } from "firebase-admin/app";
 import { FieldValue, getFirestore, type QueryDocumentSnapshot, type Transaction } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
@@ -18,6 +17,7 @@ import {
   isValidEmailAddress,
   isSafeWebsiteAddress,
   evaluateRateLimit,
+  createRateLimitDocumentId,
   isValidOrganisationId,
   isValidOrganisationPageToken,
   isValidOrganisationCollectionPageToken,
@@ -36,7 +36,7 @@ const RATE_LIMIT_WINDOW_MS = 60000;
 
 /** Consume a per-user, per-organisation quota in the protected mutation transaction. */
 async function consumeTransactionalRateLimit(transaction: Transaction, organisationId: string, uid: string, operation: string, maxRequests: number, windowMs = RATE_LIMIT_WINDOW_MS): Promise<void> {
-  const key = createHash("sha256").update(`${organisationId}:${uid}:${operation}`).digest("hex");
+  const key = createRateLimitDocumentId(organisationId, uid, operation);
   const ref = db.collection("rateLimits").doc(key);
   const snapshot = await transaction.get(ref);
   const evaluation = evaluateRateLimit(snapshot.exists ? snapshot.data() : undefined, Date.now(), maxRequests, windowMs);

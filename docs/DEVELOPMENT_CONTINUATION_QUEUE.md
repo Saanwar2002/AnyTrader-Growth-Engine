@@ -714,3 +714,10 @@ Continue the callable authorization audit and integration-test reliability work;
 
 - Added unit regressions for requests below quota during clock rollback (the existing window start is retained and count increments), exact window-expiry boundary behavior, and invalid evaluator configuration (non-finite/negative clock, invalid maximum, and invalid window).
 - These tests strengthen pure evaluator coverage without changing runtime quota behavior. CI verification is pending.
+
+
+## Make rate-limit bucket keys structurally unambiguous — 2026-10-20
+
+- CI run [39405136123](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39405136123) passed both frontend/emulator and Firebase Functions jobs for the rate-limit evaluator boundary tests.
+- Centralised quota document ID generation and switched the SHA-256 input to a JSON-encoded tuple of organisation ID, authenticated UID, and operation. This avoids ambiguous delimiter-based encodings and keeps each quota dimension isolated.
+- Updated the local-emulator fixture seeder to use the identical key format and added tests for deterministic 64-character hashes and organisation/user/operation isolation. CI verification for this change is pending.

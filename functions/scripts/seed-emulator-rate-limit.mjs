@@ -17,7 +17,7 @@ if (!/^[A-Za-z0-9_-]{1,128}$/.test(organisationId ?? "")
 }
 initializeApp({ projectId });
 const db = getFirestore();
-const key = createHash("sha256").update(`${organisationId}:${uid}:${operation}`).digest("hex");
+const key = createHash("sha256").update(JSON.stringify([organisationId, uid, operation])).digest("hex");
 const now = Date.now();
 await db.collection("rateLimits").doc(key).set({
   windowStartedAtMs: now,

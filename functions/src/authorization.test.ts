@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateLeadCompleteness, canChangeSuppression, canMarkLeadContacted, canCreateServerOutreachDraft, canTransitionLeadStatus, getOutreachDraftReviewState, hasCampaignWritePermission, hasLeadWritePermission, isValidCampaignStatus, isValidDocumentId, isValidEmailAddress, isValidLeadStatus, isValidOrganisationId, isValidOrganisationPageToken, isValidOrganisationCollectionPageToken, isValidMembershipRecord, isValidMembershipForOrganisation, isValidFirestoreTimestamp, normaliseContactReviewStatus, hasConsistentDraftCampaign, normaliseOptionalText, normaliseRequiredText, isSafeWebsiteAddress, evaluateRateLimit } from "./authorization";
+import { calculateLeadCompleteness, canChangeSuppression, canMarkLeadContacted, canCreateServerOutreachDraft, canTransitionLeadStatus, getOutreachDraftReviewState, hasCampaignWritePermission, hasLeadWritePermission, isValidCampaignStatus, isValidDocumentId, isValidEmailAddress, isValidLeadStatus, isValidOrganisationId, isValidOrganisationPageToken, isValidOrganisationCollectionPageToken, isValidMembershipRecord, isValidMembershipForOrganisation, isValidFirestoreTimestamp, normaliseContactReviewStatus, hasConsistentDraftCampaign, normaliseOptionalText, normaliseRequiredText, isSafeWebsiteAddress, evaluateRateLimit, createRateLimitDocumentId } from "./authorization";
 
 describe("server authorization input guards", () => {
   it("trims required text and rejects missing, non-string, blank, and overlong values", () => {
@@ -581,5 +581,22 @@ describe("server-side rate-limit evaluation", () => {
   it.each([{ windowStartedAtMs: "1000", count: 1 }, { windowStartedAtMs: 1000, count: 0 }, { windowStartedAtMs: 1000, count: 4 }, { windowStartedAtMs: Number.NaN, count: 1 }, []])("fails closed on malformed persisted state", (state) => {
     expect(evaluateRateLimit(state, 2000, 3, 60000).invalidState).toBe(true);
     expect(evaluateRateLimit(state, 2000, 3, 60000).allowed).toBe(false);
+  });
+});
+
+
+describe("rate-limit document key isolation", () => {
+  it("uses stable 64-character SHA-256 keys", () => {
+    const key = createRateLimitDocumentId("org-1", "user-1", "updateLeadNotes");
+    expect(key).toMatch(/^[a-f0-9]{64}$/);
+    expect(createRateLimitDocumentId("org-1", "user-1", "updateLeadNotes")).toBe(key);
+  });
+
+  it("isolates organisation, user, and operation dimensions without delimiter ambiguity", () => {
+    const baseline = createRateLimitDocumentId("org-1", "user:part", "updateLeadNotes");
+    expect(createRateLimitDocumentId("org-2", "user:part", "updateLeadNotes")).not.toBe(baseline);
+    expect(createRateLimitDocumentId("org-1", "other-user", "updateLeadNotes")).not.toBe(baseline);
+    expect(createRateLimitDocumentId("org-1", "user:part", "createLead")).not.toBe(baseline);
+    expect(createRateLimitDocumentId("org-1", "user", "part:updateLeadNotes")).not.toBe(baseline);
   });
 });

@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 export type OrganisationRole = "owner" | "admin" | "member" | "viewer";
 
 export function normaliseRequiredText(value: unknown, maxLength: number): string | null {
@@ -209,6 +211,11 @@ export function isValidFirestoreTimestamp(value: unknown): boolean {
   }
 }
 
+
+/** Hash a structured tuple so delimiter characters in identifiers cannot alias another quota bucket. */
+export function createRateLimitDocumentId(organisationId: string, uid: string, operation: string): string {
+  return createHash("sha256").update(JSON.stringify([organisationId, uid, operation])).digest("hex");
+}
 
 export interface RateLimitState { windowStartedAtMs: number; count: number; }
 export interface RateLimitEvaluation { allowed: boolean; invalidState: boolean; nextState: RateLimitState | null; retryAfterMs: number; }
