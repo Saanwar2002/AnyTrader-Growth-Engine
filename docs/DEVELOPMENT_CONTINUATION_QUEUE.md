@@ -1,3 +1,10 @@
+## Rejected contact-review requests do not consume quota — 2026-10-20
+
+- Added a local-emulator-only read-only assertion for the transactional `setLeadSuppression` quota counter.
+- The stale-revision and malformed-persisted-revision tests capture the counter before the rejected request and assert it is unchanged afterwards.
+- This verifies failed preconditions do not consume the mutation quota or create clearance activity.
+- The helper accepts only the demo project, local Firestore emulator, and the specific suppression operation.
+
 ## Contact-review regression found and fixed — 2026-10-20
 
 - The new fresh-lead stale-clearance test exposed a state-classification bug: editing contact details on a lead already suppressed as `pending` could incorrectly change its review status to `blocked`.
