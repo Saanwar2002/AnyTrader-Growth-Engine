@@ -2,7 +2,7 @@
 
 - Extended the local emulator quota regression to seed both an exhausted quota and a malformed persisted counter for `updateLeadNotes`.
 - The expected behavior is `functions/resource-exhausted` for the exhausted counter and `functions/failed-precondition` for malformed state; both rejected calls must leave the lead unchanged.
-- The seeder remains restricted to the local demo Firestore emulator and the fixed operation. CI verification is pending.
+- The seeder remains restricted to the local demo Firestore emulator and the fixed operation. CI run [39400377207](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39400377207) passed both jobs, including emulator integration.
 
 ## Rate-limit boundary regression correction 3 — 2026-10-20
 
