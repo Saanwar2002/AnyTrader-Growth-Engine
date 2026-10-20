@@ -560,3 +560,10 @@ Continue the callable authorization audit and integration-test reliability work;
 - Found that editing a previously reviewed lead's email, phone, or website could leave the old `doNotContact: false` / cleared review state in place. That could allow draft creation for contact details that had not been reviewed.
 - Updated `updateLeadContact` so a change to email, phone, or website re-applies the contact restriction and sets review to pending; an already blocked/suppressed lead stays blocked. Changes to other business fields do not themselves invalidate clearance.
 - Added an emulator regression asserting a cleared lead cannot create a draft after its email changes, then explicitly re-clears the updated details before lifecycle tests continue. Verify full CI before the next change. Remain on `development/chatgpt-mvp`; no production deployment or automated outreach sending.
+
+
+## Follow-up to contact-review CI regression — 2026-10-20
+
+- CI run [39386317382](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39386317382) exposed an existing emulator test assumption that a member could edit an email and immediately create a draft using the previous clearance. The new server-side guard correctly denied that draft.
+- Updated the integration scenario to assert that member contact-channel edits set the lead to pending/do-not-contact, assert draft creation is rejected, and have the admin explicitly re-review the changed details before subsequent lifecycle/draft permission checks.
+- This is a test expectation update, not a relaxation of the guard. Run CI to verify before further changes.
