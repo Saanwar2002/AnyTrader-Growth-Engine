@@ -522,6 +522,12 @@ Continue the callable authorization audit and integration-test reliability work;
 
 ## Resolve contradictory blocked contact-review state in the UI — 2026-10-20
 
-- Found a UI action mismatch for legacy records with `doNotContact: false` but `contactReviewStatus: "blocked"`: the row displayed a review warning, but clicking its action re-suppressed the lead rather than offering the owner/admin a direct review-and-clear action.
-- Added a shared UI decision helper and unit coverage so suppressed, pending, or blocked records offer a clear/review action; only owner/admin can execute that clear action. A verified, unsuppressed record still offers the normal suppress action.
-- Verification pending CI. Changes remain on `development/chatgpt-mvp`; no deployment or outreach sending.
+- Commit `9fd627981afffc2f3661c99ac8f871046f8d5c7b` passed CI run [39383138152](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39383138152), including frontend tests/build and Firebase Functions tests/build/emulator integration.
+- Fixed a UI action mismatch for legacy records with `doNotContact: false` but `contactReviewStatus: "blocked"`: these records now offer review/clear rather than accidentally re-suppressing the lead. A shared helper has unit coverage; owner/admin-only clear enforcement remains in place.
+- No deployment or outreach sending.
+
+## Production security gate — 2026-10-20
+
+- Audit found 15 callable exports in `functions/src/index.ts` and no `enforceAppCheck` options. Existing server-side authentication, membership, role checks, and tenant isolation remain essential but do not replace App Check.
+- Added `docs/PRODUCTION_SECURITY_READINESS.md` documenting App Check enforcement as a blocker, plus rate limiting, monitoring, privacy/retention, and recovery requirements.
+- Do not deploy publicly until the separate Growth Engine Firebase project is configured and these controls are implemented and verified.
