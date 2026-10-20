@@ -274,6 +274,11 @@ try {
     first.auth.currentUser.uid,
   ], { stdio: "inherit" });
   await expectCallableFailure(
+    callOne("listMyOrganisations", { pageToken: `organisations/owner-mismatch-org/members/${first.auth.currentUser.uid}` }),
+    "functions/invalid-argument",
+    "organisation cursor whose owner membership conflicts with parent ownerUid",
+  );
+  await expectCallableFailure(
     callOne("listCampaigns", { organisationId: "owner-mismatch-org" }),
     "functions/permission-denied",
     "owner membership that conflicts with parent ownerUid",

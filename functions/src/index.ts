@@ -133,6 +133,9 @@ export const listMyOrganisations = onCall(async (request) => {
     if (!cursorOrganisation.exists) {
       throw new HttpsError("invalid-argument", "Organisation page token is no longer valid.");
     }
+    if (!isValidMembershipForOrganisation(cursorMembership, uid, cursorOrganisation.data()?.ownerUid)) {
+      throw new HttpsError("invalid-argument", "Organisation page token is no longer valid.");
+    }
     cursorSnapshot = cursor as QueryDocumentSnapshot;
   }
   let membershipQuery = db.collectionGroup("members").where("uid", "==", uid);

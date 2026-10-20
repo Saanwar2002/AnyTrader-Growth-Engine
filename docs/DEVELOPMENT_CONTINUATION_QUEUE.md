@@ -486,3 +486,10 @@ Continue the callable authorization audit and integration-test reliability work;
 - CI run [39378824645](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39378824645) passed both frontend and Firebase Functions jobs for the missing-owner-metadata emulator regression.
 - Added unit-test coverage for malformed `ownerUid` values (null, blank strings, numbers, booleans, objects and arrays), ensuring an `owner` membership is accepted only when the authoritative owner UID is a non-empty matching string.
 - This is focused validator regression coverage; no production behavior change. Full CI verification is pending.
+
+
+## Organisation pagination cursor integrity follow-up — 2026-10-20
+
+- CI run [39379052557](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39379052557) passed both frontend and Firebase Functions jobs for commit `dddb77698d62517e7fefa2c9292798eab4ce691a`.
+- The next source audit found that `listMyOrganisations` checked that a pagination cursor belonged to the caller and pointed to an existing organisation, but did not validate an `owner` membership against the parent organisation's authoritative `ownerUid`. This did not grant organisation access because page results were separately validated, but it allowed an invalid owner membership to be used as a cursor.
+- Added the same authoritative membership integrity check to cursor validation and an emulator regression asserting that a mismatched owner membership cannot be used as an organisation pagination cursor. Verification pending in CI; keep changes on `development/chatgpt-mvp` and keep Firebase deployment deferred.
