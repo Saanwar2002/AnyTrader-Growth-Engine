@@ -6,7 +6,7 @@ import { getFirestore, Timestamp } from "firebase-admin/firestore";
 // This assertion must never target a non-local or non-demo Firestore instance.
 const projectId = process.env.GCLOUD_PROJECT ?? process.env.FIREBASE_PROJECT ?? "demo-growth-engine-test";
 const emulatorHost = process.env.FIRESTORE_EMULATOR_HOST;
-if (projectId !== "demo-growth-engine-test" || !emulatorHost || !/^(127\\.0\\.1|localhost):8080$/.test(emulatorHost)) {
+if (projectId !== "demo-growth-engine-test" || !emulatorHost || !/^(127\.0\.0\.1|localhost):8080$/.test(emulatorHost)) {
   throw new Error("Refusing to inspect rate-limit state outside the local demo Firestore emulator.");
 }
 const [organisationId, uid, operation] = process.argv.slice(2);

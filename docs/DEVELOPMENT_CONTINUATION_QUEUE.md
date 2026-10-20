@@ -771,3 +771,9 @@ Continue the callable authorization audit and integration-test reliability work;
 - Added fixed-window quotas for organisation, campaign, lead, and outreach-draft list endpoints to reduce the risk of repeated calls driving unbounded read/invocation costs. Tenant-scoped list quotas are keyed by organisation, authenticated user, and callable; organisation listing uses a global per-user bucket.
 - Quota consumption runs in a Firestore transaction before the list query. The emulator smoke suite seeds an exhausted `listLeads` bucket and expects `functions/resource-exhausted`. Initial quotas are provisional; monitor and recalibrate before public release.
 - CI verification pending. No production Firebase deployment or automated outreach sending.
+
+
+## Follow-up: emulator TTL assertion guard (2026-10-20)
+- CI run `39413191033` failed in `assert-emulator-rate-limit-expiry.mjs` because the local emulator host regex was over-escaped and did not match `127.0.0.1:8080`.
+- Corrected the regex to match loopback IPv4 or `localhost` on port 8080. The project-ID and emulator-host safety guard remains in place.
+- Verification: rerun Growth Engine CI and confirm emulator integration passes before treating this change as verified.
