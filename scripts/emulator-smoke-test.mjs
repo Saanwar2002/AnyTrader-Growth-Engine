@@ -284,6 +284,45 @@ try {
   const leadAfterStaleClear = afterStaleClearAttempt.leads.find((lead) => lead.id === leadOne.leadId);
   assert.equal(leadAfterStaleClear?.doNotContact, true, "stale clearance leaves the lead suppressed");
   assert.equal(leadAfterStaleClear?.contactReviewStatus, "pending", "stale clearance leaves review pending");
+
+  // Use a fresh synthetic lead to prove stale clearance creates no activity at all,
+  // rather than merely avoiding a duplicate entry on a lead with prior review history.
+  const staleClearSideEffectLead = await callOne("createLead", {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    businessName: "Synthetic Stale Clearance Side Effect Guard Ltd",
+    category: "Painters",
+    location: "Manchester",
+    email: "stale-before@example.test",
+  });
+  const staleClearInitialRevision = await currentContactReviewRevision(staleClearSideEffectLead.leadId);
+  await callOne("updateLeadContact", {
+    organisationId: orgOne.organisationId,
+    leadId: staleClearSideEffectLead.leadId,
+    businessName: "Synthetic Stale Clearance Side Effect Guard Ltd",
+    category: "Painters",
+    location: "Manchester",
+    email: "stale-after@example.test",
+  });
+  await expectCallableFailure(callOne("setLeadSuppression", {
+    organisationId: orgOne.organisationId,
+    leadId: staleClearSideEffectLead.leadId,
+    doNotContact: false,
+    contactReviewRevision: staleClearInitialRevision,
+  }), "functions/failed-precondition", "fresh lead stale clearance is rejected");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-no-lead-activity.mjs",
+    orgOne.organisationId,
+    staleClearSideEffectLead.leadId,
+    "Lead contact restriction removed",
+  ], { stdio: "inherit" });
+  const staleClearSideEffectList = await callOne("listLeads", { organisationId: orgOne.organisationId });
+  const staleClearSideEffectState = staleClearSideEffectList.leads.find((lead) => lead.id === staleClearSideEffectLead.leadId);
+  assert.equal(staleClearSideEffectState?.doNotContact, true, "rejected stale clearance preserves suppression");
+  assert.equal(staleClearSideEffectState?.contactReviewStatus, "pending", "rejected stale clearance preserves pending review");
+  assert.equal(staleClearSideEffectState?.contactReviewRevision, staleClearInitialRevision + 1,
+    "rejected stale clearance preserves the newer contact revision");
+
   await expectCallableFailure(callOne("createOutreachDraft", {
     organisationId: orgOne.organisationId,
     leadId: leadOne.leadId,
