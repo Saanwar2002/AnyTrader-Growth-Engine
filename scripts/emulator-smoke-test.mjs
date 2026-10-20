@@ -850,6 +850,33 @@ try {
 
   await callOne("deleteOutreachDraft", { organisationId: orgOne.organisationId, draftId: draft.draftId });
 
+  // Exercise organisation pagination with more than 100 memberships for one caller.
+  execFileSync(process.execPath, [
+    "functions/scripts/seed-emulator-organisation-pagination.mjs",
+    first.auth.currentUser.uid,
+  ], { stdio: "inherit" });
+  const seenOrganisationIds = new Set();
+  let organisationPage = await callOne("listMyOrganisations", {});
+  let organisationPageCount = 0;
+  while (true) {
+    organisationPageCount += 1;
+    for (const organisation of organisationPage.organisations) {
+      if (organisation.organisationId.startsWith("pagination-fixture-org-")) {
+        assert.equal(organisation.role, "owner", "pagination fixture membership retains its validated owner role");
+        seenOrganisationIds.add(organisation.organisationId);
+      }
+    }
+    if (!organisationPage.hasMoreOrganisations) {
+      assert.equal(organisationPage.nextPageToken, null, "last organisation page has no continuation token");
+      break;
+    }
+    assert.ok(organisationPage.nextPageToken, "organisation page with more results includes a cursor");
+    organisationPage = await callOne("listMyOrganisations", { pageToken: organisationPage.nextPageToken });
+    assert.ok(organisationPageCount < 5, "pagination terminates within a bounded number of pages");
+  }
+  assert.ok(organisationPageCount >= 2, "more than 100 memberships require multiple pages");
+  assert.equal(seenOrganisationIds.size, 105, "all 105 synthetic organisations appear exactly once across pages");
+
   await signOut(first.auth);
   await expectCallableFailure(callOne("listMyOrganisations"), "functions/unauthenticated", "unauthenticated callable denial");
   console.log("PASS: emulator smoke checks verified organisation isolation, unauthenticated denial, default Firestore client denial, suppression gates, and draft-only create/update/delete.");

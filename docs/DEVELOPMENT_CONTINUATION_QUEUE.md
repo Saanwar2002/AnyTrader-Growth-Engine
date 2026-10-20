@@ -1,3 +1,10 @@
+## Organisation pagination integration coverage — 2026-10-20
+
+- CI run [39386902786](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39386902786) passed both jobs for commit `ef53bf6a7e7a485742be46cc0f85238674fff05a`: frontend typecheck/unit tests/build plus emulator smoke tests, and Firebase Functions tests/build.
+- Added end-to-end emulator coverage that seeds 105 synthetic organisation memberships for the authenticated test user, pages through the callable, checks termination and continuation tokens, and asserts all 105 fixture organisations appear exactly once.
+- The fixture script is guarded to refuse writes unless running against the local `demo-growth-engine-test` Firestore emulator. Verification of this new pagination coverage is pending CI.
+- Keep this branch isolated; no production Firebase deployment, real provider/customer data, or automated outreach.
+
 ## Extend contacted-status integration coverage for malformed contact restrictions — 2026-10-20
 
 - Added emulator assertions that leads with a missing `doNotContact` value or malformed string value cannot be transitioned to `contacted`, even when legacy review metadata says `cleared` and the referenced campaign exists.
