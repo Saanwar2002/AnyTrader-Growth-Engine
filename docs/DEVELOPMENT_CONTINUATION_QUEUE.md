@@ -1,3 +1,8 @@
+## Rate-limit boundary regression correction 2 — 2026-10-20
+
+- CI run `39399378339` reached the quota assertion but the callable returned `functions/invalid-argument`: `listLeads` exposes the document key as `id`, not `leadId`.
+- Corrected the test to use the documented `id` field. This test correction is pending CI verification.
+
 ## Rate-limit boundary regression correction — 2026-10-20
 
 - First CI attempt `39399069087` failed because the original lead was no longer present in the default first page after the pagination fixture had inserted many newer records.

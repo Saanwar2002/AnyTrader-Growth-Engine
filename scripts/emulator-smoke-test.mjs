@@ -975,14 +975,14 @@ try {
   await expectCallableFailure(
     callOne("updateLeadNotes", {
       organisationId: orgOne.organisationId,
-      leadId: quotaLeadBefore.leadId,
+      leadId: quotaLeadBefore.id,
       notes: "This update must be rejected by the quota guard",
     }),
     "functions/resource-exhausted",
     "mutation rejected at the persisted rate-limit boundary",
   );
   const afterQuotaTest = await callOne("listLeads", { organisationId: orgOne.organisationId });
-  const quotaLeadAfter = afterQuotaTest.leads.find((lead) => lead.leadId === quotaLeadBefore.leadId);
+  const quotaLeadAfter = afterQuotaTest.leads.find((lead) => lead.leadId === quotaLeadBefore.id);
   assert.equal(quotaLeadAfter?.notes, quotaLeadBefore.notes, "rate-limited mutation must not change the lead");
   console.log("PASS: exhausted transactional quota rejects the mutation without changing protected data.");
 
