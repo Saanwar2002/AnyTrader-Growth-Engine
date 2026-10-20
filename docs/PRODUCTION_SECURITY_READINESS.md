@@ -43,3 +43,9 @@ Keep this in synthetic-data development/demo use until the blocking items are im
 - Mutation quota exhaustion emits a structured warning with operation, hashed quota key, quota/window settings and retry duration.
 - Invalid persisted quota state emits a structured error with the operation and hashed quota key. Raw user and organisation IDs are not included in these events.
 - Structured logging passed CI run [39398354009](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39398354009). Alert policies, retention configuration and incident-response procedures still need configuration in the separate Firebase project.
+
+
+## Rate-limit regression coverage
+
+- A local-emulator integration regression now seeds the `updateLeadNotes` quota at its limit, verifies `resource-exhausted`, and confirms no lead data was changed. The fixture seeder refuses to run unless connected to the local demo Firestore emulator and only supports this fixed operation.
+- CI verification is pending. Production alerting and quota calibration remain outstanding.

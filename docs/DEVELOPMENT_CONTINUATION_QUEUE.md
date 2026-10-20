@@ -1,3 +1,9 @@
+## Rate-limit boundary integration regression — 2026-10-20
+
+- Added a local-emulator-only quota seeder restricted to the demo project, local Firestore emulator, and the fixed `updateLeadNotes` operation.
+- Extended the emulator smoke test to seed an exhausted quota, assert the callable returns `functions/resource-exhausted`, and verify the protected lead notes remain unchanged.
+- CI verification is pending for this change. The fixture does not configure production quotas or create cloud resources.
+
 ## Structured rate-limit logging — 2026-10-20
 
 - Added Cloud Functions structured warning logs when mutation quotas are exhausted and error logs when stored quota state or quota configuration is invalid.

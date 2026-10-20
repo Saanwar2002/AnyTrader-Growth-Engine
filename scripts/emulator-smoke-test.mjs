@@ -962,6 +962,30 @@ try {
     fixturePrefix: "pagination-fixture-draft-",
   });
 
+  // Force a quota boundary in the local emulator and verify a rejected mutation has no side effects.
+  const beforeQuotaTest = await callOne("listLeads", { organisationId: orgOne.organisationId });
+  const quotaLeadBefore = beforeQuotaTest.leads.find((lead) => lead.leadId === leadOne.leadId);
+  assert.ok(quotaLeadBefore, "rate-limit fixture lead must exist before the quota test");
+  execFileSync(process.execPath, [
+    "functions/scripts/seed-emulator-rate-limit.mjs",
+    orgOne.organisationId,
+    first.auth.currentUser.uid,
+    "updateLeadNotes",
+  ], { stdio: "inherit" });
+  await expectCallableFailure(
+    callOne("updateLeadNotes", {
+      organisationId: orgOne.organisationId,
+      leadId: leadOne.leadId,
+      notes: "This update must be rejected by the quota guard",
+    }),
+    "functions/resource-exhausted",
+    "mutation rejected at the persisted rate-limit boundary",
+  );
+  const afterQuotaTest = await callOne("listLeads", { organisationId: orgOne.organisationId });
+  const quotaLeadAfter = afterQuotaTest.leads.find((lead) => lead.leadId === leadOne.leadId);
+  assert.equal(quotaLeadAfter?.notes, quotaLeadBefore.notes, "rate-limited mutation must not change the lead");
+  console.log("PASS: exhausted transactional quota rejects the mutation without changing protected data.");
+
   await signOut(first.auth);
   await expectCallableFailure(callOne("listMyOrganisations"), "functions/unauthenticated", "unauthenticated callable denial");
   console.log("PASS: emulator smoke checks verified organisation isolation, unauthenticated denial, default Firestore client denial, suppression gates, and draft-only create/update/delete.");
