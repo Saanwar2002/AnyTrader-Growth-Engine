@@ -125,6 +125,36 @@ try {
   // Explicitly re-review the updated contact details before lifecycle tests continue.
   await callOne("setLeadSuppression", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, doNotContact: false });
 
+  // Phone and website changes must invalidate clearance just like email changes.
+  for (const [channel, value] of [
+    ["phone", "+44 161 555 0123"],
+    ["website", "https://example.test/business"],
+  ]) {
+    const currentLeadList = await callOne("listLeads", { organisationId: orgOne.organisationId });
+    const currentLead = currentLeadList.leads.find((lead) => lead.id === leadOne.leadId);
+    await callOne("updateLeadContact", {
+      organisationId: orgOne.organisationId,
+      leadId: leadOne.leadId,
+      businessName: "Synthetic Test Painting Ltd (contact channel review)",
+      category: "Painters",
+      location: "Manchester",
+      email: currentLead?.email ?? "",
+      phone: channel === "phone" ? value : currentLead?.phone ?? "",
+      website: channel === "website" ? value : currentLead?.website ?? "",
+    });
+    const updatedChannelList = await callOne("listLeads", { organisationId: orgOne.organisationId });
+    const updatedChannelLead = updatedChannelList.leads.find((lead) => lead.id === leadOne.leadId);
+    assert.equal(updatedChannelLead?.doNotContact, true, `changing ${channel} re-applies the contact restriction`);
+    assert.equal(updatedChannelLead?.contactReviewStatus, "pending", `changing ${channel} requires fresh review`);
+    await expectCallableFailure(callOne("createOutreachDraft", {
+      organisationId: orgOne.organisationId,
+      leadId: leadOne.leadId,
+      subject: "Changed contact channel requires review",
+      body: `A ${channel} change must not retain old clearance`,
+    }), "functions/failed-precondition", `changed ${channel} invalidates old clearance`);
+    await callOne("setLeadSuppression", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, doNotContact: false });
+  }
+
   // A reviewed lead may advance through lifecycle states; verify the server persists each update.
   const qualifiedLead = await callOne("updateLeadStatus", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, status: "qualified" });
   assert.equal(qualifiedLead.status, "qualified", "reviewed lead can be qualified");
