@@ -426,3 +426,10 @@ Continue the callable authorization audit and integration-test reliability work;
 - The previous membership checks validated a membership document but did not also verify the parent `organisations/{organisationId}` document exists. Firestore can retain subcollection documents after a parent document is deleted, so a leftover membership could otherwise grant access to orphaned campaign, lead, or draft records.
 - Updated both the regular membership guard and transactional role guard to require the parent organisation document. Added a strictly local-emulator-only fixture that creates orphaned membership and child records, plus smoke assertions that list endpoints and lead creation fail with `permission-denied`.
 - Full CI verification pending. Changes remain on `development/chatgpt-mvp`; no deployment and no automated outreach sending.
+
+
+## Recover unmatched CSV quotes without swallowing later quoted records — 2026-10-20
+
+- Added a regression case where an unclosed quoted field is followed by a valid row whose business name is quoted. The parser previously could mistake that later row's closing quote for the missing quote and consume the valid row.
+- Adjusted physical-line recovery to recognise a likely new quoted record at the start of a later line, while retaining support for valid multiline fields and closing quotes at line starts.
+- CI verification pending. Changes remain on `development/chatgpt-mvp`; no production Firebase deployment or automated outreach sending.

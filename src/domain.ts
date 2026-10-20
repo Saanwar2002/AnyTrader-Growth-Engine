@@ -171,6 +171,23 @@ export function parseLeadCsv(csv: string, fieldMapping?: LeadCsvMapping): { rows
             j += 1;
             continue;
           }
+          // A quote at the start of a later physical line followed by ordinary
+          // field text is likely a new quoted record, not the missing close for
+          // this field. Do not let it make a malformed row absorb valid rows.
+          const previousLf = source.lastIndexOf("\n", j - 1);
+          const previousCr = source.lastIndexOf("\r", j - 1);
+          const lineStart = Math.max(previousLf, previousCr) + 1;
+          if (source.slice(lineStart, j).trim() === "") {
+            let afterOpeningQuote = j + 1;
+            while (afterOpeningQuote < source.length && /[ \t]/.test(source[afterOpeningQuote])) {
+              afterOpeningQuote += 1;
+            }
+            const openingNext = source[afterOpeningQuote];
+            if (openingNext !== undefined && openingNext !== "," && openingNext !== "\r" && openingNext !== "\n") {
+              while (j < source.length && source[j] !== "\r" && source[j] !== "\n") j += 1;
+              continue;
+            }
+          }
           let afterClosingQuote = j + 1;
           while (afterClosingQuote < source.length && /[ \t]/.test(source[afterClosingQuote])) {
             afterClosingQuote += 1;
