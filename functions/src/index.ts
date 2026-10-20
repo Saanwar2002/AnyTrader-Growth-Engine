@@ -445,7 +445,7 @@ export const updateLeadContact = onCall(async (request) => {
     const nextContactReviewRevision = currentContactReviewRevision + (contactChannelsChanged ? 1 : 0);
     const existingReviewStatus = normaliseContactReviewStatus(existingLead.doNotContact, existingLead.contactReviewStatus);
     const restrictionUpdate = contactChannelsChanged
-      ? (existingLead.doNotContact === true || existingReviewStatus === "blocked"
+      ? (existingReviewStatus === "blocked"
         ? { doNotContact: true, contactReviewStatus: "blocked" as const }
         : { doNotContact: true, contactReviewStatus: "pending" as const })
       : {};
