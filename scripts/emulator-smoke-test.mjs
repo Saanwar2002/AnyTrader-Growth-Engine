@@ -976,6 +976,29 @@ try {
   const missingStatusAfterRejectedEdit = legacyDraftsAfterRejectedEdits.find((item) => item.id === "legacy-missing-status");
   assert.equal(missingStatusAfterRejectedEdit?.status, "unknown", "rejected edit does not normalise missing status to draft");
   assert.equal(missingStatusAfterRejectedEdit?.subject, "Legacy missing status fixture", "rejected edit preserves the missing-status record content");
+  // A rejected edit of an untrusted legacy record must not consume the final
+  // quota slot or create an activity event; the valid draft edit should still succeed.
+  execFileSync(process.execPath, [
+    "functions/scripts/seed-emulator-rate-limit.mjs",
+    orgOne.organisationId,
+    first.auth.currentUser.uid,
+    "updateOutreachDraft",
+    "boundary",
+  ], { stdio: "inherit", env: process.env });
+  await expectCallableFailure(callOne("updateOutreachDraft", {
+    organisationId: orgOne.organisationId,
+    draftId: "legacy-missing-status",
+    subject: "Rejected before quota consumption",
+    body: "Must remain blocked",
+  }), "functions/failed-precondition", "missing-status draft rejection preserves final edit quota slot");
+  const finalDraftEdit = await callOne("updateOutreachDraft", {
+    organisationId: orgOne.organisationId,
+    draftId: draft.draftId,
+    subject: "Final quota slot used by valid draft",
+    body: "Only a valid draft edit should consume this slot.",
+  });
+  assert.equal(finalDraftEdit.subject, "Final quota slot used by valid draft",
+    "valid draft edit succeeds after rejected legacy draft edit");
   const nonDraftStatusCleanup = await callOne("deleteOutreachDraft", {
     organisationId: orgOne.organisationId, draftId: "legacy-non-draft-status",
   });

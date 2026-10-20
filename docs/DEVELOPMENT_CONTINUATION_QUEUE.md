@@ -1,3 +1,9 @@
+## Rejected legacy draft edit does not consume the final quota slot — 2026-10-20
+
+- Expanded the local-emulator-only quota fixture allowlist to seed the `updateOutreachDraft` boundary (119 of 120 requests used).
+- Added an integration check that editing a legacy draft with missing status is rejected before quota consumption, then verifies a valid existing draft edit can still consume the final slot.
+- This complements the prior state-preservation assertions. It verifies transactional ordering for rejected writes; activity writes remain coupled to successful mutations in the same Firestore transaction. Synthetic emulator only.
+
 ## Rejected legacy draft edits preserve stored record state — 2026-10-20
 
 - Extended the emulator integration test to attempt edits against both a legacy outreach record marked `sent` and one with a missing status.
