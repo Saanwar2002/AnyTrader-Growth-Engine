@@ -963,3 +963,11 @@ Continue the callable authorization audit and integration-test reliability work;
 - The prior viewer-suppression and blocked-contact-edit batch passed both CI jobs, including Firebase emulator integration, in run [39446877030](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39446877030).
 - Current change awaits CI. Next: inspect whether contact review and channel edits are transactionally serialized under concurrent requests; use deterministic emulator checks where feasible and avoid claiming race coverage without a reproducible test.
 - Work remains on `development/chatgpt-mvp`; no production deployment or automated outreach sending.
+
+
+## Race contact-channel edits against draft creation — 2026-10-20
+
+- Added a local Firebase-emulator regression that concurrently creates a draft for a cleared synthetic lead and changes that lead's email address.
+- Expected safe outcomes: if the contact edit commits first, draft creation is rejected by the contact-review gate; if draft creation commits first, the edit re-suppresses the lead and draft listing marks the existing draft as requiring review.
+- The test verifies the final lead state is always suppressed and pending. Drafts remain unsent; this does not introduce any delivery mechanism.
+- CI verification pending. Work remains on `development/chatgpt-mvp`; production deployment remains blocked pending separate Firebase/App Check and operational readiness work.
