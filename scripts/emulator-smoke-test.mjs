@@ -76,7 +76,7 @@ try {
       first.auth.currentUser.uid,
       "setLeadSuppression",
     ], { encoding: "utf8" });
-    const match = output.match(/COUNT:(\\d+)/);
+    const match = output.match(/COUNT:(\d+)/);
     assert.ok(match, "emulator quota assertion returns the current suppression count");
     return Number(match[1]);
   }
