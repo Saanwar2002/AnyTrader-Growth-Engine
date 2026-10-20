@@ -839,3 +839,10 @@ Continue the callable authorization audit and integration-test reliability work;
 - Tightened `isValidFirestoreTimestamp` to require a safe-integer millisecond value from `toMillis()`, rather than accepting any finite number.
 - Added unit regressions for normal and zero timestamps, missing/malformed values, thrown conversions, NaN/infinity, fractional milliseconds, and values outside JavaScript's safe-integer range.
 - This protects cursor validation for paginated campaigns, leads, and outreach drafts. CI verification pending; no production deployment.
+
+
+## Preserve Firestore sub-millisecond timestamp precision — 2026-10-20
+
+- Follow-up review identified that Firestore Timestamp values can retain nanosecond precision, making `toMillis()` legitimately fractional. Requiring integer milliseconds could reject valid pagination cursors.
+- Updated the validator to accept finite values within JavaScript's safe numeric range, including fractional milliseconds, while still rejecting NaN, infinities, unsafe magnitudes, missing methods, and thrown conversions.
+- Updated unit tests to capture the valid precision case. CI verification pending.

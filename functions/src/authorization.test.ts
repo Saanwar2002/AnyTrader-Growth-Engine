@@ -590,9 +590,10 @@ describe("server-side rate-limit evaluation", () => {
 
 
 describe("Firestore timestamp cursor validation", () => {
-  it("accepts finite safe-integer millisecond timestamps", () => {
+  it("accepts finite safe-range millisecond timestamps including sub-millisecond precision", () => {
     expect(isValidFirestoreTimestamp({ toMillis: () => 1_700_000_000_000 })).toBe(true);
     expect(isValidFirestoreTimestamp({ toMillis: () => 0 })).toBe(true);
+    expect(isValidFirestoreTimestamp({ toMillis: () => 1_700_000_000_000.123 })).toBe(true);
   });
 
   it.each([
@@ -602,7 +603,7 @@ describe("Firestore timestamp cursor validation", () => {
     { toMillis: 1 },
     { toMillis: () => Number.NaN },
     { toMillis: () => Number.POSITIVE_INFINITY },
-    { toMillis: () => 1.5 },
+    { toMillis: () => Number.NEGATIVE_INFINITY },
     { toMillis: () => Number.MAX_SAFE_INTEGER + 1 },
     { toMillis: () => { throw new Error("invalid timestamp"); } },
   ])("rejects malformed timestamp-like values: %j", (value) => {
