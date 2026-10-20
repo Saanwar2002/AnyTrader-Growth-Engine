@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { canCreateOutreachDraft, deduplicateLeads, escapeCsvCell, inspectLeadCsvHeaders, normalizeBusinessName, parseLeadCsv, scoreLead, suggestLeadCsvMapping } from "./domain";
+import { canCreateOutreachDraft, getContactRestrictionAction, deduplicateLeads, escapeCsvCell, inspectLeadCsvHeaders, normalizeBusinessName, parseLeadCsv, scoreLead, suggestLeadCsvMapping } from "./domain";
 
 describe("outreach suppression", () => {
+  it("offers a clear/review action for suppressed, pending, or contradictory blocked records", () => {
+    expect(getContactRestrictionAction(true, "blocked")).toBe("clear");
+    expect(getContactRestrictionAction(true, "cleared")).toBe("clear");
+    expect(getContactRestrictionAction(false, "pending")).toBe("clear");
+    expect(getContactRestrictionAction(false, "blocked")).toBe("clear");
+    expect(getContactRestrictionAction(false, "cleared")).toBe("suppress");
+    expect(getContactRestrictionAction(false, undefined)).toBe("suppress");
+  });
+
   it("blocks new outreach drafts for suppressed leads", () => {
     expect(canCreateOutreachDraft({ doNotContact: true })).toBe(false);
     expect(canCreateOutreachDraft({ doNotContact: false })).toBe(true);

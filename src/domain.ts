@@ -108,6 +108,12 @@ export const LEAD_STATUSES: LeadStatus[] = [
   "new", "reviewing", "qualified", "contacted", "onboarded", "rejected",
 ];
 
+/** Returns the safe UI action for a contact restriction, treating contradictory review metadata as requiring admin review. */
+export function getContactRestrictionAction(doNotContact: unknown, contactReviewStatus: unknown): "clear" | "suppress" {
+  if (doNotContact === true || contactReviewStatus === "pending" || contactReviewStatus === "blocked") return "clear";
+  return "suppress";
+}
+
 export function canCreateOutreachDraft(lead: Pick<Lead, "doNotContact" | "contactReviewStatus">): boolean {
   return lead.doNotContact === false && (lead.contactReviewStatus === undefined || lead.contactReviewStatus === "cleared");
 }

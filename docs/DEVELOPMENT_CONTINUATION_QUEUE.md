@@ -515,5 +515,13 @@ Continue the callable authorization audit and integration-test reliability work;
 
 ## Legacy contact restriction edit regression — 2026-10-20
 
-- Added emulator checks that editing contact details and notes cannot implicitly verify missing or malformed contact-restriction fields. Both records must remain unverified and pending review after edits.
+- Commit `61b929ba20e185cf479deecdc6f642cdbff911be` passed CI run [39382558438](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39382558438). Both frontend and Firebase Functions jobs succeeded, including emulator integration.
+- Emulator checks verify that editing contact details and notes cannot implicitly verify missing or malformed contact-restriction fields. Both records remain unverified and pending review after edits.
+- Continue on `development/chatgpt-mvp`; no deployment or outreach sending.
+
+
+## Resolve contradictory blocked contact-review state in the UI — 2026-10-20
+
+- Found a UI action mismatch for legacy records with `doNotContact: false` but `contactReviewStatus: "blocked"`: the row displayed a review warning, but clicking its action re-suppressed the lead rather than offering the owner/admin a direct review-and-clear action.
+- Added a shared UI decision helper and unit coverage so suppressed, pending, or blocked records offer a clear/review action; only owner/admin can execute that clear action. A verified, unsuppressed record still offers the normal suppress action.
 - Verification pending CI. Changes remain on `development/chatgpt-mvp`; no deployment or outreach sending.
