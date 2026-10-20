@@ -609,7 +609,7 @@ describe("rate-limit document key isolation", () => {
 describe("callable rate-limit coverage guard", () => {
   it("requires every exported callable to consume a server-side rate limit", () => {
     const source = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
-    const callableStarts = [...source.matchAll(/export const ([A-Za-z][A-Za-z0-9]*) = onCall\\(/g)];
+    const callableStarts = [...source.matchAll(/export const ([A-Za-z][A-Za-z0-9]*) = onCall\(/g)];
     expect(callableStarts.length).toBeGreaterThan(0);
 
     for (let index = 0; index < callableStarts.length; index += 1) {
@@ -618,7 +618,7 @@ describe("callable rate-limit coverage guard", () => {
       const name = callableStarts[index][1];
       const handlerSource = source.slice(start, end);
       expect(
-        /consumeTransactionalRateLimit\\(|consumeReadRateLimit\\(/.test(handlerSource),
+        /consumeTransactionalRateLimit\(|consumeReadRateLimit\(/.test(handlerSource),
         `callable ${name} must enforce a server-side rate limit`,
       ).toBe(true);
     }
