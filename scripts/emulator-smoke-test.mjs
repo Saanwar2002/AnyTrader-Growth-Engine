@@ -700,13 +700,21 @@ try {
     .campaigns.find((campaign) => campaign.id === campaignOne.campaignId)?.status;
   assert.equal(campaignStatusAfterViewerAttempt, campaignStatusBeforeViewerAttempt,
     "role-denied campaign status update leaves the campaign unchanged");
+  const viewerContactEditLead = await callOne("createLead", {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    businessName: "Synthetic Viewer Contact Edit Guard Ltd",
+    category: "Painters",
+    location: "Manchester",
+    email: "original@example.test",
+  });
   const leadBeforeViewerContactEdit = (await callOne("listLeads", { organisationId: orgOne.organisationId }))
-    .leads.find((lead) => lead.id === leadOne.leadId);
-  assert.ok(leadBeforeViewerContactEdit, "target lead exists before viewer contact-edit attempt");
+    .leads.find((lead) => lead.id === viewerContactEditLead.leadId);
+  assert.ok(leadBeforeViewerContactEdit, "dedicated target lead exists before viewer contact-edit attempt");
   const viewerContactQuotaBefore = currentQuotaCount("updateLeadContact", viewer.auth.currentUser.uid);
   await expectCallableFailure(viewerCall("updateLeadContact", {
     organisationId: orgOne.organisationId,
-    leadId: leadOne.leadId,
+    leadId: viewerContactEditLead.leadId,
     businessName: "Viewer must not change this name",
     category: leadBeforeViewerContactEdit.category,
     location: leadBeforeViewerContactEdit.location,
@@ -717,11 +725,11 @@ try {
   execFileSync(process.execPath, [
     "functions/scripts/assert-emulator-no-lead-activity.mjs",
     orgOne.organisationId,
-    leadOne.leadId,
+    viewerContactEditLead.leadId,
     "Lead contact details updated",
   ], { stdio: "inherit" });
   const leadAfterViewerContactEdit = (await callOne("listLeads", { organisationId: orgOne.organisationId }))
-    .leads.find((lead) => lead.id === leadOne.leadId);
+    .leads.find((lead) => lead.id === viewerContactEditLead.leadId);
   assert.equal(leadAfterViewerContactEdit?.businessName, leadBeforeViewerContactEdit.businessName,
     "role-denied lead contact edit preserves the business name");
   assert.equal(leadAfterViewerContactEdit?.email, leadBeforeViewerContactEdit.email,
