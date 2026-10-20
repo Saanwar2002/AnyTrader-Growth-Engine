@@ -552,3 +552,11 @@ Continue the callable authorization audit and integration-test reliability work;
 - CI run [39385432146](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39385432146) passed both frontend and Firebase Functions jobs for commit `be5c6ca6d73aecf2774b4eac4729a0952c309c98`, including emulator integration.
 - Continued the website-input audit: HTTP(S) URLs containing embedded username/password credentials can disguise the apparent destination (for example, `https://example.test@attacker.test/`). The server validator now rejects URLs with parsed username or password fields, and unit tests cover both userinfo patterns.
 - This remains a validation hardening change; it does not fetch URLs, verify business ownership, or enable outreach. Verify full CI for this commit before starting another batch. Keep work on `development/chatgpt-mvp`; App Check, rate limiting, monitoring, and a separate Firebase project remain production blockers.
+
+
+## Invalidate stale contact-review clearance after channel changes — 2026-10-20
+
+- The latest workflow run [39386000278](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39386000278) completed successfully: both frontend and Firebase Functions jobs passed, including emulator integration.
+- Found that editing a previously reviewed lead's email, phone, or website could leave the old `doNotContact: false` / cleared review state in place. That could allow draft creation for contact details that had not been reviewed.
+- Updated `updateLeadContact` so a change to email, phone, or website re-applies the contact restriction and sets review to pending; an already blocked/suppressed lead stays blocked. Changes to other business fields do not themselves invalidate clearance.
+- Added an emulator regression asserting a cleared lead cannot create a draft after its email changes, then explicitly re-clears the updated details before lifecycle tests continue. Verify full CI before the next change. Remain on `development/chatgpt-mvp`; no production deployment or automated outreach sending.
