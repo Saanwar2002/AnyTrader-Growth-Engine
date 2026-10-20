@@ -330,7 +330,17 @@ export const updateLeadContact = onCall(async (request) => {
     const leadSnapshot = await transaction.get(leadRef);
     if (!leadSnapshot.exists) throw new HttpsError("not-found", "Lead was not found in this organisation.");
     const now = FieldValue.serverTimestamp();
-    transaction.update(leadRef, { ...fields, score: completeness.score, scoreReasons: completeness.reasons, updatedAt: now, updatedBy: uid });
+    const existingLead = leadSnapshot.data() ?? {};
+    const contactChannelsChanged = fields.email !== existingLead.email
+      || fields.phone !== existingLead.phone
+      || fields.website !== existingLead.website;
+    const existingReviewStatus = normaliseContactReviewStatus(existingLead.doNotContact, existingLead.contactReviewStatus);
+    const restrictionUpdate = contactChannelsChanged
+      ? (existingLead.doNotContact === true || existingReviewStatus === "blocked"
+        ? { doNotContact: true, contactReviewStatus: "blocked" as const }
+        : { doNotContact: true, contactReviewStatus: "pending" as const })
+      : {};
+    transaction.update(leadRef, { ...fields, ...restrictionUpdate, score: completeness.score, scoreReasons: completeness.reasons, updatedAt: now, updatedBy: uid });
     transaction.create(activity, { leadId, actorUid: uid, message: "Lead contact details updated", createdAt: now });
   });
   return { leadId, ...fields, score: completeness.score, scoreReasons: completeness.reasons };
