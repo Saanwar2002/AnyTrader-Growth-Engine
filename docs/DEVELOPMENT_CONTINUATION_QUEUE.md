@@ -800,3 +800,10 @@ Continue the callable authorization audit and integration-test reliability work;
 - The rate-limit evaluator already required safe integer millisecond timestamps, but accepted any `Number.isInteger` quota maximum and persisted count. JavaScript can report very large imprecise numeric values as integers, which are not suitable for reliable quota arithmetic.
 - Tightened configuration and persisted-state validation to require safe integer `maxRequests` and `count` values. Added regressions for an unsafe quota maximum and an unsafe stored count; malformed values continue to fail closed.
 - CI verification pending. Work remains on `development/chatgpt-mvp`; no production Firebase deployment or automated outreach sending.
+
+
+## Verify expired rate-limit bucket reset in emulator — 2026-10-20
+
+- Added a local-demo-only expired-bucket fixture for `listMyOrganisations` and extended the expiry assertion to verify the next successful call resets the counter to one and persists a fresh window start.
+- The emulator smoke test now exercises a stale bucket while its document still exists, proving the evaluator—not TTL deletion—controls expiry and that the read returns unchanged organisation data.
+- CI verification pending. TTL policy is still not configured in Firebase; production App Check and operational controls remain release blockers.

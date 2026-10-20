@@ -42,6 +42,17 @@ try {
     "functions/scripts/assert-emulator-rate-limit-expiry.mjs",
     "global", first.auth.currentUser.uid, "listMyOrganisations",
   ], { stdio: "inherit" });
+  // An expired persisted bucket must reset transactionally even if its stale document remains.
+  execFileSync(process.execPath, [
+    "functions/scripts/seed-emulator-rate-limit.mjs",
+    "global", first.auth.currentUser.uid, "listMyOrganisations", "expired",
+  ], { stdio: "inherit" });
+  const afterExpiredQuota = await callOne("listMyOrganisations");
+  assert.deepEqual(afterExpiredQuota.organisations, [], "expired quota reset does not alter organisation data");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-rate-limit-expiry.mjs",
+    "global", first.auth.currentUser.uid, "listMyOrganisations", "fresh-window",
+  ], { stdio: "inherit" });
   const orgOne = await callOne("createOrganisation", { name: "Tenant One" });
   assert.equal(orgOne.role, "owner");
   // A successful mutation must also persist expiry metadata using its one-hour quota window.

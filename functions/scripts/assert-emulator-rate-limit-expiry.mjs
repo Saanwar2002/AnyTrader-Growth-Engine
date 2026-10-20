@@ -9,10 +9,12 @@ const emulatorHost = process.env.FIRESTORE_EMULATOR_HOST;
 if (projectId !== "demo-growth-engine-test" || !emulatorHost || !/^(127\.0\.0\.1|localhost):8080$/.test(emulatorHost)) {
   throw new Error("Refusing to inspect rate-limit state outside the local demo Firestore emulator.");
 }
-const [organisationId, uid, operation] = process.argv.slice(2);
+const [organisationId, uid, operation, expectation = "expiry"] = process.argv.slice(2);
 if (!(organisationId === "global" || /^[A-Za-z0-9_-]{1,128}$/.test(organisationId ?? ""))
   || !/^[A-Za-z0-9_-]{1,128}$/.test(uid ?? "")
-  || !["listMyOrganisations", "createOrganisation"].includes(operation)) {
+  || !["listMyOrganisations", "createOrganisation"].includes(operation)
+  || !["expiry", "fresh-window"].includes(expectation)
+  || (expectation === "fresh-window" && operation !== "listMyOrganisations")) {
   throw new Error("Usage: node assert-emulator-rate-limit-expiry.mjs <global|organisation-id> <authenticated-uid> <listMyOrganisations|createOrganisation>");
 }
 initializeApp({ projectId });
@@ -25,6 +27,10 @@ assert.equal(typeof data.windowStartedAtMs, "number", "quota window start must b
 assert.equal(typeof data.count, "number", "quota count must be persisted as a number");
 assert.ok(data.expireAt instanceof Timestamp, "quota expiry must be a Firestore Timestamp");
 const windowMs = operation === "createOrganisation" ? 60 * 60_000 : 60_000;
+if (expectation === "fresh-window") {
+  assert.equal(data.count, 1, "expired bucket must restart with exactly one successful request");
+  assert.ok(Math.abs(Date.now() - data.windowStartedAtMs) < 30_000, "expired bucket must persist a fresh window start");
+}
 assert.equal(data.expireAt.toMillis(), data.windowStartedAtMs + windowMs + 5 * 60_000,
   "expiry must align to the persisted window end plus the five-minute grace period");
-console.log(`Verified ${operation} emulator quota expiry matches its persisted window and grace period.`);
+console.log(`Verified ${operation} emulator quota ${expectation === "fresh-window" ? "resets to a fresh window" : "expiry matches its persisted window and grace period"}.`);
