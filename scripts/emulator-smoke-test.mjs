@@ -69,15 +69,15 @@ try {
       organisationId: orgOne.organisationId, leadId, doNotContact: false, contactReviewRevision,
     });
   }
-  function currentSuppressionQuotaCount() {
+  function currentQuotaCount(operation = "setLeadSuppression") {
     const output = execFileSync(process.execPath, [
       "functions/scripts/assert-emulator-rate-limit-count.mjs",
       orgOne.organisationId,
       first.auth.currentUser.uid,
-      "setLeadSuppression",
+      operation,
     ], { encoding: "utf8" });
     const match = output.match(/COUNT:(\d+)/);
-    assert.ok(match, "emulator quota assertion returns the current suppression count");
+    assert.ok(match, `emulator quota assertion returns the current ${operation} count`);
     return Number(match[1]);
   }
   // A successful mutation must also persist expiry metadata using its one-hour quota window.
@@ -315,14 +315,14 @@ try {
     location: "Manchester",
     email: "stale-after@example.test",
   });
-  const suppressionQuotaBeforeStaleClear = currentSuppressionQuotaCount();
+  const suppressionQuotaBeforeStaleClear = currentQuotaCount();
   await expectCallableFailure(callOne("setLeadSuppression", {
     organisationId: orgOne.organisationId,
     leadId: staleClearSideEffectLead.leadId,
     doNotContact: false,
     contactReviewRevision: staleClearInitialRevision,
   }), "functions/failed-precondition", "fresh lead stale clearance is rejected");
-  assert.equal(currentSuppressionQuotaCount(), suppressionQuotaBeforeStaleClear,
+  assert.equal(currentQuotaCount(), suppressionQuotaBeforeStaleClear,
     "rejected stale clearance does not consume suppression quota");
   execFileSync(process.execPath, [
     "functions/scripts/assert-emulator-no-lead-activity.mjs",
@@ -352,14 +352,14 @@ try {
     orgOne.organisationId,
     malformedRevisionLead.leadId,
   ], { stdio: "inherit" });
-  const suppressionQuotaBeforeMalformedRevision = currentSuppressionQuotaCount();
+  const suppressionQuotaBeforeMalformedRevision = currentQuotaCount();
   await expectCallableFailure(callOne("setLeadSuppression", {
     organisationId: orgOne.organisationId,
     leadId: malformedRevisionLead.leadId,
     doNotContact: false,
     contactReviewRevision: revisionBeforeCorruption,
   }), "functions/failed-precondition", "malformed persisted review revision fails closed");
-  assert.equal(currentSuppressionQuotaCount(), suppressionQuotaBeforeMalformedRevision,
+  assert.equal(currentQuotaCount(), suppressionQuotaBeforeMalformedRevision,
     "rejected malformed revision does not consume suppression quota");
   execFileSync(process.execPath, [
     "functions/scripts/assert-emulator-no-lead-activity.mjs",
@@ -371,6 +371,32 @@ try {
   const malformedRevisionState = malformedRevisionStateList.leads.find((lead) => lead.id === malformedRevisionLead.leadId);
   assert.equal(malformedRevisionState?.doNotContact, true, "malformed revision preserves suppression");
   assert.equal(malformedRevisionState?.contactReviewStatus, "pending", "malformed revision preserves pending review");
+
+  // A malformed revision must also block contact-channel edits; failed attempts must not
+  // consume the edit quota, overwrite contact data, or append a success activity.
+  const contactEditQuotaBeforeMalformedRevision = currentQuotaCount("updateLeadContact");
+  await expectCallableFailure(callOne("updateLeadContact", {
+    organisationId: orgOne.organisationId,
+    leadId: malformedRevisionLead.leadId,
+    businessName: "Synthetic Malformed Review Revision Guard Ltd",
+    category: "Painters",
+    location: "Manchester",
+    email: "attempted-change@example.test",
+  }), "functions/failed-precondition", "malformed persisted revision blocks contact-channel edit");
+  assert.equal(currentQuotaCount("updateLeadContact"), contactEditQuotaBeforeMalformedRevision,
+    "rejected malformed revision does not consume contact-edit quota");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-no-lead-activity.mjs",
+    orgOne.organisationId,
+    malformedRevisionLead.leadId,
+    "Lead contact details updated",
+  ], { stdio: "inherit" });
+  const afterMalformedRevisionEditList = await callOne("listLeads", { organisationId: orgOne.organisationId });
+  const afterMalformedRevisionEdit = afterMalformedRevisionEditList.leads.find((lead) => lead.id === malformedRevisionLead.leadId);
+  assert.equal(afterMalformedRevisionEdit?.email, "malformed-revision@example.test",
+    "rejected malformed revision preserves the original contact channel");
+  assert.equal(afterMalformedRevisionEdit?.doNotContact, true,
+    "rejected malformed revision preserves the contact restriction");
 
   await expectCallableFailure(callOne("createOutreachDraft", {
     organisationId: orgOne.organisationId,
