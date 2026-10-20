@@ -1,3 +1,10 @@
+## Stale contact-review clearance has no side effects — 2026-10-20
+
+- Added a fresh synthetic lead specifically for stale-clearance side-effect coverage, independent of leads with legitimate prior review history.
+- The test changes the email to increment the contact-review revision, then submits the old revision to clear the restriction and expects `functions/failed-precondition`.
+- It asserts no “Lead contact restriction removed” activity was created and confirms suppression, pending review, and the newer revision all remain intact.
+- This supplements the existing stale-revision regression and runs only against the local Firebase emulator with synthetic records.
+
 ## Contact-review flag type matrix — 2026-10-20
 
 - Expanded the malformed contact-review regression from a single string to a small type matrix: string `"false"`, numeric zero, object, array, and null.
