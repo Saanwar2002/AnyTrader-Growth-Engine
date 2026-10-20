@@ -222,6 +222,56 @@ try {
     body: "Contact details changed after review",
   }), "functions/failed-precondition", "changed contact channel invalidates old clearance");
 
+  // Race draft creation against a contact-channel edit. Either the draft transaction
+  // observes the edit and rejects, or it commits first; in the latter case the subsequent
+  // channel edit must leave the lead pending and the existing draft flagged for review.
+  const concurrentReviewLead = await callOne("createLead", {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    businessName: "Synthetic Concurrent Contact Review Ltd",
+    category: "Painters",
+    location: "Manchester",
+    email: "before-race@example.test",
+  });
+  await callOne("setLeadSuppression", {
+    organisationId: orgOne.organisationId,
+    leadId: concurrentReviewLead.leadId,
+    doNotContact: false,
+  });
+  const concurrentDraftAttempt = callOne("createOutreachDraft", {
+    organisationId: orgOne.organisationId,
+    leadId: concurrentReviewLead.leadId,
+    subject: "Concurrent review test",
+    body: "This is a draft only and must never be sent automatically.",
+  });
+  const concurrentContactEdit = callOne("updateLeadContact", {
+    organisationId: orgOne.organisationId,
+    leadId: concurrentReviewLead.leadId,
+    businessName: "Synthetic Concurrent Contact Review Ltd",
+    category: "Painters",
+    location: "Manchester",
+    email: "after-race@example.test",
+  });
+  const [concurrentDraftResult] = await Promise.allSettled([concurrentDraftAttempt, concurrentContactEdit]);
+  const concurrentContactResult = await concurrentContactEdit;
+  assert.equal(concurrentContactResult.doNotContact, true, "concurrent contact-channel edit must reapply suppression");
+  assert.equal(concurrentContactResult.contactReviewStatus, "pending", "concurrent contact-channel edit must require fresh review");
+  const concurrentReviewLeadList = await callOne("listLeads", { organisationId: orgOne.organisationId });
+  const concurrentReviewLeadAfter = concurrentReviewLeadList.leads.find((lead) => lead.id === concurrentReviewLead.leadId);
+  assert.equal(concurrentReviewLeadAfter?.doNotContact, true, "final concurrent lead state remains suppressed");
+  assert.equal(concurrentReviewLeadAfter?.contactReviewStatus, "pending", "final concurrent lead state remains pending review");
+  if (concurrentDraftResult.status === "fulfilled") {
+    const concurrentDraftList = await callOne("listOutreachDrafts", { organisationId: orgOne.organisationId });
+    const racedDraft = concurrentDraftList.drafts.find((item) => item.id === concurrentDraftResult.value.draftId);
+    assert.ok(racedDraft, "a draft created before the contact edit remains visible for review");
+    assert.equal(racedDraft.requiresReview, true, "draft created before a concurrent contact edit is flagged for review");
+    assert.equal(racedDraft.leadSuppressed, true, "draft created before a concurrent contact edit reflects current suppression");
+  } else {
+    assert.equal(concurrentDraftResult.reason?.code, "functions/failed-precondition",
+      "draft creation that loses the race to contact edit is rejected by the contact-review gate");
+  }
+  console.log("PASS: concurrent contact edits and draft creation leave the lead suppressed; any earlier draft is flagged for review.");
+
   // Explicitly re-review the updated contact details before lifecycle tests continue.
   await callOne("setLeadSuppression", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, doNotContact: false });
 
