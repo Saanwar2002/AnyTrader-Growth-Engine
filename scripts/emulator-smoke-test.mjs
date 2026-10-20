@@ -700,6 +700,28 @@ try {
     .campaigns.find((campaign) => campaign.id === campaignOne.campaignId)?.status;
   assert.equal(campaignStatusAfterViewerAttempt, campaignStatusBeforeViewerAttempt,
     "role-denied campaign status update leaves the campaign unchanged");
+  const leadBeforeViewerContactEdit = (await callOne("listLeads", { organisationId: orgOne.organisationId }))
+    .leads.find((lead) => lead.id === leadOne.leadId);
+  assert.ok(leadBeforeViewerContactEdit, "target lead exists before viewer contact-edit attempt");
+  const viewerContactQuotaBefore = currentQuotaCount("updateLeadContact", viewer.auth.currentUser.uid);
+  await expectCallableFailure(viewerCall("updateLeadContact", {
+    organisationId: orgOne.organisationId,
+    leadId: leadOne.leadId,
+    businessName: "Viewer must not change this name",
+    category: leadBeforeViewerContactEdit.category,
+    location: leadBeforeViewerContactEdit.location,
+    email: "viewer-change@example.test",
+  }), "functions/permission-denied", "viewer cannot edit lead contact details");
+  assert.equal(currentQuotaCount("updateLeadContact", viewer.auth.currentUser.uid), viewerContactQuotaBefore,
+    "role-denied lead contact edit does not consume the viewer's quota");
+  const leadAfterViewerContactEdit = (await callOne("listLeads", { organisationId: orgOne.organisationId }))
+    .leads.find((lead) => lead.id === leadOne.leadId);
+  assert.equal(leadAfterViewerContactEdit?.businessName, leadBeforeViewerContactEdit.businessName,
+    "role-denied lead contact edit preserves the business name");
+  assert.equal(leadAfterViewerContactEdit?.email, leadBeforeViewerContactEdit.email,
+    "role-denied lead contact edit preserves the email");
+  assert.equal(leadAfterViewerContactEdit?.contactReviewRevision, leadBeforeViewerContactEdit.contactReviewRevision,
+    "role-denied lead contact edit preserves the contact-review revision");
   const viewerSuppressionLead = await callOne("createLead", {
     organisationId: orgOne.organisationId,
     campaignId: campaignOne.campaignId,
