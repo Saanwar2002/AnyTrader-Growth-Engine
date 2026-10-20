@@ -251,18 +251,21 @@ try {
     "draft cursor with malformed createdAt",
   );
 
-  // A syntactically valid organisation cursor must still point to a valid membership
-  // in an existing organisation. This synthetic malformed record is seeded only in the
-  // guarded local emulator project.
+  // A cursor is a pagination bookmark, not an authorization grant. A malformed
+  // membership may be used to advance past a row, but must never appear as an organisation.
+  // The fixture is restricted to the guarded local emulator project.
   execFileSync(process.execPath, [
     "functions/scripts/seed-emulator-invalid-membership.mjs",
     "cursor-fixture-org",
     first.auth.currentUser.uid,
   ], { stdio: "inherit" });
-  await expectCallableFailure(
-    callOne("listMyOrganisations", { pageToken: `organisations/cursor-fixture-org/members/${first.auth.currentUser.uid}` }),
-    "functions/invalid-argument",
-    "organisation cursor backed by a malformed membership record",
+  const malformedMembershipCursorPage = await callOne("listMyOrganisations", {
+    pageToken: `organisations/cursor-fixture-org/members/${first.auth.currentUser.uid}`,
+  });
+  assert.equal(
+    malformedMembershipCursorPage.organisations.some((item) => item.organisationId === "cursor-fixture-org"),
+    false,
+    "malformed membership cursor does not grant organisation access",
   );
 
   // Orphaned subcollections must not remain accessible after the organisation parent is deleted.

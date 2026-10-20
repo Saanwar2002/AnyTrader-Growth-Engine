@@ -119,7 +119,10 @@ export const listMyOrganisations = onCall(async (request) => {
     if (
       !cursor.exists
       || cursor.id !== uid
-      || !isValidMembershipRecord(cursorMembership, uid)
+      || !cursorMembership
+      || typeof cursorMembership !== "object"
+      || Array.isArray(cursorMembership)
+      || cursorMembership.uid !== uid
       || !cursorOrganisationRef
       || cursorOrganisationRef.parent.id !== "organisations"
     ) {

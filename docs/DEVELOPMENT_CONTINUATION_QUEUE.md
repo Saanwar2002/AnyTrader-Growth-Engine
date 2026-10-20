@@ -440,3 +440,11 @@ Continue the callable authorization audit and integration-test reliability work;
 - Found that `setLeadSuppression` re-read membership transactionally but did not re-check the parent organisation document. If the parent were deleted after the initial authorization check, the remaining membership subcollection could still pass the transactional guard.
 - Reused the shared transactional role guard, which validates both parent organisation and membership, while retaining the stricter owner/admin rule for clearing a contact restriction. Added an emulator regression assertion for suppression updates against an orphaned organisation.
 - Full CI verification pending. Changes remain on `development/chatgpt-mvp`; no production Firebase deployment or automated outreach sending.
+
+
+## Keep organisation pagination resilient to malformed membership rows — 2026-10-20
+
+- The latest CI run for commit `26a709561768481c105bd88e3da1f79c66071085` passed both jobs (run [39377262845](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39377262845)).
+- Follow-up pagination review found that `listMyOrganisations` returned a page token based on the final raw membership row, but rejected that token on the next request if the row had an invalid role. A malformed legacy row could therefore break pagination even though it was correctly omitted from results.
+- A page token is now treated only as a scoped cursor: it must point to the signed-in user's membership path, contain that user's UID, and belong to an existing organisation, but its role need not be valid merely to advance past the row. Result rows still require a valid membership role, so the cursor cannot grant access to the malformed organisation.
+- Updated the guarded emulator fixture and smoke test to verify the malformed row is omitted while the cursor can safely advance. Full CI verification is pending; remain on `development/chatgpt-mvp`, with no production Firebase setup or outreach sending.

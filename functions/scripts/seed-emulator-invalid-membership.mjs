@@ -12,7 +12,13 @@ if (!/^[A-Za-z0-9_-]{1,128}$/.test(organisationId ?? "") || !/^[A-Za-z0-9_-]{1,1
   throw new Error("Usage: node seed-emulator-invalid-membership.mjs <organisationId> <uid>");
 }
 initializeApp({ projectId });
-await getFirestore().doc(`organisations/${organisationId}/members/${uid}`).set({
+const db = getFirestore();
+await db.doc(`organisations/${organisationId}`).set({
+  name: "Synthetic malformed membership cursor fixture",
+  ownerUid: "fixture-owner",
+  createdAt: new Date(),
+});
+await db.doc(`organisations/${organisationId}/members/${uid}`).set({
   uid,
   role: "invalid-role",
   createdAt: new Date(),
