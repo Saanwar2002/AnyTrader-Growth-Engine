@@ -2,7 +2,7 @@
 
 - Strengthened the callable coverage unit test so each exported callable must use its own exact operation name as the rate-limit bucket key, not merely mention either limiter somewhere in its source segment.
 - This guards against accidental copy/paste errors that would make unrelated callable quotas share one bucket or bypass the intended operation-specific quota.
-- The baseline callable-coverage guard passed both CI jobs in run [39418278746](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39418278746). The strengthened operation-key assertion is pending CI.
+- The baseline callable-coverage guard passed both CI jobs in run [39418278746](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39418278746). The first attempt exposed a test-only escaping error in a dynamically built regular expression (CI run [39418845301](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39418845301)); replaced it with a simpler extraction of the limiter call and an exact operation-key assertion. Reverification is pending.
 - Production remains blocked on separate-project App Check configuration/enforcement, deployed alerts, quota calibration, Firestore TTL configuration, and privacy/operational readiness.
 
 ## Guard against unthrottled callable additions — 2026-10-20
