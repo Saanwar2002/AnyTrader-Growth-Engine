@@ -1,3 +1,10 @@
+## Cross-tenant campaign and draft write denial — 2026-10-20
+
+- Added emulator checks for an authenticated user with no membership attempting campaign creation and outreach-draft create/edit/delete against another organisation's actual tenant ID.
+- Every attempt must fail with `functions/permission-denied`; follow-up owner reads confirm no campaign was created, the draft subject was not changed, and the draft was not deleted.
+- This complements foreign document-ID checks and the existing coverage for cross-tenant lead, suppression, and campaign-status mutations. CI verification pending.
+- Production remains blocked on separate-project App Check configuration/enforcement, deployed alerts, quota calibration, Firestore TTL configuration, and privacy/operational readiness.
+
 ## Runtime authentication coverage for every callable — 2026-10-20
 
 - Expanded emulator smoke coverage from a single unauthenticated listing check to all 15 exported callable handlers.

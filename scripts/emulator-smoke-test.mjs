@@ -640,6 +640,45 @@ try {
   await expectCallableFailure(callTwo("updateOutreachDraft", { organisationId: orgTwo.organisationId, draftId: draft.draftId, subject: "Cross tenant", body: "Must not be updated" }), "functions/not-found", "cross-tenant draft update denial");
   await expectCallableFailure(callTwo("deleteOutreachDraft", { organisationId: orgTwo.organisationId, draftId: draft.draftId }), "functions/not-found", "cross-tenant draft delete denial");
 
+  // Explicitly target the victim tenant on every campaign/draft write path.
+  // These checks complement foreign-record-ID checks by exercising membership denial
+  // before any tenant-owned record is read or mutated.
+  await expectCallableFailure(callTwo("createCampaign", {
+    organisationId: orgOne.organisationId,
+    name: "Cross-tenant campaign creation attempt",
+    brand: "Example",
+    category: "Painters",
+    location: "Manchester",
+    goal: "Must be denied",
+  }), "functions/permission-denied", "cross-tenant campaign creation denial");
+  await expectCallableFailure(callTwo("createOutreachDraft", {
+    organisationId: orgOne.organisationId,
+    leadId: leadOne.leadId,
+    subject: "Cross-tenant draft creation attempt",
+    body: "Must be denied",
+  }), "functions/permission-denied", "cross-tenant draft creation denial");
+  await expectCallableFailure(callTwo("updateOutreachDraft", {
+    organisationId: orgOne.organisationId,
+    draftId: draft.draftId,
+    subject: "Cross-tenant draft edit attempt",
+    body: "Must be denied",
+  }), "functions/permission-denied", "cross-tenant draft update against victim tenant denial");
+  await expectCallableFailure(callTwo("deleteOutreachDraft", {
+    organisationId: orgOne.organisationId,
+    draftId: draft.draftId,
+  }), "functions/permission-denied", "cross-tenant draft deletion against victim tenant denial");
+  const victimCampaignsAfterDeniedWrites = await callOne("listCampaigns", { organisationId: orgOne.organisationId });
+  assert.equal(
+    victimCampaignsAfterDeniedWrites.campaigns.some((item) => item.name === "Cross-tenant campaign creation attempt"),
+    false,
+    "denied cross-tenant campaign creation leaves no campaign",
+  );
+  const victimDraftsAfterDeniedWrites = await callOne("listOutreachDrafts", { organisationId: orgOne.organisationId });
+  assert.equal(victimDraftsAfterDeniedWrites.drafts.find((item) => item.id === draft.draftId)?.subject, draft.subject,
+    "denied cross-tenant draft edit leaves subject unchanged");
+  assert.ok(victimDraftsAfterDeniedWrites.drafts.some((item) => item.id === draft.draftId),
+    "denied cross-tenant draft deletion leaves original draft present");
+
   // Mutation endpoints must independently enforce tenant membership, not merely
   // rely on the UI or on read/list authorization.
   await expectCallableFailure(callTwo("updateLeadContact", {
