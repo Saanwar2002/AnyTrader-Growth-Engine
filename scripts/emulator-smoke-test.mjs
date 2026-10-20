@@ -686,29 +686,36 @@ try {
   const viewerLeads = await viewerCall("listLeads", { organisationId: orgOne.organisationId });
   assert.ok(viewerLeads.leads.some((lead) => lead.id === leadOne.leadId), "viewer can read leads within their organisation");
   await expectCallableFailure(viewerCall("createLead", { organisationId: orgOne.organisationId, campaignId: campaignOne.campaignId, businessName: "Viewer denied lead" }), "functions/permission-denied", "viewer cannot create lead");
+  const viewerNotesLead = await callOne("createLead", {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    businessName: "Synthetic Viewer Notes Guard Ltd",
+    category: "Security regression",
+    location: "Manchester",
+  });
   const leadBeforeViewerNotesEdit = (await callOne("listLeads", { organisationId: orgOne.organisationId }))
-    .leads.find((lead) => lead.id === leadOne.leadId);
-  assert.ok(leadBeforeViewerNotesEdit, "target lead exists before viewer notes-edit attempt");
+    .leads.find((lead) => lead.id === viewerNotesLead.leadId);
+  assert.ok(leadBeforeViewerNotesEdit, "dedicated target lead exists before viewer notes-edit attempt");
   const viewerNotesQuotaBefore = currentQuotaCount("updateLeadNotes", viewer.auth.currentUser.uid);
   await expectCallableFailure(viewerCall("updateLeadNotes", {
-    organisationId: orgOne.organisationId, leadId: leadOne.leadId, notes: "Viewer must not edit",
+    organisationId: orgOne.organisationId, leadId: viewerNotesLead.leadId, notes: "Viewer must not edit",
   }), "functions/permission-denied", "viewer cannot edit lead notes");
   assert.equal(currentQuotaCount("updateLeadNotes", viewer.auth.currentUser.uid), viewerNotesQuotaBefore,
     "role-denied lead notes edit does not consume the viewer's quota");
   const leadAfterViewerNotesEdit = (await callOne("listLeads", { organisationId: orgOne.organisationId }))
-    .leads.find((lead) => lead.id === leadOne.leadId);
+    .leads.find((lead) => lead.id === viewerNotesLead.leadId);
   assert.equal(leadAfterViewerNotesEdit?.notes, leadBeforeViewerNotesEdit.notes,
     "role-denied lead notes edit preserves stored notes");
   execFileSync(process.execPath, [
     "functions/scripts/assert-emulator-no-lead-activity.mjs",
     orgOne.organisationId,
-    leadOne.leadId,
+    viewerNotesLead.leadId,
     "Lead notes updated",
   ], { stdio: "inherit" });
   execFileSync(process.execPath, [
     "functions/scripts/assert-emulator-no-lead-activity.mjs",
     orgOne.organisationId,
-    leadOne.leadId,
+    viewerNotesLead.leadId,
     "Lead notes cleared",
   ], { stdio: "inherit" });
   await expectCallableFailure(viewerCall("createCampaign", { organisationId: orgOne.organisationId, name: "Viewer denied campaign", brand: "Example", category: "Painters", location: "Manchester", goal: "Role test" }), "functions/permission-denied", "viewer cannot create campaign");
