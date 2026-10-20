@@ -237,11 +237,17 @@ try {
   const afterInvalidReviewFlag = afterInvalidReviewFlagList.leads.find((lead) => lead.id === invalidContactEditLead.leadId);
   assert.equal(afterInvalidReviewFlag?.doNotContact, true, "invalid review flags preserve suppression");
   assert.equal(afterInvalidReviewFlag?.contactReviewStatus, "pending", "invalid review flags preserve pending review");
+  const campaignQuotaBeforeInvalidStatus = currentQuotaCount("updateCampaignStatus");
   await expectCallableFailure(callOne("updateCampaignStatus", {
     organisationId: orgOne.organisationId,
     campaignId: campaignOne.campaignId,
     status: "sent",
   }), "functions/invalid-argument", "unknown campaign lifecycle status rejected");
+  assert.equal(currentQuotaCount("updateCampaignStatus"), campaignQuotaBeforeInvalidStatus,
+    "invalid campaign status does not consume status-update quota");
+  const campaignAfterInvalidStatus = await callOne("listCampaigns", { organisationId: orgOne.organisationId });
+  assert.equal(campaignAfterInvalidStatus.campaigns.find((campaign) => campaign.id === campaignOne.campaignId)?.status,
+    "active", "invalid campaign status preserves the stored campaign state");
   await expectCallableFailure(callOne("createOutreachDraft", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Blocked before review", body: "Must not be created" }), "functions/failed-precondition", "new lead draft gate before contact review");
   await callOne("setLeadSuppression", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, doNotContact: true });
   // Updating ordinary contact fields must never silently clear a do-not-contact restriction.
