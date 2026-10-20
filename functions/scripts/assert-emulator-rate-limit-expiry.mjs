@@ -24,6 +24,7 @@ const data = snapshot.data();
 assert.equal(typeof data.windowStartedAtMs, "number", "quota window start must be persisted");
 assert.equal(typeof data.count, "number", "quota count must be persisted as a number");
 assert.ok(data.expireAt instanceof Timestamp, "quota expiry must be a Firestore Timestamp");
-const windowMs = operation === "createOrganisation" ? 60 * 60_000 : 60_000;\nassert.equal(data.expireAt.toMillis(), data.windowStartedAtMs + windowMs + 5 * 60_000,
+const windowMs = operation === "createOrganisation" ? 60 * 60_000 : 60_000;
+assert.equal(data.expireAt.toMillis(), data.windowStartedAtMs + windowMs + 5 * 60_000,
   "expiry must align to the persisted window end plus the five-minute grace period");
 console.log(`Verified ${operation} emulator quota expiry matches its persisted window and grace period.`);
