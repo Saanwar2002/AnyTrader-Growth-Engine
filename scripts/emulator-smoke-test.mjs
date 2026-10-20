@@ -398,6 +398,26 @@ try {
   assert.equal(afterMalformedRevisionEdit?.doNotContact, true,
     "rejected malformed revision preserves the contact restriction");
 
+  // A stricter block action remains available even when review metadata is corrupt.
+  // It must leave the lead blocked, and the outreach gate must continue to reject drafts.
+  await callOne("setLeadSuppression", {
+    organisationId: orgOne.organisationId,
+    leadId: malformedRevisionLead.leadId,
+    doNotContact: true,
+  });
+  const blockedMalformedRevisionList = await callOne("listLeads", { organisationId: orgOne.organisationId });
+  const blockedMalformedRevision = blockedMalformedRevisionList.leads.find((lead) => lead.id === malformedRevisionLead.leadId);
+  assert.equal(blockedMalformedRevision?.doNotContact, true,
+    "stricter suppression action keeps a malformed-revision lead suppressed");
+  assert.equal(blockedMalformedRevision?.contactReviewStatus, "blocked",
+    "stricter suppression action records blocked status despite malformed revision");
+  await expectCallableFailure(callOne("createOutreachDraft", {
+    organisationId: orgOne.organisationId,
+    leadId: malformedRevisionLead.leadId,
+    subject: "Synthetic blocked lead test",
+    body: "This draft must be rejected for a blocked synthetic lead.",
+  }), "functions/failed-precondition", "blocked malformed-revision lead cannot create outreach draft");
+
   await expectCallableFailure(callOne("createOutreachDraft", {
     organisationId: orgOne.organisationId,
     leadId: leadOne.leadId,
