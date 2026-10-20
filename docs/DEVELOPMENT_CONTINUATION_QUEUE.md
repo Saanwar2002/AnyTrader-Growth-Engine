@@ -1,3 +1,9 @@
+## Successful CI verification — 2026-10-20
+
+- CI run [39379763922](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39379763922) completed successfully for commit `3747dfe4f18c022d887ea795fde19a4ebbe7ddc0` on `development/chatgpt-mvp`. Both jobs passed: frontend typecheck/unit tests/production build plus emulator smoke tests, and Firebase Functions authorization tests/build.
+- The previous run had correctly started rejecting a malformed organisation pagination cursor, while the smoke test still expected the older permissive behaviour. The smoke test now expects `functions/invalid-argument`, matching the fail-closed cursor validation.
+- README limitations/roadmap updated to distinguish passing emulator CI from the still-unconfigured dedicated Firebase project and production readiness. Do not deploy, connect production AnyTrader data, or enable automated outreach; outreach remains draft-only.
+
 ## Suppression authorization TypeScript guard follow-up — 2026-10-19
 
 - CI run [39334559481](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39334559481) exposed a TypeScript strict-nullability issue in the new transaction guard: the membership validator returns a boolean, so TypeScript did not infer that the membership data object exists after validation.
