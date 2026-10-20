@@ -1085,6 +1085,21 @@ try {
   );
   console.log("PASS: listLeads enforces its per-user/per-organisation read quota.");
 
+  // Malformed persisted read-quota state must fail closed just like mutation quota state.
+  execFileSync(process.execPath, [
+    "functions/scripts/seed-emulator-rate-limit.mjs",
+    orgOne.organisationId,
+    first.auth.currentUser.uid,
+    "listLeads",
+    "invalid",
+  ], { stdio: "inherit" });
+  await expectCallableFailure(
+    callOne("listLeads", { organisationId: orgOne.organisationId }),
+    "functions/failed-precondition",
+    "read callable rejected when persisted rate-limit state is malformed",
+  );
+  console.log("PASS: listLeads fails closed on malformed persisted quota state.");
+
   for (const [operation, payload, label] of [
     ["listCampaigns", { organisationId: orgOne.organisationId }, "campaign listing"],
     ["listOutreachDrafts", { organisationId: orgOne.organisationId }, "outreach-draft listing"],

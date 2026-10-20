@@ -1,3 +1,10 @@
+## Verify malformed persisted read-quota state fails closed — 2026-10-20
+
+- Added an emulator smoke regression that seeds a malformed listLeads quota document and verifies the callable rejects with functions/failed-precondition, matching the fail-closed contract already covered for mutations.
+- This complements exhausted read-quota checks for all four read callables and mutation quota-boundary/concurrency checks.
+- Callable rate-limit coverage and exact operation-key guard passed both CI jobs in run [39419030893](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39419030893). This new emulator assertion is pending CI.
+- Production remains blocked on separate-project App Check configuration/enforcement, deployed alerts, quota calibration, Firestore TTL configuration, and privacy/operational readiness.
+
 ## Verify rate-limit guard operation-key alignment — 2026-10-20
 
 - Strengthened the callable coverage unit test so each exported callable must use its own exact operation name as the rate-limit bucket key, not merely mention either limiter somewhere in its source segment.
