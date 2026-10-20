@@ -248,6 +248,17 @@ try {
   const campaignAfterInvalidStatus = await callOne("listCampaigns", { organisationId: orgOne.organisationId });
   assert.equal(campaignAfterInvalidStatus.campaigns.find((campaign) => campaign.id === campaignOne.campaignId)?.status,
     "active", "invalid campaign status preserves the stored campaign state");
+  const campaignQuotaBeforeMissingTarget = currentQuotaCount("updateCampaignStatus");
+  await expectCallableFailure(callOne("updateCampaignStatus", {
+    organisationId: orgOne.organisationId,
+    campaignId: "missing-campaign-target",
+    status: "paused",
+  }), "functions/not-found", "campaign status update rejects a missing target");
+  assert.equal(currentQuotaCount("updateCampaignStatus"), campaignQuotaBeforeMissingTarget,
+    "missing campaign target does not consume status-update quota");
+  const campaignsAfterMissingTarget = await callOne("listCampaigns", { organisationId: orgOne.organisationId });
+  assert.equal(campaignsAfterMissingTarget.campaigns.find((campaign) => campaign.id === campaignOne.campaignId)?.status,
+    "active", "missing campaign target does not alter other campaign state");
   await expectCallableFailure(callOne("createOutreachDraft", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Blocked before review", body: "Must not be created" }), "functions/failed-precondition", "new lead draft gate before contact review");
   await callOne("setLeadSuppression", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, doNotContact: true });
   // Updating ordinary contact fields must never silently clear a do-not-contact restriction.
