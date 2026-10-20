@@ -325,6 +325,11 @@ export const updateLeadContact = onCall(async (request) => {
   const leadRef = db.collection("organisations").doc(organisationId).collection("leads").doc(leadId);
   const activity = db.collection("organisations").doc(organisationId).collection("leadActivities").doc();
   const completeness = calculateLeadCompleteness(fields);
+  let contactRestriction: {
+    doNotContact: boolean;
+    contactReviewStatus: "pending" | "cleared" | "blocked";
+    contactRestrictionVerified: boolean;
+  } | undefined;
   await db.runTransaction(async (transaction: Transaction) => {
     await requireTransactionalRole(transaction, organisationId, uid, "lead");
     const leadSnapshot = await transaction.get(leadRef);
@@ -340,10 +345,24 @@ export const updateLeadContact = onCall(async (request) => {
         ? { doNotContact: true, contactReviewStatus: "blocked" as const }
         : { doNotContact: true, contactReviewStatus: "pending" as const })
       : {};
+    const nextDoNotContact = contactChannelsChanged
+      ? true
+      : existingLead.doNotContact === true || existingReviewStatus === "blocked";
+    const nextReviewStatus = normaliseContactReviewStatus(
+      contactChannelsChanged ? nextDoNotContact : existingLead.doNotContact,
+      contactChannelsChanged ? restrictionUpdate.contactReviewStatus : existingLead.contactReviewStatus,
+    );
+    contactRestriction = {
+      doNotContact: nextDoNotContact,
+      contactReviewStatus: nextReviewStatus,
+      contactRestrictionVerified: !contactChannelsChanged
+        && existingLead.doNotContact === false
+        && (existingLead.contactReviewStatus === undefined || existingLead.contactReviewStatus === "cleared"),
+    };
     transaction.update(leadRef, { ...fields, ...restrictionUpdate, score: completeness.score, scoreReasons: completeness.reasons, updatedAt: now, updatedBy: uid });
     transaction.create(activity, { leadId, actorUid: uid, message: "Lead contact details updated", createdAt: now });
   });
-  return { leadId, ...fields, score: completeness.score, scoreReasons: completeness.reasons };
+  return { leadId, ...fields, score: completeness.score, scoreReasons: completeness.reasons, ...contactRestriction };
 });
 
 export const updateLeadStatus = onCall(async (request) => {

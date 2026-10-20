@@ -104,7 +104,7 @@ try {
 
   // Editing non-contact business metadata must not discard a still-valid review.
   const clearedLeadBeforeMetadataEdit = clearedLeadList.leads.find((lead) => lead.id === leadOne.leadId);
-  await callOne("updateLeadContact", {
+  const metadataEditResponse = await callOne("updateLeadContact", {
     organisationId: orgOne.organisationId,
     leadId: leadOne.leadId,
     businessName: "Synthetic Test Painting Ltd (metadata-only edit)",
@@ -114,6 +114,9 @@ try {
     phone: clearedLeadBeforeMetadataEdit?.phone ?? "",
     website: clearedLeadBeforeMetadataEdit?.website ?? "",
   });
+  assert.equal(metadataEditResponse.doNotContact, false, "metadata-only edit response preserves contact restriction");
+  assert.equal(metadataEditResponse.contactReviewStatus, "cleared", "metadata-only edit response returns review state");
+  assert.equal(metadataEditResponse.contactRestrictionVerified, true, "metadata-only edit response exposes verified state");
   const metadataEditedLeadList = await callOne("listLeads", { organisationId: orgOne.organisationId });
   const metadataEditedLead = metadataEditedLeadList.leads.find((lead) => lead.id === leadOne.leadId);
   assert.equal(metadataEditedLead?.doNotContact, false, "metadata-only edits preserve the explicit contact-review decision");
@@ -121,7 +124,7 @@ try {
   assert.equal(metadataEditedLead?.contactRestrictionVerified, true, "metadata-only edits preserve verified restriction state");
 
   // Changing a contact channel invalidates the previous review clearance.
-  await callOne("updateLeadContact", {
+  const changedEmailResponse = await callOne("updateLeadContact", {
     organisationId: orgOne.organisationId,
     leadId: leadOne.leadId,
     businessName: "Synthetic Test Painting Ltd (new email requires review)",
@@ -129,6 +132,9 @@ try {
     location: "Manchester",
     email: "new-contact@example.test",
   });
+  assert.equal(changedEmailResponse.doNotContact, true, "contact-channel edit response requires fresh review");
+  assert.equal(changedEmailResponse.contactReviewStatus, "pending", "contact-channel edit response returns pending review");
+  assert.equal(changedEmailResponse.contactRestrictionVerified, false, "contact-channel edit response marks restriction unverified");
   const changedContactLeadList = await callOne("listLeads", { organisationId: orgOne.organisationId });
   const changedContactLead = changedContactLeadList.leads.find((lead) => lead.id === leadOne.leadId);
   assert.equal(changedContactLead?.doNotContact, true, "changing a contact channel re-applies the contact restriction");

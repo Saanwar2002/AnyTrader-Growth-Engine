@@ -1,3 +1,9 @@
+## Return authoritative contact-review state from lead edits — 2026-10-20
+
+- Updated updateLeadContact to return the server's resulting doNotContact, contactReviewStatus, and contactRestrictionVerified values alongside the edited fields.
+- This makes the callable response reflect when an email, phone, or website edit has reset review to pending, and when a metadata-only edit preserves a valid clearance. Updated the frontend API response type and added emulator assertions for both paths.
+- CI verification pending. Synthetic emulator coverage only; no deployment and no automated outreach sending.
+
 ## Contact-review metadata-edit regression added — 2026-10-20
 
 - Added emulator integration assertions that changing a lead's business name/category/location while preserving email, phone, and website does not reset an explicit contact-review decision.

@@ -25,7 +25,7 @@ export function createGrowthEngineApi(call: CallableInvoker) {
     listCampaigns: (payload: { organisationId: string; pageToken?: string }) => call<typeof payload, { campaigns: CampaignSummary[]; hasMoreCampaigns: boolean; nextPageToken: string | null }>("listCampaigns", payload),
     listLeads: (payload: { organisationId: string; pageToken?: string }) => call<typeof payload, { leads: LeadSummary[]; hasMoreLeads: boolean; nextPageToken: string | null }>("listLeads", payload),
     createLead: (payload: LeadInput) => call<LeadInput, { leadId: string; status: ServerLeadStatus }>("createLead", payload),
-    updateLeadContact: (payload: LeadInput & { leadId: string }) => call<typeof payload, { leadId: string }>("updateLeadContact", payload),
+    updateLeadContact: (payload: LeadInput & { leadId: string }) => call<typeof payload, { leadId: string; doNotContact: boolean; contactReviewStatus: "pending" | "cleared" | "blocked"; contactRestrictionVerified: boolean }>("updateLeadContact", payload),
     updateLeadStatus: (payload: { organisationId: string; leadId: string; status: ServerLeadStatus }) => call<typeof payload, { leadId: string; status: ServerLeadStatus }>("updateLeadStatus", payload),
     updateLeadNotes: (payload: { organisationId: string; leadId: string; notes: string }) => call<typeof payload, { leadId: string; notes: string }>("updateLeadNotes", payload),
     setLeadSuppression: (payload: { organisationId: string; leadId: string; doNotContact: boolean }) => call<typeof payload, { leadId: string; doNotContact: boolean }>("setLeadSuppression", payload),
