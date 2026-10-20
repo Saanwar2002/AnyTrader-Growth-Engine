@@ -457,3 +457,10 @@ Continue the callable authorization audit and integration-test reliability work;
 - Added a shared organisation-aware membership validator. Owner-role membership must match the parent's recorded `ownerUid`; missing or conflicting owner metadata fails closed. Admin/member/viewer roles remain governed by the membership record.
 - Applied the check to read and transactional authorization plus organisation listing. Added unit tests and a guarded local-emulator regression proving a mismatched owner membership cannot access campaign data and is omitted from organisation results.
 - Full CI verification pending. Work remains on `development/chatgpt-mvp`; production Firebase setup remains deferred and outreach remains draft-only.
+
+
+## Owner membership integrity mutation coverage — 2026-10-20
+
+- CI run [39377906706](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39377906706) passed both frontend and Functions jobs for commit `9321cce411a7cfedcbd9f0d3245094ecfd9dfbf6`.
+- Expanded the emulator smoke suite so a membership marked `owner` but conflicting with the organisation's authoritative `ownerUid` is tested against campaign creation, campaign status changes, lead creation, and suppression mutation—not only organisation/campaign reads.
+- The fixture remains synthetic and local-emulator-only. This adds regression coverage without changing production authorization behaviour. Outreach remains draft-only; Firebase deployment remains deferred.

@@ -285,6 +285,32 @@ try {
     "owner membership conflicting with parent ownerUid is omitted",
   );
 
+  // The same corrupt owner membership must not authorise writes through either
+  // the campaign or lead mutation paths, even though the child campaign exists.
+  await expectCallableFailure(callOne("createCampaign", {
+    organisationId: "owner-mismatch-org",
+    name: "Must be denied",
+    category: "Painters",
+    location: "Manchester",
+  }), "functions/permission-denied", "campaign creation with owner membership conflicting with parent ownerUid");
+  await expectCallableFailure(callOne("updateCampaignStatus", {
+    organisationId: "owner-mismatch-org",
+    campaignId: "fixture-campaign",
+    status: "paused",
+  }), "functions/permission-denied", "campaign update with owner membership conflicting with parent ownerUid");
+  await expectCallableFailure(callOne("createLead", {
+    organisationId: "owner-mismatch-org",
+    campaignId: "fixture-campaign",
+    businessName: "Must be denied",
+    category: "Painters",
+    location: "Manchester",
+  }), "functions/permission-denied", "lead creation with owner membership conflicting with parent ownerUid");
+  await expectCallableFailure(callOne("setLeadSuppression", {
+    organisationId: "owner-mismatch-org",
+    leadId: "fixture-lead",
+    doNotContact: true,
+  }), "functions/permission-denied", "suppression update with owner membership conflicting with parent ownerUid");
+
   // Orphaned subcollections must not remain accessible after the organisation parent is deleted.
   execFileSync(process.execPath, [
     "functions/scripts/seed-emulator-orphaned-organisation.mjs",
