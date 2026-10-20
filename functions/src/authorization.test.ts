@@ -1,6 +1,20 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { calculateLeadCompleteness, canChangeSuppression, canMarkLeadContacted, canCreateServerOutreachDraft, canTransitionLeadStatus, getOutreachDraftReviewState, hasCampaignWritePermission, hasLeadWritePermission, isValidCampaignStatus, isValidDocumentId, isValidEmailAddress, isValidLeadStatus, isValidOrganisationId, isValidOrganisationPageToken, isValidOrganisationCollectionPageToken, isValidMembershipRecord, isValidMembershipForOrganisation, isValidFirestoreTimestamp, normaliseContactReviewStatus, hasConsistentDraftCampaign, normaliseOptionalText, normaliseRequiredText, isSafeWebsiteAddress, evaluateRateLimit, createRateLimitDocumentId } from "./authorization";
+import { calculateLeadCompleteness, canChangeSuppression, canMarkLeadContacted, canCreateServerOutreachDraft, canTransitionLeadStatus, getOutreachDraftReviewState, hasCampaignWritePermission, hasLeadWritePermission, isValidCampaignStatus, isValidDocumentId, isValidEmailAddress, isValidLeadStatus, isValidOrganisationId, isValidOrganisationPageToken, isValidOrganisationCollectionPageToken, isValidMembershipRecord, isValidMembershipForOrganisation, isValidFirestoreTimestamp, normaliseContactReviewStatus, hasConsistentDraftCampaign, normaliseOptionalText, normaliseRequiredText, isSafeWebsiteAddress, evaluateRateLimit, createRateLimitDocumentId, safeTimestampToIso } from "./authorization";
+
+describe("safe persisted timestamp serialization", () => {
+  it("serializes valid timestamps and fails closed for malformed legacy values", () => {
+    expect(safeTimestampToIso({ toDate: () => new Date("2026-10-20T12:00:00.000Z") })).toBe("2026-10-20T12:00:00.000Z");
+    expect(safeTimestampToIso(undefined)).toBeNull();
+    expect(safeTimestampToIso(null)).toBeNull();
+    expect(safeTimestampToIso("not-a-timestamp")).toBeNull();
+    expect(safeTimestampToIso(123)).toBeNull();
+    expect(safeTimestampToIso({ toDate: "not-a-function" })).toBeNull();
+    expect(safeTimestampToIso({ toDate: () => "not-a-date" })).toBeNull();
+    expect(safeTimestampToIso({ toDate: () => new Date(Number.NaN) })).toBeNull();
+    expect(safeTimestampToIso({ toDate: () => { throw new Error("corrupt legacy value"); } })).toBeNull();
+  });
+});
 
 describe("server authorization input guards", () => {
   it("trims required text and rejects missing, non-string, blank, and overlong values", () => {

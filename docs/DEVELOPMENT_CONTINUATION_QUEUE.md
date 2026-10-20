@@ -1,3 +1,10 @@
+## Safe serialization of malformed persisted timestamps — 2026-10-20
+
+- Added a defensive timestamp serializer for campaign, lead, and outreach-draft list responses. It returns an ISO string only when the persisted value exposes a callable toDate() that returns a valid Date; malformed values, invalid dates, and thrown conversions become null rather than failing the whole list response.
+- Added unit coverage for valid timestamps, missing/non-object values, a non-callable toDate, invalid return types/dates, and throwing conversions.
+- Added an emulator-only corrupted draft timestamp fixture and an integration assertion that the draft remains listable with createdAt: null.
+- CI pending. The previous malformed-draft-content batch passed both CI jobs in run 39431117535.
+
 ## Fail closed on malformed persisted outreach-draft content — 2026-10-20
 
 - Extended the guarded emulator-only legacy fixture with a draft whose subject is an object and body is a number rather than strings.

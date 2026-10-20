@@ -27,6 +27,7 @@ import {
   normaliseContactReviewStatus,
   normaliseOptionalText,
   normaliseRequiredText,
+  safeTimestampToIso,
 } from "./authorization";
 
 initializeApp();
@@ -279,7 +280,7 @@ export const listCampaigns = onCall(async (request) => {
   return {
     campaigns: page.map((doc: QueryDocumentSnapshot) => {
       const campaign = doc.data();
-      return { id: doc.id, name: campaign.name, category: campaign.category, location: campaign.location, brand: campaign.brand, goal: campaign.goal, status: campaign.status, createdAt: campaign.createdAt?.toDate?.().toISOString() ?? null };
+      return { id: doc.id, name: campaign.name, category: campaign.category, location: campaign.location, brand: campaign.brand, goal: campaign.goal, status: campaign.status, createdAt: safeTimestampToIso(campaign.createdAt) };
     }),
     hasMoreCampaigns: snapshot.size > 100,
     nextPageToken: snapshot.size > 100 ? page[page.length - 1]?.ref.path ?? null : null,
@@ -337,7 +338,7 @@ export const listLeads = onCall(async (request) => {
         doNotContact: lead.doNotContact === true || lead.contactReviewStatus === "blocked",
         contactRestrictionVerified: lead.doNotContact === false && (lead.contactReviewStatus === undefined || lead.contactReviewStatus === "cleared"),
         contactReviewStatus: normaliseContactReviewStatus(lead.doNotContact, lead.contactReviewStatus),
-        createdAt: lead.createdAt?.toDate?.().toISOString() ?? null,
+        createdAt: safeTimestampToIso(lead.createdAt),
       };
     }),
     hasMoreLeads: snapshot.size > 100,
@@ -642,7 +643,7 @@ export const listOutreachDrafts = onCall(async (request) => {
         // Preserve the stored status for honest display; unknown/missing values are
         // visibly distinct from a real draft while the review gate remains fail-closed.
         status: typeof draft.status === "string" && draft.status.trim() ? draft.status : "unknown", ...review,
-        createdAt: draft.createdAt?.toDate?.().toISOString() ?? null,
+        createdAt: safeTimestampToIso(draft.createdAt),
       };
     }),
     hasMoreDrafts: snapshot.size > 100,

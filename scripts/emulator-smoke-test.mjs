@@ -803,6 +803,7 @@ try {
   const missingRestrictionLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-missing-restriction-draft");
   const malformedRestrictionLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-malformed-restriction-draft");
   const malformedContentLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-malformed-content-draft");
+  const malformedTimestampLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-malformed-timestamp-draft");
   await expectCallableFailure(callOne("createOutreachDraft", {
     organisationId: orgOne.organisationId,
     leadId: "legacy-missing-restriction-lead",
@@ -836,6 +837,8 @@ try {
   assert.equal(malformedContentLegacyDraft.body, "", "malformed non-string body is not exposed to the UI");
   assert.equal(malformedContentLegacyDraft.requiresReview, true, "malformed draft content requires review");
   assert.match(malformedContentLegacyDraft.reviewReason, /subject or body is missing or malformed/i);
+  assert.ok(malformedTimestampLegacyDraft, "legacy draft with malformed timestamp remains visible");
+  assert.equal(malformedTimestampLegacyDraft.createdAt, null, "malformed persisted timestamp serializes as null instead of failing the list");
   const legacyRestrictionLeads = await callOne("listLeads", { organisationId: orgOne.organisationId });
   const missingRestrictionLead = legacyRestrictionLeads.leads.find((item) => item.id === "legacy-missing-restriction-lead");
   const malformedRestrictionLead = legacyRestrictionLeads.leads.find((item) => item.id === "legacy-malformed-restriction-lead");

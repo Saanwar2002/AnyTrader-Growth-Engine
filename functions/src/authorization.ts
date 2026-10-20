@@ -2,6 +2,23 @@ import { createHash } from "node:crypto";
 
 export type OrganisationRole = "owner" | "admin" | "member" | "viewer";
 
+/**
+ * Safely serialize untrusted persisted timestamp-like values.
+ * Malformed legacy records must not break an entire list response.
+ */
+export function safeTimestampToIso(value: unknown): string | null {
+  if (value === null || value === undefined || typeof value !== "object") return null;
+  try {
+    const toDate = (value as { toDate?: unknown }).toDate;
+    if (typeof toDate !== "function") return null;
+    const date = toDate.call(value);
+    if (!(date instanceof Date) || !Number.isFinite(date.getTime())) return null;
+    return date.toISOString();
+  } catch {
+    return null;
+  }
+}
+
 export function normaliseRequiredText(value: unknown, maxLength: number): string | null {
   if (typeof value !== "string") return null;
   const result = value.trim();
