@@ -1,3 +1,9 @@
+## Rate-limit boundary regression correction — 2026-10-20
+
+- First CI attempt `39399069087` failed because the original lead was no longer present in the default first page after the pagination fixture had inserted many newer records.
+- Corrected the integration test to select a lead from the current first page and then assert that same lead's notes are unchanged after the rate-limited mutation.
+- This correction is pending CI verification.
+
 ## Rate-limit boundary integration regression — 2026-10-20
 
 - Added a local-emulator-only quota seeder restricted to the demo project, local Firestore emulator, and the fixed `updateLeadNotes` operation.

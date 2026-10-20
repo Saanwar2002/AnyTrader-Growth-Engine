@@ -49,3 +49,5 @@ Keep this in synthetic-data development/demo use until the blocking items are im
 
 - A local-emulator integration regression now seeds the `updateLeadNotes` quota at its limit, verifies `resource-exhausted`, and confirms no lead data was changed. The fixture seeder refuses to run unless connected to the local demo Firestore emulator and only supports this fixed operation.
 - CI verification is pending. Production alerting and quota calibration remain outstanding.
+
+- Test fixture selection correction: the quota-boundary test uses an existing lead from the current first page after pagination fixtures have been created. Initial attempt failed because the original lead had moved outside that page; the correction is pending CI.
