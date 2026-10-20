@@ -97,6 +97,33 @@ try {
     location: "Manchester",
     email: "not-an-email",
   }), "functions/invalid-argument", "lead contact update rejects malformed email");
+  const invalidContactEditLead = await callOne("createLead", {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    businessName: "Synthetic Invalid Contact Edit Guard Ltd",
+    category: "Painters",
+    location: "Manchester",
+    email: "before-edit@example.test",
+  });
+  await expectCallableFailure(callOne("updateLeadContact", {
+    organisationId: orgOne.organisationId,
+    leadId: invalidContactEditLead.leadId,
+    businessName: "Synthetic Invalid Contact Edit Guard Ltd",
+    category: "Painters",
+    location: "Manchester",
+    email: "malformed-address",
+  }), "functions/invalid-argument", "invalid contact edit fails before mutation");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-no-lead-activity.mjs",
+    orgOne.organisationId,
+    invalidContactEditLead.leadId,
+    "Lead contact details updated",
+  ], { stdio: "inherit" });
+  const afterInvalidContactEditList = await callOne("listLeads", { organisationId: orgOne.organisationId });
+  const afterInvalidContactEdit = afterInvalidContactEditList.leads.find((lead) => lead.id === invalidContactEditLead.leadId);
+  assert.equal(afterInvalidContactEdit?.email, "before-edit@example.test", "invalid contact edit preserves the stored email");
+  assert.equal(afterInvalidContactEdit?.doNotContact, true, "invalid contact edit preserves the default contact restriction");
+  assert.equal(afterInvalidContactEdit?.contactReviewStatus, "pending", "invalid contact edit preserves pending review state");
   await expectCallableFailure(callOne("updateCampaignStatus", {
     organisationId: orgOne.organisationId,
     campaignId: campaignOne.campaignId,
