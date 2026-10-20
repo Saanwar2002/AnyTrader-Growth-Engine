@@ -764,6 +764,12 @@ try {
     leadId: missingLeadId,
     doNotContact: true,
   }), "functions/not-found", "changing suppression on a missing lead");
+  // Failed contact-review attempts must not leave an activity-log entry.
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-no-lead-activity.mjs",
+    orgOne.organisationId,
+    missingLeadId,
+  ], { stdio: "inherit" });
   await expectCallableFailure(callOne("updateCampaignStatus", {
     organisationId: orgOne.organisationId,
     campaignId: missingCampaignId,
