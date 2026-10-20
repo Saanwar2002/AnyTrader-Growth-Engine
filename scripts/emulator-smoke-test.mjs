@@ -102,6 +102,29 @@ try {
   const clearedLeadList = await callOne("listLeads", { organisationId: orgOne.organisationId });
   assert.equal(clearedLeadList.leads.find((lead) => lead.id === leadOne.leadId)?.contactReviewStatus, "cleared");
 
+  // Changing a contact channel invalidates the previous review clearance.
+  await callOne("updateLeadContact", {
+    organisationId: orgOne.organisationId,
+    leadId: leadOne.leadId,
+    businessName: "Synthetic Test Painting Ltd (new email requires review)",
+    category: "Painters",
+    location: "Manchester",
+    email: "new-contact@example.test",
+  });
+  const changedContactLeadList = await callOne("listLeads", { organisationId: orgOne.organisationId });
+  const changedContactLead = changedContactLeadList.leads.find((lead) => lead.id === leadOne.leadId);
+  assert.equal(changedContactLead?.doNotContact, true, "changing a contact channel re-applies the contact restriction");
+  assert.equal(changedContactLead?.contactReviewStatus, "pending", "changing a contact channel requires fresh review");
+  await expectCallableFailure(callOne("createOutreachDraft", {
+    organisationId: orgOne.organisationId,
+    leadId: leadOne.leadId,
+    subject: "Stale clearance must not permit a draft",
+    body: "Contact details changed after review",
+  }), "functions/failed-precondition", "changed contact channel invalidates old clearance");
+
+  // Explicitly re-review the updated contact details before lifecycle tests continue.
+  await callOne("setLeadSuppression", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, doNotContact: false });
+
   // A reviewed lead may advance through lifecycle states; verify the server persists each update.
   const qualifiedLead = await callOne("updateLeadStatus", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, status: "qualified" });
   assert.equal(qualifiedLead.status, "qualified", "reviewed lead can be qualified");
