@@ -254,15 +254,22 @@ try {
   await expectCallableFailure(viewerCall("updateLeadNotes", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, notes: "Viewer must not edit" }), "functions/permission-denied", "viewer cannot edit lead notes");
   await expectCallableFailure(viewerCall("createCampaign", { organisationId: orgOne.organisationId, name: "Viewer denied campaign", brand: "Example", category: "Painters", location: "Manchester", goal: "Role test" }), "functions/permission-denied", "viewer cannot create campaign");
   await expectCallableFailure(viewerCall("updateCampaignStatus", { organisationId: orgOne.organisationId, campaignId: campaignOne.campaignId, status: "paused" }), "functions/permission-denied", "viewer cannot change campaign status");
-  await expectCallableFailure(viewerCall("setLeadSuppression", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, doNotContact: true }), "functions/permission-denied", "viewer cannot suppress a lead");
+  const viewerSuppressionLead = await callOne("createLead", {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    businessName: "Synthetic Viewer Suppression Guard Ltd",
+    category: "Painters",
+    location: "Manchester",
+  });
+  await expectCallableFailure(viewerCall("setLeadSuppression", { organisationId: orgOne.organisationId, leadId: viewerSuppressionLead.leadId, doNotContact: true }), "functions/permission-denied", "viewer cannot suppress a lead");
   execFileSync(process.execPath, [
     "functions/scripts/assert-emulator-no-lead-activity.mjs",
     orgOne.organisationId,
-    leadOne.leadId,
+    viewerSuppressionLead.leadId,
     "Lead marked do not contact",
   ], { stdio: "inherit" });
   const afterViewerSuppressionAttempt = await callOne("listLeads", { organisationId: orgOne.organisationId });
-  assert.equal(afterViewerSuppressionAttempt.leads.find((lead) => lead.id === leadOne.leadId)?.doNotContact, false, "denied viewer suppression attempt leaves contact restriction unchanged");
+  assert.equal(afterViewerSuppressionAttempt.leads.find((lead) => lead.id === viewerSuppressionLead.leadId)?.doNotContact, true, "denied viewer suppression attempt leaves the new lead's default contact restriction unchanged");
   await expectCallableFailure(viewerCall("setLeadSuppression", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, doNotContact: false }), "functions/permission-denied", "viewer cannot clear suppression");
   await expectCallableFailure(viewerCall("createOutreachDraft", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Viewer denied", body: "Must not be created" }), "functions/permission-denied", "viewer cannot create outreach draft");
 
