@@ -1,3 +1,9 @@
+## Transactional mutation rate limits verified — 2026-10-20
+
+- CI run [39397754995](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39397754995) passed both jobs for commit `0ea93bf11d90886150ea22ecdf949475488673e9`: frontend typecheck, all 259 unit tests, production build, Firebase Functions tests/build, and emulator integration smoke tests.
+- The emulator integration exercised the existing synthetic pagination workload with transactional quotas enabled; the Firestore read-before-write ordering correction and adjusted per-operation quotas are verified by the full suite.
+- Quotas are initial guardrails, not a production certification. Monitoring/alerts, App Check, rate-limit calibration against real traffic, and operational recovery/privacy controls remain outstanding. No production deployment; outreach remains draft-only.
+
 ## Tune quotas for pagination integration coverage — 2026-10-20
 
 - CI run [39397419151](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39397419151) passed Functions tests/build but the emulator smoke suite hit the 10/minute campaign-creation quota while creating 99 synthetic campaigns through the callable to verify pagination.
