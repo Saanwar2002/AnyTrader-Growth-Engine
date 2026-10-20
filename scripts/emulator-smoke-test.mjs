@@ -482,6 +482,34 @@ try {
   assert.equal(maxRevisionState?.doNotContact, true,
     "revision overflow rejection preserves suppression");
 
+  // Non-channel edits remain available at the revision ceiling, but must not
+  // alter the revision counter or relax an existing suppression.
+  const maxRevisionNonContactEdit = await callOne("updateLeadContact", {
+    organisationId: orgOne.organisationId,
+    leadId: maxRevisionLead.leadId,
+    businessName: "Synthetic Maximum Review Revision Guard Updated Ltd",
+    category: "Painters",
+    location: "Manchester",
+    website: "",
+    email: "max-revision@example.test",
+    phone: "",
+  });
+  assert.equal(maxRevisionNonContactEdit.businessName, "Synthetic Maximum Review Revision Guard Updated Ltd",
+    "non-channel edits remain possible at the revision ceiling");
+  assert.equal(maxRevisionNonContactEdit.contactReviewRevision, Number.MAX_SAFE_INTEGER,
+    "non-channel edit does not increment the revision ceiling");
+  assert.equal(maxRevisionNonContactEdit.doNotContact, true,
+    "non-channel edit cannot clear existing suppression");
+  const afterMaxRevisionNonContactEdit = await callOne("listLeads", { organisationId: orgOne.organisationId });
+  const maxRevisionAfterNonContactEdit = afterMaxRevisionNonContactEdit.leads.find((lead) => lead.id === maxRevisionLead.leadId);
+  assert.equal(maxRevisionAfterNonContactEdit?.businessName, "Synthetic Maximum Review Revision Guard Updated Ltd",
+    "non-channel edit persists the updated business name");
+  assert.equal(maxRevisionAfterNonContactEdit?.contactReviewRevision, Number.MAX_SAFE_INTEGER,
+    "persisted revision remains the maximum safe integer");
+  assert.equal(maxRevisionAfterNonContactEdit?.doNotContact, true,
+    "persisted suppression remains enabled after non-channel edit");
+  console.log("PASS: non-contact-channel edits preserve the maximum revision and cannot relax suppression.");
+
   await expectCallableFailure(callOne("createOutreachDraft", {
     organisationId: orgOne.organisationId,
     leadId: leadOne.leadId,
