@@ -511,3 +511,9 @@ Continue the callable authorization audit and integration-test reliability work;
 
 - CI run [39379473644](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39379473644) found an outdated emulator expectation: the malformed-membership cursor fixture expected pagination to continue while silently omitting the organisation. Cursor validation now correctly rejects malformed membership metadata with `functions/invalid-argument`, so the smoke test now asserts that fail-closed behaviour directly.
 - Firebase Functions unit tests/build passed in that run; the frontend job failed only at the emulator smoke test assertion described above. Re-run the full CI after updating the test. No production Firebase deployment performed.
+
+
+## Legacy contact restriction edit regression — 2026-10-20
+
+- Added emulator checks that editing contact details and notes cannot implicitly verify missing or malformed contact-restriction fields. Both records must remain unverified and pending review after edits.
+- Verification pending CI. Changes remain on `development/chatgpt-mvp`; no deployment or outreach sending.

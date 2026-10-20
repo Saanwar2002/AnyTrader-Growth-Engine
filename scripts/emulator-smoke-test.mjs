@@ -679,6 +679,42 @@ try {
   assert.ok(malformedRestrictionLead, "lead with malformed restriction remains visible");
   assert.equal(malformedRestrictionLead.contactRestrictionVerified, false, "malformed restriction is not presented as verified");
   assert.equal(malformedRestrictionLead.contactReviewStatus, "pending", "malformed restriction is normalised to pending review");
+
+  // Ordinary contact and notes edits must not implicitly repair an absent or malformed
+  // authoritative contact restriction on legacy records.
+  await callOne("updateLeadContact", {
+    organisationId: orgOne.organisationId,
+    leadId: "legacy-missing-restriction-lead",
+    businessName: "Synthetic Missing Restriction Lead (edited)",
+    category: "Painter and decorator",
+    location: "Test location",
+    email: "review@example.test",
+  });
+  await callOne("updateLeadNotes", {
+    organisationId: orgOne.organisationId,
+    leadId: "legacy-missing-restriction-lead",
+    notes: "Reviewed fields; restriction remains unverified.",
+  });
+  await callOne("updateLeadContact", {
+    organisationId: orgOne.organisationId,
+    leadId: "legacy-malformed-restriction-lead",
+    businessName: "Synthetic Malformed Restriction Lead (edited)",
+    category: "Painter and decorator",
+    location: "Test location",
+    email: "review@example.test",
+  });
+  await callOne("updateLeadNotes", {
+    organisationId: orgOne.organisationId,
+    leadId: "legacy-malformed-restriction-lead",
+    notes: "Reviewed fields; restriction remains unverified.",
+  });
+  const legacyRestrictionLeadsAfterEdits = await callOne("listLeads", { organisationId: orgOne.organisationId });
+  const missingRestrictionAfterEdits = legacyRestrictionLeadsAfterEdits.leads.find((item) => item.id === "legacy-missing-restriction-lead");
+  const malformedRestrictionAfterEdits = legacyRestrictionLeadsAfterEdits.leads.find((item) => item.id === "legacy-malformed-restriction-lead");
+  assert.equal(missingRestrictionAfterEdits?.contactRestrictionVerified, false, "ordinary edits cannot verify a missing restriction");
+  assert.equal(missingRestrictionAfterEdits?.contactReviewStatus, "pending", "ordinary edits preserve pending review for missing restriction");
+  assert.equal(malformedRestrictionAfterEdits?.contactRestrictionVerified, false, "ordinary edits cannot verify a malformed restriction");
+  assert.equal(malformedRestrictionAfterEdits?.contactReviewStatus, "pending", "ordinary edits preserve pending review for malformed restriction");
   await expectCallableFailure(callOne("updateOutreachDraft", {
     organisationId: orgOne.organisationId, draftId: "legacy-missing-restriction-draft",
     subject: "Must remain blocked", body: "Missing restriction remains unverified",
