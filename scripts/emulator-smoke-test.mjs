@@ -44,6 +44,11 @@ try {
   ], { stdio: "inherit" });
   const orgOne = await callOne("createOrganisation", { name: "Tenant One" });
   assert.equal(orgOne.role, "owner");
+  // A successful mutation must also persist expiry metadata using its one-hour quota window.
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-rate-limit-expiry.mjs",
+    "global", first.auth.currentUser.uid, "createOrganisation",
+  ], { stdio: "inherit" });
   const campaignOne = await callOne("createCampaign", { organisationId: orgOne.organisationId, name: "Painter pilot", brand: "Example", category: "Painters", location: "Manchester", goal: "Recruit providers" });
   const pausedCampaign = await callOne("updateCampaignStatus", {
     organisationId: orgOne.organisationId,

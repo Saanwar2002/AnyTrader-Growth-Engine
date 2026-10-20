@@ -12,7 +12,7 @@ if (projectId !== "demo-growth-engine-test" || !emulatorHost || !/^(127\.0\.0\.1
 const [organisationId, uid, operation] = process.argv.slice(2);
 if (!(organisationId === "global" || /^[A-Za-z0-9_-]{1,128}$/.test(organisationId ?? ""))
   || !/^[A-Za-z0-9_-]{1,128}$/.test(uid ?? "")
-  || operation !== "listMyOrganisations") {
+  || !["listMyOrganisations", "createOrganisation"].includes(operation)) {
   throw new Error("Usage: node assert-emulator-rate-limit-expiry.mjs <global|organisation-id> <authenticated-uid> listMyOrganisations");
 }
 initializeApp({ projectId });
@@ -24,6 +24,6 @@ const data = snapshot.data();
 assert.equal(typeof data.windowStartedAtMs, "number", "quota window start must be persisted");
 assert.equal(typeof data.count, "number", "quota count must be persisted as a number");
 assert.ok(data.expireAt instanceof Timestamp, "quota expiry must be a Firestore Timestamp");
-assert.equal(data.expireAt.toMillis(), data.windowStartedAtMs + 60_000 + 5 * 60_000,
+const windowMs = operation === "createOrganisation" ? 60 * 60_000 : 60_000;\nassert.equal(data.expireAt.toMillis(), data.windowStartedAtMs + windowMs + 5 * 60_000,
   "expiry must align to the persisted window end plus the five-minute grace period");
-console.log("Verified emulator quota expiry matches its persisted window and grace period.");
+console.log(`Verified ${operation} emulator quota expiry matches its persisted window and grace period.`);

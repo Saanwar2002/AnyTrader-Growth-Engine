@@ -777,3 +777,11 @@ Continue the callable authorization audit and integration-test reliability work;
 - CI run `39413191033` failed in `assert-emulator-rate-limit-expiry.mjs` because the local emulator host regex was over-escaped and did not match `127.0.0.1:8080`.
 - Corrected the regex to match loopback IPv4 or `localhost` on port 8080. The project-ID and emulator-host safety guard remains in place.
 - Verification: rerun Growth Engine CI and confirm emulator integration passes before treating this change as verified.
+
+
+## Rate-limit expiry integration coverage — 2026-10-20
+
+- CI run [39413425917](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39413425917) passed after fixing the local emulator host guard.
+- Expanded the local-only expiry assertion to cover both the 60-second `listMyOrganisations` read bucket and the one-hour `createOrganisation` mutation bucket. The assertion checks persisted expiry equals window start + the operation's configured window + five-minute grace.
+- Added the mutation expiry assertion to the emulator smoke test. This verifies TTL metadata on both read and mutation paths without changing enforcement or enabling TTL deletion.
+- CI verification is pending for this expanded coverage. Production TTL policy remains a separate Firebase-console/configuration task.
