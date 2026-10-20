@@ -557,16 +557,25 @@ export const setLeadSuppression = onCall(async (request) => {
     if (!leadSnapshot.exists) throw new HttpsError("not-found", "Lead was not found in this organisation.");
     const lead = leadSnapshot.data() ?? {};
     const storedRevision = lead.contactReviewRevision;
-    if (storedRevision !== undefined && (typeof storedRevision !== "number" || !Number.isSafeInteger(storedRevision) || storedRevision < 0)) {
+    if (!data.doNotContact && storedRevision !== undefined
+      && (typeof storedRevision !== "number" || !Number.isSafeInteger(storedRevision) || storedRevision < 0)) {
       throw new HttpsError("failed-precondition", "Lead contact-review revision is invalid and requires operator review.");
     }
-    const currentRevision = storedRevision === undefined ? 0 : storedRevision as number;
+    const currentRevision = typeof storedRevision === "number" && Number.isSafeInteger(storedRevision) && storedRevision >= 0
+      ? storedRevision
+      : 0;
     if (!data.doNotContact && data.contactReviewRevision !== currentRevision) {
       throw new HttpsError("failed-precondition", "Contact details changed after review began. Refresh the lead and review the current contact details before clearing the restriction.");
     }
     const now = FieldValue.serverTimestamp();
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "setLeadSuppression", 120);
-    transaction.update(leadRef, { doNotContact: data.doNotContact, contactReviewStatus: data.doNotContact ? "blocked" : "cleared", contactReviewRevision: currentRevision, updatedAt: now, updatedBy: uid });
+    transaction.update(leadRef, {
+      doNotContact: data.doNotContact,
+      contactReviewStatus: data.doNotContact ? "blocked" : "cleared",
+      ...(!data.doNotContact ? { contactReviewRevision: currentRevision } : {}),
+      updatedAt: now,
+      updatedBy: uid,
+    });
     transaction.create(activity, { leadId, actorUid: uid, message: data.doNotContact ? "Lead marked do not contact" : "Lead contact restriction removed", createdAt: now });
   });
   return { leadId, doNotContact: data.doNotContact };
