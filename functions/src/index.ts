@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { initializeApp } from "firebase-admin/app";
 import { FieldValue, getFirestore, type QueryDocumentSnapshot, type Transaction } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
+import * as logger from "firebase-functions/logger";
 import {
   calculateLeadCompleteness,
   canChangeSuppression,
@@ -39,9 +40,23 @@ async function consumeTransactionalRateLimit(transaction: Transaction, organisat
   const ref = db.collection("rateLimits").doc(key);
   const snapshot = await transaction.get(ref);
   const evaluation = evaluateRateLimit(snapshot.exists ? snapshot.data() : undefined, Date.now(), maxRequests, windowMs);
-  if (evaluation.invalidState) throw new HttpsError("failed-precondition", "Rate-limit state is invalid and requires operator review.");
+  if (evaluation.invalidState) {
+    logger.error("Rate-limit state validation failed", {
+      operation,
+      quotaKey: key,
+      reason: "invalid_persisted_state_or_configuration",
+    });
+    throw new HttpsError("failed-precondition", "Rate-limit state is invalid and requires operator review.");
+  }
   if (!evaluation.allowed || !evaluation.nextState) {
     const seconds = Math.max(1, Math.ceil(evaluation.retryAfterMs / 1000));
+    logger.warn("Mutation rate limit exceeded", {
+      operation,
+      quotaKey: key,
+      retryAfterSeconds: seconds,
+      maxRequests,
+      windowMs,
+    });
     throw new HttpsError("resource-exhausted", `Too many ${operation} requests. Try again in about ${seconds} seconds.`);
   }
   transaction.set(ref, { ...evaluation.nextState, updatedAt: FieldValue.serverTimestamp() });
