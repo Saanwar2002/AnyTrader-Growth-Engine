@@ -987,3 +987,13 @@ Continue the callable authorization audit and integration-test reliability work;
 - Each variant must fail with `functions/invalid-argument`. The test then verifies the stored website remains the original safe URL, contact restriction remains enabled with pending review, and no contact-update activity was created.
 - The preceding website-scheme regression's documentation commit passed both CI jobs including emulator integration in run [39452295459](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39452295459). This expanded matrix is a new commit and still requires its own CI verification.
 - Work remains on `development/chatgpt-mvp`; no production deployment or automated outreach sending.
+
+
+## Bind contact-review clearance to the reviewed contact revision — 2026-10-20
+
+- Added a server-managed `contactReviewRevision` to lead creation/listing and contact-update responses. It starts at zero and increments transactionally whenever email, phone, or website changes; ordinary metadata edits do not increment it.
+- Clearing a contact restriction now requires the revision shown to the reviewer. The server compares it to the current revision inside the same Firestore transaction as the clearance write. A stale revision fails with `functions/failed-precondition`, leaving the lead suppressed/pending. Blocking a lead remains available without a revision.
+- Updated the cloud UI and API types to send the revision being reviewed. Updated emulator smoke helpers to use the current revision and added a regression that attempts clearance using a revision captured before an email change.
+- This specifically closes the race where a clear action started against old contact details could otherwise commit after a concurrent channel edit and clear the new details without a fresh review. Legacy records without a revision are treated as revision zero until updated; malformed stored revisions fail closed on clearance.
+- Implementation commits: `5a591dd3799f30ed028eb83aefc7f137096d13cf` (server), `7f71e1aedc2ab050371c31e2b955c1eaadeb8c6c` (API types), `b188ccfc4e1b837e0192ed68b1f8cbfe3d657b53` (UI), `aa8b5553836aa81d9a445c648f3ea7b9d1dbd837` (stale-revision regression). Follow-up type hardening and role/orphan fixture updates are committed in `a68fa73d623de5e542a723840ab11d2e50928e3f`, `fe92a9151dc63f3d6a0b9922a2783d6e84a3c99a`, `bcd3907722d9716afc8cbb2b4cc5c8d4799b17bc`, and `d3ef797e84728bc9042ff43488715f402bc53a54`.
+- CI must pass before considering this fix verified. Work remains on `development/chatgpt-mvp`; no production deployment or automated outreach sending.
