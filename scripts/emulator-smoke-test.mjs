@@ -384,7 +384,10 @@ try {
   const memberCall = (name, payload = {}) => httpsCallable(member.functions, name, { timeout: 30000 })(payload).then((response) => response.data);
   await memberCall("updateLeadNotes", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, notes: "Updated by member role integration test" });
   await memberCall("setLeadSuppression", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, doNotContact: true });
-  await expectCallableFailure(memberCall("setLeadSuppression", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, doNotContact: false }), "functions/permission-denied", "member cannot clear lead suppression");
+  await expectCallableFailure(memberCall("setLeadSuppression", {
+    organisationId: orgOne.organisationId, leadId: leadOne.leadId, doNotContact: false,
+    contactReviewRevision: await currentContactReviewRevision(leadOne.leadId),
+  }), "functions/permission-denied", "member cannot clear lead suppression");
   await expectCallableFailure(memberCall("createCampaign", { organisationId: orgOne.organisationId, name: "Member denied campaign", brand: "Example", category: "Painters", location: "Manchester", goal: "Role test" }), "functions/permission-denied", "member cannot create campaign");
 
   const admin = connectClient(initializeApp(firebaseConfig, "role-admin"));
@@ -426,7 +429,10 @@ try {
   ], { stdio: "inherit" });
   const afterViewerSuppressionAttempt = await callOne("listLeads", { organisationId: orgOne.organisationId });
   assert.equal(afterViewerSuppressionAttempt.leads.find((lead) => lead.id === viewerSuppressionLead.leadId)?.doNotContact, true, "denied viewer suppression attempt leaves the new lead's default contact restriction unchanged");
-  await expectCallableFailure(viewerCall("setLeadSuppression", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, doNotContact: false }), "functions/permission-denied", "viewer cannot clear suppression");
+  await expectCallableFailure(viewerCall("setLeadSuppression", {
+    organisationId: orgOne.organisationId, leadId: leadOne.leadId, doNotContact: false,
+    contactReviewRevision: await currentContactReviewRevision(leadOne.leadId),
+  }), "functions/permission-denied", "viewer cannot clear suppression");
   await expectCallableFailure(viewerCall("createOutreachDraft", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Viewer denied", body: "Must not be created" }), "functions/permission-denied", "viewer cannot create outreach draft");
 
   const draft = await callOne("createOutreachDraft", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Test draft", body: "Review before use" });
