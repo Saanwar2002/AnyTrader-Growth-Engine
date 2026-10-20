@@ -708,3 +708,9 @@ Continue the callable authorization audit and integration-test reliability work;
 - Corrected the retry-after calculation when the server clock is earlier than the persisted window start. The quota remains blocked, and retry duration now reflects the full remaining time until the original window end rather than understating it by ignoring the clock offset.
 - Updated the unit regression to assert a 61,000 ms retry when the persisted window begins at 10,000 ms and evaluation occurs at 9,000 ms with a 60,000 ms window.
 - CI verification is pending for this change.
+
+
+## Rate-limit evaluator boundary expansion — 2026-10-20
+
+- Added unit regressions for requests below quota during clock rollback (the existing window start is retained and count increments), exact window-expiry boundary behavior, and invalid evaluator configuration (non-finite/negative clock, invalid maximum, and invalid window).
+- These tests strengthen pure evaluator coverage without changing runtime quota behavior. CI verification is pending.

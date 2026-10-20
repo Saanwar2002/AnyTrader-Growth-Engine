@@ -553,6 +553,31 @@ describe("server-side rate-limit evaluation", () => {
   it("does not reset early when the local clock moves backwards", () => {
     expect(evaluateRateLimit({ windowStartedAtMs: 10000, count: 2 }, 9000, 2, 60000)).toEqual({ allowed: false, invalidState: false, nextState: null, retryAfterMs: 61000 });
   });
+  it("keeps the original window and increments the existing counter when the clock moves backwards below the quota", () => {
+    expect(evaluateRateLimit({ windowStartedAtMs: 10000, count: 1 }, 9000, 3, 60000)).toEqual({
+      allowed: true,
+      invalidState: false,
+      nextState: { windowStartedAtMs: 10000, count: 2 },
+      retryAfterMs: 0,
+    });
+  });
+  it("starts a fresh window exactly at the prior window boundary", () => {
+    expect(evaluateRateLimit({ windowStartedAtMs: 1000, count: 3 }, 61000, 3, 60000).nextState).toEqual({
+      windowStartedAtMs: 61000,
+      count: 1,
+    });
+  });
+  it.each([
+    [Number.NaN, 3, 60000],
+    [-1, 3, 60000],
+    [1000, 0, 60000],
+    [1000, 1.5, 60000],
+    [1000, 3, 0],
+    [1000, 3, Number.POSITIVE_INFINITY],
+  ])("fails closed on invalid evaluator configuration (now=%j, max=%j, window=%j)", (now, max, window) => {
+    const result = evaluateRateLimit(undefined, now, max, window);
+    expect(result).toEqual({ allowed: false, invalidState: true, nextState: null, retryAfterMs: 0 });
+  });
   it.each([{ windowStartedAtMs: "1000", count: 1 }, { windowStartedAtMs: 1000, count: 0 }, { windowStartedAtMs: 1000, count: 4 }, { windowStartedAtMs: Number.NaN, count: 1 }, []])("fails closed on malformed persisted state", (state) => {
     expect(evaluateRateLimit(state, 2000, 3, 60000).invalidState).toBe(true);
     expect(evaluateRateLimit(state, 2000, 3, 60000).allowed).toBe(false);
