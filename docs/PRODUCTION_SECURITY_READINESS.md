@@ -59,3 +59,7 @@ Keep this in synthetic-data development/demo use until the blocking items are im
 ## Invalid rate-limit state regression
 
 - The emulator smoke suite now checks both an exhausted quota and malformed persisted counter state. Expected results: `resource-exhausted` and fail-closed `failed-precondition`, respectively, with no mutation side effects. Verified by CI run [39400377207](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39400377207).
+
+## Concurrent quota enforcement regression
+
+- The emulator suite now tests five simultaneous `updateLeadNotes` calls against a counter seeded one below the configured quota. It asserts one success, four `resource-exhausted` responses, and exactly one changed lead. This guards against concurrent quota bypasses; CI verification is pending.

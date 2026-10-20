@@ -1001,6 +1001,41 @@ try {
   const afterQuotaTest = await callOne("listLeads", { organisationId: orgOne.organisationId });
   const quotaLeadAfter = afterQuotaTest.leads.find((lead) => lead.id === quotaLeadBefore.id);
   assert.equal(quotaLeadAfter?.notes, quotaLeadBefore.notes, "rejected quota mutations must not change the lead");
+
+  // Race several requests against the final available quota slot. Firestore transaction
+  // conflicts must serialize consumption so exactly one mutation can spend that slot.
+  const concurrentQuotaLeads = afterQuotaTest.leads.slice(0, 5);
+  assert.equal(concurrentQuotaLeads.length, 5, "concurrency fixture requires five visible leads");
+  const originalNotes = new Map(concurrentQuotaLeads.map((lead) => [lead.id, lead.notes]));
+  execFileSync(process.execPath, [
+    "functions/scripts/seed-emulator-rate-limit.mjs",
+    orgOne.organisationId,
+    first.auth.currentUser.uid,
+    "updateLeadNotes",
+    "boundary",
+  ], { stdio: "inherit" });
+  const concurrentResults = await Promise.allSettled(concurrentQuotaLeads.map((lead, index) =>
+    callOne("updateLeadNotes", {
+      organisationId: orgOne.organisationId,
+      leadId: lead.id,
+      notes: `Concurrent quota boundary request ${index + 1}`,
+    }),
+  ));
+  const successfulRequests = concurrentResults.filter((result) => result.status === "fulfilled");
+  const rejectedRequests = concurrentResults.filter((result) => result.status === "rejected");
+  assert.equal(successfulRequests.length, 1, "only one concurrent request may consume the final available quota slot");
+  assert.equal(rejectedRequests.length, 4, "all other concurrent requests must be rate-limited");
+  for (const result of rejectedRequests) {
+    assert.equal(result.reason?.code, "functions/resource-exhausted", "concurrent losers must receive resource-exhausted");
+  }
+  const afterConcurrentQuota = await callOne("listLeads", { organisationId: orgOne.organisationId });
+  const changedLeads = concurrentQuotaLeads.filter((lead) => {
+    const current = afterConcurrentQuota.leads.find((item) => item.id === lead.id);
+    return current?.notes !== originalNotes.get(lead.id);
+  });
+  assert.equal(changedLeads.length, 1, "only the successful concurrent request may change lead notes");
+  console.log("PASS: concurrent requests serialize quota consumption; exactly one succeeds at the final slot.");
+
   console.log("PASS: exhausted and malformed transactional quota states reject mutations without changing protected data.");
 
   await signOut(first.auth);
