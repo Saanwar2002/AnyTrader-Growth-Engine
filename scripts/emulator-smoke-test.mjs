@@ -133,14 +133,23 @@ try {
     location: "Manchester",
     website: "https://before-edit.example.test",
   });
-  await expectCallableFailure(callOne("updateLeadContact", {
-    organisationId: orgOne.organisationId,
-    leadId: unsafeWebsiteLead.leadId,
-    businessName: "Synthetic Unsafe Website Guard Ltd",
-    category: "Painters",
-    location: "Manchester",
-    website: "javascript:alert(1)",
-  }), "functions/invalid-argument", "unsafe website scheme rejected on contact edit");
+  for (const [label, unsafeWebsite] of [
+    ["javascript scheme", "javascript:alert(1)"],
+    ["data scheme", "data:text/html,unsafe"],
+    ["protocol-relative URL", "//evil.example.test/path"],
+    ["URL credentials", "https://user:password@example.test/path"],
+    ["backslash URL", "https:\\\\evil.example.test/path"],
+    ["embedded whitespace", "https://evil.example.test/unsafe path"],
+  ]) {
+    await expectCallableFailure(callOne("updateLeadContact", {
+      organisationId: orgOne.organisationId,
+      leadId: unsafeWebsiteLead.leadId,
+      businessName: "Synthetic Unsafe Website Guard Ltd",
+      category: "Painters",
+      location: "Manchester",
+      website: unsafeWebsite,
+    }), "functions/invalid-argument", `unsafe website edit rejected: ${label}`);
+  }
   execFileSync(process.execPath, [
     "functions/scripts/assert-emulator-no-lead-activity.mjs",
     orgOne.organisationId,
@@ -155,7 +164,7 @@ try {
     "unsafe website edit preserves the default contact restriction");
   assert.equal(afterUnsafeWebsiteEdit?.contactReviewStatus, "pending",
     "unsafe website edit preserves pending review");
-  console.log("PASS: unsafe website edits fail without changing contact details, restrictions, or activity history.");
+  console.log("PASS: six unsafe website edit variants fail without changing contact details, restrictions, or activity history.");
 
   // Contact-review mutations require a real boolean; coercible values must
   // never be interpreted as a request to block or clear a contact restriction.
