@@ -714,6 +714,12 @@ try {
   }), "functions/permission-denied", "viewer cannot edit lead contact details");
   assert.equal(currentQuotaCount("updateLeadContact", viewer.auth.currentUser.uid), viewerContactQuotaBefore,
     "role-denied lead contact edit does not consume the viewer's quota");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-no-lead-activity.mjs",
+    orgOne.organisationId,
+    leadOne.leadId,
+    "Lead contact details updated",
+  ], { stdio: "inherit" });
   const leadAfterViewerContactEdit = (await callOne("listLeads", { organisationId: orgOne.organisationId }))
     .leads.find((lead) => lead.id === leadOne.leadId);
   assert.equal(leadAfterViewerContactEdit?.businessName, leadBeforeViewerContactEdit.businessName,
