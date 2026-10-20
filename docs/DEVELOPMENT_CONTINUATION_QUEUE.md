@@ -1,3 +1,9 @@
+## Verify expired mutation rate-limit bucket reset — 2026-10-20
+
+- Extended the emulator-only quota seeder to support the createOrganisation bucket, while keeping it restricted to the local demo emulator and fixed operation allowlist.
+- Added an end-to-end smoke assertion that seeds an expired, exhausted one-hour organisation-creation quota, invokes the callable, and verifies the transaction starts a fresh window with count 1 and correctly advanced expireAt metadata.
+- This complements expired read-quota coverage and confirms the mutation path also relies on persisted window state rather than stale TTL metadata. CI verification pending. App Check, production alert policies, quota calibration, privacy and operational readiness remain release blockers.
+
 ## Verify server-managed rate-limit expiry metadata — 2026-10-20
 
 - Added a local-emulator-only assertion script and wired it into the smoke test immediately after the first successful `listMyOrganisations` call.

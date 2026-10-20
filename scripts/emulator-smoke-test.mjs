@@ -983,6 +983,19 @@ try {
     fixturePrefix: "pagination-fixture-draft-",
   });
 
+  // Expired mutation buckets must reset based on their persisted window, even if the
+  // stale document remains and carries an exhausted counter.
+  execFileSync(process.execPath, [
+    "functions/scripts/seed-emulator-rate-limit.mjs",
+    "global", first.auth.currentUser.uid, "createOrganisation", "expired",
+  ], { stdio: "inherit" });
+  const afterExpiredMutationQuota = await callOne("createOrganisation", { name: "Tenant After Expired Quota" });
+  assert.equal(afterExpiredMutationQuota.role, "owner", "expired mutation quota permits the first request in a new window");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-rate-limit-expiry.mjs",
+    "global", first.auth.currentUser.uid, "createOrganisation", "fresh-window",
+  ], { stdio: "inherit" });
+
   // Force a quota boundary in the local emulator and verify a rejected mutation has no side effects.
   const beforeQuotaTest = await callOne("listLeads", { organisationId: orgOne.organisationId });
   const quotaLeadBefore = beforeQuotaTest.leads[0];
