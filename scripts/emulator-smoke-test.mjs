@@ -717,6 +717,7 @@ try {
       organisationId: "orphaned-org",
       leadId: "orphaned-lead",
       doNotContact: false,
+      contactReviewRevision: 0,
     }),
     "functions/permission-denied",
     "suppression update under deleted organisation parent",
