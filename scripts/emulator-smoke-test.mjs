@@ -125,6 +125,38 @@ try {
   assert.equal(afterInvalidContactEdit?.doNotContact, true, "invalid contact edit preserves the default contact restriction");
   assert.equal(afterInvalidContactEdit?.contactReviewStatus, "pending", "invalid contact edit preserves pending review state");
 
+  const unsafeWebsiteLead = await callOne("createLead", {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    businessName: "Synthetic Unsafe Website Guard Ltd",
+    category: "Painters",
+    location: "Manchester",
+    website: "https://before-edit.example.test",
+  });
+  await expectCallableFailure(callOne("updateLeadContact", {
+    organisationId: orgOne.organisationId,
+    leadId: unsafeWebsiteLead.leadId,
+    businessName: "Synthetic Unsafe Website Guard Ltd",
+    category: "Painters",
+    location: "Manchester",
+    website: "javascript:alert(1)",
+  }), "functions/invalid-argument", "unsafe website scheme rejected on contact edit");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-no-lead-activity.mjs",
+    orgOne.organisationId,
+    unsafeWebsiteLead.leadId,
+    "Lead contact details updated",
+  ], { stdio: "inherit" });
+  const afterUnsafeWebsiteEditList = await callOne("listLeads", { organisationId: orgOne.organisationId });
+  const afterUnsafeWebsiteEdit = afterUnsafeWebsiteEditList.leads.find((lead) => lead.id === unsafeWebsiteLead.leadId);
+  assert.equal(afterUnsafeWebsiteEdit?.website, "https://before-edit.example.test",
+    "unsafe website edit preserves the original website");
+  assert.equal(afterUnsafeWebsiteEdit?.doNotContact, true,
+    "unsafe website edit preserves the default contact restriction");
+  assert.equal(afterUnsafeWebsiteEdit?.contactReviewStatus, "pending",
+    "unsafe website edit preserves pending review");
+  console.log("PASS: unsafe website edits fail without changing contact details, restrictions, or activity history.");
+
   // Contact-review mutations require a real boolean; coercible values must
   // never be interpreted as a request to block or clear a contact restriction.
   for (const [label, invalidFlag] of [
