@@ -1,3 +1,9 @@
+## Organisation-list quota fixture allowlist correction — 2026-10-20
+
+- CI run [39408488685](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39408488685) confirmed the prior fix accepted the exact `global` bucket, but the emulator smoke test still failed because the seeder's operation allowlist had not included `listMyOrganisations`.
+- Expanded only the fixed operation allowlist to include the organisation-list quota fixture already described in its usage message. The seeder remains restricted to the local demo emulator, exact `global` sentinel or validated organisation IDs, and the existing known operations.
+- Full CI verification pending. No production deployment; App Check, alerting, quota calibration, and privacy/operational controls remain release blockers.
+
 ## Organisation-list quota fixture validation fix — 2026-10-20
 
 - CI run [39408134212](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39408134212) passed Functions tests/build but the emulator smoke test failed before asserting the new quota: the local-only seeder rejected the special `global` bucket used for the cross-organisation listing quota.

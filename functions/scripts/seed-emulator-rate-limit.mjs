@@ -11,7 +11,7 @@ if (projectId !== "demo-growth-engine-test" || !emulatorHost || !/^(127\.0\.0\.1
 const [organisationId, uid, operation, state = "exhausted"] = process.argv.slice(2);
 if (!(organisationId === "global" || /^[A-Za-z0-9_-]{1,128}$/.test(organisationId ?? ""))
   || !/^[A-Za-z0-9_-]{1,128}$/.test(uid ?? "")
-  || !["updateLeadNotes", "listLeads"].includes(operation)
+  || !["updateLeadNotes", "listLeads", "listMyOrganisations"].includes(operation)
   || !["exhausted", "invalid", "boundary"].includes(state)) {
   throw new Error("Usage: node seed-emulator-rate-limit.mjs <organisation-id|global> <authenticated-uid> <updateLeadNotes|listLeads|listMyOrganisations> [exhausted|invalid|boundary]");
 }
