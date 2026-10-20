@@ -693,3 +693,11 @@ Continue the callable authorization audit and integration-test reliability work;
 - CI run [39386317382](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39386317382) exposed an existing emulator test assumption that a member could edit an email and immediately create a draft using the previous clearance. The new server-side guard correctly denied that draft.
 - Updated the integration scenario to assert that member contact-channel edits set the lead to pending/do-not-contact, assert draft creation is rejected, and have the admin explicitly re-review the changed details before subsequent lifecycle/draft permission checks.
 - This is a test expectation update, not a relaxation of the guard. Run CI to verify before further changes.
+
+
+## Rate-limit storage lifecycle review — 2026-10-20
+
+- Reviewed the fixed-window quota evaluator and operations runbook. Quota documents use stable hashed paths and are reused when windows roll over, but distinct user/organisation/operation buckets can accumulate over time.
+- Documented safe future TTL design and explicitly recorded that this repository does not configure a Firestore TTL policy. The expiry timestamp must be server-managed, tied to the actual quota window plus a safety grace period, and TTL must be configured and verified in the separate Firebase project.
+- The runbook now warns against deleting active quota documents because that resets the bucket and can bypass throttling. This is a documentation-only readiness improvement; it does not implement TTL or claim production readiness.
+- CI verification is pending for this documentation update.

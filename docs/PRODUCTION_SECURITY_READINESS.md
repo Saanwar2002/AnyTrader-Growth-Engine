@@ -63,3 +63,13 @@ Keep this in synthetic-data development/demo use until the blocking items are im
 ## Concurrent quota enforcement regression
 
 - The emulator suite now tests five simultaneous `updateLeadNotes` calls against a counter seeded one below the configured quota. It asserts one success, four `resource-exhausted` responses, and exactly one changed lead. This guards against concurrent quota bypasses; verified by CI run [39401203117](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39401203117).
+
+
+## Rate-limit storage lifecycle
+
+- [ ] Define and implement a server-managed expiry timestamp for quota documents with a documented safety grace period.
+- [ ] Configure and verify a Firestore TTL policy in the separate Growth Engine project; code fields alone do not activate TTL.
+- [ ] Test that cleanup only targets expired windows and cannot reset an active quota bucket.
+- [ ] Monitor quota-document growth and TTL cleanup lag, and document a safe rollback/incident process.
+
+Until these controls are implemented, quota documents may accumulate. Do not manually bulk-delete active quota state; doing so can reset rate limits. Storage lifecycle work remains a pre-production operational task.

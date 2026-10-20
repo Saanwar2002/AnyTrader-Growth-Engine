@@ -41,3 +41,20 @@ Before production use, configure and verify:
 - [ ] A separate-project test proving alerts fire on synthetic warning and error events.
 
 **Production caveat:** This runbook does not mean alerts have been deployed. App Check, production-project configuration, monitoring/alert verification, privacy and operational readiness checks remain release blockers.
+
+
+## Rate-limit document lifecycle and safe cleanup
+
+**Current behavior:** each user/organisation/operation quota uses a stable hashed document under `rateLimits/{hash}`. The document is reused across windows and currently has no expiry field managed by the application. Consequently, the number of distinct quota documents can grow as new users, organisations, or operations appear. No Firestore TTL policy is configured by this repository.
+
+**Do not delete an active quota document to recover from throttling.** Removing it resets that bucket to its first-request state and can bypass the configured quota. First establish that the stored window has expired according to the server-side evaluator, and preserve evidence before any operator cleanup.
+
+Before enabling automated cleanup in the separate Firebase project:
+
+1. Add a server-managed Firestore timestamp field (for example, `expireAt`) to quota documents, derived from the persisted window start plus the configured window duration and a documented safety grace period. Do not accept this timestamp from clients.
+2. Ensure each successful quota update refreshes the expiry timestamp consistently with the window actually stored. Keep quota evaluation authoritative; TTL is storage cleanup, not enforcement.
+3. Configure and verify a Firestore TTL policy for the exact collection group/field in the intended project. Merely writing an `expireAt` field does not enable TTL.
+4. Verify with emulator/integration tests that an expired bucket behaves as a fresh window even if its old document remains, and that deleting only an already-expired bucket cannot grant requests before the original window would have expired.
+5. Monitor document counts and cleanup lag, document the grace period and rollback procedure, and confirm that TTL configuration is present in deployment operations before marking this control complete.
+
+Until that work is implemented and verified, quota documents are expected to persist. Do not manually bulk-delete the collection as a substitute for a lifecycle policy.
