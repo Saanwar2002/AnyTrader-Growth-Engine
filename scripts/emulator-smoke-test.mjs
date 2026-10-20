@@ -1051,6 +1051,20 @@ try {
   );
   console.log("PASS: listLeads enforces its per-user/per-organisation read quota.");
 
+  execFileSync(process.execPath, [
+    "functions/scripts/seed-emulator-rate-limit.mjs",
+    "global",
+    first.auth.currentUser.uid,
+    "listMyOrganisations",
+    "exhausted",
+  ], { stdio: "inherit" });
+  await expectCallableFailure(
+    callOne("listMyOrganisations"),
+    "functions/resource-exhausted",
+    "organisation listing rejected at its persisted read quota boundary",
+  );
+  console.log("PASS: listMyOrganisations enforces its per-user global read quota.");
+
   console.log("PASS: exhausted and malformed transactional quota states reject mutations without changing protected data.");
 
   await signOut(first.auth);

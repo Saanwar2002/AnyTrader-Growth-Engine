@@ -1,3 +1,9 @@
+## Organisation-list read quota coverage — 2026-10-20
+
+- CI for commit `c71f984babd413200c9d9851fd7e5b3a88d5d3fa` passed both Firebase Functions and frontend jobs (run [39406076932](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39406076932)).
+- Follow-up audit found `listMyOrganisations` was not actually consuming the documented 120/minute per-user global quota. Added the quota before cursor and collection-group reads, expanded the local-only seeder allowlist, and added emulator coverage for the exhausted quota.
+- Verification is pending CI. This remains development-only; App Check, alerting, quota calibration, and operational/privacy controls still block public production use.
+
 ## Concurrent mutation rate-limit regression — 2026-10-20
 
 - Added a deterministic emulator test that seeds the `updateLeadNotes` counter one request below its 240-request quota and dispatches five concurrent requests for the same user/organisation/operation.

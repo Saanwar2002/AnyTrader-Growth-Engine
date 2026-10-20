@@ -154,6 +154,7 @@ function normaliseLeadFields(data: Record<string, unknown>) {
 
 export const listMyOrganisations = onCall(async (request) => {
   const uid = requireUid(request.auth?.uid);
+  await consumeReadRateLimit("global", uid, "listMyOrganisations", 120);
   const data = (request.data ?? {}) as Record<string, unknown>;
   let cursorSnapshot: QueryDocumentSnapshot | undefined;
   if (data.pageToken !== undefined && data.pageToken !== null && data.pageToken !== "") {
