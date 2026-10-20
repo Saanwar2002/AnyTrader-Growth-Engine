@@ -1,3 +1,10 @@
+## Fail closed on malformed persisted outreach-draft content — 2026-10-20
+
+- Extended the guarded emulator-only legacy fixture with a draft whose subject is an object and body is a number rather than strings.
+- The listing response now returns bounded string values only, marks missing/blank/non-string/overlong subject or body as requiring review, and keeps an explicit suppression warning higher priority than the malformed-content warning.
+- Emulator assertions verify corrupted Firestore values cannot leak as non-string values to the frontend and cannot be presented as a ready-to-use draft. CI pending.
+- The preceding cross-tenant verification-fixture correction is being re-run in CI run [39430883901](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39430883901).
+
 ## Cross-tenant draft write verification fixture correction — 2026-10-20
 
 - The first CI run for the cross-tenant campaign/draft denial batch exposed a test-fixture issue, not an authorization failure: the draft selected for post-denial verification was older than 100 newer pagination fixtures, so it correctly did not appear on the first page.

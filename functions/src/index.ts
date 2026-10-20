@@ -604,10 +604,17 @@ export const listOutreachDrafts = onCall(async (request) => {
       const campaignId = typeof lead?.campaignId === "string" ? lead.campaignId : "";
       const campaignExists = isValidDocumentId(campaignId) && campaignById.get(campaignId)?.exists === true;
       const draftStatusValid = draft.status === "draft";
+      const draftContentValid = typeof draft.subject === "string"
+        && draft.subject.trim().length > 0
+        && draft.subject.length <= 200
+        && typeof draft.body === "string"
+        && draft.body.trim().length > 0
+        && draft.body.length <= 10000;
       const relationshipValid = leadExists
         && hasConsistentDraftCampaign(draft.campaignId, lead?.campaignId)
         && campaignExists
-        && draftStatusValid;
+        && draftStatusValid
+        && draftContentValid;
       const review = relationshipValid
         ? getOutreachDraftReviewState(leadExists, lead?.doNotContact, lead?.contactReviewStatus)
         : {
@@ -621,12 +628,17 @@ export const listOutreachDrafts = onCall(async (request) => {
               ? "Lead record is missing; review before use."
               : (lead?.doNotContact === true || lead?.contactReviewStatus === "blocked")
               ? "Lead is suppressed and the draft integrity check failed; do not contact."
-              : !hasConsistentDraftCampaign(draft.campaignId, lead?.campaignId)
-                ? "Draft campaign does not match its lead; review the record before use."
-                : "The lead's campaign record is missing; review before use.",
+              : !draftContentValid
+                ? "Draft subject or body is missing or malformed; review the record before use."
+                : !hasConsistentDraftCampaign(draft.campaignId, lead?.campaignId)
+                  ? "Draft campaign does not match its lead; review the record before use."
+                  : "The lead's campaign record is missing; review before use.",
         };
       return {
-        id: doc.id, leadId, campaignId: draft.campaignId, subject: draft.subject, body: draft.body,
+        id: doc.id, leadId, campaignId: draft.campaignId,
+        // Legacy/corrupt Firestore values must not leak non-string values into UI rendering.
+        subject: typeof draft.subject === "string" ? draft.subject.slice(0, 200) : "",
+        body: typeof draft.body === "string" ? draft.body.slice(0, 10000) : "",
         // Preserve the stored status for honest display; unknown/missing values are
         // visibly distinct from a real draft while the review gate remains fail-closed.
         status: typeof draft.status === "string" && draft.status.trim() ? draft.status : "unknown", ...review,

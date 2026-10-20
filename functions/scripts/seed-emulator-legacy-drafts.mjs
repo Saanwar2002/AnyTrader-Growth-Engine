@@ -91,5 +91,10 @@ await Promise.all([
     subject: "Legacy malformed restriction fixture", body: "Synthetic test only", status: "draft",
     createdAt: now,
   }),
+  drafts.doc("legacy-malformed-content-draft").set({
+    leadId: validLeadId, campaignId: validCampaignId,
+    subject: { unexpected: "object instead of string" }, body: 12345, status: "draft",
+    createdAt: now,
+  }),
 ]);
 console.log("Seeded emulator-only orphan, mismatched-campaign, missing-campaign, and non-draft-status and missing-status legacy draft fixtures.");

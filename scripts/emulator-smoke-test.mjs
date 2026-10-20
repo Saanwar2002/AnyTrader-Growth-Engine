@@ -802,6 +802,7 @@ try {
   const missingStatusLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-missing-status");
   const missingRestrictionLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-missing-restriction-draft");
   const malformedRestrictionLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-malformed-restriction-draft");
+  const malformedContentLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-malformed-content-draft");
   await expectCallableFailure(callOne("createOutreachDraft", {
     organisationId: orgOne.organisationId,
     leadId: "legacy-missing-restriction-lead",
@@ -830,6 +831,11 @@ try {
   assert.ok(malformedRestrictionLegacyDraft, "legacy draft with malformed contact restriction remains visible for review");
   assert.equal(malformedRestrictionLegacyDraft.requiresReview, true, "malformed contact restriction requires review");
   assert.match(malformedRestrictionLegacyDraft.reviewReason, /restriction could not be verified/i);
+  assert.ok(malformedContentLegacyDraft, "legacy draft with malformed subject/body remains visible for review");
+  assert.equal(malformedContentLegacyDraft.subject, "", "malformed non-string subject is not exposed to the UI");
+  assert.equal(malformedContentLegacyDraft.body, "", "malformed non-string body is not exposed to the UI");
+  assert.equal(malformedContentLegacyDraft.requiresReview, true, "malformed draft content requires review");
+  assert.match(malformedContentLegacyDraft.reviewReason, /subject or body is missing or malformed/i);
   const legacyRestrictionLeads = await callOne("listLeads", { organisationId: orgOne.organisationId });
   const missingRestrictionLead = legacyRestrictionLeads.leads.find((item) => item.id === "legacy-missing-restriction-lead");
   const malformedRestrictionLead = legacyRestrictionLeads.leads.find((item) => item.id === "legacy-malformed-restriction-lead");
