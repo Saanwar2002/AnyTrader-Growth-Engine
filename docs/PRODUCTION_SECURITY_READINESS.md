@@ -62,4 +62,4 @@ Keep this in synthetic-data development/demo use until the blocking items are im
 
 ## Concurrent quota enforcement regression
 
-- The emulator suite now tests five simultaneous `updateLeadNotes` calls against a counter seeded one below the configured quota. It asserts one success, four `resource-exhausted` responses, and exactly one changed lead. This guards against concurrent quota bypasses; CI verification is pending.
+- The emulator suite now tests five simultaneous `updateLeadNotes` calls against a counter seeded one below the configured quota. It asserts one success, four `resource-exhausted` responses, and exactly one changed lead. This guards against concurrent quota bypasses; verified by CI run [39401203117](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39401203117).

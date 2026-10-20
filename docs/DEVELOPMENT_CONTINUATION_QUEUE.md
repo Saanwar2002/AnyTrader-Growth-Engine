@@ -2,7 +2,7 @@
 
 - Added a deterministic emulator test that seeds the `updateLeadNotes` counter one request below its 240-request quota and dispatches five concurrent requests for the same user/organisation/operation.
 - Expected exactly one successful mutation and four `functions/resource-exhausted` responses; only the successful request may change lead data. This tests Firestore transaction conflict/retry behaviour at the quota boundary, not just sequential checks.
-- The local-only seeder now supports a `boundary` state (count 239) and remains restricted to the demo emulator and fixed operation. CI verification is pending.
+- The local-only seeder now supports a `boundary` state (count 239) and remains restricted to the demo emulator and fixed operation. CI run [39401203117](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39401203117) passed both jobs, including emulator integration.
 
 ## Invalid persisted rate-limit state integration regression — 2026-10-20
 
