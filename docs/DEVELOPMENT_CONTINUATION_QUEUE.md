@@ -1,3 +1,9 @@
+## Verify rate limits on every paginated read callable — 2026-10-20
+
+- Extended the local-emulator-only rate-limit fixture seeder to support `listCampaigns` and `listOutreachDrafts`, with each operation's actual quota boundary (120/minute for campaigns, 60/minute for drafts).
+- Added emulator smoke assertions that exhausted campaign-list and draft-list quotas return `functions/resource-exhausted`, complementing the existing lead-list and organisation-list coverage.
+- This checks all four paginated read callables end-to-end. CI verification pending; limits remain provisional, and production App Check, alerting, quota calibration, and privacy/operational controls remain blockers.
+
 ## Organisation-list quota fixture allowlist correction — 2026-10-20
 
 - CI run [39408488685](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39408488685) confirmed the prior fix accepted the exact `global` bucket, but the emulator smoke test still failed because the seeder's operation allowlist had not included `listMyOrganisations`.

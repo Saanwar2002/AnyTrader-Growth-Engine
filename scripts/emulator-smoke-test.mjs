@@ -1051,6 +1051,25 @@ try {
   );
   console.log("PASS: listLeads enforces its per-user/per-organisation read quota.");
 
+  for (const [operation, payload, label] of [
+    ["listCampaigns", { organisationId: orgOne.organisationId }, "campaign listing"],
+    ["listOutreachDrafts", { organisationId: orgOne.organisationId }, "outreach-draft listing"],
+  ]) {
+    execFileSync(process.execPath, [
+      "functions/scripts/seed-emulator-rate-limit.mjs",
+      orgOne.organisationId,
+      first.auth.currentUser.uid,
+      operation,
+      "exhausted",
+    ], { stdio: "inherit" });
+    await expectCallableFailure(
+      callOne(operation, payload),
+      "functions/resource-exhausted",
+      `${label} rejected at its persisted read quota boundary`,
+    );
+    console.log(`PASS: ${operation} enforces its per-user/per-organisation read quota.`);
+  }
+
   execFileSync(process.execPath, [
     "functions/scripts/seed-emulator-rate-limit.mjs",
     "global",
