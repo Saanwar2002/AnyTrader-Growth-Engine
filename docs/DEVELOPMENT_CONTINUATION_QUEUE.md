@@ -1,3 +1,9 @@
+## Rejected legacy draft edits preserve stored record state — 2026-10-20
+
+- Extended the emulator integration test to attempt edits against both a legacy outreach record marked `sent` and one with a missing status.
+- Both edits must fail with `functions/failed-precondition`; subsequent list reads assert the sent status and original content remain unchanged, while the missing status remains visibly `unknown` rather than being silently treated as a draft.
+- This verifies rejected draft operations fail closed without mutating persisted business records. Synthetic local emulator only; no sending or production deployment.
+
 ## Rejected missing-target request does not consume quota — 2026-10-20
 
 - Added an emulator regression that seeds the updateLeadNotes bucket one request below its limit, attempts to edit a nonexistent synthetic lead, confirms functions/not-found, then proves a valid edit can still consume the final slot.

@@ -962,6 +962,20 @@ try {
     organisationId: orgOne.organisationId, draftId: "legacy-non-draft-status",
     subject: "Must not reopen a sent record", body: "Status must remain blocked",
   }), "functions/failed-precondition", "editing a legacy outreach record whose status is not draft");
+  await expectCallableFailure(callOne("updateOutreachDraft", {
+    organisationId: orgOne.organisationId, draftId: "legacy-missing-status",
+    subject: "Must not infer draft status", body: "Missing status remains untrusted",
+  }), "functions/failed-precondition", "editing a legacy outreach record with missing status");
+  const legacyDraftsAfterRejectedEdits = (await callOne("listOutreachDrafts", {
+    organisationId: orgOne.organisationId,
+  })).drafts;
+  const sentRecordAfterRejectedEdit = legacyDraftsAfterRejectedEdits.find((item) => item.id === "legacy-non-draft-status");
+  assert.equal(sentRecordAfterRejectedEdit?.status, "sent", "rejected edit preserves the legacy sent status");
+  assert.equal(sentRecordAfterRejectedEdit?.subject, "Legacy non-draft status fixture", "rejected edit preserves the sent record subject");
+  assert.equal(sentRecordAfterRejectedEdit?.body, "Synthetic test only", "rejected edit preserves the sent record body");
+  const missingStatusAfterRejectedEdit = legacyDraftsAfterRejectedEdits.find((item) => item.id === "legacy-missing-status");
+  assert.equal(missingStatusAfterRejectedEdit?.status, "unknown", "rejected edit does not normalise missing status to draft");
+  assert.equal(missingStatusAfterRejectedEdit?.subject, "Legacy missing status fixture", "rejected edit preserves the missing-status record content");
   const nonDraftStatusCleanup = await callOne("deleteOutreachDraft", {
     organisationId: orgOne.organisationId, draftId: "legacy-non-draft-status",
   });
