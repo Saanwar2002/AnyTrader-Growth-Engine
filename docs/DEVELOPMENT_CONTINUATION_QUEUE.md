@@ -786,3 +786,10 @@ Continue the callable authorization audit and integration-test reliability work;
 - Added the mutation expiry assertion to the emulator smoke test. This verifies TTL metadata on both read and mutation paths without changing enforcement or enabling TTL deletion.
 - CI run [39413784099](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39413784099) passed after correcting the expiry-window assertion expression. A follow-up audit confirmed all 15 callable exports currently consume a quota: 11 mutations use transactional quotas and 4 list endpoints use read quotas.
 - Corrected the assertion script's usage message so it documents both supported operations. Production Firestore TTL policy remains a separate Firebase-console/configuration task.
+
+
+## Require integer rate-limit time values — 2026-10-20
+
+- Follow-up evaluator review found that finite fractional millisecond values were accepted for the current time, window duration, and persisted window start. Runtime values from `Date.now()` and configured millisecond windows are integers, so accepting fractional values weakens persisted-state validation without serving a valid use case.
+- Tightened validation to require safe integer current-time/window values and integer persisted window starts. Added unit regressions for fractional configuration and malformed persisted starts.
+- Verification pending in CI. Work remains on `development/chatgpt-mvp`; no deployment or automated outreach sending.
