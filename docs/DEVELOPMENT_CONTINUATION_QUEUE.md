@@ -1,3 +1,10 @@
+## Malformed persisted contact-review revision fails closed — 2026-10-20
+
+- Added a local-emulator-only seeder that corrupts the revision on a synthetic lead, guarded by the demo project ID and local Firestore emulator host.
+- The smoke test submits a clearance request against that malformed persisted revision and expects `functions/failed-precondition`.
+- It verifies the lead remains suppressed and pending review and no “Lead contact restriction removed” activity is recorded.
+- This tests corrupted persisted state separately from stale-but-valid revisions; it does not alter production data.
+
 ## Stale contact-review clearance has no side effects — 2026-10-20
 
 - Added a fresh synthetic lead specifically for stale-clearance side-effect coverage, independent of leads with legitimate prior review history.
