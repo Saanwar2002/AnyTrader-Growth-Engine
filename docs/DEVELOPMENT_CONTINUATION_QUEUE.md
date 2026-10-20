@@ -1,3 +1,10 @@
+## Cross-organisation cursor smoke-test ordering correction — 2026-10-20
+
+- CI run [39393008760](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39393008760) passed frontend typecheck, all 250 frontend/unit tests, build, and Firebase Functions tests/build, but emulator integration failed because the new cross-organisation cursor assertions referenced `orgTwo` before its declaration.
+- Moved those three assertions until after the second synthetic organisation is created, and changed cursor targets to deliberately nonexistent cursor-only IDs. This isolates the property under test: reject a foreign-organisation path before trying to read its target document.
+- Full CI verification is pending. No production Firebase deployment or outreach sending; continue only on `development/chatgpt-mvp`.
+
+
 ## Cross-organisation pagination cursor rejection — 2026-10-20
 
 - CI run [39388129286](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39388129286) passed both jobs for commit `02b359d269184b0266065423f826f07765cf1c53`, including organisation, campaign, lead, and outreach-draft pagination over 100 synthetic records.
