@@ -124,6 +124,26 @@ try {
   assert.equal(afterInvalidContactEdit?.email, "before-edit@example.test", "invalid contact edit preserves the stored email");
   assert.equal(afterInvalidContactEdit?.doNotContact, true, "invalid contact edit preserves the default contact restriction");
   assert.equal(afterInvalidContactEdit?.contactReviewStatus, "pending", "invalid contact edit preserves pending review state");
+
+  // Contact-review mutations require a real boolean; truthy strings must never
+  // be interpreted as consent or as a request to block/unblock a contact.
+  await expectCallableFailure(callOne("setLeadSuppression", {
+    organisationId: orgOne.organisationId,
+    leadId: invalidContactEditLead.leadId,
+    doNotContact: "false",
+  }), "functions/invalid-argument", "string contact-review flag rejected");
+  for (const message of ["Lead marked do not contact", "Lead contact restriction removed"]) {
+    execFileSync(process.execPath, [
+      "functions/scripts/assert-emulator-no-lead-activity.mjs",
+      orgOne.organisationId,
+      invalidContactEditLead.leadId,
+      message,
+    ], { stdio: "inherit" });
+  }
+  const afterInvalidReviewFlagList = await callOne("listLeads", { organisationId: orgOne.organisationId });
+  const afterInvalidReviewFlag = afterInvalidReviewFlagList.leads.find((lead) => lead.id === invalidContactEditLead.leadId);
+  assert.equal(afterInvalidReviewFlag?.doNotContact, true, "invalid review flag preserves suppression");
+  assert.equal(afterInvalidReviewFlag?.contactReviewStatus, "pending", "invalid review flag preserves pending review");
   await expectCallableFailure(callOne("updateCampaignStatus", {
     organisationId: orgOne.organisationId,
     campaignId: campaignOne.campaignId,
