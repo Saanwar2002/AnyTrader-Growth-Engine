@@ -845,11 +845,34 @@ try {
     category: "Painters",
     location: "Manchester",
   }), "functions/permission-denied", "viewer cannot edit lead contact details");
+  const viewerStatusLead = await callOne("createLead", {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    businessName: "Synthetic Viewer Status Guard Ltd",
+    category: "Security regression",
+    location: "Manchester",
+  });
+  const viewerStatusLeadBefore = (await callOne("listLeads", { organisationId: orgOne.organisationId }))
+    .leads.find((lead) => lead.id === viewerStatusLead.leadId);
+  assert.ok(viewerStatusLeadBefore, "dedicated target lead exists before viewer status attempt");
+  const viewerStatusQuotaBefore = currentQuotaCount("updateLeadStatus", viewer.auth.currentUser.uid);
   await expectCallableFailure(viewerCall("updateLeadStatus", {
     organisationId: orgOne.organisationId,
-    leadId: leadOne.leadId,
+    leadId: viewerStatusLead.leadId,
     status: "qualified",
   }), "functions/permission-denied", "viewer cannot change lead status");
+  assert.equal(currentQuotaCount("updateLeadStatus", viewer.auth.currentUser.uid), viewerStatusQuotaBefore,
+    "role-denied lead status change does not consume the viewer's quota");
+  const viewerStatusLeadAfter = (await callOne("listLeads", { organisationId: orgOne.organisationId }))
+    .leads.find((lead) => lead.id === viewerStatusLead.leadId);
+  assert.equal(viewerStatusLeadAfter?.status, viewerStatusLeadBefore.status,
+    "role-denied lead status change preserves stored status");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-no-lead-activity.mjs",
+    orgOne.organisationId,
+    viewerStatusLead.leadId,
+    "Lead status changed to qualified",
+  ], { stdio: "inherit" });
   await expectCallableFailure(viewerCall("updateOutreachDraft", {
     organisationId: orgOne.organisationId,
     draftId: draft.draftId,
