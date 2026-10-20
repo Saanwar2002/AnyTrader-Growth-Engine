@@ -971,3 +971,11 @@ Continue the callable authorization audit and integration-test reliability work;
 - Expected safe outcomes: if the contact edit commits first, draft creation is rejected by the contact-review gate; if draft creation commits first, the edit re-suppresses the lead and draft listing marks the existing draft as requiring review.
 - The test verifies the final lead state is always suppressed and pending. Drafts remain unsent; this does not introduce any delivery mechanism.
 - CI verification pending. Work remains on `development/chatgpt-mvp`; production deployment remains blocked pending separate Firebase/App Check and operational readiness work.
+
+
+## Reject unsafe website contact edits without side effects — 2026-10-20
+
+- Added an emulator regression for changing a synthetic lead's website to the unsafe `javascript:` scheme.
+- The callable must reject with `functions/invalid-argument`; the stored website must remain unchanged, the default do-not-contact/pending-review state must remain intact, and no contact-update activity may be recorded.
+- The concurrent contact-edit/draft-creation regression from the preceding batch is covered by the CI run [39450150476](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39450150476), where both jobs passed including emulator integration. This new unsafe-website regression awaits CI.
+- Work remains on `development/chatgpt-mvp`; no production deployment or automated outreach sending.
