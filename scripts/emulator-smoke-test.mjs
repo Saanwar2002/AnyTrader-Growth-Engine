@@ -548,6 +548,22 @@ try {
 
   // A restriction added after draft creation must be reflected by list and enforced by update.
   await callOne("setLeadSuppression", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, doNotContact: true });
+  const blockedBeforeContactEditList = await callOne("listLeads", { organisationId: orgOne.organisationId });
+  const blockedBeforeContactEdit = blockedBeforeContactEditList.leads.find((lead) => lead.id === leadOne.leadId);
+  await callOne("updateLeadContact", {
+    organisationId: orgOne.organisationId,
+    leadId: leadOne.leadId,
+    businessName: "Synthetic Test Painting Ltd (blocked contact edit)",
+    category: "Painters",
+    location: "Manchester",
+    email: "blocked-review-change@example.test",
+    phone: blockedBeforeContactEdit?.phone ?? "",
+    website: blockedBeforeContactEdit?.website ?? "",
+  });
+  const blockedAfterContactEditList = await callOne("listLeads", { organisationId: orgOne.organisationId });
+  const blockedAfterContactEdit = blockedAfterContactEditList.leads.find((lead) => lead.id === leadOne.leadId);
+  assert.equal(blockedAfterContactEdit?.doNotContact, true, "changing a blocked lead's contact channel cannot clear the restriction");
+  assert.equal(blockedAfterContactEdit?.contactReviewStatus, "blocked", "changing a blocked lead's contact channel preserves the blocked review state");
   const suppressedDraftList = await callOne("listOutreachDrafts", { organisationId: orgOne.organisationId });
   const suppressedDraft = suppressedDraftList.drafts.find((item) => item.id === draft.draftId);
   assert.ok(suppressedDraft, "the original draft remains present after the lead restriction changes");
