@@ -1,83 +1,61 @@
 # Production Readiness: Security Gate
 
-**Status: Not ready for public production deployment.**
+**Status: NOT READY for public production deployment.**
 
-This project must use its own Growth Engine Firebase project and synthetic data until the following controls are configured and verified.
+Use only the separate Growth Engine Firebase project and synthetic data until every blocking control below is implemented and verified. Do not connect production AnyTrader data or enable automated outreach.
 
-## Existing controls
-- Firebase Authentication on callable requests.
-- Server-side organisation membership, role, and tenant checks.
+## Verified development controls
+
+- Firebase Authentication is required for all 15 callable exports.
+- Server-side organisation membership, role, and tenant checks are enforced.
 - Firestore client rules deny direct client reads and writes.
-- Contact-restriction and draft checks fail closed for malformed or unverified records.
-- CI runs frontend checks, Functions tests/build, and emulator integration.
+- Contact-restriction and outreach-draft checks fail closed for malformed or unverified records.
+- All callable exports have server-side rate limits; mutation quota updates are transactional with the protected mutation, and read quotas are consumed before collection queries.
+- Rate-limit state validation fails closed. Structured quota logs use a hashed quota key and do not include raw user or organisation IDs.
+- Emulator regressions cover exhausted and malformed quota states, mutation side effects, concurrent mutation/read quota boundaries, and exact persisted read-quota counts.
+- Latest CI for commit `97de15326ae728512feaeefbd03e350f245aa4e8` passed both the Functions tests/build and frontend typecheck/tests/build jobs: [run 39594752135](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39594752135).
+
+These checks support development readiness only; they do not establish production readiness.
 
 ## Blocking: Firebase App Check
-Audit on 2026-10-20 found 15 callable exports in `functions/src/index.ts` and zero `enforceAppCheck` options. App Check is not currently enforced by the callable definitions.
+
+The audit found 15 callable exports and no `enforceAppCheck` options in `functions/src/index.ts`. App Check is not currently enforced.
 
 - [ ] Create the separate Growth Engine Firebase project.
-- [ ] Register each supported app with Firebase App Check and configure a production provider.
+- [ ] Register each supported app with Firebase App Check and configure the appropriate production provider.
 - [ ] Enforce App Check on every callable after legitimate clients are configured to send valid tokens.
-- [ ] Test missing/invalid tokens are rejected and valid tokens work in a production-like environment.
-- [ ] Keep authentication, authorisation, and tenant isolation checks. App Check does not replace them.
+- [ ] In a production-like environment, verify missing/invalid tokens are rejected and valid tokens work.
+- [ ] Retain authentication, authorisation, and tenant-isolation checks; App Check does not replace them.
 
-## Abuse and operational controls
-- [x] Add initial server-side per-user/per-organisation fixed-window rate limits to organisation creation and campaign, lead, suppression, and outreach-draft mutations. Limits are enforced transactionally and fail closed on malformed persisted quota state.
-- [x] Add per-user/per-organisation fixed-window limits to paginated list callables (120/minute for organisation, campaign, and lead lists; 60/minute for outreach drafts), with quota consumption committed before collection reads. `listMyOrganisations` uses the global organisation bucket per UID because it spans multiple organisations. Remaining: calibrate limits against expected usage, add operational monitoring/alerts, and verify production behaviour before public release.
-- [ ] Monitor repeated denials, unusual request volume, errors, and unexpected costs.
-- [ ] Configure budget alerts and an operational response owner.
-- [ ] Define data retention, deletion, offboarding, backups, and recovery.
-- [ ] Review provider terms, contact permissions, privacy, and marketing requirements before any outreach use.
+## Abuse monitoring and cost controls
+
+Initial per-user/per-organisation fixed-window limits are implemented for organisation creation and campaign, lead, suppression, and outreach-draft mutations. Paginated list callables also have independent quotas: 120/minute for organisation, campaign, and lead lists; 60/minute for outreach-draft lists. `listMyOrganisations` uses a global per-UID bucket.
+
+- [ ] Calibrate initial limits against expected legitimate traffic before public release.
+- [ ] Configure and test alerts for repeated quota exhaustion and invalid persisted quota state.
+- [ ] Configure budget alerts and monitoring for Functions invocations and Firestore reads/writes.
+- [ ] Assign an operational owner, escalation path, and response-time expectations.
+- [ ] Configure appropriate log access and retention in the separate Firebase project.
+
+See [RATE_LIMIT_OPERATIONS_RUNBOOK.md](./RATE_LIMIT_OPERATIONS_RUNBOOK.md). The runbook is guidance, not evidence that production alerts have been deployed.
+
+## Rate-limit document lifecycle
+
+Quota documents carry a server-managed `expireAt` timestamp based on the stored window end plus a five-minute grace period. The field does not delete documents by itself; a Firestore TTL policy must be configured in the separate project.
+
+- [ ] Configure and verify TTL for the intended collection and `expireAt` field.
+- [ ] Verify expiry/cleanup behavior in the target project and monitor cleanup lag and document growth.
+- [ ] Preserve the rule that TTL is storage cleanup only; quota evaluation remains authoritative.
+- [ ] Never bulk-delete active quota documents to resolve throttling, because deletion can reset a live quota bucket.
+
+## Privacy, legal, and operational readiness
+
+- [ ] Define and test retention, deletion, user offboarding, backups, and recovery.
+- [ ] Review provider terms and authorised sourcing methods for each lead source.
+- [ ] Review contact permissions, lawful basis, privacy notices, and applicable marketing requirements before outreach use.
+- [ ] Keep outreach draft-only until legal, consent, and operational controls have been reviewed; internal review clearance is not proof of consent or lawful basis.
+- [ ] Verify the production-like release checklist and incident-response process before public deployment.
 
 ## Release rule
-Keep this in synthetic-data development/demo use until the blocking items are implemented and verified. Do not connect production AnyTrader data or enable automated outreach.
 
-
-## Rate-limit observability
-
-- Mutation quota exhaustion emits a structured warning with operation, hashed quota key, quota/window settings and retry duration.
-- Invalid persisted quota state emits a structured error with the operation and hashed quota key. Raw user and organisation IDs are not included in these events.
-- Log emission is implemented, but alert policies, retention configuration and operational response procedures still require configuration in the separate Firebase project. This does not remove the production-readiness blocker.
-
-
-## Rate-limit observability
-
-- Mutation quota exhaustion emits a structured warning with operation, hashed quota key, quota/window settings and retry duration.
-- Invalid persisted quota state emits a structured error with the operation and hashed quota key. Raw user and organisation IDs are not included in these events.
-- Structured logging passed CI run [39398354009](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39398354009). Alert policies, retention configuration and incident-response procedures still need configuration in the separate Firebase project.
-
-
-## Rate-limit regression coverage
-
-- A local-emulator integration regression now seeds the `updateLeadNotes` quota at its limit, verifies `resource-exhausted`, and confirms no lead data was changed. The fixture seeder refuses to run unless connected to the local demo Firestore emulator and only supports this fixed operation.
-- CI verification is pending. Production alerting and quota calibration remain outstanding.
-
-- Test fixture selection correction: the quota-boundary test uses an existing lead from the current first page after pagination fixtures have been created. Initial attempt failed because the original lead had moved outside that page; the correction is pending CI.
-
-- Follow-up fixture correction: `listLeads` returns the document identifier as `id`; the integration test now passes that field to `updateLeadNotes`. Verification is pending CI.
-
-- Follow-up assertion correction: post-call lookup now uses `listLeads`'s `id` field consistently. The prior run confirmed quota enforcement but failed to locate the record for the no-side-effect assertion; correction pending CI.
-
-## Invalid rate-limit state regression
-
-- The emulator smoke suite now checks both an exhausted quota and malformed persisted counter state. Expected results: `resource-exhausted` and fail-closed `failed-precondition`, respectively, with no mutation side effects. Verified by CI run [39400377207](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39400377207).
-
-## Concurrent quota enforcement regression
-
-- The emulator suite now tests five simultaneous `updateLeadNotes` calls against a counter seeded one below the configured quota. It asserts one success, four `resource-exhausted` responses, and exactly one changed lead. This guards against concurrent quota bypasses; verified by CI run [39401203117](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39401203117).
-
-
-## Rate-limit storage lifecycle
-
-- [ ] Define and implement a server-managed expiry timestamp for quota documents with a documented safety grace period.
-- [ ] Configure and verify a Firestore TTL policy in the separate Growth Engine project; code fields alone do not activate TTL.
-- [ ] Test that cleanup only targets expired windows and cannot reset an active quota bucket.
-- [ ] Monitor quota-document growth and TTL cleanup lag, and document a safe rollback/incident process.
-
-Until these controls are implemented, quota documents may accumulate. Do not manually bulk-delete active quota state; doing so can reset rate limits. Storage lifecycle work remains a pre-production operational task.
-
-
-## Read-callable abuse guard — 2026-10-20
-
-- Audit found that all four paginated list callables authenticated and checked tenant membership but had no server-side invocation quota. Repeated listing requests could still drive Firestore read and Functions costs despite mutation limits.
-- Added transactionally consumed per-user/per-organisation quotas before list queries: 120/minute for organisation, campaign, and lead lists; 60/minute for outreach drafts because that endpoint also reads referenced lead and campaign documents.
-- Extended the emulator-only seeder to support the `listLeads` quota and added an integration assertion that an exhausted read quota returns `resource-exhausted`. Limits are initial guardrails and must be calibrated with real traffic before production; CI verification is pending.
+Remain in synthetic-data development/demo use until every blocking item above is completed and independently verified. No production AnyTrader data, production integrations, or automated outreach before that point.
