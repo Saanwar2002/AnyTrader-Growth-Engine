@@ -1,3 +1,10 @@
+## Add npm advisory gates to CI — 2026-10-21
+
+- Updated `.github/workflows/ci.yml` to run `npm audit --audit-level=high` in both root and Firebase Functions jobs, after their respective `npm ci --no-audit` install steps.
+- High and critical advisory findings now fail the relevant CI job. Lower-severity advisories may be reported without failing the selected threshold and still require review.
+- This is a gate, not yet a clean-audit claim: inspect the first workflow results for both lockfiles and triage any findings before calling dependency security verified. Consider scheduled scans for newly disclosed advisories.
+- Remain on `development/chatgpt-mvp`; no production deployment, production AnyTrader data, or automated outreach.
+
 ## Dependency vulnerability monitoring gap — 2026-10-21
 
 - Reviewed `.github/workflows/ci.yml`: both root and Functions installs use `npm ci --no-audit`, and no dedicated dependency advisory scan is configured.
