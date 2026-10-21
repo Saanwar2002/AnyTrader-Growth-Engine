@@ -41,12 +41,14 @@ See [RATE_LIMIT_OPERATIONS_RUNBOOK.md](./RATE_LIMIT_OPERATIONS_RUNBOOK.md). The 
 
 ## Dependency vulnerability management
 
-The workflow now runs `npm audit --audit-level=high` in both the root and Functions jobs after dependency installation. This makes high/critical advisory findings fail CI; npm may still report lower-severity findings without failing that threshold. The first result for both lockfiles is pending CI run [39622907241](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39622907241) only for the previous documentation commit; verify the new workflow run before claiming the dependency audit is green.
+The workflow runs `npm audit --audit-level=high` in both the root and Functions jobs. On commit `696f5d84cb139505fba2ab3b53546a95ec8b9dbc`, both audit commands completed successfully and each reported `found 0 vulnerabilities` (root/frontend and Functions lockfiles). The complete CI run also passed both jobs, including typecheck, unit tests, production build, Firebase emulator integration smoke tests, Functions authorization tests, and Functions compilation: [run 39623609283](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39623609283).
 
-- [ ] Review the first audit results for both root and Functions lockfiles, including lower-severity findings and whether they are reachable/used.
-- [ ] Remediate or explicitly risk-accept relevant findings with a documented owner and expiry.
-- [ ] Consider scheduled advisory monitoring in addition to push/PR CI.
-- [ ] Re-run frontend, Functions, and emulator tests after dependency updates.
+- [x] Review the first audit results for both lockfiles, including lower-severity findings: none were reported by either `npm audit` run at this commit.
+- [x] Confirm the full frontend, Functions, and emulator CI run after adding the advisory gate.
+- [ ] Consider scheduled advisory monitoring so new disclosures are checked even when no code is pushed.
+- [ ] Re-run frontend, Functions, and emulator tests after any dependency updates.
+
+This is a point-in-time result for the committed lockfiles, not a guarantee against future disclosures. The Functions install also emits upstream deprecation warnings for dependencies (including `glob` and Node's `url.parse()`); these are maintenance signals and were not reported as npm audit vulnerabilities in this run.
 
 ## Rate-limit document lifecycle
 
