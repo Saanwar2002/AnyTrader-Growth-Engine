@@ -1975,6 +1975,25 @@ try {
   ], { stdio: "inherit" });
   console.log("PASS: concurrent read requests serialize consumption of the final global quota slot and leave the counter exactly at its limit.");
 
+  // An expired bucket must be treated as a new window, and the successful request
+  // must refresh both the counter and TTL timestamp to match the newly persisted window.
+  execFileSync(process.execPath, [
+    "functions/scripts/seed-emulator-rate-limit.mjs",
+    "global",
+    first.auth.currentUser.uid,
+    "listMyOrganisations",
+    "expired",
+  ], { stdio: "inherit" });
+  await callOne("listMyOrganisations");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-rate-limit-expiry.mjs",
+    "global",
+    first.auth.currentUser.uid,
+    "listMyOrganisations",
+    "fresh-window",
+  ], { stdio: "inherit" });
+  console.log("PASS: an expired read-quota bucket starts a fresh window and refreshes its TTL expiry.");
+
   console.log("PASS: exhausted and malformed transactional quota states reject mutations without changing protected data.");
 
   await signOut(first.auth);
