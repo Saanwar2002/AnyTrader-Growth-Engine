@@ -41,11 +41,11 @@ See [RATE_LIMIT_OPERATIONS_RUNBOOK.md](./RATE_LIMIT_OPERATIONS_RUNBOOK.md). The 
 
 ## Dependency vulnerability management
 
-The current CI installs the root and Functions dependency lockfiles with `npm ci --no-audit`; no dedicated dependency-advisory gate is configured in `.github/workflows/ci.yml`. This suppresses npm's install-time audit output; it is **not evidence that dependencies are vulnerable**, but it means CI does not currently verify advisory status.
+The workflow now runs `npm audit --audit-level=high` in both the root and Functions jobs after dependency installation. This makes high/critical advisory findings fail CI; npm may still report lower-severity findings without failing that threshold. The first result for both lockfiles is pending CI run [39622907241](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39622907241) only for the previous documentation commit; verify the new workflow run before claiming the dependency audit is green.
 
-- [ ] Audit both root and Functions lockfiles using the supported npm advisory service and review direct/transitive findings.
-- [ ] Remediate or explicitly risk-accept each relevant finding with a documented owner and expiry.
-- [ ] Add a repeatable CI or scheduled dependency review that surfaces new advisories without silently hiding failures.
+- [ ] Review the first audit results for both root and Functions lockfiles, including lower-severity findings and whether they are reachable/used.
+- [ ] Remediate or explicitly risk-accept relevant findings with a documented owner and expiry.
+- [ ] Consider scheduled advisory monitoring in addition to push/PR CI.
 - [ ] Re-run frontend, Functions, and emulator tests after dependency updates.
 
 ## Rate-limit document lifecycle
