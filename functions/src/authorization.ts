@@ -259,7 +259,7 @@ export function evaluateRateLimit(state: unknown, nowMs: number, maxRequests: nu
   const elapsed = nowMs - started;
   if (elapsed >= windowMs) return { allowed: true, invalidState: false, nextState: { windowStartedAtMs: nowMs, count: 1 }, retryAfterMs: 0 };
   // If the clock moves backwards, wait until the original window end; do not understate retry time.
-  const retryAfterMs = Math.max(0, windowMs - elapsed);
+  const retryAfterMs = Math.min(Number.MAX_SAFE_INTEGER, Math.max(0, windowMs - elapsed));
   if (count >= maxRequests) return { allowed: false, invalidState: false, nextState: null, retryAfterMs };
   return { allowed: true, invalidState: false, nextState: { windowStartedAtMs: started, count: count + 1 }, retryAfterMs: 0 };
 }
