@@ -15,7 +15,7 @@ if (!(organisationId === "global" || /^[A-Za-z0-9_-]{1,128}$/.test(organisationI
   || !["listMyOrganisations", "createOrganisation"].includes(operation)
   || !["expiry", "fresh-window"].includes(expectation)
   || (expectation === "fresh-window" && !["createOrganisation", "listMyOrganisations"].includes(operation))) {
-  throw new Error("Usage: node assert-emulator-rate-limit-expiry.mjs <global|organisation-id> <authenticated-uid> <listMyOrganisations|createOrganisation>");
+  throw new Error("Usage: node assert-emulator-rate-limit-expiry.mjs <global|organisation-id> <authenticated-uid> <listMyOrganisations|createOrganisation> [expiry|fresh-window]");
 }
 initializeApp({ projectId });
 const db = getFirestore();
