@@ -616,6 +616,17 @@ describe("server-side rate-limit evaluation", () => {
 });
 
 
+describe("adversarial timestamp method failures", () => {
+  it("fails closed when timestamp conversion methods throw or return unsafe values", () => {
+    expect(isValidFirestoreTimestamp({ toMillis: () => { throw new Error("corrupt timestamp"); } })).toBe(false);
+    expect(isValidFirestoreTimestamp({ toMillis: () => Number.NaN })).toBe(false);
+    expect(isValidFirestoreTimestamp({ toMillis: () => Number.POSITIVE_INFINITY })).toBe(false);
+    expect(isValidFirestoreTimestamp({ toMillis: () => Number.MAX_SAFE_INTEGER + 1 })).toBe(false);
+    expect(safeTimestampToIso({ toDate: () => { throw new Error("corrupt timestamp"); } })).toBeNull();
+    expect(safeTimestampToIso({ toDate: () => new Date(Number.NaN) })).toBeNull();
+  });
+});
+
 describe("Firestore timestamp cursor validation", () => {
   it("accepts finite safe-range millisecond timestamps including sub-millisecond precision", () => {
     expect(isValidFirestoreTimestamp({ toMillis: () => 1_700_000_000_000 })).toBe(true);
