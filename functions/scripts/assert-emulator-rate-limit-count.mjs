@@ -11,10 +11,10 @@ if (projectId !== "demo-growth-engine-test" || !emulatorHost || !/^(127\.0\.0\.1
 }
 const [organisationId, uid, operation, expectedArg] = process.argv.slice(2);
 const validId = (value) => typeof value === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(value);
-const allowedOperations = new Set(["setLeadSuppression", "updateLeadContact", "updateLeadStatus", "updateLeadNotes", "updateCampaignStatus"]);
+const allowedOperations = new Set(["setLeadSuppression", "updateLeadContact", "updateLeadStatus", "updateLeadNotes", "updateCampaignStatus", "updateOutreachDraft", "deleteOutreachDraft"]);
 if (!validId(organisationId) || !validId(uid) || !allowedOperations.has(operation)
   || (expectedArg !== undefined && !/^\d+$/.test(expectedArg))) {
-  throw new Error("Usage: node assert-emulator-rate-limit-count.mjs <organisationId> <uid> <setLeadSuppression|updateLeadContact|updateLeadStatus|updateLeadNotes|updateCampaignStatus> [expectedCount]");
+  throw new Error("Usage: node assert-emulator-rate-limit-count.mjs <organisationId> <uid> <setLeadSuppression|updateLeadContact|updateLeadStatus|updateLeadNotes|updateCampaignStatus|updateOutreachDraft|deleteOutreachDraft> [expectedCount]");
 }
 initializeApp({ projectId });
 const db = getFirestore();
