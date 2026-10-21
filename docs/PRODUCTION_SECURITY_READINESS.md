@@ -13,7 +13,7 @@ Use only the separate Growth Engine Firebase project and synthetic data until ev
 - All callable exports have server-side rate limits; mutation quota updates are transactional with the protected mutation, and read quotas are consumed before collection queries.
 - Rate-limit state validation fails closed. Structured quota logs use a hashed quota key and do not include raw user or organisation IDs.
 - Emulator regressions cover exhausted and malformed quota states, mutation side effects, concurrent mutation/read quota boundaries, exact persisted read-quota counts, and expired read-quota window reset with refreshed TTL expiry.
-- Latest verified CI for commit `cf978eb7299a93b9cf07af3de459cd470a60c09f` passed both the Functions tests/build and frontend typecheck/tests/build jobs: [run 39600871142](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39600871142).
+- Latest verified CI for commit `6a043406d1eafb190880c1e2743759c45fd4aa72` passed both the Functions tests/build and frontend typecheck/tests/build jobs: [run 39609724784](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39609724784). This run includes the callable security-contract regression checks for authentication, operation-specific rate limiting, transactional mutations, and transactional role revalidation.
 
 These checks support development readiness only; they do not establish production readiness.
 
