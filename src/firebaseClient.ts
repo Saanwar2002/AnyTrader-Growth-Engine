@@ -35,9 +35,17 @@ export function readFirebaseWebConfig(env: Record<string, string | undefined>): 
   };
 }
 
+export function assertFirebaseProjectMatches(configuredProjectId: string, existingProjectId: string | undefined): void {
+  if (!existingProjectId || existingProjectId !== configuredProjectId) {
+    throw new Error("Firebase project configuration does not match the initialized default app.");
+  }
+}
+
 export function createFirebaseClient(config: FirebaseWebConfig): FirebaseClient {
-  const app = getApps().length ? getApp() : initializeApp(config);
-  return { app, auth: getAuth(app), functions: getFunctions(app), projectId: config.projectId };
+  const existingDefaultApp = getApps().find((app) => app.name === "[DEFAULT]");
+  const app = existingDefaultApp ?? initializeApp(config);
+  if (existingDefaultApp) assertFirebaseProjectMatches(config.projectId, app.options.projectId);
+  return { app, auth: getAuth(app), functions: getFunctions(app), projectId: app.options.projectId ?? config.projectId };
 }
 
 const config = readFirebaseWebConfig(import.meta.env);
