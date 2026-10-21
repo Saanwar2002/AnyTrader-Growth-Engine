@@ -1966,7 +1966,14 @@ try {
     assert.equal(result.reason?.code, "functions/resource-exhausted",
       "concurrent read-quota losers must receive resource-exhausted");
   }
-  console.log("PASS: concurrent read requests serialize consumption of the final global quota slot.");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-rate-limit-count.mjs",
+    "global",
+    first.auth.currentUser.uid,
+    "listMyOrganisations",
+    "120",
+  ], { stdio: "inherit" });
+  console.log("PASS: concurrent read requests serialize consumption of the final global quota slot and leave the counter exactly at its limit.");
 
   console.log("PASS: exhausted and malformed transactional quota states reject mutations without changing protected data.");
 
