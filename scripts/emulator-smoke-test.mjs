@@ -1269,6 +1269,14 @@ try {
     console.log(`OK ${name} (tenant two)`);
     return response.data;
   })();
+  // An unauthorized tenant read must fail before creating or consuming a quota
+  // bucket under the victim organisation ID.
+  const crossTenantReadUid = second.auth.currentUser.uid;
+  const crossTenantReadQuotaBefore = {
+    leads: currentQuotaCount("listLeads", crossTenantReadUid),
+    campaigns: currentQuotaCount("listCampaigns", crossTenantReadUid),
+    drafts: currentQuotaCount("listOutreachDrafts", crossTenantReadUid),
+  };
   await expectCallableFailure(callTwo("listLeads", { organisationId: orgOne.organisationId }), "functions/permission-denied", "cross-tenant lead listing denial");
   const orgTwo = await callTwo("createOrganisation", { name: "Tenant Two" });
   // A cursor scoped to another tenant must be rejected before its target document is read.
@@ -1277,6 +1285,11 @@ try {
   await expectCallableFailure(callOne("listOutreachDrafts", { organisationId: orgOne.organisationId, pageToken: `organisations/${orgTwo.organisationId}/outreachDrafts/cursor-only` }), "functions/invalid-argument", "draft cursor from another organisation");
   await expectCallableFailure(callTwo("listCampaigns", { organisationId: orgOne.organisationId }), "functions/permission-denied", "cross-tenant campaign listing denial");
   await expectCallableFailure(callTwo("listOutreachDrafts", { organisationId: orgOne.organisationId }), "functions/permission-denied", "cross-tenant outreach draft listing denial");
+  assert.deepEqual({
+    leads: currentQuotaCount("listLeads", crossTenantReadUid),
+    campaigns: currentQuotaCount("listCampaigns", crossTenantReadUid),
+    drafts: currentQuotaCount("listOutreachDrafts", crossTenantReadUid),
+  }, crossTenantReadQuotaBefore, "denied cross-tenant reads must not create or consume read quotas");
   await expectCallableFailure(callTwo("createLead", { organisationId: orgTwo.organisationId, campaignId: campaignOne.campaignId, businessName: "Cross Tenant Attempt" }), "functions/not-found", "cross-tenant campaign reference denial");
   await expectCallableFailure(callTwo("createOutreachDraft", { organisationId: orgTwo.organisationId, leadId: leadOne.leadId, subject: "Cross tenant", body: "Must not be created" }), "functions/not-found", "cross-tenant lead reference denial");
   await expectCallableFailure(callTwo("updateOutreachDraft", { organisationId: orgTwo.organisationId, draftId: draft.draftId, subject: "Cross tenant", body: "Must not be updated" }), "functions/not-found", "cross-tenant draft update denial");
