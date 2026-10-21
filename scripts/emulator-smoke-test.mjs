@@ -1943,6 +1943,31 @@ try {
   );
   console.log("PASS: listMyOrganisations enforces its per-user global read quota.");
 
+  // Read quotas must also serialize concurrent requests at the final available slot.
+  // Use the global organisation-list quota here because no further authenticated read
+  // requests should depend on that quota later in this smoke-test run.
+  execFileSync(process.execPath, [
+    "functions/scripts/seed-emulator-rate-limit.mjs",
+    "global",
+    first.auth.currentUser.uid,
+    "listMyOrganisations",
+    "boundary",
+  ], { stdio: "inherit" });
+  const concurrentReadResults = await Promise.allSettled(
+    Array.from({ length: 5 }, () => callOne("listMyOrganisations")),
+  );
+  const successfulReadRequests = concurrentReadResults.filter((result) => result.status === "fulfilled");
+  const rejectedReadRequests = concurrentReadResults.filter((result) => result.status === "rejected");
+  assert.equal(successfulReadRequests.length, 1,
+    "only one concurrent read may consume the final available global read-quota slot");
+  assert.equal(rejectedReadRequests.length, 4,
+    "all other concurrent reads must be rate-limited at the final slot");
+  for (const result of rejectedReadRequests) {
+    assert.equal(result.reason?.code, "functions/resource-exhausted",
+      "concurrent read-quota losers must receive resource-exhausted");
+  }
+  console.log("PASS: concurrent read requests serialize consumption of the final global quota slot.");
+
   console.log("PASS: exhausted and malformed transactional quota states reject mutations without changing protected data.");
 
   await signOut(first.auth);
