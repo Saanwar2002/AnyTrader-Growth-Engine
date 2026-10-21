@@ -1,3 +1,10 @@
+## Dependency vulnerability monitoring gap — 2026-10-21
+
+- Reviewed `.github/workflows/ci.yml`: both root and Functions installs use `npm ci --no-audit`, and no dedicated dependency advisory scan is configured.
+- This does not establish that any package is vulnerable; it means CI currently provides no advisory-status verification. Do not infer a clean dependency posture from passing typecheck/tests/build alone.
+- Added a production-readiness blocker to audit both lockfiles, review/remediate or risk-accept findings, and introduce repeatable dependency monitoring.
+- Next: run an advisory audit against both lockfiles, assess actual findings before changing versions, then add a sustainable CI/scheduled check and rerun all tests. Remain on `development/chatgpt-mvp`; synthetic data only and no production deployment.
+
 ## Abuse and reliability audit — 2026-10-21
 
 - Reviewed the current emulator and unit-test coverage for concurrent mutation quotas, concurrent read quotas, failed-precondition side effects, malformed persisted quota state, timestamp conversion failures, and races between contact-channel edits and draft creation.
