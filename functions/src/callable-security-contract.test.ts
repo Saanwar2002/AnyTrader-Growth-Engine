@@ -26,6 +26,18 @@ const expectedRateLimitType: Record<string, "read" | "mutation"> = {
 };
 
 describe("callable security contract", () => {
+
+  it("keeps outreach operations draft-only", () => {
+    for (const name of ["createOutreachDraft", "updateOutreachDraft", "deleteOutreachDraft"]) {
+      const start = callableSource.indexOf(`export const ${name} = onCall(`);
+      expect(start, `${name} must remain an explicit callable export`).toBeGreaterThanOrEqual(0);
+      const nextStart = callableSource.indexOf("export const ", start + 1);
+      const body = callableSource.slice(start, nextStart < 0 ? callableSource.length : nextStart);
+      expect(body, `${name} must explicitly report that no message was sent`).toContain("sent: false");
+    }
+    expect(Object.keys(expectedRateLimitType)).not.toContain("sendOutreach");
+  });
+
   it("keeps every expected callable authenticated and rate-limited", () => {
     const declarations = [...callableSource.matchAll(/export const (\w+) = onCall\(/g)];
     expect(declarations.map((match) => match[1]).sort()).toEqual(
