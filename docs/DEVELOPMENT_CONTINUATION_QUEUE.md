@@ -1,3 +1,12 @@
+## Dependency automation and App Check boundary review — 2026-10-21
+
+- Confirmed CI runs for commits `273fa515` and `e9acd485` completed successfully. This validates the existing `Growth Engine CI` workflow for those commits, but does not by itself execute the new scheduled dependency-audit workflow.
+- Added weekly Dependabot update configuration for root npm dependencies, Functions npm dependencies, and GitHub Actions. Updates are proposed as pull requests; they are not auto-merged or deployed.
+- Clarified in `docs/PRODUCTION_SECURITY_READINESS.md` that scheduled audit workflow and Dependabot configuration must be reviewed and promoted to the repository default branch before their scheduled automation becomes active. Manual dispatch also requires the workflow to exist on the default branch.
+- Reconfirmed `firestore.rules` denies all direct client reads/writes and `src/firebaseClient.ts` remains in local demo mode until required Firebase web config is supplied.
+- Reconfirmed the backend has 15 callable exports and App Check is not enforced. Do not enable `enforceAppCheck` prematurely: it must be paired with a separately configured Growth Engine Firebase project, registered client App Check provider, and production-like valid/invalid token tests.
+- Remain on `development/chatgpt-mvp`; no merge to `main`, no production Firebase setup, no production data, and no automated outreach.
+
 ## Add npm advisory gates to CI — 2026-10-21
 
 - Updated `.github/workflows/ci.yml` to run `npm audit --audit-level=high` in both root and Firebase Functions jobs, after their respective `npm ci --no-audit` install steps.
