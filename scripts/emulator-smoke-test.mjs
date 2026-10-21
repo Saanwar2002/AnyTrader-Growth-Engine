@@ -1295,6 +1295,40 @@ try {
   await expectCallableFailure(callTwo("updateOutreachDraft", { organisationId: orgTwo.organisationId, draftId: draft.draftId, subject: "Cross tenant", body: "Must not be updated" }), "functions/not-found", "cross-tenant draft update denial");
   await expectCallableFailure(callTwo("deleteOutreachDraft", { organisationId: orgTwo.organisationId, draftId: draft.draftId }), "functions/not-found", "cross-tenant draft delete denial");
 
+  // Exercise every tenant-scoped mutation as a non-member against valid victim
+  // record IDs. Authorization must fail before the mutation quota is consumed.
+  const tenantMutationCases = [
+    ["createCampaign", { organisationId: orgOne.organisationId, name: "Denied tenant campaign", brand: "Example", category: "Painters", location: "Manchester" }],
+    ["updateCampaignStatus", { organisationId: orgOne.organisationId, campaignId: campaignOne.campaignId, status: "paused" }],
+    ["createLead", { organisationId: orgOne.organisationId, campaignId: campaignOne.campaignId, businessName: "Denied tenant lead" }],
+    ["updateLeadContact", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, businessName: "Denied tenant edit", category: "Painters", location: "Manchester", email: "valid@example.test" }],
+    ["updateLeadStatus", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, status: "qualified" }],
+    ["updateLeadNotes", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, notes: "Must not be written" }],
+    ["setLeadSuppression", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, doNotContact: true }],
+    ["createOutreachDraft", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Denied draft", body: "Must not be created" }],
+    ["updateOutreachDraft", { organisationId: orgOne.organisationId, draftId: draft.draftId, subject: "Denied edit", body: "Must not be updated" }],
+    ["deleteOutreachDraft", { organisationId: orgOne.organisationId, draftId: draft.draftId }],
+  ];
+  const tenantMutationQuotaBefore = Object.fromEntries(tenantMutationCases.map(([operation]) => [
+    operation, currentQuotaCount(operation, crossTenantReadUid),
+  ]));
+  for (const [operation, payload] of tenantMutationCases) {
+    await expectCallableFailure(
+      callTwo(operation, payload),
+      "functions/permission-denied",
+      `cross-tenant mutation denial for ${operation}`,
+    );
+  }
+  const tenantMutationQuotaAfter = Object.fromEntries(tenantMutationCases.map(([operation]) => [
+    operation, currentQuotaCount(operation, crossTenantReadUid),
+  ]));
+  assert.deepEqual(
+    tenantMutationQuotaAfter,
+    tenantMutationQuotaBefore,
+    "denied cross-tenant mutations must not consume any tenant mutation quota",
+  );
+  console.log("PASS: all 10 tenant-scoped mutation callables deny a non-member and leave mutation quotas unchanged.");
+
   // Create a fresh victim draft after the pagination fixtures so the owner-list
   // verification below is guaranteed to find it on the first page.
   const victimDraft = await callOne("createOutreachDraft", {
