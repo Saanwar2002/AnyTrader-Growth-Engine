@@ -596,7 +596,7 @@ describe("server-side rate-limit evaluation", () => {
     const result = evaluateRateLimit(undefined, now, max, window);
     expect(result).toEqual({ allowed: false, invalidState: true, nextState: null, retryAfterMs: 0 });
   });
-  it.each([{ windowStartedAtMs: "1000", count: 1 }, { windowStartedAtMs: 1000, count: 0 }, { windowStartedAtMs: 1000, count: Number.MAX_SAFE_INTEGER + 1 }, { windowStartedAtMs: 1000, count: 4 }, { windowStartedAtMs: Number.NaN, count: 1 }, { windowStartedAtMs: 1000.5, count: 1 }, []])("fails closed on malformed persisted state", (state) => {
+  it.each([{ windowStartedAtMs: "1000", count: 1 }, { windowStartedAtMs: 1000, count: 0 }, { windowStartedAtMs: 1000, count: -1 }, { windowStartedAtMs: 1000, count: 1.5 }, { windowStartedAtMs: 1000, count: Number.POSITIVE_INFINITY }, { windowStartedAtMs: 1000, count: Number.MAX_SAFE_INTEGER + 1 }, { windowStartedAtMs: 1000, count: 4 }, { windowStartedAtMs: Number.NaN, count: 1 }, { windowStartedAtMs: -1, count: 1 }, { windowStartedAtMs: Number.MAX_SAFE_INTEGER + 1, count: 1 }, { windowStartedAtMs: 1000.5, count: 1 }, []])("fails closed on malformed persisted state", (state) => {
     expect(evaluateRateLimit(state, 2000, 3, 60000).invalidState).toBe(true);
     expect(evaluateRateLimit(state, 2000, 3, 60000).allowed).toBe(false);
   });
