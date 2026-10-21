@@ -1,3 +1,10 @@
+## Abuse and reliability audit — 2026-10-21
+
+- Reviewed the current emulator and unit-test coverage for concurrent mutation quotas, concurrent read quotas, failed-precondition side effects, malformed persisted quota state, timestamp conversion failures, and races between contact-channel edits and draft creation.
+- Existing regressions already exercise the key abuse/reliability boundaries: concurrent requests serialize against the final quota slot; rejected mutations do not alter protected records or create success activity; a contact edit keeps the lead suppressed and pending review; any draft committed before that edit is surfaced as requiring review.
+- The adversarial timestamp conversion batch passed both CI jobs in [run 39620531888](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39620531888). No duplicate tests were added where equivalent runtime coverage already exists.
+- Remaining release blockers are operational rather than test-only: separate Firebase project, App Check enforcement and verification, deployed quota/budget alerts, Firestore TTL configuration, quota calibration, and privacy/consent/retention/offboarding review. Keep all data synthetic and outreach draft-only.
+
 ## Rejected contact-review requests do not consume quota — 2026-10-20
 
 - Added a local-emulator-only read-only assertion for the transactional `setLeadSuppression` quota counter.
