@@ -50,6 +50,17 @@ describe("callable security contract", () => {
       expect(body, `${name} must pass its own operation name to the limiter`).toContain(
         `"${name}"`,
       );
+
+      if (expectedRateLimitType[name] === "mutation") {
+        expect(body, `${name} must commit its protected mutation transactionally`).toContain(
+          "db.runTransaction(",
+        );
+        if (name !== "createOrganisation") {
+          expect(body, `${name} must revalidate role inside the transaction`).toContain(
+            "requireTransactionalRole(transaction,",
+          );
+        }
+      }
     }
   });
 });
