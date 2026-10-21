@@ -39,6 +39,15 @@ Initial per-user/per-organisation fixed-window limits are implemented for organi
 
 See [RATE_LIMIT_OPERATIONS_RUNBOOK.md](./RATE_LIMIT_OPERATIONS_RUNBOOK.md). The runbook is guidance, not evidence that production alerts have been deployed.
 
+## Dependency vulnerability management
+
+The current CI installs the root and Functions dependency lockfiles with `npm ci --no-audit`; no dedicated dependency-advisory gate is configured in `.github/workflows/ci.yml`. This suppresses npm's install-time audit output; it is **not evidence that dependencies are vulnerable**, but it means CI does not currently verify advisory status.
+
+- [ ] Audit both root and Functions lockfiles using the supported npm advisory service and review direct/transitive findings.
+- [ ] Remediate or explicitly risk-accept each relevant finding with a documented owner and expiry.
+- [ ] Add a repeatable CI or scheduled dependency review that surfaces new advisories without silently hiding failures.
+- [ ] Re-run frontend, Functions, and emulator tests after dependency updates.
+
 ## Rate-limit document lifecycle
 
 Quota documents carry a server-managed `expireAt` timestamp based on the stored window end plus a five-minute grace period. The field does not delete documents by itself; a Firestore TTL policy must be configured in the separate project.
