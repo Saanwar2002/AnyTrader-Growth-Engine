@@ -568,6 +568,19 @@ describe("server-side rate-limit evaluation", () => {
   it("does not reset early when the local clock moves backwards", () => {
     expect(evaluateRateLimit({ windowStartedAtMs: 10000, count: 2 }, 9000, 2, 60000)).toEqual({ allowed: false, invalidState: false, nextState: null, retryAfterMs: 61000 });
   });
+  it("bounds retry duration when a large clock rollback would exceed the safe-integer range", () => {
+    expect(evaluateRateLimit(
+      { windowStartedAtMs: Number.MAX_SAFE_INTEGER, count: 2 },
+      0,
+      2,
+      Number.MAX_SAFE_INTEGER,
+    )).toEqual({
+      allowed: false,
+      invalidState: false,
+      nextState: null,
+      retryAfterMs: Number.MAX_SAFE_INTEGER,
+    });
+  });
   it("keeps the original window and increments the existing counter when the clock moves backwards below the quota", () => {
     expect(evaluateRateLimit({ windowStartedAtMs: 10000, count: 1 }, 9000, 3, 60000)).toEqual({
       allowed: true,
