@@ -27,6 +27,19 @@ const expectedRateLimitType: Record<string, "read" | "mutation"> = {
 
 describe("callable security contract", () => {
 
+
+  it("keeps Firestore client access deny-by-default until narrowly reviewed rules are added", () => {
+    const rulesSource = readFileSync(
+      fileURLToPath(new URL("../../firestore.rules", import.meta.url)),
+      "utf8",
+    ).replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+
+    const allowStatements = [...rulesSource.matchAll(/\ballow\s+[^;]+;/g)]
+      .map((match) => match[0].replace(/\s+/g, " ").trim());
+
+    expect(allowStatements).toEqual(["allow read, write: if false;"]);
+  });
+
   it("keeps outreach operations draft-only", () => {
     for (const name of ["createOutreachDraft", "updateOutreachDraft", "deleteOutreachDraft"]) {
       const start = callableSource.indexOf(`export const ${name} = onCall(`);
