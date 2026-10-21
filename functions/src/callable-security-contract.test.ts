@@ -27,7 +27,7 @@ const expectedRateLimitType: Record<string, "read" | "mutation"> = {
 
 describe("callable security contract", () => {
   it("keeps every expected callable authenticated and rate-limited", () => {
-    const declarations = [...callableSource.matchAll(/export const (\\w+) = onCall\\(/g)];
+    const declarations = [...callableSource.matchAll(/export const (\w+) = onCall\(/g)];
     expect(declarations.map((match) => match[1]).sort()).toEqual(
       Object.keys(expectedRateLimitType).sort(),
     );
