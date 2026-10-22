@@ -28,6 +28,22 @@ const expectedRateLimitType: Record<string, "read" | "mutation"> = {
 describe("callable security contract", () => {
 
 
+
+  it("keeps emulator unauthenticated coverage aligned with every callable export", () => {
+    const smokeSource = readFileSync(
+      fileURLToPath(new URL("../../scripts/emulator-smoke-test.mjs", import.meta.url)),
+      "utf8",
+    );
+    const match = smokeSource.match(
+      /const unauthenticatedCallableNames = \[([\s\S]*?)\n\s*\];/,
+    );
+    expect(match, "emulator smoke test must declare unauthenticated callable coverage").not.toBeNull();
+    const coveredNames = [...(match?.[1] ?? "").matchAll(/"([A-Za-z][A-Za-z0-9]*)"/g)]
+      .map((item) => item[1])
+      .sort();
+    expect(coveredNames).toEqual(Object.keys(expectedRateLimitType).sort());
+  });
+
   it("keeps Firestore client access deny-by-default until narrowly reviewed rules are added", () => {
     const rulesSource = readFileSync(
       fileURLToPath(new URL("../../firestore.rules", import.meta.url)),
