@@ -409,15 +409,24 @@ export const importLeads = onCall(async (request) => {
   const organisationRef = db.collection("organisations").doc(organisationId);
   const campaignRef = organisationRef.collection("campaigns").doc(campaignId);
   const leadsRef = organisationRef.collection("leads");
-  const seenKeys = new Set<string>();
-  const prepared = rows.map(({ fields, index }) => {
+  const seenEmails = new Set<string>();
+  const seenWebsites = new Set<string>();
+  const seenBusinesses = new Set<string>();
+  const prepared = rows.map(({ fields }) => {
     const emailKey = fields.email.toLowerCase();
     const websiteKey = fields.website.toLowerCase().replace(/\/$/, "");
     const businessKey = `${fields.businessName.toLowerCase()}|${fields.location.toLowerCase()}`;
-    const key = emailKey ? `email:${emailKey}` : websiteKey ? `website:${websiteKey}` : `business:${businessKey}`;
-    const duplicateInBatch = seenKeys.has(key);
-    seenKeys.add(key);
-    return { fields, index, emailKey, websiteKey, duplicateInBatch };
+    // Compare every available identifier independently so an email on one row
+    // cannot hide a website match with another row.
+    const duplicateInBatch = Boolean(
+      (emailKey && seenEmails.has(emailKey))
+      || (websiteKey && seenWebsites.has(websiteKey))
+      || (!emailKey && !websiteKey && seenBusinesses.has(businessKey)),
+    );
+    if (emailKey) seenEmails.add(emailKey);
+    if (websiteKey) seenWebsites.add(websiteKey);
+    seenBusinesses.add(businessKey);
+    return { fields, emailKey, websiteKey, businessKey, duplicateInBatch };
   });
   const newLeads: Array<{ leadId: string; businessName: string }> = [];
   let duplicateCount = 0;
