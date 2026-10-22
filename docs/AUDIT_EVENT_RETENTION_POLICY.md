@@ -42,10 +42,13 @@ The trusted backend must construct events. Client code must not be allowed to wr
 ## 5. Implementation and verification checklist
 
 - [ ] Define the approved event catalogue and metadata allow-list.
-- [ ] Implement a trusted server-side audit writer with bounded validation.
-- [ ] Add audit events to sensitive successful mutations atomically where feasible.
+- [x] Implement a minimal trusted server-side audit writer for successful CSV imports, with an allow-listed event type and bounded metadata.
+- [ ] Extend the writer to other sensitive mutations after reviewing each transaction boundary.
+- [x] Add the CSV-import success event in the same Firestore transaction as the import and idempotency record.
+- [ ] Add audit events to other sensitive successful mutations atomically where feasible.
 - [ ] Add tests proving clients cannot write/read audit records directly and tenant users cannot read another tenant's events.
-- [ ] Add tests proving rejected mutations do not emit success events and do not mutate protected records.
+- [x] Emulator smoke test asserts one event for a first import, no extra event for a replay, and one event for a distinct concurrent import key.
+- [ ] Add broader tests proving rejected mutations do not emit success events and do not mutate protected records.
 - [ ] Add paginated, rate-limited, tenant-authorised audit access only if the product requires it.
 - [ ] Decide retention periods with privacy/legal review and configure/test TTL or another deletion mechanism.
 - [ ] Configure production log access, monitoring, backup/recovery, and incident-response procedures.
