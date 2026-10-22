@@ -140,6 +140,31 @@ try {
     ...importPayload,
     leads: [{ businessName: "Different payload under reused key", category: "Painters", location: "Leeds" }],
   }), "functions/already-exists", "CSV import rejects reuse of an idempotency key with a different payload");
+  const concurrentImportPayload = {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    idempotencyKey: "csv-import-concurrent-test-0001",
+    leads: [{
+      businessName: "Synthetic Concurrent Import Ltd",
+      category: "Painters",
+      location: "Leeds",
+      email: "concurrent-import@example.test",
+    }],
+  };
+  const concurrentImportResults = await Promise.all([
+    callOne("importLeads", concurrentImportPayload),
+    callOne("importLeads", concurrentImportPayload),
+  ]);
+  assert.deepEqual(
+    concurrentImportResults[0],
+    concurrentImportResults[1],
+    "concurrent requests using the same idempotency key return one committed result",
+  );
+  assert.equal(concurrentImportResults[0].imported, 1, "concurrent idempotent import creates one lead");
+  const concurrentMatches = (await callOne("listLeads", { organisationId: orgOne.organisationId }))
+    .leads.filter((lead) => lead.businessName === "Synthetic Concurrent Import Ltd");
+  assert.equal(concurrentMatches.length, 1, "concurrent idempotent import persists exactly one lead");
+
   assert.equal(importResult.received, 4, "CSV import reports received row count");
   assert.equal(importResult.imported, 2, "CSV import persists unique, valid rows");
   assert.equal(importResult.duplicatesSkipped, 2, "CSV import skips in-batch and existing-record duplicates");
