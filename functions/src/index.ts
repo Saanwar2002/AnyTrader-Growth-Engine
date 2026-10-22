@@ -367,6 +367,7 @@ export const updateCampaignStatus = onCall(async (request) => {
   const organisationId = requireOrganisationId(data.organisationId);
   const campaignId = requireDocumentId(data.campaignId, "campaignId");
   if (!isValidCampaignStatus(data.status)) throw new HttpsError("invalid-argument", "Campaign status is not valid.");
+  const status = data.status as "active" | "paused" | "completed";
   const membership = await requireMembership(organisationId, uid);
   if (!hasCampaignWritePermission(membership.role)) throw new HttpsError("permission-denied", "Only organisation owners and admins can change campaign status.");
   const campaignRef = db.collection("organisations").doc(organisationId).collection("campaigns").doc(campaignId);
@@ -375,10 +376,10 @@ export const updateCampaignStatus = onCall(async (request) => {
     const campaignSnapshot = await transaction.get(campaignRef);
     if (!campaignSnapshot.exists) throw new HttpsError("not-found", "Campaign was not found in this organisation.");
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "updateCampaignStatus", 30);
-    transaction.update(campaignRef, { status: data.status, updatedAt: FieldValue.serverTimestamp(), updatedBy: uid });
-    writeSecurityAuditEvent(transaction, organisationId, uid, "campaign.status_changed", "campaign", campaignId, { campaignStatus: data.status });
+    transaction.update(campaignRef, { status, updatedAt: FieldValue.serverTimestamp(), updatedBy: uid });
+    writeSecurityAuditEvent(transaction, organisationId, uid, "campaign.status_changed", "campaign", campaignId, { campaignStatus: status });
   });
-  return { campaignId, status: data.status };
+  return { campaignId, status };
 });
 
 export const listLeads = onCall(async (request) => {
