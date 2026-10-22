@@ -292,6 +292,7 @@ export const createOrganisation = onCall(async (request) => {
     await consumeTransactionalRateLimit(transaction, "global", uid, "createOrganisation", 5, 60 * 60_000);
     transaction.create(organisation, { name, ownerUid: uid, createdAt: FieldValue.serverTimestamp() });
     transaction.create(membership, { uid, role: "owner", createdAt: FieldValue.serverTimestamp() });
+    writeSecurityAuditEvent(transaction, organisation.id, uid, "organisation.created", "organisation", organisation.id, {});
   });
   return { organisationId: organisation.id, name, role: "owner" as const };
 });
