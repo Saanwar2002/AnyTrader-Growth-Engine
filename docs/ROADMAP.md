@@ -35,9 +35,12 @@
 
 ## Phase 3 — Complete persisted workflows
 
-- [x] Implement server-side CSV batch import with validation, cross-identifier deduplication, and a 25-row batch limit (PR #10; pending CI/review).
+- [x] Implement server-side CSV batch import with validation, cross-identifier deduplication, and a 25-row batch limit (PR #10; CI passed on head `76a45ed6c4dc8f580433bc374475773dc1235101`; review still required).
 - [x] Add cursor pagination for lead, campaign, outreach-draft, and organisation directories.
-- [x] Add idempotency protection for CSV import retries (implementation added; verify CI before closure).\n- Add idempotency protection to other high-impact mutations after reviewing client retry semantics.\n- Add a durable audit-event retention and access policy.
+- [x] Add idempotency protection for CSV import retries; CI and emulator smoke tests passed on head `76a45ed6c4dc8f580433bc374475773dc1235101`.
+- [ ] Add idempotency protection to other high-impact mutations after reviewing client retry semantics.
+- [x] Document proposed audit-event retention and access policy (`docs/AUDIT_EVENT_RETENTION_POLICY.md`).
+- [ ] Implement durable security audit events, access controls, and retention after policy review.
 - Keep provenance, import review, deduplication, and data minimisation.
 
 ## Phase 4 — Approved lead-source adapters
