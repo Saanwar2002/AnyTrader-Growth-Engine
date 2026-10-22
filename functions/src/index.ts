@@ -775,7 +775,7 @@ export const setLeadSuppression = onCall(async (request) => {
     });
     transaction.create(activity, { leadId, actorUid: uid, message: data.doNotContact ? "Lead marked do not contact" : "Lead contact restriction removed", createdAt: now });
     writeSecurityAuditEvent(transaction, organisationId, uid, "lead.contact_restriction_changed", "lead", leadId, {
-      doNotContact: data.doNotContact,
+      doNotContact: data.doNotContact as boolean,
       contactReviewStatus: data.doNotContact ? "blocked" : "cleared",
       contactReviewRevision: currentRevision,
     });
