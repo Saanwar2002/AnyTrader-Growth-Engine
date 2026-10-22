@@ -35,7 +35,7 @@
 
 ## Phase 3 — Complete persisted workflows
 
-- Implement server-side CSV batch import with validation, deduplication, and bounded batch sizes.
+- [x] Implement server-side CSV batch import with validation, cross-identifier deduplication, and a 25-row batch limit (PR #10; pending CI/review).
 - Add pagination/cursors for large lead and draft directories.
 - Add idempotency protection for retried mutations and a durable audit-event policy.
 - Keep provenance, import review, deduplication, and data minimisation.
