@@ -1,72 +1,4 @@
 import assert from "node:assert/strict";
-  await expectCallableFailure(callOne("importLeads", {
-    organisationId: orgOne.organisationId,
-    campaignId: campaignOne.campaignId,
-    leads: [{ businessName: "Malformed Import Row", email: "not-an-email" }],
-  }), "functions/invalid-argument", "CSV import rejects malformed rows before writing");
-  await expectCallableFailure(callOne("importLeads", {
-    organisationId: orgOne.organisationId,
-    campaignId: campaignOne.campaignId,
-    leads: Array.from({ length: 26 }, (_, index) => ({ businessName: `Oversized Import ${index}` })),
-  }), "functions/invalid-argument", "CSV import enforces a 25-row maximum");
-  const importResult = await callOne("importLeads", {
-    organisationId: orgOne.organisationId,
-    campaignId: campaignOne.campaignId,
-    leads: [
-      { businessName: "Synthetic Imported Alpha Ltd", category: "Painters", location: "Leeds", email: "import-alpha@example.test" },
-      { businessName: "Synthetic Imported Alpha Duplicate Ltd", category: "Painters", location: "Leeds", email: "import-alpha@example.test" },
-      { businessName: "Synthetic Imported Beta Ltd", category: "Roofers", location: "York", email: "import-beta@example.test" },
-      { businessName: "Synthetic Existing Lead Duplicate Ltd", category: "Painters", location: "Manchester", email: "hello@example.test" },
-    ],
-  });
-  assert.equal(importResult.received, 4, "CSV import reports received row count");
-  assert.equal(importResult.imported, 2, "CSV import persists unique, valid rows");
-  assert.equal(importResult.duplicatesSkipped, 2, "CSV import skips in-batch and existing-record duplicates");
-  assert.equal(importResult.sent, false, "CSV import never sends outreach");
-  const importedLeads = (await callOne("listLeads", { organisationId: orgOne.organisationId })).leads;
-  for (const importedName of ["Synthetic Imported Alpha Ltd", "Synthetic Imported Beta Ltd"]) {
-    const imported = importedLeads.find((lead) => lead.businessName === importedName);
-    assert.ok(imported, `CSV import persists ${importedName}`);
-    assert.equal(imported.doNotContact, true, "CSV-imported leads remain suppressed pending review");
-    assert.equal(imported.contactReviewStatus, "pending", "CSV-imported leads require explicit contact review");
-  }
-  const leadOne = await callOne("createLead", { organisationId: orgOne.organisationId, campaignId: campaignOne.campaignId, businessName: "Synthetic Test Painting Ltd", category: "Painters", location: "Manchester", email: "hello@example.test" });
-  assert.equal(leadOne.doNotContact, true, "new leads must remain blocked pending review");
-  assert.equal(leadOne.contactReviewStatus, "pending", "new leads must expose a distinct pending-review state");
-  const statusBeforeRejectedUpdates = (await callOne("listLeads", { organisationId: orgOne.organisationId }))
-    .leads.find((lead) => lead.id === leadOne.leadId)?.status;
-  const quotaBeforeRejectedLeadStatusUpdates = currentQuotaCount("updateLeadStatus");
-  await expectCallableFailure(callOne("updateLeadStatus", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, status: "contacted" }), "functions/failed-precondition", "pending review contacted-status gate");
-  await expectCallableFailure(callOne("updateLeadStatus", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, status: "sent" }), "functions/failed-precondition", "unknown lead lifecycle status rejected");
-  assert.equal(currentQuotaCount("updateLeadStatus"), quotaBeforeRejectedLeadStatusUpdates,
-    "rejected lead status transitions do not consume status-update quota");
-  for (const status of ["contacted", "sent"]) {
-    execFileSync(process.execPath, [
-      "functions/scripts/assert-emulator-no-lead-activity.mjs",
-      orgOne.organisationId,
-      leadOne.leadId,
-      `Lead status changed to ${status}`,
-    ], { stdio: "inherit" });
-  }
-  const afterRejectedLeadStatusUpdates = await callOne("listLeads", { organisationId: orgOne.organisationId });
-  assert.equal(afterRejectedLeadStatusUpdates.leads.find((lead) => lead.id === leadOne.leadId)?.status,
-    statusBeforeRejectedUpdates, "rejected lead status transitions preserve the stored lifecycle status");
-  await expectCallableFailure(callOne("updateLeadContact", {
-    organisationId: orgOne.organisationId,
-    leadId: leadOne.leadId,
-    businessName: "Synthetic Test Painting Ltd",
-    category: "Painters",
-    location: "Manchester",
-    email: "not-an-email",
-  }), "functions/invalid-argument", "lead contact update rejects malformed email");
-  const invalidContactEditLead = await callOne("createLead", {
-    organisationId: orgOne.organisationId,
-    campaignId: campaignOne.campaignId,
-    businessName: "Synthetic Invalid Contact Edit Guard Ltd",
-    category: "Painters",
-    location: "Manchester",
-    email: "before-edit@example.test",
-  });
 import { execFileSync } from "node:child_process";
 import { initializeApp, deleteApp } from "firebase/app";
 import { connectAuthEmulator, createUserWithEmailAndPassword, getAuth, signOut } from "firebase/auth";
@@ -177,6 +109,75 @@ try {
     organisationId: orgOne.organisationId, campaignId: campaignOne.campaignId,
     businessName: "X".repeat(161),
   }), "functions/invalid-argument", "server rejects oversized business name");
+  const leadOne = await callOne("createLead", { organisationId: orgOne.organisationId, campaignId: campaignOne.campaignId, businessName: "Synthetic Test Painting Ltd", category: "Painters", location: "Manchester", email: "hello@example.test" });
+  await expectCallableFailure(callOne("importLeads", {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    leads: [{ businessName: "Malformed Import Row", email: "not-an-email" }],
+  }), "functions/invalid-argument", "CSV import rejects malformed rows before writing");
+  await expectCallableFailure(callOne("importLeads", {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    leads: Array.from({ length: 26 }, (_, index) => ({ businessName: `Oversized Import ${index}` })),
+  }), "functions/invalid-argument", "CSV import enforces a 25-row maximum");
+  const importResult = await callOne("importLeads", {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    leads: [
+      { businessName: "Synthetic Imported Alpha Ltd", category: "Painters", location: "Leeds", email: "import-alpha@example.test" },
+      { businessName: "Synthetic Imported Alpha Duplicate Ltd", category: "Painters", location: "Leeds", email: "import-alpha@example.test" },
+      { businessName: "Synthetic Imported Beta Ltd", category: "Roofers", location: "York", email: "import-beta@example.test" },
+      { businessName: "Synthetic Existing Lead Duplicate Ltd", category: "Painters", location: "Manchester", email: "hello@example.test" },
+    ],
+  });
+  assert.equal(importResult.received, 4, "CSV import reports received row count");
+  assert.equal(importResult.imported, 2, "CSV import persists unique, valid rows");
+  assert.equal(importResult.duplicatesSkipped, 2, "CSV import skips in-batch and existing-record duplicates");
+  assert.equal(importResult.sent, false, "CSV import never sends outreach");
+  const importedLeads = (await callOne("listLeads", { organisationId: orgOne.organisationId })).leads;
+  for (const importedName of ["Synthetic Imported Alpha Ltd", "Synthetic Imported Beta Ltd"]) {
+    const imported = importedLeads.find((lead) => lead.businessName === importedName);
+    assert.ok(imported, `CSV import persists ${importedName}`);
+    assert.equal(imported.doNotContact, true, "CSV-imported leads remain suppressed pending review");
+    assert.equal(imported.contactReviewStatus, "pending", "CSV-imported leads require explicit contact review");
+  }
+
+  assert.equal(leadOne.doNotContact, true, "new leads must remain blocked pending review");
+  assert.equal(leadOne.contactReviewStatus, "pending", "new leads must expose a distinct pending-review state");
+  const statusBeforeRejectedUpdates = (await callOne("listLeads", { organisationId: orgOne.organisationId }))
+    .leads.find((lead) => lead.id === leadOne.leadId)?.status;
+  const quotaBeforeRejectedLeadStatusUpdates = currentQuotaCount("updateLeadStatus");
+  await expectCallableFailure(callOne("updateLeadStatus", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, status: "contacted" }), "functions/failed-precondition", "pending review contacted-status gate");
+  await expectCallableFailure(callOne("updateLeadStatus", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, status: "sent" }), "functions/failed-precondition", "unknown lead lifecycle status rejected");
+  assert.equal(currentQuotaCount("updateLeadStatus"), quotaBeforeRejectedLeadStatusUpdates,
+    "rejected lead status transitions do not consume status-update quota");
+  for (const status of ["contacted", "sent"]) {
+    execFileSync(process.execPath, [
+      "functions/scripts/assert-emulator-no-lead-activity.mjs",
+      orgOne.organisationId,
+      leadOne.leadId,
+      `Lead status changed to ${status}`,
+    ], { stdio: "inherit" });
+  }
+  const afterRejectedLeadStatusUpdates = await callOne("listLeads", { organisationId: orgOne.organisationId });
+  assert.equal(afterRejectedLeadStatusUpdates.leads.find((lead) => lead.id === leadOne.leadId)?.status,
+    statusBeforeRejectedUpdates, "rejected lead status transitions preserve the stored lifecycle status");
+  await expectCallableFailure(callOne("updateLeadContact", {
+    organisationId: orgOne.organisationId,
+    leadId: leadOne.leadId,
+    businessName: "Synthetic Test Painting Ltd",
+    category: "Painters",
+    location: "Manchester",
+    email: "not-an-email",
+  }), "functions/invalid-argument", "lead contact update rejects malformed email");
+  const invalidContactEditLead = await callOne("createLead", {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    businessName: "Synthetic Invalid Contact Edit Guard Ltd",
+    category: "Painters",
+    location: "Manchester",
+    email: "before-edit@example.test",
+  });
   await expectCallableFailure(callOne("updateLeadContact", {
     organisationId: orgOne.organisationId,
     leadId: invalidContactEditLead.leadId,
