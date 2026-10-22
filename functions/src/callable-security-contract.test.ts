@@ -68,6 +68,23 @@ describe("callable security contract", () => {
     expect(body).toContain('status: "new"');
   });
 
+  it("requires durable idempotency for CSV imports", () => {
+    const start = callableSource.indexOf("export const importLeads = onCall(");
+    const nextStart = callableSource.indexOf("export const ", start + 1);
+    const body = callableSource.slice(start, nextStart < 0 ? callableSource.length : nextStart);
+    expect(body).toContain('data.idempotencyKey');
+    expect(body).toContain('collection("importIdempotency")');
+    expect(body).toContain("saved.requestHash !== requestHash");
+    expect(body).toContain('new HttpsError("already-exists"');
+    expect(body).toContain("transaction.create(idempotencyRef");
+    const smokeSource = readFileSync(
+      fileURLToPath(new URL("../../scripts/emulator-smoke-test.mjs", import.meta.url)),
+      "utf8",
+    );
+    expect(smokeSource).toContain("replaying an import returns the original result");
+    expect(smokeSource).toContain("rejects reuse of an idempotency key with a different payload");
+  });
+
   it("keeps outreach operations draft-only", () => {
     for (const name of ["createOutreachDraft", "updateOutreachDraft", "deleteOutreachDraft"]) {
       const start = callableSource.indexOf(`export const ${name} = onCall(`);
