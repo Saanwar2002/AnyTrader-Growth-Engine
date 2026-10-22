@@ -85,6 +85,20 @@ describe("callable security contract", () => {
     expect(smokeSource).toContain("rejects reuse of an idempotency key with a different payload");
   });
 
+  it("writes a minimal server-side audit event atomically for a successful CSV import", () => {
+    const start = callableSource.indexOf("export const importLeads = onCall(");
+    const nextStart = callableSource.indexOf("export const ", start + 1);
+    const body = callableSource.slice(start, nextStart < 0 ? callableSource.length : nextStart);
+    expect(callableSource).toContain('collection("securityAuditEvents")');
+    expect(callableSource).toContain('type SecurityAuditEventType = "lead.csv_import.completed"');
+    expect(body).toContain('writeSecurityAuditEvent(transaction, organisationId, uid, "lead.csv_import.completed"');
+    expect(body).toContain("importedCount: newLeads.length");
+    expect(body).toContain("duplicatesSkipped: duplicateCount");
+    expect(body.indexOf("transaction.create(idempotencyRef")).toBeLessThan(
+      body.indexOf('writeSecurityAuditEvent(transaction, organisationId, uid, "lead.csv_import.completed"'),
+    );
+  });
+
   it("keeps outreach operations draft-only", () => {
     for (const name of ["createOutreachDraft", "updateOutreachDraft", "deleteOutreachDraft"]) {
       const start = callableSource.indexOf(`export const ${name} = onCall(`);
