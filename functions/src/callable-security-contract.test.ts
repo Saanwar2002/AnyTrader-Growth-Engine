@@ -15,6 +15,7 @@ const expectedRateLimitType: Record<string, "read" | "mutation"> = {
   updateCampaignStatus: "mutation",
   listLeads: "read",
   createLead: "mutation",
+  importLeads: "mutation",
   updateLeadContact: "mutation",
   updateLeadStatus: "mutation",
   updateLeadNotes: "mutation",
