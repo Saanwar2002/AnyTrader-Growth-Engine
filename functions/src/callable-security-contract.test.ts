@@ -99,6 +99,26 @@ describe("callable security contract", () => {
     );
   });
 
+  it("audits contact edits and restriction changes atomically without storing contact details", () => {
+    const contactStart = callableSource.indexOf("export const updateLeadContact = onCall(");
+    const contactEnd = callableSource.indexOf("export const ", contactStart + 1);
+    const contactBody = callableSource.slice(contactStart, contactEnd < 0 ? callableSource.length : contactEnd);
+    expect(contactBody).toContain('writeSecurityAuditEvent(transaction, organisationId, uid, "lead.contact_updated", "lead", leadId');
+    expect(contactBody).toContain("contactChannelsChanged");
+    expect(contactBody).toContain("contactReviewRevision: nextContactReviewRevision");
+    expect(contactBody).not.toContain("email: fields.email");
+    expect(contactBody).not.toContain("phone: fields.phone");
+
+    const suppressionStart = callableSource.indexOf("export const setLeadSuppression = onCall(");
+    const suppressionEnd = callableSource.indexOf("export const ", suppressionStart + 1);
+    const suppressionBody = callableSource.slice(suppressionStart, suppressionEnd < 0 ? callableSource.length : suppressionEnd);
+    expect(suppressionBody).toContain('writeSecurityAuditEvent(transaction, organisationId, uid, "lead.contact_restriction_changed", "lead", leadId');
+    expect(suppressionBody).toContain("doNotContact: data.doNotContact");
+    expect(suppressionBody).toContain('contactReviewStatus: data.doNotContact ? "blocked" : "cleared"');
+    expect(callableSource).toContain('| "lead.contact_updated"');
+    expect(callableSource).toContain('| "lead.contact_restriction_changed"');
+  });
+
   it("keeps outreach operations draft-only", () => {
     for (const name of ["createOutreachDraft", "updateOutreachDraft", "deleteOutreachDraft"]) {
       const start = callableSource.indexOf(`export const ${name} = onCall(`);
