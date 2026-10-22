@@ -421,7 +421,7 @@ export const importLeads = onCall(async (request) => {
     const duplicateInBatch = Boolean(
       (emailKey && seenEmails.has(emailKey))
       || (websiteKey && seenWebsites.has(websiteKey))
-      || (!emailKey && !websiteKey && seenBusinesses.has(businessKey)),
+      || seenBusinesses.has(businessKey),
     );
     if (emailKey) seenEmails.add(emailKey);
     if (websiteKey) seenWebsites.add(websiteKey);
@@ -439,11 +439,10 @@ export const importLeads = onCall(async (request) => {
     // Query only by supplied contact identifiers; never scan an unbounded tenant collection.
     const emails = [...new Set(prepared.filter((row) => row.emailKey && !row.duplicateInBatch).map((row) => row.emailKey))];
     const websites = [...new Set(prepared.filter((row) => row.websiteKey && !row.duplicateInBatch).map((row) => row.websiteKey))];
-    const existingEmailDocs = await Promise.all(emails.map((email) => transaction.get(leadsRef.where("email", "==", email))));
-    const existingWebsiteDocs = await Promise.all(websites.map((website) => transaction.get(leadsRef.where("website", "==", website))));
-    const existingEmails = new Set(existingEmailDocs.flatMap((snapshot) => snapshot.docs.map((doc) => String(doc.data().email ?? "").toLowerCase())));
-    const existingWebsites = new Set(existingWebsiteDocs.flatMap((snapshot) => snapshot.docs.map((doc) => String(doc.data().website ?? "").toLowerCase().replace(/\/$/, ""))));
-
+    const existingEmailDocs = await Promise.all(emails.map((email) => transaction.get(leadsRef.where("email", "==", email).limit(1))));
+    const existingWebsiteDocs = await Promise.all(websites.map((website) => transaction.get(leadsRef.where("website", "==", website).limit(1))));
+    const existingEmails = new Set(emails.filter((_, index) => !existingEmailDocs[index].empty));
+    const existingWebsites = new Set(websites.filter((_, index) => !existingWebsiteDocs[index].empty));
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "importLeads", 10);
     for (const row of prepared) {
       if (row.duplicateInBatch || (row.emailKey && existingEmails.has(row.emailKey)) || (row.websiteKey && existingWebsites.has(row.websiteKey))) {
