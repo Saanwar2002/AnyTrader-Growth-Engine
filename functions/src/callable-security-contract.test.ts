@@ -90,7 +90,8 @@ describe("callable security contract", () => {
     const nextStart = callableSource.indexOf("export const ", start + 1);
     const body = callableSource.slice(start, nextStart < 0 ? callableSource.length : nextStart);
     expect(callableSource).toContain('collection("securityAuditEvents")');
-    expect(callableSource).toContain('type SecurityAuditEventType = "lead.csv_import.completed"');
+    expect(callableSource).toContain('type SecurityAuditEventType =');
+    expect(callableSource).toContain('"lead.csv_import.completed"');
     expect(body).toContain('writeSecurityAuditEvent(transaction, organisationId, uid, "lead.csv_import.completed"');
     expect(body).toContain("importedCount: newLeads.length");
     expect(body).toContain("duplicatesSkipped: duplicateCount");
