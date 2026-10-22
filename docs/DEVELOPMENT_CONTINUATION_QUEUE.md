@@ -1,3 +1,13 @@
+## Latest continuation update — CSV import idempotency verified; audit policy documented (2026-10-22)
+
+- CI run [39843237307](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39843237307) completed successfully for head `76a45ed6c4dc8f580433bc374475773dc1235101`. Both jobs passed: frontend typecheck/unit tests/build plus Firebase Emulator integration smoke tests, and Functions authorization tests/build. The smoke job includes same-key replay, conflicting payload rejection, and concurrent import retry coverage.
+- PR #10 remains open and unmerged: https://github.com/Saanwar2002/AnyTrader-Growth-Engine/pull/10. Keep all work on `development/next-phase`; do not merge without explicit approval.
+- Added `docs/AUDIT_EVENT_RETENTION_POLICY.md` as a proposed policy. It distinguishes product lead activity from security audit events and specifies minimal event fields, tenant-authorised access, tamper resistance, retention/deletion decisions, and verification gates. This is documentation, not implementation of a durable audit event store.
+- Next engineering batch: implement a minimal trusted audit-event writer and cover the highest-impact mutations first, after checking transaction boundaries and existing activity records. Keep event metadata allow-listed and avoid copying lead contact details. Add emulator tests for atomic success events, rejected mutations, and tenant isolation.
+- Production remains blocked on dedicated Firebase project, App Check enforcement and token tests, monitoring/budget alerts, TTL configuration where required, privacy/legal retention review, and operational recovery readiness. Synthetic data only; outreach remains draft-only.
+
+---
+
 ## Phase 3A follow-up — CSV import duplicate hardening (2026-10-22)
 
 - Added server-side `importLeads` in PR #10, capped at 25 rows, with authenticated tenant membership and transactional role checks, per-operation rate limiting, server-side validation, activity records, and suppression/pending-review defaults.
