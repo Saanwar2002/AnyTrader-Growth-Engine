@@ -45,7 +45,8 @@ The trusted backend must construct events. Client code must not be allowed to wr
 - [x] Implement a minimal trusted server-side audit writer for successful CSV imports, with an allow-listed event type and bounded metadata.
 - [x] Extend the writer to contact-detail edits and contact-restriction changes with bounded, non-contact metadata.
 - [x] Add the CSV-import success event in the same Firestore transaction as the import and idempotency record.
-- [x] Add atomic success events for CSV import, contact-detail edits, and contact-restriction changes.\n- [ ] Add events to remaining sensitive mutations after reviewing each transaction boundary.
+- [x] Add atomic success events for CSV import, contact-detail edits, and contact-restriction changes.
+- [x] Add atomic, metadata-minimised success events for campaign creation/status changes, lead status/notes changes, outreach-draft create/update/delete, manual lead creation, and organisation creation; verify CI and emulator evidence before treating coverage as complete.
 - [ ] Add tests proving clients cannot write/read audit records directly and tenant users cannot read another tenant's events.
 - [x] Emulator smoke test asserts one event for a first import, no extra event for a replay, and one event for a distinct concurrent import key.
 - [ ] Add broader tests proving rejected mutations do not emit success events and do not mutate protected records.
