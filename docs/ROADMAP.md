@@ -40,9 +40,11 @@
 - [x] Add idempotency protection for CSV import retries; CI and emulator smoke tests passed on head `76a45ed6c4dc8f580433bc374475773dc1235101`.
 - [ ] Add idempotency protection to other high-impact mutations after reviewing client retry semantics.
 - [x] Document proposed audit-event retention and access policy (`docs/AUDIT_EVENT_RETENTION_POLICY.md`).
-- [x] Add a minimal transactional audit event for successful CSV imports; CI passed on head `6b117e14a25dd734bc72dedd5576483da087995a`.\n- [x] Add atomic, PII-minimised audit events for lead contact edits and contact-restriction changes (CI passed on `0c7821a82cb787dea5fa7c9a3fc63a516352a899`).
+- [x] Add a minimal transactional audit event for successful CSV imports; CI passed on head `6b117e14a25dd734bc72dedd5576483da087995a`.
+- [x] Add atomic, PII-minimised audit events for lead contact edits and contact-restriction changes (CI passed on `0c7821a82cb787dea5fa7c9a3fc63a516352a899`).
 - [x] Extend transactional audit coverage to campaign creation/status changes, lead status/notes changes, and outreach-draft create/update/delete without logging note text or draft content (CI passed on `fbce1abe83385f0ced0ed06bd311e88cab45c4f0`).
-- [x] Add a transactional, PII-minimised audit event for manual lead creation (CI pending).
+- [x] Add a transactional, PII-minimised audit event for manual lead creation (CI passed on head `04b39a1de61cf9c04f7219ad83e08f324eb23f79`).
+- [x] Add an atomic, metadata-minimised audit event when an organisation and its initial owner membership are created (CI pending).
 - [ ] Extend audit events to other sensitive mutations and complete access/retention controls after policy review.
 - Keep provenance, import review, deduplication, and data minimisation.
 
