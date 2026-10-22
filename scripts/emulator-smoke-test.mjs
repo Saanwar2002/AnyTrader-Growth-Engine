@@ -136,6 +136,12 @@ try {
   const importResult = await callOne("importLeads", importPayload);
   const importReplay = await callOne("importLeads", importPayload);
   assert.deepEqual(importReplay, importResult, "replaying an import returns the original result without duplicate records");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-events.mjs",
+    orgOne.organisationId,
+    "lead.csv_import.completed",
+    "1",
+  ], { stdio: "inherit" });
   await expectCallableFailure(callOne("importLeads", {
     ...importPayload,
     leads: [{ businessName: "Different payload under reused key", category: "Painters", location: "Leeds" }],
@@ -164,6 +170,12 @@ try {
   const concurrentMatches = (await callOne("listLeads", { organisationId: orgOne.organisationId }))
     .leads.filter((lead) => lead.businessName === "Synthetic Concurrent Import Ltd");
   assert.equal(concurrentMatches.length, 1, "concurrent idempotent import persists exactly one lead");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-events.mjs",
+    orgOne.organisationId,
+    "lead.csv_import.completed",
+    "2",
+  ], { stdio: "inherit" });
 
   assert.equal(importResult.received, 4, "CSV import reports received row count");
   assert.equal(importResult.imported, 2, "CSV import persists unique, valid rows");
