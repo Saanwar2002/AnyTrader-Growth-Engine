@@ -124,8 +124,8 @@ try {
     organisationId: orgOne.organisationId,
     campaignId: campaignOne.campaignId,
     leads: [
-      { businessName: "Synthetic Imported Alpha Ltd", category: "Painters", location: "Leeds", email: "import-alpha@example.test" },
-      { businessName: "Synthetic Imported Alpha Duplicate Ltd", category: "Painters", location: "Leeds", email: "import-alpha@example.test" },
+      { businessName: "Synthetic Imported Alpha Ltd", category: "Painters", location: "Leeds", email: "import-alpha@example.test", website: "https://alpha.example.test" },
+      { businessName: "Synthetic Imported Alpha Duplicate Ltd", category: "Painters", location: "Leeds", email: "different-alpha@example.test", website: "https://alpha.example.test/" },
       { businessName: "Synthetic Imported Beta Ltd", category: "Roofers", location: "York", email: "import-beta@example.test" },
       { businessName: "Synthetic Existing Lead Duplicate Ltd", category: "Painters", location: "Manchester", email: "hello@example.test" },
     ],
