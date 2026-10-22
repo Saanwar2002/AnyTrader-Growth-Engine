@@ -3,9 +3,11 @@ name: Growth Engine CI
 on:
   push:
     branches:
+      - main
       - development/chatgpt-mvp
   pull_request:
     branches:
+      - main
       - development/chatgpt-mvp
   workflow_dispatch:
 
