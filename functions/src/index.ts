@@ -49,6 +49,31 @@ function safePersistedStringArray(value: unknown, maxItems: number, maxLength: n
     .map((item) => item.slice(0, maxLength));
 }
 
+type SecurityAuditEventType = "lead.csv_import.completed";
+
+function writeSecurityAuditEvent(
+  transaction: Transaction,
+  organisationId: string,
+  actorUid: string,
+  eventType: SecurityAuditEventType,
+  resourceType: "campaign",
+  resourceId: string,
+  metadata: { importedCount: number; duplicatesSkipped: number },
+): void {
+  const eventRef = db.collection("organisations").doc(organisationId).collection("securityAuditEvents").doc();
+  transaction.create(eventRef, {
+    schemaVersion: 1,
+    eventType,
+    organisationId,
+    actorUid,
+    resourceType,
+    resourceId,
+    outcome: "success",
+    metadata,
+    createdAt: FieldValue.serverTimestamp(),
+  });
+}
+
 const RATE_LIMIT_WINDOW_MS = 60000;
 // Keep expired quota buckets briefly for incident review, then allow optional Firestore TTL cleanup.
 const RATE_LIMIT_TTL_GRACE_MS = 5 * 60 * 1000;
@@ -526,6 +551,11 @@ export const importLeads = onCall(async (request) => {
       result,
       actorUid: uid,
       createdAt: FieldValue.serverTimestamp(),
+    });
+    // Record only the successful first execution; idempotent replays return above.
+    writeSecurityAuditEvent(transaction, organisationId, uid, "lead.csv_import.completed", "campaign", campaignId, {
+      importedCount: newLeads.length,
+      duplicatesSkipped: duplicateCount,
     });
     return result;
   });
