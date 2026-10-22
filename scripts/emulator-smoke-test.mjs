@@ -774,7 +774,10 @@ try {
     category: "Painters",
     location: "Manchester",
   });
+  const viewerSuppressionQuotaBefore = currentQuotaCount("setLeadSuppression", viewer.auth.currentUser.uid);
   await expectCallableFailure(viewerCall("setLeadSuppression", { organisationId: orgOne.organisationId, leadId: viewerSuppressionLead.leadId, doNotContact: true }), "functions/permission-denied", "viewer cannot suppress a lead");
+  assert.equal(currentQuotaCount("setLeadSuppression", viewer.auth.currentUser.uid), viewerSuppressionQuotaBefore,
+    "role-denied lead suppression does not consume the viewer's quota");
   execFileSync(process.execPath, [
     "functions/scripts/assert-emulator-no-lead-activity.mjs",
     orgOne.organisationId,
