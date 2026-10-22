@@ -1063,3 +1063,13 @@ Continue the callable authorization audit and integration-test reliability work;
 - This specifically closes the race where a clear action started against old contact details could otherwise commit after a concurrent channel edit and clear the new details without a fresh review. Legacy records without a revision are treated as revision zero until updated; malformed stored revisions fail closed on clearance.
 - Implementation commits: `5a591dd3799f30ed028eb83aefc7f137096d13cf` (server), `7f71e1aedc2ab050371c31e2b955c1eaadeb8c6c` (API types), `b188ccfc4e1b837e0192ed68b1f8cbfe3d657b53` (UI), `aa8b5553836aa81d9a445c648f3ea7b9d1dbd837` (stale-revision regression). Follow-up type hardening and role/orphan fixture updates are committed in `a68fa73d623de5e542a723840ab11d2e50928e3f`, `fe92a9151dc63f3d6a0b9922a2783d6e84a3c99a`, `bcd3907722d9716afc8cbb2b4cc5c8d4799b17bc`, and `d3ef797e84728bc9042ff43488715f402bc53a54`.
 - CI must pass before considering this fix verified. Work remains on `development/chatgpt-mvp`; no production deployment or automated outreach sending.
+
+
+## CSV import idempotency and retry safety — 2026-10-22
+
+- Added a required bounded `idempotencyKey` to the server-side `importLeads` callable. The key is hashed with the organisation and authenticated UID to create an organisation-scoped, user-scoped Firestore record ID.
+- The request hash is based on the normalised campaign and lead fields. Repeating the same key and payload returns the original committed result without creating new leads/activity records or consuming another import quota. Reusing the key with a different normalised payload fails with `functions/already-exists`.
+- Idempotency record, lead writes, activity writes, and rate-limit update are committed in the same Firestore transaction. Concurrent requests are expected to serialize through the idempotency document; emulator coverage should confirm this behavior.
+- Added emulator smoke assertions for exact replay and conflicting payload reuse, plus a source-level contract test.
+- CI verification is pending. Check all jobs against the newest commit before treating the batch as complete. PR #10 remains unmerged; no production deployment and no automated outreach sending.
+- Next: add a concurrent same-key emulator regression; consider idempotency for other mutation callables only after reviewing client retry behavior. Keep audit-event retention/access policy and production App Check as release blockers.
