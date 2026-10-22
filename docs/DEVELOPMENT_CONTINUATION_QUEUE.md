@@ -1,3 +1,11 @@
+## Phase 3A follow-up — CSV import duplicate hardening (2026-10-22)
+
+- Added server-side `importLeads` in PR #10, capped at 25 rows, with authenticated tenant membership and transactional role checks, per-operation rate limiting, server-side validation, activity records, and suppression/pending-review defaults.
+- Follow-up review identified a duplicate edge case: choosing only one primary key could miss two rows that shared a website but had different emails. The batch now tracks email, website, and business/location identifiers independently, and emulator coverage exercises the website variant.
+- CI status must be checked against the latest PR head after these follow-up commits; do not treat earlier green jobs as validation of the latest changes.
+- Next Phase 3 items: add cursor-based pagination for lead and draft directories; then design idempotency keys for retried mutations and a durable audit-event/retention policy.
+- Release remains blocked on a dedicated Firebase project, App Check setup/enforcement tests, operational monitoring, quota calibration, and privacy/consent/retention review. Keep synthetic data only and outreach draft-only.
+
 ## Dependency automation and App Check boundary review — 2026-10-21
 
 - Confirmed CI runs for commits `273fa515` and `e9acd485` completed successfully. This validates the existing `Growth Engine CI` workflow for those commits, but does not by itself execute the new scheduled dependency-audit workflow.
