@@ -50,6 +50,7 @@ function safePersistedStringArray(value: unknown, maxItems: number, maxLength: n
 }
 
 type SecurityAuditEventType =
+  | "organisation.created"
   | "lead.csv_import.completed"
   | "lead.contact_updated"
   | "lead.contact_restriction_changed"
@@ -80,7 +81,7 @@ function writeSecurityAuditEvent(
   organisationId: string,
   actorUid: string,
   eventType: SecurityAuditEventType,
-  resourceType: "campaign" | "lead" | "outreachDraft",
+  resourceType: "organisation" | "campaign" | "lead" | "outreachDraft",
   resourceId: string,
   metadata: SecurityAuditEventMetadata,
 ): void {
