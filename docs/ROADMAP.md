@@ -40,7 +40,7 @@
 - [x] Add idempotency protection for CSV import retries; CI and emulator smoke tests passed on head `76a45ed6c4dc8f580433bc374475773dc1235101`.
 - [ ] Add idempotency protection to other high-impact mutations after reviewing client retry semantics.
 - [x] Document proposed audit-event retention and access policy (`docs/AUDIT_EVENT_RETENTION_POLICY.md`).
-- [x] Add a minimal transactional audit event for successful CSV imports; emulator assertion added (CI pending).
+- [x] Add a minimal transactional audit event for successful CSV imports; CI passed on head `6b117e14a25dd734bc72dedd5576483da087995a`.\n- [x] Add atomic, PII-minimised audit events for lead contact edits and contact-restriction changes (new batch; CI pending).
 - [ ] Extend audit events to other sensitive mutations and complete access/retention controls after policy review.
 - Keep provenance, import review, deduplication, and data minimisation.
 
