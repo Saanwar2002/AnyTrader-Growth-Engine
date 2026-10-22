@@ -113,23 +113,33 @@ try {
   await expectCallableFailure(callOne("importLeads", {
     organisationId: orgOne.organisationId,
     campaignId: campaignOne.campaignId,
+    idempotencyKey: "csv-import-malformed-test-01",
     leads: [{ businessName: "Malformed Import Row", email: "not-an-email" }],
   }), "functions/invalid-argument", "CSV import rejects malformed rows before writing");
   await expectCallableFailure(callOne("importLeads", {
     organisationId: orgOne.organisationId,
     campaignId: campaignOne.campaignId,
+    idempotencyKey: "csv-import-oversized-test-01",
     leads: Array.from({ length: 26 }, (_, index) => ({ businessName: `Oversized Import ${index}` })),
   }), "functions/invalid-argument", "CSV import enforces a 25-row maximum");
-  const importResult = await callOne("importLeads", {
+  const importPayload = {
     organisationId: orgOne.organisationId,
     campaignId: campaignOne.campaignId,
+    idempotencyKey: "csv-import-idempotency-test-0001",
     leads: [
       { businessName: "Synthetic Imported Alpha Ltd", category: "Painters", location: "Leeds", email: "import-alpha@example.test", website: "https://alpha.example.test" },
       { businessName: "Synthetic Imported Alpha Duplicate Ltd", category: "Painters", location: "Leeds", email: "different-alpha@example.test", website: "https://alpha.example.test/" },
       { businessName: "Synthetic Imported Beta Ltd", category: "Roofers", location: "York", email: "import-beta@example.test" },
       { businessName: "Synthetic Existing Lead Duplicate Ltd", category: "Painters", location: "Manchester", email: "hello@example.test" },
     ],
-  });
+  };
+  const importResult = await callOne("importLeads", importPayload);
+  const importReplay = await callOne("importLeads", importPayload);
+  assert.deepEqual(importReplay, importResult, "replaying an import returns the original result without duplicate records");
+  await expectCallableFailure(callOne("importLeads", {
+    ...importPayload,
+    leads: [{ businessName: "Different payload under reused key", category: "Painters", location: "Leeds" }],
+  }), "functions/already-exists", "CSV import rejects reuse of an idempotency key with a different payload");
   assert.equal(importResult.received, 4, "CSV import reports received row count");
   assert.equal(importResult.imported, 2, "CSV import persists unique, valid rows");
   assert.equal(importResult.duplicatesSkipped, 2, "CSV import skips in-batch and existing-record duplicates");
