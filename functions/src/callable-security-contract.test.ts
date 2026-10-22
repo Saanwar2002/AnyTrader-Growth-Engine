@@ -122,6 +122,7 @@ describe("callable security contract", () => {
 
   it("audits sensitive campaign, lead-status, notes, and draft mutations without recording note or draft content", () => {
     const expectations = [
+      ["createOrganisation", '"organisation.created"', '"organisation"'],
       ["createLead", '"lead.created"', '"lead"'],
       ["createCampaign", '"campaign.created"', '"campaign"'],
       ["updateCampaignStatus", '"campaign.status_changed"', '"campaign"'],
@@ -152,6 +153,7 @@ describe("callable security contract", () => {
     expect(createDraftBody).toContain('draftAction: "created"');
     expect(createDraftBody).not.toContain("subject: subject, body: body");
     for (const eventType of [
+      '"organisation.created"',
       '"lead.created"',
       '"campaign.created"',
       '"campaign.status_changed"',
