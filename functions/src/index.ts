@@ -382,6 +382,108 @@ export const listLeads = onCall(async (request) => {
   };
 });
 
+/**
+ * Import a bounded CSV-mapped batch through the trusted server path.
+ * This callable persists only validated rows and leaves every new contact suppressed
+ * until an authorised reviewer explicitly clears the contact restriction.
+ */
+export const importLeads = onCall(async (request) => {
+  const uid = requireUid(request.auth?.uid);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const organisationId = requireOrganisationId(data.organisationId);
+  const campaignId = requireDocumentId(data.campaignId, "campaignId");
+  if (!Array.isArray(data.leads) || data.leads.length < 1 || data.leads.length > 25) {
+    throw new HttpsError("invalid-argument", "leads must contain between 1 and 25 records per import batch.");
+  }
+
+  // Validate the complete payload before any writes: malformed batches are all-or-nothing.
+  const rows = data.leads.map((value, index) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      throw new HttpsError("invalid-argument", `Lead row ${index + 1} must be an object.`);
+    }
+    const row = value as Record<string, unknown>;
+    return { fields: normaliseLeadFields(row), index };
+  });
+  await requireLeadEditor(organisationId, uid);
+
+  const organisationRef = db.collection("organisations").doc(organisationId);
+  const campaignRef = organisationRef.collection("campaigns").doc(campaignId);
+  const leadsRef = organisationRef.collection("leads");
+  const seenKeys = new Set<string>();
+  const prepared = rows.map(({ fields, index }) => {
+    const emailKey = fields.email.toLowerCase();
+    const websiteKey = fields.website.toLowerCase().replace(/\/$/, "");
+    const businessKey = `${fields.businessName.toLowerCase()}|${fields.location.toLowerCase()}`;
+    const key = emailKey ? `email:${emailKey}` : websiteKey ? `website:${websiteKey}` : `business:${businessKey}`;
+    const duplicateInBatch = seenKeys.has(key);
+    seenKeys.add(key);
+    return { fields, index, emailKey, websiteKey, duplicateInBatch };
+  });
+  const newLeads: Array<{ leadId: string; businessName: string }> = [];
+  let duplicateCount = 0;
+
+  await db.runTransaction(async (transaction: Transaction) => {
+    await requireTransactionalRole(transaction, organisationId, uid, "lead");
+    const campaignSnapshot = await transaction.get(campaignRef);
+    if (!campaignSnapshot.exists) throw new HttpsError("not-found", "Campaign was not found in this organisation.");
+
+    // Query only by supplied contact identifiers; never scan an unbounded tenant collection.
+    const emails = [...new Set(prepared.filter((row) => row.emailKey && !row.duplicateInBatch).map((row) => row.emailKey))];
+    const websites = [...new Set(prepared.filter((row) => row.websiteKey && !row.duplicateInBatch).map((row) => row.websiteKey))];
+    const existingEmailDocs = await Promise.all(emails.map((email) => transaction.get(leadsRef.where("email", "==", email))));
+    const existingWebsiteDocs = await Promise.all(websites.map((website) => transaction.get(leadsRef.where("website", "==", website))));
+    const existingEmails = new Set(existingEmailDocs.flatMap((snapshot) => snapshot.docs.map((doc) => String(doc.data().email ?? "").toLowerCase())));
+    const existingWebsites = new Set(existingWebsiteDocs.flatMap((snapshot) => snapshot.docs.map((doc) => String(doc.data().website ?? "").toLowerCase().replace(/\/$/, ""))));
+
+    await consumeTransactionalRateLimit(transaction, organisationId, uid, "importLeads", 10);
+    for (const row of prepared) {
+      if (row.duplicateInBatch || (row.emailKey && existingEmails.has(row.emailKey)) || (row.websiteKey && existingWebsites.has(row.websiteKey))) {
+        duplicateCount += 1;
+        continue;
+      }
+      const completeness = calculateLeadCompleteness(row.fields);
+      const leadRef = leadsRef.doc();
+      const activityRef = organisationRef.collection("leadActivities").doc();
+      const now = FieldValue.serverTimestamp();
+      transaction.create(leadRef, {
+        ...row.fields,
+        campaignId,
+        status: "new",
+        source: "csv_import",
+        score: completeness.score,
+        scoreReasons: completeness.reasons,
+        notes: "",
+        doNotContact: true,
+        contactReviewStatus: "pending",
+        contactReviewRevision: 0,
+        createdBy: uid,
+        createdAt: now,
+        updatedAt: now,
+      });
+      transaction.create(activityRef, {
+        leadId: leadRef.id,
+        actorUid: uid,
+        message: `Lead imported: ${row.fields.businessName}`,
+        createdAt: now,
+      });
+      newLeads.push({ leadId: leadRef.id, businessName: row.fields.businessName });
+      if (row.emailKey) existingEmails.add(row.emailKey);
+      if (row.websiteKey) existingWebsites.add(row.websiteKey);
+    }
+  });
+
+  return {
+    organisationId,
+    campaignId,
+    received: prepared.length,
+    imported: newLeads.length,
+    duplicatesSkipped: duplicateCount,
+    leads: newLeads,
+    sent: false,
+    messageSentByThisAction: false,
+  };
+});
+
 export const createLead = onCall(async (request) => {
   const uid = requireUid(request.auth?.uid);
   const data = (request.data ?? {}) as Record<string, unknown>;
