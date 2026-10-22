@@ -52,7 +52,14 @@ function safePersistedStringArray(value: unknown, maxItems: number, maxLength: n
 type SecurityAuditEventType =
   | "lead.csv_import.completed"
   | "lead.contact_updated"
-  | "lead.contact_restriction_changed";
+  | "lead.contact_restriction_changed"
+  | "campaign.created"
+  | "campaign.status_changed"
+  | "lead.status_changed"
+  | "lead.notes_changed"
+  | "outreach_draft.created"
+  | "outreach_draft.updated"
+  | "outreach_draft.deleted";
 
 type SecurityAuditEventMetadata = {
   importedCount?: number;
@@ -61,6 +68,10 @@ type SecurityAuditEventMetadata = {
   contactReviewRevision?: number;
   doNotContact?: boolean;
   contactReviewStatus?: "pending" | "cleared" | "blocked";
+  campaignStatus?: "active" | "paused" | "completed";
+  leadStatus?: string;
+  notesCleared?: boolean;
+  draftAction?: "created" | "updated" | "deleted";
 };
 
 function writeSecurityAuditEvent(
@@ -68,7 +79,7 @@ function writeSecurityAuditEvent(
   organisationId: string,
   actorUid: string,
   eventType: SecurityAuditEventType,
-  resourceType: "campaign" | "lead",
+  resourceType: "campaign" | "lead" | "outreachDraft",
   resourceId: string,
   metadata: SecurityAuditEventMetadata,
 ): void {
@@ -305,6 +316,7 @@ export const createCampaign = onCall(async (request) => {
     await requireTransactionalRole(transaction, organisationId, uid, "campaign");
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "createCampaign", 150);
     transaction.create(campaign, { name, category, location, brand, goal, status: "active", createdBy: uid, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
+    writeSecurityAuditEvent(transaction, organisationId, uid, "campaign.created", "campaign", campaign.id, { campaignStatus: "active" });
   });
   return { campaignId: campaign.id, organisationId, name, category, location, brand, goal, status: "active" as const };
 });
@@ -364,6 +376,7 @@ export const updateCampaignStatus = onCall(async (request) => {
     if (!campaignSnapshot.exists) throw new HttpsError("not-found", "Campaign was not found in this organisation.");
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "updateCampaignStatus", 30);
     transaction.update(campaignRef, { status: data.status, updatedAt: FieldValue.serverTimestamp(), updatedBy: uid });
+    writeSecurityAuditEvent(transaction, organisationId, uid, "campaign.status_changed", "campaign", campaignId, { campaignStatus: data.status });
   });
   return { campaignId, status: data.status };
 });
@@ -702,6 +715,7 @@ export const updateLeadStatus = onCall(async (request) => {
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "updateLeadStatus", 240);
     transaction.update(leadRef, { status, updatedAt: now, updatedBy: uid });
     transaction.create(activity, { leadId, actorUid: uid, message: `Lead status changed to ${status}`, createdAt: now });
+    writeSecurityAuditEvent(transaction, organisationId, uid, "lead.status_changed", "lead", leadId, { leadStatus: status });
   });
   return { leadId, status };
 });
@@ -724,6 +738,7 @@ export const updateLeadNotes = onCall(async (request) => {
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "updateLeadNotes", 240);
     transaction.update(leadRef, { notes, updatedAt: now, updatedBy: uid });
     transaction.create(activity, { leadId, actorUid: uid, message: notes ? "Lead notes updated" : "Lead notes cleared", createdAt: now });
+    writeSecurityAuditEvent(transaction, organisationId, uid, "lead.notes_changed", "lead", leadId, { notesCleared: notes.length === 0 });
   });
   return { leadId, notes };
 });
@@ -814,6 +829,7 @@ export const createOutreachDraft = onCall(async (request) => {
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "createOutreachDraft", 200);
     transaction.create(draft, { leadId, campaignId, subject, body, status: "draft", createdBy: uid, createdAt: now, updatedAt: now });
     transaction.create(activity, { leadId, actorUid: uid, message: "Outreach draft created; not sent", createdAt: now });
+    writeSecurityAuditEvent(transaction, organisationId, uid, "outreach_draft.created", "outreachDraft", draft.id, { draftAction: "created" });
   });
   return { draftId: draft.id, leadId, campaignId, subject, body, status: "draft" as const, sent: false };
 });
@@ -961,6 +977,7 @@ export const updateOutreachDraft = onCall(async (request) => {
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "updateOutreachDraft", 120);
     transaction.update(draftRef, { subject, body, updatedAt: now, updatedBy: uid });
     transaction.create(activity, { leadId, actorUid: uid, message: "Outreach draft updated; not sent", createdAt: now });
+    writeSecurityAuditEvent(transaction, organisationId, uid, "outreach_draft.updated", "outreachDraft", draftId, { draftAction: "updated" });
   });
   return { draftId, leadId, subject, body, status: "draft" as const, sent: false };
 });
@@ -983,6 +1000,7 @@ export const deleteOutreachDraft = onCall(async (request) => {
     const leadId = isValidDocumentId(rawLeadId) ? rawLeadId : null;
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "deleteOutreachDraft", 120);
     transaction.delete(draftRef);
+    writeSecurityAuditEvent(transaction, organisationId, uid, "outreach_draft.deleted", "outreachDraft", draftId, { draftAction: "deleted" });
     transaction.create(activity, {
       ...(leadId ? { leadId } : {}),
       actorUid: uid,
