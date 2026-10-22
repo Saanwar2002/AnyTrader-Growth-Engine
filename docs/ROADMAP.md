@@ -31,13 +31,13 @@
 - [ ] Add emulator-backed tests for unauthenticated requests, non-member access, role escalation, and cross-tenant isolation.
 - [x] Scaffold environment-gated Firebase client setup and a typed callable API adapter with unit tests.
 - [x] Connect core organisation, campaign, lead, suppression, and draft workflows through the typed API adapter; keep local demo mode separate.
-- [ ] Add rate limiting/App Check strategy, structured audit events, idempotency, and safe error handling before external exposure.
+- [ ] Complete App Check strategy/enforcement, durable audit-event policy, and safe error-handling review before external exposure; rate limiting is implemented with provisional quotas.
 
 ## Phase 3 — Complete persisted workflows
 
 - [x] Implement server-side CSV batch import with validation, cross-identifier deduplication, and a 25-row batch limit (PR #10; pending CI/review).
-- Add pagination/cursors for large lead and draft directories.
-- Add idempotency protection for retried mutations and a durable audit-event policy.
+- [x] Add cursor pagination for lead, campaign, outreach-draft, and organisation directories.
+- [x] Add idempotency protection for CSV import retries (implementation added; verify CI before closure).\n- Add idempotency protection to other high-impact mutations after reviewing client retry semantics.\n- Add a durable audit-event retention and access policy.
 - Keep provenance, import review, deduplication, and data minimisation.
 
 ## Phase 4 — Approved lead-source adapters
@@ -64,7 +64,7 @@
 
 ## Non-negotiable boundaries
 
-- Work only in Saanwar2002/AnyTrader-Growth-Engine, on development/chatgpt-mvp.
+- Work only in Saanwar2002/AnyTrader-Growth-Engine, on development/next-phase.
 - Do not modify the original AnyTrader repository or either repository's main branch.
 - No unauthorized scraping or access-control bypass.
 - No secrets in the browser or committed configuration.
