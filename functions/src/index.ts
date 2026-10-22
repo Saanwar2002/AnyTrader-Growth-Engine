@@ -767,7 +767,7 @@ export const setLeadSuppression = onCall(async (request) => {
     const now = FieldValue.serverTimestamp();
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "setLeadSuppression", 120);
     transaction.update(leadRef, {
-      doNotContact: data.doNotContact,
+      doNotContact: data.doNotContact as boolean,
       contactReviewStatus: data.doNotContact ? "blocked" : "cleared",
       ...(!data.doNotContact ? { contactReviewRevision: currentRevision } : {}),
       updatedAt: now,
