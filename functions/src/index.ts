@@ -53,6 +53,7 @@ type SecurityAuditEventType =
   | "lead.csv_import.completed"
   | "lead.contact_updated"
   | "lead.contact_restriction_changed"
+  | "lead.created"
   | "campaign.created"
   | "campaign.status_changed"
   | "lead.status_changed"
@@ -609,6 +610,7 @@ export const createLead = onCall(async (request) => {
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "createLead", 200);
     transaction.create(lead, { ...fields, campaignId, status: "new", source: "manual", score: completeness.score, scoreReasons: completeness.reasons, notes: "", doNotContact: true, contactReviewStatus: "pending", contactReviewRevision: 0, createdBy: uid, createdAt: now, updatedAt: now });
     transaction.create(activity, { leadId: lead.id, actorUid: uid, message: `Lead created: ${fields.businessName}`, createdAt: now });
+    writeSecurityAuditEvent(transaction, organisationId, uid, "lead.created", "lead", lead.id, { leadStatus: "new" });
   });
   return { leadId: lead.id, organisationId, campaignId, ...fields, status: "new" as const, source: "manual" as const, score: completeness.score, scoreReasons: completeness.reasons, doNotContact: true, contactReviewStatus: "pending" as const, contactReviewRevision: 0 };
 });
