@@ -120,6 +120,49 @@ describe("callable security contract", () => {
     expect(callableSource).toContain('| "lead.contact_restriction_changed"');
   });
 
+  it("audits sensitive campaign, lead-status, notes, and draft mutations without recording note or draft content", () => {
+    const expectations = [
+      ["createCampaign", '"campaign.created"', '"campaign"'],
+      ["updateCampaignStatus", '"campaign.status_changed"', '"campaign"'],
+      ["updateLeadStatus", '"lead.status_changed"', '"lead"'],
+      ["updateLeadNotes", '"lead.notes_changed"', '"lead"'],
+      ["createOutreachDraft", '"outreach_draft.created"', '"outreachDraft"'],
+      ["updateOutreachDraft", '"outreach_draft.updated"', '"outreachDraft"'],
+      ["deleteOutreachDraft", '"outreach_draft.deleted"', '"outreachDraft"'],
+    ] as const;
+
+    for (const [name, eventType, resourceType] of expectations) {
+      const start = callableSource.indexOf(`export const ${name} = onCall(`);
+      expect(start, `${name} callable must exist`).toBeGreaterThanOrEqual(0);
+      const nextStart = callableSource.indexOf("export const ", start + 1);
+      const body = callableSource.slice(start, nextStart < 0 ? callableSource.length : nextStart);
+      expect(body, `${name} audit event`).toContain(`writeSecurityAuditEvent(transaction, organisationId, uid, ${eventType}, ${resourceType}`);
+    }
+
+    const notesStart = callableSource.indexOf("export const updateLeadNotes = onCall(");
+    const notesEnd = callableSource.indexOf("export const ", notesStart + 1);
+    const notesBody = callableSource.slice(notesStart, notesEnd);
+    expect(notesBody).toContain("notesCleared: notes.length === 0");
+    expect(notesBody).not.toContain("notes: notes");
+
+    const createDraftStart = callableSource.indexOf("export const createOutreachDraft = onCall(");
+    const createDraftEnd = callableSource.indexOf("export const ", createDraftStart + 1);
+    const createDraftBody = callableSource.slice(createDraftStart, createDraftEnd);
+    expect(createDraftBody).toContain('draftAction: "created"');
+    expect(createDraftBody).not.toContain("subject: subject, body: body");
+    for (const eventType of [
+      '"campaign.created"',
+      '"campaign.status_changed"',
+      '"lead.status_changed"',
+      '"lead.notes_changed"',
+      '"outreach_draft.created"',
+      '"outreach_draft.updated"',
+      '"outreach_draft.deleted"',
+    ]) {
+      expect(callableSource).toContain(eventType);
+    }
+  });
+
   it("keeps outreach operations draft-only", () => {
     for (const name of ["createOutreachDraft", "updateOutreachDraft", "deleteOutreachDraft"]) {
       const start = callableSource.indexOf(`export const ${name} = onCall(`);
