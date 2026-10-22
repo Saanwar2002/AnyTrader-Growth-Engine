@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { initializeApp } from "firebase-admin/app";
 import { FieldValue, Timestamp, getFirestore, type QueryDocumentSnapshot, type Transaction } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
@@ -392,6 +393,10 @@ export const importLeads = onCall(async (request) => {
   const data = (request.data ?? {}) as Record<string, unknown>;
   const organisationId = requireOrganisationId(data.organisationId);
   const campaignId = requireDocumentId(data.campaignId, "campaignId");
+  const idempotencyKey = data.idempotencyKey;
+  if (typeof idempotencyKey !== "string" || !/^[A-Za-z0-9._:-]{16,128}$/.test(idempotencyKey)) {
+    throw new HttpsError("invalid-argument", "idempotencyKey must be 16-128 safe characters.");
+  }
   if (!Array.isArray(data.leads) || data.leads.length < 1 || data.leads.length > 25) {
     throw new HttpsError("invalid-argument", "leads must contain between 1 and 25 records per import batch.");
   }
@@ -406,9 +411,16 @@ export const importLeads = onCall(async (request) => {
   });
   await requireLeadEditor(organisationId, uid);
 
+  const requestHash = createHash("sha256")
+    .update(JSON.stringify({ organisationId, campaignId, leads: rows.map(({ fields }) => fields) }))
+    .digest("hex");
+  const idempotencyDocumentId = createHash("sha256")
+    .update(JSON.stringify([organisationId, uid, idempotencyKey]))
+    .digest("hex");
   const organisationRef = db.collection("organisations").doc(organisationId);
   const campaignRef = organisationRef.collection("campaigns").doc(campaignId);
   const leadsRef = organisationRef.collection("leads");
+  const idempotencyRef = organisationRef.collection("importIdempotency").doc(idempotencyDocumentId);
   const seenEmails = new Set<string>();
   const seenWebsites = new Set<string>();
   const seenBusinesses = new Set<string>();
@@ -416,8 +428,6 @@ export const importLeads = onCall(async (request) => {
     const emailKey = fields.email.toLowerCase();
     const websiteKey = fields.website.toLowerCase().replace(/\/$/, "");
     const businessKey = `${fields.businessName.toLowerCase()}|${fields.location.toLowerCase()}`;
-    // Compare every available identifier independently so an email on one row
-    // cannot hide a website match with another row.
     const duplicateInBatch = Boolean(
       (emailKey && seenEmails.has(emailKey))
       || (websiteKey && seenWebsites.has(websiteKey))
@@ -426,13 +436,32 @@ export const importLeads = onCall(async (request) => {
     if (emailKey) seenEmails.add(emailKey);
     if (websiteKey) seenWebsites.add(websiteKey);
     seenBusinesses.add(businessKey);
-    return { fields, emailKey, websiteKey, businessKey, duplicateInBatch };
+    return { fields, emailKey, websiteKey, duplicateInBatch };
   });
-  const newLeads: Array<{ leadId: string; businessName: string }> = [];
-  let duplicateCount = 0;
 
-  await db.runTransaction(async (transaction: Transaction) => {
+  return db.runTransaction(async (transaction: Transaction) => {
+    // A replay returns the committed result without consuming quota or creating new records.
+    // Concurrent requests with the same key serialize on this document; Firestore retries
+    // the loser, which then observes and returns the winner's result.
+    const idempotencySnapshot = await transaction.get(idempotencyRef);
     await requireTransactionalRole(transaction, organisationId, uid, "lead");
+    if (idempotencySnapshot.exists) {
+      const saved = idempotencySnapshot.data() ?? {};
+      if (saved.requestHash !== requestHash || !saved.result || typeof saved.result !== "object") {
+        throw new HttpsError("already-exists", "This idempotencyKey was already used with a different import payload.");
+      }
+      return saved.result as {
+        organisationId: string;
+        campaignId: string;
+        received: number;
+        imported: number;
+        duplicatesSkipped: number;
+        leads: Array<{ leadId: string; businessName: string }>;
+        sent: false;
+        messageSentByThisAction: false;
+      };
+    }
+
     const campaignSnapshot = await transaction.get(campaignRef);
     if (!campaignSnapshot.exists) throw new HttpsError("not-found", "Campaign was not found in this organisation.");
 
@@ -444,6 +473,9 @@ export const importLeads = onCall(async (request) => {
     const existingEmails = new Set(emails.filter((_, index) => !existingEmailDocs[index].empty));
     const existingWebsites = new Set(websites.filter((_, index) => !existingWebsiteDocs[index].empty));
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "importLeads", 10);
+
+    const newLeads: Array<{ leadId: string; businessName: string }> = [];
+    let duplicateCount = 0;
     for (const row of prepared) {
       if (row.duplicateInBatch || (row.emailKey && existingEmails.has(row.emailKey)) || (row.websiteKey && existingWebsites.has(row.websiteKey))) {
         duplicateCount += 1;
@@ -478,18 +510,25 @@ export const importLeads = onCall(async (request) => {
       if (row.emailKey) existingEmails.add(row.emailKey);
       if (row.websiteKey) existingWebsites.add(row.websiteKey);
     }
-  });
 
-  return {
-    organisationId,
-    campaignId,
-    received: prepared.length,
-    imported: newLeads.length,
-    duplicatesSkipped: duplicateCount,
-    leads: newLeads,
-    sent: false,
-    messageSentByThisAction: false,
-  };
+    const result = {
+      organisationId,
+      campaignId,
+      received: prepared.length,
+      imported: newLeads.length,
+      duplicatesSkipped: duplicateCount,
+      leads: newLeads,
+      sent: false as const,
+      messageSentByThisAction: false as const,
+    };
+    transaction.create(idempotencyRef, {
+      requestHash,
+      result,
+      actorUid: uid,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    return result;
+  });
 });
 
 export const createLead = onCall(async (request) => {
