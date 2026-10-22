@@ -1,50 +1,71 @@
 # Growth Engine Roadmap
 
-## Phase 1 — Foundation (current)
+## Phase 0 — Architecture and safety baseline (complete)
 
-- [x] Create project README and product guardrails.
-- [x] Add initial React + TypeScript + Vite application shell.
-- [x] Establish a demo-only dashboard with no live data.
-- [ ] Install dependencies and run typecheck/build in a development environment.
-- [ ] Add typed campaign and lead models plus synthetic fixtures.
-- [ ] Add unit tests and a repeatable CI workflow.
+- [x] Keep Growth Engine in its own repository and development branch.
+- [x] Document product boundaries, permitted data sources, tenant model, and draft-only outreach.
+- [x] Establish reproducible frontend checks and dependency lockfiles.
 
-## Phase 2 — Campaigns and demo leads
+## Phase 1 — Local demo MVP (implemented; interactive tests added)
 
-- Campaign configuration: brand, service category, geography, goal, and status.
-- Synthetic lead fixtures, visibly labelled as fictional.
-- Lead list, filters, review status, and record details.
-- No external collection or messaging.
+- [x] React + TypeScript + Vite workspace and responsive dashboard.
+- [x] Campaign setup, synthetic provider leads, filters, review statuses, notes, and activity history.
+- [x] CSV import with mapping, validation, preview, selection/exclusion, deduplication, and export.
+- [x] Draft-only outreach and a demo Do not contact control that blocks new drafts.
+- [x] Interactive UI tests for campaign creation, CSV import confirmation, suppression, draft creation, and local persistence.
 
-## Phase 3 — Qualification and source adapters
+## Phase 2 — Backend and tenant-safe persistence (server scaffold; not production-ready)
 
-- Provider-independent interfaces for approved sources.
-- Record data provenance for every lead.
-- Normalization, deduplication, transparent scoring, and suppression rules.
-- Document terms, permissions, rate limits, and retention for each source.
+- [x] Select Firebase Cloud Functions v2 callable endpoints as the initial trusted backend.
+- [x] Add authenticated organisation creation, atomic owner membership creation, and membership-based organisation discovery.
+- [x] Add owner/admin-only campaign creation/status changes and membership-checked campaign listing.
+- [x] Add membership-checked lead listing and tenant-scoped lead creation/contact editing.
+- [x] Add transactional lead status and notes updates with activity events.
+- [x] Add transactional do-not-contact controls; members can suppress, but only owners/admins can remove a restriction.
+- [x] Enforce the suppression gate transactionally when creating or editing draft-only outreach.
+- [x] Add draft listing, editing, and deletion; no send endpoint exists.
+- [x] Add deny-by-default Firestore rules, strict server input/role guards, and emulator configuration.
+- [ ] Create/configure a dedicated Growth Engine Firebase project; do not reuse AnyTrader production.
+- [x] Add email/password sign-in, account creation, sign-out, and a Firebase-config-gated cloud workspace UI.
+- [ ] Run callable functions and Firestore rules against Firebase Emulator Suite.
+- [ ] Add emulator-backed tests for unauthenticated requests, non-member access, role escalation, and cross-tenant isolation.
+- [x] Scaffold environment-gated Firebase client setup and a typed callable API adapter with unit tests.
+- [x] Connect core organisation, campaign, lead, suppression, and draft workflows through the typed API adapter; keep local demo mode separate.
+- [ ] Add rate limiting/App Check strategy, structured audit events, idempotency, and safe error handling before external exposure.
 
-## Phase 4 — Outreach drafts and approval
+## Phase 3 — Complete persisted workflows
 
-- Brand-aware draft templates and preview.
-- Human review and explicit approval before any use.
-- Audit trail and opt-out/suppression handling.
-- No automated sending in the initial release.
+- Implement server-side CSV batch import with validation, deduplication, and bounded batch sizes.
+- Add pagination/cursors for large lead and draft directories.
+- Add idempotency protection for retried mutations and a durable audit-event policy.
+- Keep provenance, import review, deduplication, and data minimisation.
 
-## Phase 5 — Attribution and analytics
+## Phase 4 — Approved lead-source adapters
 
-- Campaign/source attribution for provider onboarding.
-- Aggregate campaign reporting.
-- Connect production services only after a separate integration and security review.
+- Provider-neutral adapter interface and provenance for each record.
+- Only APIs/providers whose terms permit the intended use.
+- Document permissions, rate limits, lawful basis/review status, and retention for each source.
 
-## Phase 6 — Hardening and deployment
+## Phase 5 — Server-side AI assistance
 
-- Authentication and role-based access where needed.
-- Secret management, privacy controls, retention/deletion, logging, and error handling.
-- Tests, accessibility checks, deployment runbook, and security review.
+- Server-side Gemini classification and draft generation with schema validation.
+- Prompt-injection protections, per-organisation usage limits, and human approval.
+- No automated outreach sending in the MVP.
+
+## Phase 6 — Attribution and SaaS controls
+
+- Onboarding attribution, aggregate analytics, organisation settings, plans, and quotas.
+- Billing only after core workflows and server-side entitlements are tested.
+
+## Phase 7 — Production hardening and later agency features
+
+- Privacy/export/deletion/retention workflows, monitoring, backups, recovery, incident response, security review.
+- Later: agency workspaces, white-labeling, API access, and enterprise controls.
 
 ## Non-negotiable boundaries
 
-- Work only in the standalone AnyTrader-Growth-Engine repository.
-- Do not modify the original AnyTrader repository or its main branch.
+- Work only in Saanwar2002/AnyTrader-Growth-Engine, on development/chatgpt-mvp.
+- Do not modify the original AnyTrader repository or either repository's main branch.
 - No unauthorized scraping or access-control bypass.
-- No real lead data, credentials, or automated outreach in demo mode.
+- No secrets in the browser or committed configuration.
+- No real lead data in localStorage demo mode and no automated outreach.

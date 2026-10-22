@@ -1,0 +1,11 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Initial security posture: clients cannot read or write tenant data directly.
+    // Callable Cloud Functions use the Admin SDK only after verifying identity
+    // and organisation membership. Add narrow client rules only after review.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

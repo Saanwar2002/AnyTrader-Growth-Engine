@@ -1,0 +1,92 @@
+name: Scheduled dependency security audit
+
+on:
+  schedule:
+    - cron: "23 8 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: growth-engine-dependency-audit
+  cancel-in-progress: false
+
+jobs:
+  root-dependencies:
+    name: Root and frontend dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Audit all severity levels
+        run: npm audit --json > npm-audit-root.json
+        continue-on-error: true
+      - name: Summarise root audit
+        if: always()
+        shell: bash
+        run: |
+          node -e '
+            const fs = require("node:fs");
+            const p = "npm-audit-root.json";
+            if (!fs.existsSync(p)) { console.error("npm audit did not produce a report"); process.exit(1); }
+            const report = JSON.parse(fs.readFileSync(p, "utf8"));
+            console.log(JSON.stringify(report.metadata?.vulnerabilities ?? {}, null, 2));
+            if ((report.metadata?.vulnerabilities?.high ?? 0) > 0 || (report.metadata?.vulnerabilities?.critical ?? 0) > 0) process.exitCode = 1;
+          '
+      - name: Upload root audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit-root
+          path: npm-audit-root.json
+          if-no-files-found: warn
+          retention-days: 30
+
+  functions-dependencies:
+    name: Firebase Functions dependency audit
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: functions
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Audit all severity levels
+        run: npm audit --json > npm-audit-functions.json
+        continue-on-error: true
+      - name: Summarise Functions audit
+        if: always()
+        shell: bash
+        run: |
+          node -e '
+            const fs = require("node:fs");
+            const p = "npm-audit-functions.json";
+            if (!fs.existsSync(p)) { console.error("npm audit did not produce a report"); process.exit(1); }
+            const report = JSON.parse(fs.readFileSync(p, "utf8"));
+            console.log(JSON.stringify(report.metadata?.vulnerabilities ?? {}, null, 2));
+            if ((report.metadata?.vulnerabilities?.high ?? 0) > 0 || (report.metadata?.vulnerabilities?.critical ?? 0) > 0) process.exitCode = 1;
+          '
+      - name: Upload Functions audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit-functions
+          path: functions/npm-audit-functions.json
+          if-no-files-found: warn
+          retention-days: 30

@@ -6,3 +6,22 @@ dist/
 coverage/
 .DS_Store
 *.log
+functions/node_modules/
+functions/lib/
+functions/coverage/
+
+# Firebase local state and credentials (never commit service-account keys)
+.firebase/
+.firebase-debug.log
+firestore-debug.log
+ui-debug.log
+*-firebase-adminsdk-*.json
+service-account*.json
+firebase-service-account*.json
+# Private keys and exported credential containers
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa
+id_ed25519

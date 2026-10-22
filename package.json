@@ -7,17 +7,28 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:emulators": "npm --prefix functions ci --no-audit --no-fund && npm --prefix functions run build && npx --yes firebase-tools emulators:exec --project demo-growth-engine-test --only auth,functions,firestore \"node scripts/emulator-smoke-test.mjs\""
   },
   "dependencies": {
+    "firebase": "^11.10.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.8",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.4.0",
+    "jsdom": "^29.1.1",
     "typescript": "~5.8.0",
-    "vite": "^6.3.0"
+    "vite": "^6.3.0",
+    "vitest": "^4.1.12"
+  },
+  "overrides": {
+    "@grpc/grpc-js": "^1.13.6"
   }
 }
