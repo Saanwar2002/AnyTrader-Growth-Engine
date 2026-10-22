@@ -49,16 +49,28 @@ function safePersistedStringArray(value: unknown, maxItems: number, maxLength: n
     .map((item) => item.slice(0, maxLength));
 }
 
-type SecurityAuditEventType = "lead.csv_import.completed";
+type SecurityAuditEventType =
+  | "lead.csv_import.completed"
+  | "lead.contact_updated"
+  | "lead.contact_restriction_changed";
+
+type SecurityAuditEventMetadata = {
+  importedCount?: number;
+  duplicatesSkipped?: number;
+  contactChannelsChanged?: boolean;
+  contactReviewRevision?: number;
+  doNotContact?: boolean;
+  contactReviewStatus?: "pending" | "cleared" | "blocked";
+};
 
 function writeSecurityAuditEvent(
   transaction: Transaction,
   organisationId: string,
   actorUid: string,
   eventType: SecurityAuditEventType,
-  resourceType: "campaign",
+  resourceType: "campaign" | "lead",
   resourceId: string,
-  metadata: { importedCount: number; duplicatesSkipped: number },
+  metadata: SecurityAuditEventMetadata,
 ): void {
   const eventRef = db.collection("organisations").doc(organisationId).collection("securityAuditEvents").doc();
   transaction.create(eventRef, {
@@ -646,6 +658,12 @@ export const updateLeadContact = onCall(async (request) => {
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "updateLeadContact", 120);
     transaction.update(leadRef, { ...fields, ...restrictionUpdate, contactReviewRevision: nextContactReviewRevision, score: completeness.score, scoreReasons: completeness.reasons, updatedAt: now, updatedBy: uid });
     transaction.create(activity, { leadId, actorUid: uid, message: "Lead contact details updated", createdAt: now });
+    writeSecurityAuditEvent(transaction, organisationId, uid, "lead.contact_updated", "lead", leadId, {
+      contactChannelsChanged,
+      contactReviewRevision: nextContactReviewRevision,
+      contactReviewStatus: nextReviewStatus,
+      doNotContact: nextDoNotContact,
+    });
   });
   return { leadId, ...fields, score: completeness.score, scoreReasons: completeness.reasons, ...contactRestriction };
 });
@@ -756,6 +774,11 @@ export const setLeadSuppression = onCall(async (request) => {
       updatedBy: uid,
     });
     transaction.create(activity, { leadId, actorUid: uid, message: data.doNotContact ? "Lead marked do not contact" : "Lead contact restriction removed", createdAt: now });
+    writeSecurityAuditEvent(transaction, organisationId, uid, "lead.contact_restriction_changed", "lead", leadId, {
+      doNotContact: data.doNotContact,
+      contactReviewStatus: data.doNotContact ? "blocked" : "cleared",
+      contactReviewRevision: currentRevision,
+    });
   });
   return { leadId, doNotContact: data.doNotContact };
 });
