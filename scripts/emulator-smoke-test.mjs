@@ -109,6 +109,37 @@ try {
     organisationId: orgOne.organisationId, campaignId: campaignOne.campaignId,
     businessName: "X".repeat(161),
   }), "functions/invalid-argument", "server rejects oversized business name");
+  await expectCallableFailure(callOne("importLeads", {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    leads: [{ businessName: "Malformed Import Row", email: "not-an-email" }],
+  }), "functions/invalid-argument", "CSV import rejects malformed rows before writing");
+  await expectCallableFailure(callOne("importLeads", {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    leads: Array.from({ length: 26 }, (_, index) => ({ businessName: `Oversized Import ${index}` })),
+  }), "functions/invalid-argument", "CSV import enforces a 25-row maximum");
+  const importResult = await callOne("importLeads", {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    leads: [
+      { businessName: "Synthetic Imported Alpha Ltd", category: "Painters", location: "Leeds", email: "import-alpha@example.test" },
+      { businessName: "Synthetic Imported Alpha Duplicate Ltd", category: "Painters", location: "Leeds", email: "import-alpha@example.test" },
+      { businessName: "Synthetic Imported Beta Ltd", category: "Roofers", location: "York", email: "import-beta@example.test" },
+      { businessName: "Synthetic Existing Lead Duplicate Ltd", category: "Painters", location: "Manchester", email: "hello@example.test" },
+    ],
+  });
+  assert.equal(importResult.received, 4, "CSV import reports received row count");
+  assert.equal(importResult.imported, 2, "CSV import persists unique, valid rows");
+  assert.equal(importResult.duplicatesSkipped, 2, "CSV import skips in-batch and existing-record duplicates");
+  assert.equal(importResult.sent, false, "CSV import never sends outreach");
+  const importedLeads = (await callOne("listLeads", { organisationId: orgOne.organisationId })).leads;
+  for (const importedName of ["Synthetic Imported Alpha Ltd", "Synthetic Imported Beta Ltd"]) {
+    const imported = importedLeads.find((lead) => lead.businessName === importedName);
+    assert.ok(imported, `CSV import persists ${importedName}`);
+    assert.equal(imported.doNotContact, true, "CSV-imported leads remain suppressed pending review");
+    assert.equal(imported.contactReviewStatus, "pending", "CSV-imported leads require explicit contact review");
+  }
   const leadOne = await callOne("createLead", { organisationId: orgOne.organisationId, campaignId: campaignOne.campaignId, businessName: "Synthetic Test Painting Ltd", category: "Painters", location: "Manchester", email: "hello@example.test" });
   assert.equal(leadOne.doNotContact, true, "new leads must remain blocked pending review");
   assert.equal(leadOne.contactReviewStatus, "pending", "new leads must expose a distinct pending-review state");
@@ -2042,6 +2073,7 @@ try {
     "updateCampaignStatus",
     "listLeads",
     "createLead",
+    "importLeads",
     "updateLeadContact",
     "updateLeadStatus",
     "updateLeadNotes",
