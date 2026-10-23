@@ -564,4 +564,30 @@ describe("cloud authentication gate", () => {
     expect(mocks.api.createCampaign.mock.calls[0][0].idempotencyKey).toMatch(/^campaign-create-/);
   });
 
+  it("retries uncertain draft creation with the same key and unchanged content", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
+    mocks.api.listLeads.mockResolvedValue({ leads: [{
+      id: "lead-1", campaignId: "campaign-1", businessName: "Synthetic Painting Co", category: "Painters",
+      location: "Manchester", website: "", email: "", phone: "", source: "manual", status: "new",
+      score: 40, scoreReasons: [], notes: "", doNotContact: false, contactRestrictionVerified: true,
+      contactReviewStatus: "cleared", createdAt: null,
+    }] });
+    mocks.api.createOutreachDraft
+      .mockRejectedValueOnce(new Error("Network request timed out"))
+      .mockResolvedValueOnce({ draftId: "draft-retry", leadId: "lead-1", status: "draft", sent: false });
+
+    render(<CloudWorkspace />);
+    const createButton = await screen.findByRole("button", { name: "Create draft" });
+    fireEvent.click(createButton);
+    const retryButton = await screen.findByRole("button", { name: "Retry draft (same request)" });
+    expect(retryButton).toBeTruthy();
+
+    fireEvent.click(retryButton);
+    await waitFor(() => expect(mocks.api.createOutreachDraft).toHaveBeenCalledTimes(2));
+    expect(mocks.api.createOutreachDraft.mock.calls[1][0]).toEqual(mocks.api.createOutreachDraft.mock.calls[0][0]);
+    expect(mocks.api.createOutreachDraft.mock.calls[0][0].idempotencyKey).toMatch(/^outreach-draft-/);
+    expect(mocks.api.createOutreachDraft.mock.calls[0][0].body).toContain("DRAFT ONLY — NOT SENT.");
+  });
+
 });
