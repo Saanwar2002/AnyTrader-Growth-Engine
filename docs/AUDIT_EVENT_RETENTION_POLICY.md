@@ -50,7 +50,8 @@ The trusted backend must construct events. Client code must not be allowed to wr
 - [x] Add emulator smoke assertions proving clients cannot read or write `securityAuditEvents` directly under the deny-by-default Firestore rules.
 - [ ] If tenant-scoped audit retrieval is introduced, add tests proving users cannot read another tenant's events before enabling that access.
 - [x] Emulator smoke test asserts one event for a first import, no extra event for a replay, and one event for a distinct concurrent import key.
-- [ ] Add broader tests proving rejected mutations do not emit success events and do not mutate protected records.
+- [x] Add targeted emulator assertions that malformed/oversized lead creation emits no `lead.created` success event and rejected campaign status changes do not increment `campaign.status_changed`.
+- [ ] Expand rejected-mutation audit assertions across contact edits, suppression changes, notes, and outreach drafts; retain the broader checklist until those paths are covered.
 - [ ] Add paginated, rate-limited, tenant-authorised audit access only if the product requires it.
 - [ ] Decide retention periods with privacy/legal review and configure/test TTL or another deletion mechanism.
 - [ ] Configure production log access, monitoring, backup/recovery, and incident-response procedures.
