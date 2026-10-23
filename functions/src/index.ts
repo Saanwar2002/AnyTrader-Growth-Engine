@@ -94,7 +94,7 @@ const AUDIT_EVENT_RESOURCE_TYPES: Record<SecurityAuditEventType, "organisation" 
 const AUDIT_METADATA_KEYS: Record<SecurityAuditEventType, readonly (keyof SecurityAuditEventMetadata)[]> = {
   "organisation.created": [],
   "lead.csv_import.completed": ["importedCount", "duplicatesSkipped"],
-  "lead.contact_updated": ["contactChannelsChanged", "contactReviewRevision"],
+  "lead.contact_updated": ["contactChannelsChanged", "contactReviewRevision", "contactReviewStatus", "doNotContact"],
   "lead.contact_restriction_changed": ["doNotContact", "contactReviewRevision", "contactReviewStatus"],
   "lead.created": ["leadStatus"],
   "campaign.created": ["campaignStatus"],
