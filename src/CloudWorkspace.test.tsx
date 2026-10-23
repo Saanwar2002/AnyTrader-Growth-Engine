@@ -383,7 +383,7 @@ describe("cloud authentication gate", () => {
     const file = new File([
       "businessName,category\nNorthside Painting,Painters",
     ], "retry-providers.csv", { type: "text/csv" });
-    fireEvent.change(screen.getByLabelText("CSV file"), { target: { files: [file] } });
+    fireEvent.change(screen.getByLabelText(/CSV file/i), { target: { files: [file] } });
     await screen.findByText("Northside Painting");
 
     const campaignSelect = screen.getByLabelText("Import into campaign") as HTMLSelectElement;
