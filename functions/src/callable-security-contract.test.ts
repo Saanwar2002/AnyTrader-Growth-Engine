@@ -462,3 +462,19 @@ it("forces renewed contact review whenever contact channels change and preserves
   expect(body).toContain("contactReviewRevision: nextContactReviewRevision");
   expect(body).toContain("transaction.update(leadRef, { ...fields, ...restrictionUpdate, contactReviewRevision: nextContactReviewRevision");
 });
+
+it("requires a current contact-review revision before clearing lead suppression", () => {
+  const start = callableSource.indexOf("export const setLeadSuppression = onCall(");
+  const nextStart = callableSource.indexOf("export const ", start + 1);
+  const body = callableSource.slice(start, nextStart < 0 ? callableSource.length : nextStart);
+
+  expect(body).toContain("if (typeof data.doNotContact !== \"boolean\")");
+  expect(body).toContain("!data.doNotContact && (typeof data.contactReviewRevision !== \"number\" || !Number.isSafeInteger(data.contactReviewRevision) || data.contactReviewRevision < 0)");
+  expect(body).toContain("await requireTransactionalRole(transaction, organisationId, uid, \"lead\")");
+  expect(body).toContain("const storedRevision = lead.contactReviewRevision");
+  expect(body).toContain("storedRevision !== undefined");
+  expect(body).toContain("data.contactReviewRevision !== currentRevision");
+  expect(body).toContain("Contact details changed after review began. Refresh the lead and review the current contact details before clearing the restriction.");
+  expect(body).toContain("contactReviewStatus: data.doNotContact ? \"blocked\" : \"cleared\"");
+  expect(body).toContain('writeSecurityAuditEvent(transaction, organisationId, uid, "lead.contact_restriction_changed", "lead", leadId');
+});
