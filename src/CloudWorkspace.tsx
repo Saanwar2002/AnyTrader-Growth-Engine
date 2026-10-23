@@ -312,7 +312,7 @@ export default function CloudWorkspace() {
       });
       setNotice(`CSV import complete: ${result.imported} imported, ${result.duplicatesSkipped} duplicates skipped. All imported leads remain suppressed for review; nothing was sent.`);
       setCsvRows([]); setCsvErrors([]); setCsvFilename(""); setCsvIdempotencyKey("");
-      await refreshWorkspace();
+      await refreshWorkspace(organisationId);
     } catch (caught) {
       setError(readableError(caught));
     } finally {
