@@ -363,14 +363,55 @@ export const createCampaign = onCall(async (request) => {
   if (!hasCampaignWritePermission(membership.role)) {
     throw new HttpsError("permission-denied", "Only organisation owners and admins can create campaigns.");
   }
-  const campaign = db.collection("organisations").doc(organisationId).collection("campaigns").doc();
-  await db.runTransaction(async (transaction: Transaction) => {
+  const idempotencyKey = data.idempotencyKey;
+  if (typeof idempotencyKey !== "string" || !/^[A-Za-z0-9._:-]{16,128}$/.test(idempotencyKey)) {
+    throw new HttpsError("invalid-argument", "idempotencyKey must be 16-128 safe characters.");
+  }
+  const requestHash = createHash("sha256")
+    .update(JSON.stringify({ organisationId, name, category, location, brand, goal }))
+    .digest("hex");
+  const organisationRef = db.collection("organisations").doc(organisationId);
+  const campaign = organisationRef.collection("campaigns").doc();
+  const idempotencyDocumentId = createHash("sha256")
+    .update(JSON.stringify([organisationId, uid, idempotencyKey]))
+    .digest("hex");
+  const idempotencyRef = organisationRef.collection("campaignCreationIdempotency").doc(idempotencyDocumentId);
+  const result = {
+    campaignId: campaign.id,
+    organisationId,
+    name,
+    category,
+    location,
+    brand,
+    goal,
+    status: "active" as const,
+  };
+
+  return db.runTransaction(async (transaction: Transaction) => {
+    const idempotencySnapshot = await transaction.get(idempotencyRef);
     await requireTransactionalRole(transaction, organisationId, uid, "campaign");
+    if (idempotencySnapshot.exists) {
+      const saved = idempotencySnapshot.data() ?? {};
+      if (saved.requestHash !== requestHash || !saved.result || typeof saved.result !== "object") {
+        throw new HttpsError("already-exists", "This idempotencyKey was already used with a different campaign payload.");
+      }
+      return saved.result as typeof result;
+    }
+
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "createCampaign", 150);
-    transaction.create(campaign, { name, category, location, brand, goal, status: "active", createdBy: uid, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
+    transaction.create(campaign, {
+      name, category, location, brand, goal, status: "active", createdBy: uid,
+      createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
+    });
+    transaction.create(idempotencyRef, {
+      requestHash,
+      result,
+      actorUid: uid,
+      createdAt: FieldValue.serverTimestamp(),
+    });
     writeSecurityAuditEvent(transaction, organisationId, uid, "campaign.created", "campaign", campaign.id, { campaignStatus: "active" });
+    return result;
   });
-  return { campaignId: campaign.id, organisationId, name, category, location, brand, goal, status: "active" as const };
 });
 
 export const listCampaigns = onCall(async (request) => {
