@@ -376,7 +376,18 @@ describe("cloud authentication gate", () => {
         { id: "campaign-2", name: "Decorator pilot", brand: "AnyTrader", category: "Decorators", location: "Salford", goal: "Recruit providers", status: "active", createdAt: null },
       ],
     });
-    mocks.api.importLeads.mockRejectedValueOnce(new Error("Network request timed out"));
+    mocks.api.importLeads
+      .mockRejectedValueOnce(new Error("Network request timed out"))
+      .mockResolvedValueOnce({
+        organisationId: "org-1",
+        campaignId: "campaign-1",
+        received: 1,
+        imported: 1,
+        duplicatesSkipped: 0,
+        leads: [{ leadId: "lead-csv-retry-1", businessName: "Northside Painting" }],
+        sent: false,
+        messageSentByThisAction: false,
+      });
 
     render(<CloudWorkspace />);
     await screen.findByRole("heading", { name: "Provider acquisition workspace" });
