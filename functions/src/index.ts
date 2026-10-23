@@ -332,18 +332,57 @@ export const listMyOrganisations = onCall(async (request) => {
 
 export const createOrganisation = onCall(async (request) => {
   const uid = requireUid(request.auth?.uid);
-  const name = normaliseRequiredText((request.data as { name?: unknown } | undefined)?.name, 100);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const name = normaliseRequiredText(data.name, 100);
   if (!name) throw new HttpsError("invalid-argument", "Organisation name must be 1–100 characters.");
+  const idempotencyKey = data.idempotencyKey;
+  if (typeof idempotencyKey !== "string" || !/^[A-Za-z0-9._:-]{16,128}$/.test(idempotencyKey)) {
+    throw new HttpsError("invalid-argument", "idempotencyKey must be 16-128 safe characters.");
+  }
 
+  const requestHash = createHash("sha256").update(JSON.stringify({ name })).digest("hex");
+  const idempotencyDocumentId = createHash("sha256").update(JSON.stringify([uid, idempotencyKey])).digest("hex");
+  const idempotencyRef = db.collection("organisationCreationIdempotency").doc(idempotencyDocumentId);
   const organisation = db.collection("organisations").doc();
   const membership = organisation.collection("members").doc(uid);
-  await db.runTransaction(async (transaction: Transaction) => {
+  const result = { organisationId: organisation.id, name, role: "owner" as const };
+
+  return db.runTransaction(async (transaction: Transaction) => {
+    const idempotencySnapshot = await transaction.get(idempotencyRef);
+    if (idempotencySnapshot.exists) {
+      const saved = idempotencySnapshot.data() ?? {};
+      if (saved.requestHash !== requestHash || !saved.result || typeof saved.result !== "object") {
+        throw new HttpsError("already-exists", "This idempotencyKey was already used with a different organisation payload.");
+      }
+      const savedResult = saved.result as Record<string, unknown>;
+      if (!isValidOrganisationId(savedResult.organisationId) || savedResult.name !== name || savedResult.role !== "owner") {
+        throw new HttpsError("failed-precondition", "Saved organisation retry state is invalid and requires operator review.");
+      }
+      const savedOrganisationRef = db.collection("organisations").doc(savedResult.organisationId);
+      const savedMembershipRef = savedOrganisationRef.collection("members").doc(uid);
+      const [savedOrganisation, savedMembership] = await Promise.all([
+        transaction.get(savedOrganisationRef),
+        transaction.get(savedMembershipRef),
+      ]);
+      if (!savedOrganisation.exists || savedOrganisation.data()?.ownerUid !== uid
+        || !savedMembership.exists || savedMembership.data()?.uid !== uid || savedMembership.data()?.role !== "owner") {
+        throw new HttpsError("failed-precondition", "The organisation created by this request is no longer available to its original owner.");
+      }
+      return savedResult as { organisationId: string; name: string; role: "owner" };
+    }
+
     await consumeTransactionalRateLimit(transaction, "global", uid, "createOrganisation", 5, 60 * 60_000);
     transaction.create(organisation, { name, ownerUid: uid, createdAt: FieldValue.serverTimestamp() });
     transaction.create(membership, { uid, role: "owner", createdAt: FieldValue.serverTimestamp() });
+    transaction.create(idempotencyRef, {
+      requestHash,
+      result,
+      actorUid: uid,
+      createdAt: FieldValue.serverTimestamp(),
+    });
     writeSecurityAuditEvent(transaction, organisation.id, uid, "organisation.created", "organisation", organisation.id, {});
+    return result;
   });
-  return { organisationId: organisation.id, name, role: "owner" as const };
 });
 
 export const createCampaign = onCall(async (request) => {
