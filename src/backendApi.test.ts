@@ -11,6 +11,23 @@ function makeInvoker(responses: unknown[] = []) {
 }
 
 describe("typed backend API boundary", () => {
+  it("passes the stable idempotency key for campaign creation", async () => {
+    const response = { campaignId: "campaign-1", organisationId: "org-1", status: "active" as const };
+    const { invoke, calls } = makeInvoker([response]);
+    const api = createGrowthEngineApi(invoke);
+    const payload = {
+      organisationId: "org-1",
+      idempotencyKey: "campaign-create-key-0001",
+      name: "Provider pilot",
+      brand: "AnyTrader",
+      category: "Painters",
+      location: "Leeds",
+      goal: "Recruit providers",
+    };
+    await expect(api.createCampaign(payload)).resolves.toEqual(response);
+    expect(calls).toEqual([{ name: "createCampaign", payload }]);
+  });
+
   it("requests only the signed-in user's organisations without accepting a client UID", async () => {
     const response = { organisations: [{ organisationId: "org-1", name: "Example", role: "owner" }] };
     const { invoke, calls } = makeInvoker([response]);
