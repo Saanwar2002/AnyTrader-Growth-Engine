@@ -365,6 +365,44 @@ describe("cloud authentication gate", () => {
     expect(screen.getByText(/nothing was sent/i)).toBeTruthy();
   });
 
+  it("keeps a CSV retry bound to the original campaign and idempotency key after an uncertain failure", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+    });
+    mocks.api.listCampaigns.mockResolvedValue({
+      campaigns: [
+        { id: "campaign-1", name: "Painter pilot", brand: "AnyTrader", category: "Painters", location: "Manchester", goal: "Recruit providers", status: "active", createdAt: null },
+        { id: "campaign-2", name: "Decorator pilot", brand: "AnyTrader", category: "Decorators", location: "Salford", goal: "Recruit providers", status: "active", createdAt: null },
+      ],
+    });
+    mocks.api.importLeads.mockRejectedValueOnce(new Error("Network request timed out"));
+
+    render(<CloudWorkspace />);
+    await screen.findByRole("heading", { name: "Provider acquisition workspace" });
+    const file = new File([
+      "businessName,category\nNorthside Painting,Painters",
+    ], "retry-providers.csv", { type: "text/csv" });
+    fireEvent.change(screen.getByLabelText("CSV file"), { target: { files: [file] } });
+    await screen.findByText("Northside Painting");
+
+    const campaignSelect = screen.getByLabelText("Import into campaign") as HTMLSelectElement;
+    expect(campaignSelect.value).toBe("campaign-1");
+    const importButton = screen.getByRole("button", { name: "Import 1 reviewed row" });
+    fireEvent.click(importButton);
+    await screen.findByText("Network request timed out");
+    const firstPayload = mocks.api.importLeads.mock.calls[0][0];
+
+    expect(campaignSelect.disabled).toBe(true);
+    fireEvent.click(importButton);
+    await waitFor(() => expect(mocks.api.importLeads).toHaveBeenCalledTimes(2));
+    const retryPayload = mocks.api.importLeads.mock.calls[1][0];
+    expect(retryPayload.campaignId).toBe(firstPayload.campaignId);
+    expect(retryPayload.idempotencyKey).toBe(firstPayload.idempotencyKey);
+    expect(retryPayload.leads).toEqual(firstPayload.leads);
+    expect(await screen.findByText(/1 imported, 0 duplicates skipped/i)).toBeTruthy();
+  });
+
   it("filters the lead directory by business details and status", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({
