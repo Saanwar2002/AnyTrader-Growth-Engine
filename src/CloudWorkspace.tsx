@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { createUserWithEmailAndPassword, GoogleAuthProvider, onAuthStateChanged, signInWithEmailAndPassword, signInWithPopup, signOut, type User } from "firebase/auth";
 import { createFirebaseCallableInvoker, createGrowthEngineApi, type CampaignSummary, type LeadSummary, type OrganisationSummary, type OutreachDraftSummary, type ServerLeadStatus } from "./backendApi";
 import { firebaseClient } from "./firebaseClient";
-import { getContactRestrictionAction } from "./domain";
+import { getContactRestrictionAction, parseLeadCsv } from "./domain";
 import "./cloudWorkspace.css";
 
 const leadStatuses: ServerLeadStatus[] = ["new", "reviewing", "qualified", "contacted", "onboarded", "rejected"];
@@ -52,6 +52,12 @@ export default function CloudWorkspace() {
   const [leadWebsite, setLeadWebsite] = useState("");
   const [leadEmail, setLeadEmail] = useState("");
   const [leadPhone, setLeadPhone] = useState("");
+  const [csvCampaignId, setCsvCampaignId] = useState("");
+  const [csvFilename, setCsvFilename] = useState("");
+  const [csvRows, setCsvRows] = useState<Array<Record<string, string>>>([]);
+  const [csvErrors, setCsvErrors] = useState<string[]>([]);
+  const [csvIdempotencyKey, setCsvIdempotencyKey] = useState("");
+  const [csvImportBusy, setCsvImportBusy] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -264,6 +270,56 @@ export default function CloudWorkspace() {
     }, "Draft updated. Nothing was sent.");
   }
 
+  async function previewLeadCsv(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    setCsvRows([]); setCsvErrors([]); setCsvFilename(""); setCsvIdempotencyKey("");
+    if (!file) return;
+    if (file.size > 1024 * 1024) { setCsvErrors(["CSV file must be 1 MB or smaller."]); return; }
+    if (!file.name.toLowerCase().endsWith(".csv") && file.type !== "text/csv") { setCsvErrors(["Choose a .csv file."]); return; }
+    try {
+      const parsed = parseLeadCsv(await file.text());
+      setCsvFilename(file.name);
+      setCsvErrors(parsed.errors);
+      if (parsed.rows.length > 25) {
+        setCsvRows([]);
+        setCsvErrors([...parsed.errors, `This file has ${parsed.rows.length} valid rows. Import is limited to 25 rows at a time; split the file and upload a smaller CSV.`]);
+        return;
+      }
+      const rows = parsed.rows.filter((row) => row.businessname?.trim());
+      setCsvRows(rows);
+      if (rows.length > 0) {
+        const key = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+          ? crypto.randomUUID()
+          : `csv-${Date.now()}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+        setCsvIdempotencyKey(key);
+      }
+    } catch {
+      setCsvErrors(["The CSV could not be read. Please choose a valid text CSV file."]);
+    }
+  }
+
+  async function importReviewedCsv() {
+    if (!api || !organisationId || !csvCampaignId || !csvIdempotencyKey || csvRows.length < 1 || csvRows.length > 25 || csvImportBusy) return;
+    setCsvImportBusy(true); setError(""); setNotice("");
+    try {
+      const result = await api.importLeads({
+        organisationId, campaignId: csvCampaignId, idempotencyKey: csvIdempotencyKey,
+        leads: csvRows.map((row) => ({
+          businessName: row.businessname.trim(), category: row.category?.trim() ?? "",
+          location: row.location?.trim() ?? "", website: row.website?.trim() ?? "",
+          email: row.email?.trim() ?? "", phone: row.phone?.trim() ?? "",
+        })),
+      });
+      setNotice(`CSV import complete: ${result.imported} imported, ${result.duplicatesSkipped} duplicates skipped. All imported leads remain suppressed for review; nothing was sent.`);
+      setCsvRows([]); setCsvErrors([]); setCsvFilename(""); setCsvIdempotencyKey("");
+      await refreshWorkspace();
+    } catch (caught) {
+      setError(readableError(caught));
+    } finally {
+      setCsvImportBusy(false);
+    }
+  }
+
   async function createLead(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!api || !organisationId || !leadCampaignId) return;
@@ -285,6 +341,7 @@ export default function CloudWorkspace() {
       <form className="cloud-inline-form" onSubmit={(event) => void createOrganisation(event)}><label className="cloud-field">{organisations.length ? "Create another organisation" : "Organisation name"}<input required maxLength={100} value={organisationName} onChange={(event) => setOrganisationName(event.target.value)} placeholder="e.g. AnyTrader pilot" /></label><button className="cloud-primary" disabled={busy || !organisationName.trim()}>{busy ? "Saving…" : "Create organisation"}</button></form></section>
     {selectedOrganisation && <><section className="cloud-columns"><article className="cloud-card"><div className="cloud-section-head"><div><p className="cloud-eyebrow">CAMPAIGNS</p><h2>Campaign setup</h2></div><span className="cloud-count">{campaigns.length}</span></div><form className="cloud-form" onSubmit={(event) => void createCampaign(event)}><label>Campaign name<input required maxLength={120} value={campaignName} onChange={(event) => setCampaignName(event.target.value)} placeholder="Manchester painter pilot" /></label><label>Brand<input required maxLength={100} value={campaignBrand} onChange={(event) => setCampaignBrand(event.target.value)} /></label><label>Service category<input required maxLength={100} value={campaignCategory} onChange={(event) => setCampaignCategory(event.target.value)} /></label><label>Target location<input required maxLength={160} value={campaignLocation} onChange={(event) => setCampaignLocation(event.target.value)} /></label><label>Goal<input maxLength={500} value={campaignGoal} onChange={(event) => setCampaignGoal(event.target.value)} /></label><button className="cloud-primary" disabled={busy}>{busy ? "Saving…" : "Create campaign"}</button></form><div className="cloud-list">{campaigns.map((campaign) => <div className="cloud-list-item" key={campaign.id}><div><strong>{campaign.name}</strong><small>{campaign.category} · {campaign.location}</small></div><span className="cloud-status">{statusLabel(campaign.status)}</span></div>)}{!campaigns.length && <p className="cloud-empty">No campaigns yet.</p>}</div>{hasMoreCampaigns && <div className="cloud-pagination"><button className="cloud-secondary" type="button" disabled={loadingMoreCampaigns} onClick={() => void loadMoreCampaigns()}>{loadingMoreCampaigns ? "Loading campaigns…" : "Load more campaigns"}</button></div>}</article>
       <article className="cloud-card"><div className="cloud-section-head"><div><p className="cloud-eyebrow">LEADS</p><h2>Add a provider lead</h2></div><span className="cloud-count">{leads.length}</span></div>{campaigns.length ? <form className="cloud-form" onSubmit={(event) => void createLead(event)}><label>Campaign<select required value={leadCampaignId} onChange={(event) => setLeadCampaignId(event.target.value)}>{campaigns.map((campaign) => <option key={campaign.id} value={campaign.id}>{campaign.name}</option>)}</select></label><label>Business name<input required maxLength={160} value={leadName} onChange={(event) => setLeadName(event.target.value)} /></label><label>Service category<input maxLength={100} value={leadCategory} onChange={(event) => setLeadCategory(event.target.value)} /></label><label>Location<input maxLength={160} value={leadLocation} onChange={(event) => setLeadLocation(event.target.value)} /></label><label>Website<input type="url" maxLength={500} value={leadWebsite} onChange={(event) => setLeadWebsite(event.target.value)} placeholder="https://…" /></label><label>Email<input type="email" maxLength={254} value={leadEmail} onChange={(event) => setLeadEmail(event.target.value)} /></label><label>Phone<input maxLength={80} value={leadPhone} onChange={(event) => setLeadPhone(event.target.value)} /></label><button className="cloud-primary" disabled={busy || !leadCampaignId}>{busy ? "Saving…" : "Save lead"}</button></form> : <p className="cloud-empty">Create a campaign before adding leads.</p>}</article></section>
+      <section className="cloud-card"><div className="cloud-section-head"><div><p className="cloud-eyebrow">CSV IMPORT</p><h2>Import provider leads</h2><p className="cloud-muted">Choose a CSV, review the parsed rows and warnings, then explicitly confirm import. Files are not uploaded automatically. Imports are capped at 25 rows and imported leads remain suppressed for human review.</p></div></div>{campaigns.length ? <div className="cloud-form"><label>Import into campaign<select required value={csvCampaignId} onChange={(event) => setCsvCampaignId(event.target.value)}><option value="">Choose a campaign</option>{campaigns.map((campaign) => <option key={campaign.id} value={campaign.id}>{campaign.name}</option>)}</select></label><label>CSV file<input type="file" accept=".csv,text/csv" onChange={(event) => void previewLeadCsv(event)} /></label></div> : <p className="cloud-empty">Create a campaign before importing leads.</p>}{csvFilename && <p className="cloud-muted">Selected file: {csvFilename}. {csvRows.length} valid row(s) ready to review.</p>}{csvErrors.length > 0 && <ul className="cloud-warning-list" aria-label="CSV import warnings">{csvErrors.map((message, index) => <li key={`${index}-${message}`}>{message}</li>)}</ul>}{csvRows.length > 0 && <><div className="cloud-table-wrap"><table className="cloud-table"><caption>Preview — no records have been imported yet</caption><thead><tr><th>Business</th><th>Category</th><th>Location</th><th>Email</th><th>Phone</th></tr></thead><tbody>{csvRows.slice(0, 10).map((row, index) => <tr key={`${row.businessname}-${index}`}><td>{row.businessname}</td><td>{row.category || "—"}</td><td>{row.location || "—"}</td><td>{row.email || "—"}</td><td>{row.phone || "—"}</td></tr>)}</tbody></table></div>{csvRows.length > 10 && <p className="cloud-muted">Showing first 10 of {csvRows.length} rows.</p>}<button className="cloud-primary" type="button" disabled={busy || csvImportBusy || !csvCampaignId || !csvIdempotencyKey} onClick={() => void importReviewedCsv()}>{csvImportBusy ? "Importing reviewed rows…" : `Import ${csvRows.length} reviewed row${csvRows.length === 1 ? "" : "s"}`}</button><p className="cloud-footnote">Confirm only if you have permission to store these business details. Importing does not verify consent or authorise outreach.</p></>}</section>
       <section className="cloud-card"><div className="cloud-section-head"><div><p className="cloud-eyebrow">REVIEW AND SUPPRESSION</p><h2>Lead directory</h2><p className="cloud-muted">Clearing this internal review gate does not prove consent or establish a lawful basis for outreach. Check permission and applicable rules separately; all outreach remains draft-only.</p></div>{hasMoreLeads && <button className="cloud-secondary" type="button" disabled={loadingMoreLeads} onClick={() => void loadMoreLeads()}>{loadingMoreLeads ? "Loading leads…" : "Load more leads"}</button>}</div><div className="cloud-table-wrap"><table className="cloud-table"><thead><tr><th>Business</th><th>Status</th><th>Contact restriction</th><th>Actions</th></tr></thead><tbody>{leads.map((lead) => <tr key={lead.id}><td><strong>{lead.businessName}</strong><small>{lead.category} · {lead.location}</small><label className="cloud-note-label">Internal notes<textarea aria-label={`Notes for ${lead.businessName}`} maxLength={4000} rows={2} value={leadNotes[lead.id] ?? ""} disabled={busy} onChange={(event) => setLeadNotes((current) => ({ ...current, [lead.id]: event.target.value }))} /></label><button className="cloud-link" disabled={busy || (leadNotes[lead.id] ?? "") === (lead.notes ?? "")} onClick={() => void runAction(() => api.updateLeadNotes({ organisationId, leadId: lead.id, notes: leadNotes[lead.id] ?? "" }), "Internal notes saved.")}>Save notes</button></td><td><select aria-label={`Status for ${lead.businessName}`} value={lead.status} disabled={busy} onChange={(event) => void runAction(() => api.updateLeadStatus({ organisationId, leadId: lead.id, status: event.target.value as ServerLeadStatus }), "Lead status updated.")}>{leadStatuses.map((status) => <option key={status} value={status}>{statusLabel(status)}</option>)}</select></td><td>{lead.contactReviewStatus === "pending" ? <span className="cloud-suppressed">PENDING REVIEW</span> : lead.doNotContact ? <span className="cloud-suppressed">DO NOT CONTACT</span> : lead.contactRestrictionVerified ? <span className="cloud-contactable">Contact review cleared</span> : <span className="cloud-suppressed">REVIEW RESTRICTION</span>}<button className="cloud-link" disabled={busy || (getContactRestrictionAction(lead.doNotContact, lead.contactReviewStatus) === "clear" && !canClearContactRestriction)} onClick={() => {
           const action = getContactRestrictionAction(lead.doNotContact, lead.contactReviewStatus);
           void runAction(() => api.setLeadSuppression({ organisationId, leadId: lead.id, doNotContact: action === "suppress", ...(action === "clear" ? { contactReviewRevision: lead.contactReviewRevision } : {}) }), action === "clear" ? "Restriction review/clear requested." : "Lead suppressed.");
