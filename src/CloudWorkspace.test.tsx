@@ -341,6 +341,7 @@ describe("cloud authentication gate", () => {
 
     render(<CloudWorkspace />);
     await screen.findByRole("heading", { name: "Provider acquisition workspace" });
+    await screen.findAllByText("Painter pilot");
     const file = new File([
       "businessName,category,location,email,phone\\nNorthside Painting,Painters,Manchester,hello@northside.example,01610000001\\nCity Decorators,Decorators,Salford,team@citydecorators.example,01610000002",
     ], "providers.csv", { type: "text/csv" });
