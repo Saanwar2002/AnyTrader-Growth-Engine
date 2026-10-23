@@ -66,6 +66,21 @@ try {
     "organisation.created",
     "1",
   ], { stdio: "inherit" });
+  const concurrentOrgPayload = { name: "Tenant Concurrent", idempotencyKey: "organisation-create-concurrent-0001" };
+  const concurrentOrgResults = await Promise.all([
+    callOne("createOrganisation", concurrentOrgPayload),
+    callOne("createOrganisation", concurrentOrgPayload),
+  ]);
+  assert.equal(concurrentOrgResults[0].organisationId, concurrentOrgResults[1].organisationId,
+    "concurrent organisation retries return the same organisation ID");
+  assert.equal((await callOne("listMyOrganisations")).organisations.filter((item) => item.name === "Tenant Concurrent").length, 1,
+    "concurrent organisation retries persist one organisation");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    concurrentOrgResults[0].organisationId,
+    "organisation.created",
+    "1",
+  ], { stdio: "inherit" });
   async function currentContactReviewRevision(leadId) {
     const result = await callOne("listLeads", { organisationId: orgOne.organisationId });
     const lead = result.leads.find((item) => item.id === leadId);
@@ -102,6 +117,22 @@ try {
   assert.deepEqual(campaignOneReplay, campaignOne, "campaign creation retry returns the original result");
   await expectCallableFailure(callOne("createCampaign", { ...campaignOnePayload, name: "Changed campaign payload" }), "functions/already-exists", "campaign creation rejects key reuse with a different payload");
   assert.equal((await callOne("listCampaigns", { organisationId: orgOne.organisationId })).campaigns.filter((campaign) => campaign.name === "Painter pilot").length, 1, "campaign retry persists exactly one campaign");
+  const concurrentCampaignPayload = { organisationId: orgOne.organisationId, idempotencyKey: "campaign-create-concurrent-0001", name: "Concurrent Painter Pilot", brand: "Example", category: "Painters", location: "Leeds", goal: "Recruit providers" };
+  const concurrentCampaignResults = await Promise.all([
+    callOne("createCampaign", concurrentCampaignPayload),
+    callOne("createCampaign", concurrentCampaignPayload),
+  ]);
+  assert.equal(concurrentCampaignResults[0].campaignId, concurrentCampaignResults[1].campaignId,
+    "concurrent campaign retries return the same campaign ID");
+  assert.equal((await callOne("listCampaigns", { organisationId: orgOne.organisationId })).campaigns.filter((campaign) => campaign.name === "Concurrent Painter Pilot").length, 1,
+    "concurrent campaign retries persist one campaign");
+  assert.equal(currentQuotaCount("createCampaign"), 2, "campaign replays and concurrent retries consume quota only for distinct successful creations");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "campaign.created",
+    "2",
+  ], { stdio: "inherit" });
   const pausedCampaign = await callOne("updateCampaignStatus", {
     organisationId: orgOne.organisationId,
     campaignId: campaignOne.campaignId,
