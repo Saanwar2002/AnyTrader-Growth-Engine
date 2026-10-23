@@ -644,26 +644,91 @@ export const createLead = onCall(async (request) => {
   const data = (request.data ?? {}) as Record<string, unknown>;
   const organisationId = requireOrganisationId(data.organisationId);
   const campaignId = requireDocumentId(data.campaignId, "campaignId");
+  const idempotencyKey = data.idempotencyKey;
+  if (typeof idempotencyKey !== "string" || !/^[A-Za-z0-9._:-]{16,128}$/.test(idempotencyKey)) {
+    throw new HttpsError("invalid-argument", "idempotencyKey must be 16-128 safe characters.");
+  }
   await requireLeadEditor(organisationId, uid);
   const fields = normaliseLeadFields(data);
-  const campaignRef = db.collection("organisations").doc(organisationId).collection("campaigns").doc(campaignId);
-
+  const requestHash = createHash("sha256")
+    .update(JSON.stringify({ organisationId, campaignId, fields }))
+    .digest("hex");
+  const organisationRef = db.collection("organisations").doc(organisationId);
+  const campaignRef = organisationRef.collection("campaigns").doc(campaignId);
+  const idempotencyDocumentId = createHash("sha256")
+    .update(JSON.stringify([organisationId, uid, idempotencyKey]))
+    .digest("hex");
+  const idempotencyRef = organisationRef.collection("leadCreationIdempotency").doc(idempotencyDocumentId);
   const completeness = calculateLeadCompleteness(fields);
-  const lead = db.collection("organisations").doc(organisationId).collection("leads").doc();
-  const activity = db.collection("organisations").doc(organisationId).collection("leadActivities").doc();
-  const now = FieldValue.serverTimestamp();
-  await db.runTransaction(async (transaction: Transaction) => {
+
+  return db.runTransaction(async (transaction: Transaction) => {
+    // The organisation/user-scoped key serializes concurrent retries. A replay
+    // returns the committed response before consuming quota or writing activity.
+    const idempotencySnapshot = await transaction.get(idempotencyRef);
     await requireTransactionalRole(transaction, organisationId, uid, "lead");
+    if (idempotencySnapshot.exists) {
+      const saved = idempotencySnapshot.data() ?? {};
+      if (saved.requestHash !== requestHash || !saved.result || typeof saved.result !== "object") {
+        throw new HttpsError("already-exists", "This idempotencyKey was already used with a different lead payload.");
+      }
+      return saved.result as {
+        leadId: string;
+        organisationId: string;
+        campaignId: string;
+        businessName: string;
+        category: string;
+        location: string;
+        website: string;
+        email: string;
+        phone: string;
+        status: "new";
+        source: "manual";
+        score: number;
+        scoreReasons: string[];
+        doNotContact: true;
+        contactReviewStatus: "pending";
+        contactReviewRevision: 0;
+      };
+    }
+
     // Check campaign existence in the same transaction as lead creation so a
     // stale/deleted campaign cannot race past the precondition.
     const campaignSnapshot = await transaction.get(campaignRef);
     if (!campaignSnapshot.exists) throw new HttpsError("not-found", "Campaign was not found in this organisation.");
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "createLead", 200);
-    transaction.create(lead, { ...fields, campaignId, status: "new", source: "manual", score: completeness.score, scoreReasons: completeness.reasons, notes: "", doNotContact: true, contactReviewStatus: "pending", contactReviewRevision: 0, createdBy: uid, createdAt: now, updatedAt: now });
+
+    const lead = organisationRef.collection("leads").doc();
+    const activity = organisationRef.collection("leadActivities").doc();
+    const now = FieldValue.serverTimestamp();
+    const result = {
+      leadId: lead.id,
+      organisationId,
+      campaignId,
+      ...fields,
+      status: "new" as const,
+      source: "manual" as const,
+      score: completeness.score,
+      scoreReasons: completeness.reasons,
+      doNotContact: true as const,
+      contactReviewStatus: "pending" as const,
+      contactReviewRevision: 0 as const,
+    };
+    transaction.create(lead, {
+      ...fields, campaignId, status: "new", source: "manual", score: completeness.score,
+      scoreReasons: completeness.reasons, notes: "", doNotContact: true,
+      contactReviewStatus: "pending", contactReviewRevision: 0, createdBy: uid,
+      createdAt: now, updatedAt: now,
+    });
     transaction.create(activity, { leadId: lead.id, actorUid: uid, message: `Lead created: ${fields.businessName}`, createdAt: now });
+    transaction.create(idempotencyRef, {
+      requestHash,
+      result,
+      actorUid: uid,
+      createdAt: FieldValue.serverTimestamp(),
+    });
     writeSecurityAuditEvent(transaction, organisationId, uid, "lead.created", "lead", lead.id, { leadStatus: "new" });
+    return result;
   });
-  return { leadId: lead.id, organisationId, campaignId, ...fields, status: "new" as const, source: "manual" as const, score: completeness.score, scoreReasons: completeness.reasons, doNotContact: true, contactReviewStatus: "pending" as const, contactReviewRevision: 0 };
 });
 
 export const updateLeadContact = onCall(async (request) => {
