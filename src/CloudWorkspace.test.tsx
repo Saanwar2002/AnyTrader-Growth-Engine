@@ -395,7 +395,7 @@ describe("cloud authentication gate", () => {
     expect(await screen.findByText("Northside Painting")).toBeTruthy();
     expect(screen.getByText("City Decorators")).toBeTruthy();
     expect(screen.getByText("Showing 2 of 2 loaded leads.")).toBeTruthy();
-    expect(screen.getByLabelText("Search leads")).toHaveAttribute("placeholder", "Business, category, location, website, email, or phone");
+    expect(screen.getByLabelText("Search leads").getAttribute("placeholder")).toBe("Business, category, location, website, email, or phone");
 
     fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: "northside.example" } });
     expect(screen.getByText("Northside Painting")).toBeTruthy();
