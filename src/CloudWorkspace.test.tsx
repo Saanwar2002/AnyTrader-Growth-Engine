@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
   currentUser: null as unknown,
   api: {
     listMyOrganisations: vi.fn(), createOrganisation: vi.fn(), createCampaign: vi.fn(), updateCampaignStatus: vi.fn(),
-    listCampaigns: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(),
+    listCampaigns: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), importLeads: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(),
     updateLeadNotes: vi.fn(), setLeadSuppression: vi.fn(), createOutreachDraft: vi.fn(), listOutreachDrafts: vi.fn(),
     updateOutreachDraft: vi.fn(), deleteOutreachDraft: vi.fn(),
   },
@@ -44,6 +44,7 @@ beforeEach(() => {
   mocks.api.createOrganisation.mockResolvedValue({ organisationId: "org-new", name: "New Org", role: "owner" });
   mocks.api.createCampaign.mockResolvedValue({ campaignId: "campaign-new", status: "active" });
   mocks.api.createLead.mockResolvedValue({ leadId: "lead-new", status: "new" });
+  mocks.api.importLeads.mockResolvedValue({ organisationId: "org-1", campaignId: "campaign-1", received: 2, imported: 2, duplicatesSkipped: 0, leads: [{ leadId: "lead-csv-1", businessName: "Northside Painting" }, { leadId: "lead-csv-2", businessName: "City Decorators" }], sent: false, messageSentByThisAction: false });
   mocks.api.setLeadSuppression.mockResolvedValue({ leadId: "lead-1", doNotContact: true });
   mocks.api.createOutreachDraft.mockResolvedValue({ draftId: "draft-new", leadId: "lead-1", status: "draft", sent: false });
 });
@@ -325,6 +326,42 @@ describe("cloud authentication gate", () => {
     expect(screen.getByText("First Workspace · owner")).toBeTruthy();
     await waitFor(() => expect(mocks.api.listMyOrganisations).toHaveBeenCalledWith("organisations/org-2/members/user-1"));
     expect(screen.queryByRole("button", { name: "Load more organisations" })).toBeNull();
+  });
+
+  it("previews a CSV and imports only after explicit confirmation", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    mocks.api.listCampaigns.mockResolvedValue({
+      campaigns: [{ id: "campaign-1", name: "Painter pilot", brand: "AnyTrader", category: "Painters", location: "Manchester", goal: "Recruit providers", status: "active", createdAt: null }],
+      hasMoreCampaigns: false,
+    });
+
+    render(<CloudWorkspace />);
+    await screen.findByRole("heading", { name: "Provider acquisition workspace" });
+    const file = new File([
+      "businessName,category,location,email,phone\\nNorthside Painting,Painters,Manchester,hello@northside.example,01610000001\\nCity Decorators,Decorators,Salford,team@citydecorators.example,01610000002",
+    ], "providers.csv", { type: "text/csv" });
+    fireEvent.change(screen.getByLabelText("CSV file"), { target: { files: [file] } });
+
+    expect(await screen.findByText("Northside Painting")).toBeTruthy();
+    expect(screen.getByText("Preview — no records have been imported yet")).toBeTruthy();
+    expect(mocks.api.importLeads).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Import 2 reviewed rows" }));
+    await waitFor(() => expect(mocks.api.importLeads).toHaveBeenCalledTimes(1));
+    const payload = mocks.api.importLeads.mock.calls[0][0];
+    expect(payload.organisationId).toBe("org-1");
+    expect(payload.campaignId).toBe("campaign-1");
+    expect(payload.idempotencyKey.length).toBeGreaterThanOrEqual(16);
+    expect(payload.leads).toEqual([
+      { businessName: "Northside Painting", category: "Painters", location: "Manchester", website: "", email: "hello@northside.example", phone: "01610000001" },
+      { businessName: "City Decorators", category: "Decorators", location: "Salford", website: "", email: "team@citydecorators.example", phone: "01610000002" },
+    ]);
+    expect(await screen.findByText(/2 imported, 0 duplicates skipped/i)).toBeTruthy();
+    expect(screen.getByText(/nothing was sent/i)).toBeTruthy();
   });
 
   it("offers account creation without weakening the required password length", () => {
