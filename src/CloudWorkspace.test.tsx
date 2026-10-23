@@ -524,4 +524,44 @@ describe("cloud authentication gate", () => {
     expect(screen.getByRole("heading", { name: "Create your account" })).toBeTruthy();
     expect((screen.getByLabelText("Password") as HTMLInputElement).minLength).toBe(6);
   });
+
+  it("retries uncertain organisation creation with the same key and unchanged name", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.createOrganisation.mockRejectedValueOnce(new Error("temporary network failure"));
+    render(<CloudWorkspace />);
+    await screen.findByRole("heading", { name: "Provider acquisition workspace" });
+
+    const nameInput = screen.getByPlaceholderText("e.g. AnyTrader pilot");
+    fireEvent.change(nameInput, { target: { value: "Retry-safe workspace" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create organisation" }));
+    await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("temporary network failure"));
+    expect((nameInput as HTMLInputElement).disabled).toBe(true);
+
+    fireEvent.click(screen.getByRole("button", { name: "Retry save (same request)" }));
+    await waitFor(() => expect(mocks.api.createOrganisation).toHaveBeenCalledTimes(2));
+    expect(mocks.api.createOrganisation.mock.calls[1][0]).toEqual(mocks.api.createOrganisation.mock.calls[0][0]);
+    expect(mocks.api.createOrganisation.mock.calls[0][0].idempotencyKey).toMatch(/^organisation-create-/);
+  });
+
+  it("retries uncertain campaign creation with the same key and unchanged campaign fields", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    mocks.api.createCampaign.mockRejectedValueOnce(new Error("temporary network failure"));
+    render(<CloudWorkspace />);
+    await screen.findByRole("heading", { name: "Provider acquisition workspace" });
+
+    fireEvent.change(screen.getByLabelText("Campaign name"), { target: { value: "Retry-safe campaign" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create campaign" }));
+    await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("temporary network failure"));
+    expect((screen.getByLabelText("Campaign name") as HTMLInputElement).disabled).toBe(true);
+
+    fireEvent.click(screen.getByRole("button", { name: "Retry save (same request)" }));
+    await waitFor(() => expect(mocks.api.createCampaign).toHaveBeenCalledTimes(2));
+    expect(mocks.api.createCampaign.mock.calls[1][0]).toEqual(mocks.api.createCampaign.mock.calls[0][0]);
+    expect(mocks.api.createCampaign.mock.calls[0][0].idempotencyKey).toMatch(/^campaign-create-/);
+  });
+
 });
