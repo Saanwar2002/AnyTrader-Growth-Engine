@@ -395,6 +395,10 @@ describe("cloud authentication gate", () => {
     fireEvent.change(screen.getByLabelText("Filter by status"), { target: { value: "qualified" } });
     expect(screen.getByText("City Decorators")).toBeTruthy();
     expect(screen.queryByText("Northside Painting")).toBeNull();
+
+    fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: "no-such-provider" } });
+    expect(screen.queryByText("City Decorators")).toBeNull();
+    expect(screen.getByRole("status").textContent).toContain("No leads match these filters");
   });
 
   it("offers account creation without weakening the required password length", () => {
