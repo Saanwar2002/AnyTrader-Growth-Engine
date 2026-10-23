@@ -644,11 +644,12 @@ export const createLead = onCall(async (request) => {
   const data = (request.data ?? {}) as Record<string, unknown>;
   const organisationId = requireOrganisationId(data.organisationId);
   const campaignId = requireDocumentId(data.campaignId, "campaignId");
+  // Preserve authorization-denial semantics for non-editors before validating mutation details.
+  await requireLeadEditor(organisationId, uid);
   const idempotencyKey = data.idempotencyKey;
   if (typeof idempotencyKey !== "string" || !/^[A-Za-z0-9._:-]{16,128}$/.test(idempotencyKey)) {
     throw new HttpsError("invalid-argument", "idempotencyKey must be 16-128 safe characters.");
   }
-  await requireLeadEditor(organisationId, uid);
   const fields = normaliseLeadFields(data);
   const requestHash = createHash("sha256")
     .update(JSON.stringify({ organisationId, campaignId, fields }))
