@@ -409,3 +409,26 @@ it("keeps CSV imports bounded, atomic, tenant-authorized, idempotent, and suppre
     body.indexOf('writeSecurityAuditEvent(transaction, organisationId, uid, "lead.csv_import.completed"'),
   );
 });
+
+
+it("forces renewed contact review whenever contact channels change and preserves blocked leads", () => {
+  const start = callableSource.indexOf("export const updateLeadContact = onCall(");
+  const nextStart = callableSource.indexOf("export const ", start + 1);
+  const body = callableSource.slice(start, nextStart < 0 ? callableSource.length : nextStart);
+
+  expect(body).toContain("const contactChannelsChanged = fields.email !== existingLead.email");
+  expect(body).toContain("|| fields.phone !== existingLead.phone");
+  expect(body).toContain("|| fields.website !== existingLead.website");
+  expect(body).toContain("currentContactReviewRevision >= Number.MAX_SAFE_INTEGER");
+  expect(body).toContain("const nextContactReviewRevision = currentContactReviewRevision + (contactChannelsChanged ? 1 : 0)");
+  expect(body).toContain('existingReviewStatus === "blocked"');
+  expect(body).toContain('{ doNotContact: true, contactReviewStatus: "blocked" as const }');
+  expect(body).toContain('{ doNotContact: true, contactReviewStatus: "pending" as const }');
+  expect(body).toContain("const nextDoNotContact = contactChannelsChanged");
+  expect(body).toContain(": existingLead.doNotContact === true || existingReviewStatus === \"blocked\"");
+  expect(body).toContain("contactChannelsChanged ? nextDoNotContact : existingLead.doNotContact");
+  expect(body).toContain("contactChannelsChanged ? restrictionUpdate.contactReviewStatus : existingLead.contactReviewStatus");
+  expect(body).toContain("contactRestrictionVerified: !contactChannelsChanged");
+  expect(body).toContain("contactReviewRevision: nextContactReviewRevision");
+  expect(body).toContain("transaction.update(leadRef, { ...fields, ...restrictionUpdate, contactReviewRevision: nextContactReviewRevision");
+});
