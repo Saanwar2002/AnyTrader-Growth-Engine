@@ -103,10 +103,16 @@ try {
   assert.equal(reactivatedCampaign.status, "active", "campaign can be reactivated by an owner");
   await expectCallableFailure(callOne("createLead", {
     organisationId: orgOne.organisationId, campaignId: campaignOne.campaignId,
+    businessName: "Missing Idempotency Key",
+  }), "functions/invalid-argument", "manual lead creation requires an idempotency key");
+  await expectCallableFailure(callOne("createLead", {
+    organisationId: orgOne.organisationId, campaignId: campaignOne.campaignId,
+    idempotencyKey: "manual-lead-invalid-email-0001",
     businessName: "Invalid Email Test", email: "not-an-email",
   }), "functions/invalid-argument", "server rejects malformed lead email");
   await expectCallableFailure(callOne("createLead", {
     organisationId: orgOne.organisationId, campaignId: campaignOne.campaignId,
+    idempotencyKey: "manual-lead-oversized-name-01",
     businessName: "X".repeat(161),
   }), "functions/invalid-argument", "server rejects oversized business name");
   execFileSync(process.execPath, [
@@ -115,7 +121,54 @@ try {
     "lead.created",
     "0",
   ], { stdio: "inherit" });
-  const leadOne = await callOne("createLead", { organisationId: orgOne.organisationId, campaignId: campaignOne.campaignId, businessName: "Synthetic Test Painting Ltd", category: "Painters", location: "Manchester", email: "hello@example.test" });
+  const manualLeadPayload = {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    idempotencyKey: "manual-lead-idempotency-test-0001",
+    businessName: "Synthetic Test Painting Ltd",
+    category: "Painters",
+    location: "Manchester",
+    email: "hello@example.test",
+  };
+  const leadOne = await callOne("createLead", manualLeadPayload);
+  const manualLeadReplay = await callOne("createLead", manualLeadPayload);
+  assert.deepEqual(manualLeadReplay, leadOne, "manual lead retry returns the original result");
+  await expectCallableFailure(callOne("createLead", {
+    ...manualLeadPayload,
+    businessName: "Changed payload with reused key",
+  }), "functions/already-exists", "manual lead creation rejects key reuse with a different payload");
+  const leadsAfterManualReplay = (await callOne("listLeads", { organisationId: orgOne.organisationId })).leads;
+  assert.equal(leadsAfterManualReplay.filter((lead) => lead.businessName === "Synthetic Test Painting Ltd").length, 1,
+    "manual lead replay persists exactly one lead");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "lead.created",
+    "1",
+  ], { stdio: "inherit" });
+  const concurrentManualPayload = {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    idempotencyKey: "manual-lead-concurrent-test-0001",
+    businessName: "Synthetic Concurrent Manual Lead Ltd",
+    category: "Painters",
+    location: "Leeds",
+  };
+  const concurrentManualResults = await Promise.all([
+    callOne("createLead", concurrentManualPayload),
+    callOne("createLead", concurrentManualPayload),
+  ]);
+  assert.equal(concurrentManualResults[0].leadId, concurrentManualResults[1].leadId,
+    "concurrent manual lead requests return the same lead ID");
+  assert.equal((await callOne("listLeads", { organisationId: orgOne.organisationId })).leads
+    .filter((lead) => lead.businessName === "Synthetic Concurrent Manual Lead Ltd").length, 1,
+  "concurrent manual lead requests persist one lead");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "lead.created",
+    "2",
+  ], { stdio: "inherit" });
   await expectCallableFailure(callOne("updateLeadNotes", {
     organisationId: orgOne.organisationId,
     leadId: leadOne.leadId,
