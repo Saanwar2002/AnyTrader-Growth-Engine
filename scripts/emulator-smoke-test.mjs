@@ -215,6 +215,13 @@ try {
   const afterRejectedLeadStatusUpdates = await callOne("listLeads", { organisationId: orgOne.organisationId });
   assert.equal(afterRejectedLeadStatusUpdates.leads.find((lead) => lead.id === leadOne.leadId)?.status,
     statusBeforeRejectedUpdates, "rejected lead status transitions preserve the stored lifecycle status");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "lead.status_changed",
+    "0",
+    leadOne.leadId,
+  ], { stdio: "inherit" });
   await expectCallableFailure(callOne("updateLeadContact", {
     organisationId: orgOne.organisationId,
     leadId: leadOne.leadId,
@@ -239,6 +246,13 @@ try {
     location: "Manchester",
     email: "malformed-address",
   }), "functions/invalid-argument", "invalid contact edit fails before mutation");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "lead.contact_updated",
+    "0",
+    invalidContactEditLead.leadId,
+  ], { stdio: "inherit" });
   execFileSync(process.execPath, [
     "functions/scripts/assert-emulator-no-lead-activity.mjs",
     orgOne.organisationId,
@@ -318,6 +332,13 @@ try {
       message,
     ], { stdio: "inherit" });
   }
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "lead.contact_restriction_changed",
+    "0",
+    invalidContactEditLead.leadId,
+  ], { stdio: "inherit" });
   const afterInvalidReviewFlagList = await callOne("listLeads", { organisationId: orgOne.organisationId });
   const afterInvalidReviewFlag = afterInvalidReviewFlagList.leads.find((lead) => lead.id === invalidContactEditLead.leadId);
   assert.equal(afterInvalidReviewFlag?.doNotContact, true, "invalid review flags preserve suppression");
@@ -456,6 +477,13 @@ try {
     orgOne.organisationId,
     staleClearSideEffectLead.leadId,
     "Lead contact restriction removed",
+  ], { stdio: "inherit" });
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "lead.contact_restriction_changed",
+    "0",
+    staleClearSideEffectLead.leadId,
   ], { stdio: "inherit" });
   const staleClearSideEffectList = await callOne("listLeads", { organisationId: orgOne.organisationId });
   const staleClearSideEffectState = staleClearSideEffectList.leads.find((lead) => lead.id === staleClearSideEffectLead.leadId);
