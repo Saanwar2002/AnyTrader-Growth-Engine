@@ -1,10 +1,11 @@
-## Latest continuation update — campaign creation retry idempotency added (2026-10-23)
+## Latest continuation update — creation idempotency and retry UI verified (2026-10-23)
 
-- The dependency-security remediation is verified by the latest green CI on commit 3c43036be595720ce3e564aa1658bd7c82fb5857: body-parser 2.4.0 integrity guard, Functions dependency audit, authorization tests/build, frontend typecheck/unit/build, and emulator integration all passed.
-- Manual lead creation already uses actor/organisation-scoped idempotency keys, payload-hash binding, atomic replay, and a stable client key after uncertain failures.
-- New batch extends the same bounded pattern to campaign creation: server-side payload binding, atomic result replay before quota/audit writes, a stable client retry key, and emulator tests for replay, conflicting payload rejection, and one persisted campaign.
-- Latest implementation commits are being validated on development/next-phase. Check the newest Actions run before considering this batch complete.
-- PR #10 remains open and unmerged. Do not merge or deploy without explicit approval.
+- Latest code/test commit: 89c8b2d2b2b7c6c27eb747129efaa0d998c82398. CI run 40038810939 completed successfully: frontend typecheck, unit tests, production build, emulator integration smoke tests, Functions authorization tests/build, and dependency advisory checks all passed.
+- Dependency security remediation remains verified: Functions lockfile uses body-parser 2.4.0 and CI checks its lock integrity against the npm registry before auditing dependencies.
+- Manual lead, campaign, and organisation creation now use server-side idempotency keys with payload-hash binding and transactional replay. Creation replays avoid duplicate records, quota consumption, and success audit events.
+- Campaign and organisation cloud forms retain the same request key and freeze the relevant inputs after uncertain failures. UI tests verify retry requests reuse the exact original payload. Emulator smoke tests cover sequential replay, conflicting-payload rejection, concurrent same-key requests, one persisted record, and one success audit event.
+- Next engineering candidate: review retry semantics for outreach-draft creation before adding idempotency there; do not apply a broad mutation framework without checking suppression and draft lifecycle behavior.
+- PR #10 remains open, draft, and unmerged. Do not merge or deploy without explicit approval.
 - Production remains blocked on the dedicated Firebase project, App Check enforcement/token tests, monitoring/budget alerts, TTL configuration where required, privacy/legal retention review, and operational recovery readiness. Synthetic data only; outreach remains draft-only.
 
 ---
