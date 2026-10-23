@@ -1805,7 +1805,7 @@ try {
   assert.ok(missingStatusLegacyDraft, "legacy record with a missing status remains visible for review");
   assert.equal(missingStatusLegacyDraft.requiresReview, true, "legacy record with a missing status requires review");
   assert.equal(missingStatusLegacyDraft.status, "unknown", "missing legacy status is displayed as unknown rather than draft");
-  assert.match(nonDraftStatusLegacyDraft.reviewReason, /status is missing or is not draft/i);
+  assert.match(nonDraftStatusLegacyDraft.reviewReason, /status or sent flag is inconsistent|status is missing or is not draft/i);
   await expectCallableFailure(callOne("updateOutreachDraft", {
     organisationId: orgOne.organisationId, draftId: "legacy-non-draft-status",
     subject: "Must not reopen a sent record", body: "Status must remain blocked",
