@@ -376,10 +376,14 @@ describe("cloud authentication gate", () => {
       notes: "", doNotContact: true, contactRestrictionVerified: false,
       contactReviewStatus: "pending", createdAt: null,
     });
+    mocks.api.listCampaigns.mockResolvedValue({ campaigns: [
+      { id: "campaign-1", name: "Painter campaign" },
+      { id: "campaign-2", name: "Decorator campaign" },
+    ] });
     mocks.api.listLeads.mockResolvedValue({
       leads: [
         lead("lead-1", "Northside Painting", "Painters", "Manchester", "new"),
-        lead("lead-2", "City Decorators", "Decorators", "Salford", "qualified"),
+        { ...lead("lead-2", "City Decorators", "Decorators", "Salford", "qualified"), campaignId: "campaign-2" },
       ],
     });
 
@@ -397,6 +401,21 @@ describe("cloud authentication gate", () => {
     expect(screen.queryByText("Northside Painting")).toBeNull();
 
     fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: "no-such-provider" } });
+    expect(screen.queryByText("City Decorators")).toBeNull();
+    expect(screen.getByRole("status").textContent).toContain("No leads match these filters");
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(screen.getByText("Northside Painting")).toBeTruthy();
+    expect(screen.getByText("City Decorators")).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Filter by campaign"), { target: { value: "campaign-2" } });
+    expect(screen.getByText("City Decorators")).toBeTruthy();
+    expect(screen.queryByText("Northside Painting")).toBeNull();
+
+    fireEvent.change(screen.getByLabelText("Filter by campaign"), { target: { value: "all" } });
+    fireEvent.change(screen.getByLabelText("Filter by status"), { target: { value: "new" } });
+    fireEvent.change(screen.getByLabelText("Filter by campaign"), { target: { value: "campaign-2" } });
+    expect(screen.queryByText("Northside Painting")).toBeNull();
     expect(screen.queryByText("City Decorators")).toBeNull();
     expect(screen.getByRole("status").textContent).toContain("No leads match these filters");
   });
