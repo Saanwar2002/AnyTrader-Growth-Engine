@@ -27,9 +27,6 @@ const expectedRateLimitType: Record<string, "read" | "mutation"> = {
 };
 
 describe("callable security contract", () => {
-
-
-
   it("keeps emulator unauthenticated coverage aligned with every callable export", () => {
     const smokeSource = readFileSync(
       fileURLToPath(new URL("../../scripts/emulator-smoke-test.mjs", import.meta.url)),
@@ -62,9 +59,9 @@ describe("callable security contract", () => {
     const nextStart = callableSource.indexOf("export const ", start + 1);
     const body = callableSource.slice(start, nextStart < 0 ? callableSource.length : nextStart);
 
-    expect(body).toContain('doNotContact: true');
+    expect(body).toContain("doNotContact: true");
     expect(body).toContain('contactReviewStatus: "pending"');
-    expect(body).toContain('contactReviewRevision: 0');
+    expect(body).toContain("contactReviewRevision: 0");
     expect(body).toContain('status: "new"');
   });
 
@@ -72,7 +69,7 @@ describe("callable security contract", () => {
     const start = callableSource.indexOf("export const importLeads = onCall(");
     const nextStart = callableSource.indexOf("export const ", start + 1);
     const body = callableSource.slice(start, nextStart < 0 ? callableSource.length : nextStart);
-    expect(body).toContain('data.idempotencyKey');
+    expect(body).toContain("data.idempotencyKey");
     expect(body).toContain('collection("importIdempotency")');
     expect(body).toContain("saved.requestHash !== requestHash");
     expect(body).toContain('new HttpsError("already-exists"');
@@ -90,7 +87,7 @@ describe("callable security contract", () => {
     const nextStart = callableSource.indexOf("export const ", start + 1);
     const body = callableSource.slice(start, nextStart < 0 ? callableSource.length : nextStart);
     expect(callableSource).toContain('collection("securityAuditEvents")');
-    expect(callableSource).toContain('type SecurityAuditEventType =');
+    expect(callableSource).toContain("type SecurityAuditEventType =");
     expect(callableSource).toContain('"lead.csv_import.completed"');
     expect(body).toContain('writeSecurityAuditEvent(transaction, organisationId, uid, "lead.csv_import.completed"');
     expect(body).toContain("importedCount: newLeads.length");
@@ -122,23 +119,23 @@ describe("callable security contract", () => {
 
   it("audits sensitive campaign, lead-status, notes, and draft mutations without recording note or draft content", () => {
     const expectations = [
-      ["createOrganisation", '"organisation.created"', '"organisation"'],
-      ["createLead", '"lead.created"', '"lead"'],
-      ["createCampaign", '"campaign.created"', '"campaign"'],
-      ["updateCampaignStatus", '"campaign.status_changed"', '"campaign"'],
-      ["updateLeadStatus", '"lead.status_changed"', '"lead"'],
-      ["updateLeadNotes", '"lead.notes_changed"', '"lead"'],
-      ["createOutreachDraft", '"outreach_draft.created"', '"outreachDraft"'],
-      ["updateOutreachDraft", '"outreach_draft.updated"', '"outreachDraft"'],
-      ["deleteOutreachDraft", '"outreach_draft.deleted"', '"outreachDraft"'],
+      ["createOrganisation", 'writeSecurityAuditEvent(transaction, organisation.id, uid, "organisation.created", "organisation"'],
+      ["createLead", 'writeSecurityAuditEvent(transaction, organisationId, uid, "lead.created", "lead"'],
+      ["createCampaign", 'writeSecurityAuditEvent(transaction, organisationId, uid, "campaign.created", "campaign"'],
+      ["updateCampaignStatus", 'writeSecurityAuditEvent(transaction, organisationId, uid, "campaign.status_changed", "campaign"'],
+      ["updateLeadStatus", 'writeSecurityAuditEvent(transaction, organisationId, uid, "lead.status_changed", "lead"'],
+      ["updateLeadNotes", 'writeSecurityAuditEvent(transaction, organisationId, uid, "lead.notes_changed", "lead"'],
+      ["createOutreachDraft", 'writeSecurityAuditEvent(transaction, organisationId, uid, "outreach_draft.created", "outreachDraft"'],
+      ["updateOutreachDraft", 'writeSecurityAuditEvent(transaction, organisationId, uid, "outreach_draft.updated", "outreachDraft"'],
+      ["deleteOutreachDraft", 'writeSecurityAuditEvent(transaction, organisationId, uid, "outreach_draft.deleted", "outreachDraft"'],
     ] as const;
 
-    for (const [name, eventType, resourceType] of expectations) {
+    for (const [name, expectedAuditCall] of expectations) {
       const start = callableSource.indexOf(`export const ${name} = onCall(`);
       expect(start, `${name} callable must exist`).toBeGreaterThanOrEqual(0);
       const nextStart = callableSource.indexOf("export const ", start + 1);
       const body = callableSource.slice(start, nextStart < 0 ? callableSource.length : nextStart);
-      expect(body, `${name} audit event`).toContain(`writeSecurityAuditEvent(transaction, organisationId, uid, ${eventType}, ${resourceType}`);
+      expect(body, `${name} audit event`).toContain(expectedAuditCall);
     }
 
     const notesStart = callableSource.indexOf("export const updateLeadNotes = onCall(");
