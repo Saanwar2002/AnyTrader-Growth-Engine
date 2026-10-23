@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { initializeApp, deleteApp } from "firebase/app";
 import { connectAuthEmulator, createUserWithEmailAndPassword, getAuth, signOut } from "firebase/auth";
 import { connectFunctionsEmulator, getFunctions, httpsCallable } from "firebase/functions";
-import { connectFirestoreEmulator, doc, getDoc, getFirestore } from "firebase/firestore";
+import { connectFirestoreEmulator, doc, getDoc, getFirestore, setDoc } from "firebase/firestore";
 
 const projectId = "demo-growth-engine-test";
 const firebaseConfig = { apiKey: "demo-api-key", authDomain: "localhost", projectId, appId: "demo-app-id" };
@@ -1341,6 +1341,19 @@ try {
   assert.ok([...firstDraftPage.drafts, ...secondDraftPage.drafts].every((item) => item.sent !== true), "all generated drafts remain unsent");
 
   await expectCallableFailure(getDoc(doc(first.firestore, `organisations/${orgOne.organisationId}`)), "permission-denied", "direct client Firestore read denial");
+  await expectCallableFailure(
+    getDoc(doc(first.firestore, "securityAuditEvents", "client-read-attempt")),
+    "permission-denied",
+    "direct client security audit read denial",
+  );
+  await expectCallableFailure(
+    setDoc(doc(first.firestore, "securityAuditEvents", "client-write-attempt"), {
+      eventType: "client.forged",
+      actorUid: first.auth.currentUser.uid,
+    }),
+    "permission-denied",
+    "direct client security audit write denial",
+  );
 
   const second = connectClient(initializeApp(firebaseConfig, "tenant-two"));
   apps.push(second.app);
