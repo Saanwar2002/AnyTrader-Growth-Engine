@@ -48,6 +48,7 @@ export default function CloudWorkspace() {
   const [editingDraftId, setEditingDraftId] = useState("");
   const [draftSubject, setDraftSubject] = useState("");
   const [draftBody, setDraftBody] = useState("");
+  const [draftCreationKeys, setDraftCreationKeys] = useState<Record<string, string>>({});
   const [organisationName, setOrganisationName] = useState("");
   // Preserve the exact organisation request key after an uncertain response.
   const [organisationIdempotencyKey, setOrganisationIdempotencyKey] = useState("");
@@ -302,6 +303,31 @@ export default function CloudWorkspace() {
     }, campaignIdempotencyKey ? "Campaign saved after retry." : "Campaign created.");
   }
 
+  async function createDraftForLead(lead: LeadSummary) {
+    if (!api || !organisationId || busy) return;
+    const existingKey = draftCreationKeys[lead.id];
+    const idempotencyKey = existingKey || createIdempotencyKey("outreach-draft");
+    if (!existingKey) setDraftCreationKeys((current) => ({ ...current, [lead.id]: idempotencyKey }));
+    const payload = {
+      organisationId,
+      leadId: lead.id,
+      subject: `Provider network opportunity for ${lead.businessName}`,
+      body: `Hello ${lead.businessName},
+
+We are building a trusted local provider network and would like to share details about joining. Please review and personalise this draft before any use.
+
+Kind regards,
+${selectedOrganisation?.name ?? "Your local provider network"}
+
+DRAFT ONLY — NOT SENT.`,
+      idempotencyKey,
+    };
+    await runAction(async () => {
+      await api.createOutreachDraft(payload);
+      setDraftCreationKeys((current) => { const next = { ...current }; delete next[lead.id]; return next; });
+    }, existingKey ? "Draft saved after retry. Nothing was sent." : "Draft saved. Nothing was sent.");
+  }
+
   async function saveDraft(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!api || !organisationId || !editingDraftId) return;
@@ -423,14 +449,7 @@ export default function CloudWorkspace() {
       <section className="cloud-card"><div className="cloud-section-head"><div><p className="cloud-eyebrow">REVIEW AND SUPPRESSION</p><h2>Lead directory</h2><p className="cloud-muted">Clearing this internal review gate does not prove consent or establish a lawful basis for outreach. Check permission and applicable rules separately; all outreach remains draft-only.</p></div>{hasMoreLeads && <button className="cloud-secondary" type="button" disabled={loadingMoreLeads} onClick={() => void loadMoreLeads()}>{loadingMoreLeads ? "Loading leads…" : "Load more leads"}</button>}</div><div className="cloud-form cloud-lead-filters"><label>Search leads<input type="search" value={leadSearch} onChange={(event) => setLeadSearch(event.target.value)} placeholder="Business, category, location, website, email, or phone" /></label><label>Filter by status<select value={leadStatusFilter} onChange={(event) => setLeadStatusFilter(event.target.value)}><option value="all">All statuses</option>{leadStatuses.map((status) => <option key={status} value={status}>{statusLabel(status)}</option>)}</select></label><label>Filter by campaign<select value={leadCampaignFilter} onChange={(event) => setLeadCampaignFilter(event.target.value)}><option value="all">All campaigns</option>{campaigns.map((campaign) => <option key={campaign.id} value={campaign.id}>{campaign.name}</option>)}</select></label><button className="cloud-secondary" type="button" disabled={!leadSearch && leadStatusFilter === "all" && leadCampaignFilter === "all"} onClick={() => { setLeadSearch(""); setLeadStatusFilter("all"); setLeadCampaignFilter("all"); }}>Clear filters</button></div><p className="cloud-muted" aria-live="polite">Showing {filteredLeads.length} of {leads.length} loaded leads.</p><div className="cloud-table-wrap"><table className="cloud-table"><thead><tr><th>Business</th><th>Status</th><th>Contact restriction</th><th>Actions</th></tr></thead><tbody>{filteredLeads.map((lead) => <tr key={lead.id}><td><strong>{lead.businessName}</strong><small>{lead.category} · {lead.location}</small><label className="cloud-note-label">Internal notes<textarea aria-label={`Notes for ${lead.businessName}`} maxLength={4000} rows={2} value={leadNotes[lead.id] ?? ""} disabled={busy} onChange={(event) => setLeadNotes((current) => ({ ...current, [lead.id]: event.target.value }))} /></label><button className="cloud-link" disabled={busy || (leadNotes[lead.id] ?? "") === (lead.notes ?? "")} onClick={() => void runAction(() => api.updateLeadNotes({ organisationId, leadId: lead.id, notes: leadNotes[lead.id] ?? "" }), "Internal notes saved.")}>Save notes</button></td><td><select aria-label={`Status for ${lead.businessName}`} value={lead.status} disabled={busy} onChange={(event) => void runAction(() => api.updateLeadStatus({ organisationId, leadId: lead.id, status: event.target.value as ServerLeadStatus }), "Lead status updated.")}>{leadStatuses.map((status) => <option key={status} value={status}>{statusLabel(status)}</option>)}</select></td><td>{lead.contactReviewStatus === "pending" ? <span className="cloud-suppressed">PENDING REVIEW</span> : lead.doNotContact ? <span className="cloud-suppressed">DO NOT CONTACT</span> : lead.contactRestrictionVerified ? <span className="cloud-contactable">Contact review cleared</span> : <span className="cloud-suppressed">REVIEW RESTRICTION</span>}<button className="cloud-link" disabled={busy || (getContactRestrictionAction(lead.doNotContact, lead.contactReviewStatus) === "clear" && !canClearContactRestriction)} onClick={() => {
           const action = getContactRestrictionAction(lead.doNotContact, lead.contactReviewStatus);
           void runAction(() => api.setLeadSuppression({ organisationId, leadId: lead.id, doNotContact: action === "suppress", ...(action === "clear" ? { contactReviewRevision: lead.contactReviewRevision } : {}) }), action === "clear" ? "Restriction review/clear requested." : "Lead suppressed.");
-        }}>{lead.contactReviewStatus === "pending" || lead.contactReviewStatus === "blocked" ? "Review & clear restriction" : lead.doNotContact ? "Remove restriction" : "Suppress"}</button></td><td><button className="cloud-secondary" disabled={busy || lead.doNotContact || !lead.contactRestrictionVerified} onClick={() => void runAction(() => api.createOutreachDraft({ organisationId, leadId: lead.id, subject: `Provider network opportunity for ${lead.businessName}`, body: `Hello ${lead.businessName},
-
-We are building a trusted local provider network and would like to share details about joining. Please review and personalise this draft before any use.
-
-Kind regards,
-${selectedOrganisation.name}
-
-DRAFT ONLY — NOT SENT.` }), "Draft saved. Nothing was sent.")}>Create draft</button></td></tr>)}</tbody></table>{!leads.length ? <p className="cloud-empty">No leads in this organisation yet.</p> : !filteredLeads.length ? <p className="cloud-empty" role="status">No leads match these filters. Try another search or choose All statuses.</p> : null}</div></section>
+        }}>{lead.contactReviewStatus === "pending" || lead.contactReviewStatus === "blocked" ? "Review & clear restriction" : lead.doNotContact ? "Remove restriction" : "Suppress"}</button></td><td><button className="cloud-secondary" disabled={busy || lead.doNotContact || !lead.contactRestrictionVerified} onClick={() => void createDraftForLead(lead)}>{draftCreationKeys[lead.id] ? "Retry draft (same request)" : "Create draft"}</button></td></tr>)}</tbody></table>{!leads.length ? <p className="cloud-empty">No leads in this organisation yet.</p> : !filteredLeads.length ? <p className="cloud-empty" role="status">No leads match these filters. Try another search or choose All statuses.</p> : null}</div></section>
       <section className="cloud-card"><div className="cloud-section-head"><div><p className="cloud-eyebrow">HUMAN REVIEW REQUIRED</p><h2>Outreach drafts</h2></div><span className="cloud-count">{drafts.length}</span></div>{hasMoreDrafts && <div className="cloud-pagination"><button className="cloud-secondary" type="button" disabled={loadingMoreDrafts} onClick={() => void loadMoreDrafts()}>{loadingMoreDrafts ? "Loading drafts…" : "Load more drafts"}</button></div>}<div className="cloud-list">{drafts.map((draft) => <div className="cloud-draft" key={draft.id}>{editingDraftId === draft.id ? <form className="cloud-form cloud-draft-editor" onSubmit={(event) => void saveDraft(event)}><label>Draft subject<input required maxLength={200} value={draftSubject} onChange={(event) => setDraftSubject(event.target.value)} /></label><label>Draft body<textarea required maxLength={10000} rows={6} value={draftBody} onChange={(event) => setDraftBody(event.target.value)} /></label><div className="cloud-draft-actions"><button className="cloud-primary" disabled={busy || !draftSubject.trim() || !draftBody.trim()}>{busy ? "Saving…" : "Save draft"}</button><button type="button" className="cloud-secondary" disabled={busy} onClick={() => { setEditingDraftId(""); setDraftSubject(""); setDraftBody(""); }}>Cancel</button></div></form> : <><div><strong>{draft.subject}</strong>{draft.requiresReview && <p className="cloud-error" role="alert">{draft.reviewReason ?? "Review required before use."}</p>}<p>{draft.body}</p><small>{statusLabel(draft.status)}{draft.status === "draft" ? " · NOT SENT" : " · REVIEW REQUIRED"}</small></div><div className="cloud-draft-actions"><button className="cloud-secondary" disabled={busy || draft.requiresReview} title={draft.requiresReview ? "Resolve the lead restriction before editing this draft." : undefined} onClick={() => { setEditingDraftId(draft.id); setDraftSubject(draft.subject); setDraftBody(draft.body); }}>Edit</button><button className="cloud-secondary" disabled={busy} onClick={() => void runAction(() => api.deleteOutreachDraft({ organisationId, draftId: draft.id }), "Draft deleted.")}>Delete</button></div></>}</div>)}{!drafts.length && <p className="cloud-empty">No outreach drafts yet.</p>}</div></section></>}
     <footer className="cloud-footer">Dedicated Firebase project required · tenant access enforced by server functions · no automated outreach</footer></main>;
 }
