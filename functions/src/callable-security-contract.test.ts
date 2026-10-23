@@ -398,6 +398,11 @@ it("revalidates lead suppression and campaign integrity inside outreach draft tr
   const listBody = callableSource.slice(listStart, listEnd < 0 ? callableSource.length : listEnd);
   expect(listBody).toContain('const draftStatusValid = draft.status === "draft" && draft.sent === false');
   expect(listBody).toContain("Draft status or sent flag is inconsistent; review the record before use.");
+  expect(listBody).toContain("leadSuppressed: leadExists && (lead?.doNotContact === true || lead?.contactReviewStatus === \"blocked\")");
+  expect(listBody).toContain("Lead is suppressed and the draft integrity check failed; do not contact.");
+  expect(listBody).toContain("Integrity warnings must never mask suppression.");
+  expect(listBody).toContain("const review = relationshipValid");
+
 });
 
 
