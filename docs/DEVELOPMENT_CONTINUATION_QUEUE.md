@@ -1,3 +1,13 @@
+## Latest continuation update — campaign creation retry idempotency added (2026-10-23)
+
+- The dependency-security remediation is verified by the latest green CI on commit 3c43036be595720ce3e564aa1658bd7c82fb5857: body-parser 2.4.0 integrity guard, Functions dependency audit, authorization tests/build, frontend typecheck/unit/build, and emulator integration all passed.
+- Manual lead creation already uses actor/organisation-scoped idempotency keys, payload-hash binding, atomic replay, and a stable client key after uncertain failures.
+- New batch extends the same bounded pattern to campaign creation: server-side payload binding, atomic result replay before quota/audit writes, a stable client retry key, and emulator tests for replay, conflicting payload rejection, and one persisted campaign.
+- Latest implementation commits are being validated on development/next-phase. Check the newest Actions run before considering this batch complete.
+- PR #10 remains open and unmerged. Do not merge or deploy without explicit approval.
+- Production remains blocked on the dedicated Firebase project, App Check enforcement/token tests, monitoring/budget alerts, TTL configuration where required, privacy/legal retention review, and operational recovery readiness. Synthetic data only; outreach remains draft-only.
+
+---
 ## Latest continuation update — CSV retry regression fixed; CI green (2026-10-23)
 
 - Latest commit: `c2e31b169e81ccd9fda1fd1cad0189b09669ba1c` (`test: make CSV retry success response explicit`).
