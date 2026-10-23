@@ -1,3 +1,14 @@
+## Latest continuation update — CSV retry regression fixed; CI green (2026-10-23)
+
+- Latest commit: `c2e31b169e81ccd9fda1fd1cad0189b09669ba1c` (`test: make CSV retry success response explicit`).
+- CI runs [40028252434](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40028252434) and [40028245069](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40028245069) both completed successfully on that exact head. Verified: frontend typecheck, unit tests, production build, emulator smoke tests, Functions authorization tests/build, and dependency advisory checks.
+- The CSV retry regression now explicitly mocks a one-lead successful retry after a simulated timeout. The previous failure was caused by the test's shared default mock returning two imported leads while the assertion expected one; the implementation's campaign/idempotency binding was not the failing assertion.
+- PR #10 remains open and unmerged. Continue only on `development/next-phase`; do not merge without explicit approval.
+- Next engineering batch: add retry idempotency to manual lead creation (server-side key/payload binding, atomic replay, and a stable client key across uncertain failures), then consider other mutations only after reviewing retry semantics. Keep this scoped; do not expand into a broad idempotency framework.
+- Production remains blocked on the separate Firebase project, App Check enforcement and token tests, monitoring/budget alerts, TTL configuration where required, privacy/legal retention review, and operational recovery readiness. Synthetic data only; outreach remains draft-only.
+
+---
+
 ## Latest continuation update — CSV import idempotency verified; audit policy documented (2026-10-22)
 
 - CI run [39843237307](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39843237307) completed successfully for head `76a45ed6c4dc8f580433bc374475773dc1235101`. Both jobs passed: frontend typecheck/unit tests/build plus Firebase Emulator integration smoke tests, and Functions authorization tests/build. The smoke job includes same-key replay, conflicting payload rejection, and concurrent import retry coverage.
