@@ -478,3 +478,23 @@ it("requires a current contact-review revision before clearing lead suppression"
   expect(body).toContain("contactReviewStatus: data.doNotContact ? \"blocked\" : \"cleared\"");
   expect(body).toContain('writeSecurityAuditEvent(transaction, organisationId, uid, "lead.contact_restriction_changed", "lead", leadId');
 });
+
+it("binds CSV import idempotency to tenant, actor, and normalized payload", () => {
+  const start = callableSource.indexOf("export const importLeads = onCall(");
+  const nextStart = callableSource.indexOf("export const ", start + 1);
+  const body = callableSource.slice(start, nextStart < 0 ? callableSource.length : nextStart);
+
+  expect(body).toContain('JSON.stringify([organisationId, uid, idempotencyKey])');
+  expect(body).toContain('JSON.stringify({ organisationId, campaignId, leads: rows.map(({ fields }) => fields) })');
+  expect(body).toContain('saved.requestHash !== requestHash');
+  expect(body).toContain('new HttpsError("already-exists", "This idempotencyKey was already used with a different import payload.")');
+
+  const replayCheck = body.indexOf("if (idempotencySnapshot.exists)");
+  const campaignRead = body.indexOf("const campaignSnapshot = await transaction.get(campaignRef)");
+  const quotaConsume = body.indexOf('await consumeTransactionalRateLimit(transaction, organisationId, uid, "importLeads", 10)');
+  const leadWrite = body.indexOf("transaction.create(leadRef,");
+  expect(replayCheck).toBeGreaterThanOrEqual(0);
+  expect(campaignRead).toBeGreaterThan(replayCheck);
+  expect(quotaConsume).toBeGreaterThan(campaignRead);
+  expect(leadWrite).toBeGreaterThan(quotaConsume);
+});
