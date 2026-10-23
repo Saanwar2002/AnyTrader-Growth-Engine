@@ -417,6 +417,10 @@ describe("cloud authentication gate", () => {
     expect(screen.getByRole("status").textContent).toContain("No leads match these filters");
 
     fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect((screen.getByLabelText("Search leads") as HTMLInputElement).value).toBe("");
+    expect((screen.getByLabelText("Filter by status") as HTMLSelectElement).value).toBe("all");
+    expect((screen.getByLabelText("Filter by campaign") as HTMLSelectElement).value).toBe("all");
+    expect(screen.getByText("Showing 2 of 2 loaded leads.")).toBeTruthy();
     expect(screen.getByText("Northside Painting")).toBeTruthy();
     expect(screen.getByText("City Decorators")).toBeTruthy();
 
