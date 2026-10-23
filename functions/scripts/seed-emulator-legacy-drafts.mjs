@@ -73,17 +73,17 @@ await Promise.all([
 await Promise.all([
   drafts.doc("legacy-orphan-draft").set({
     leadId: "legacy-missing-lead", campaignId: validCampaignId,
-    subject: "Legacy orphan fixture", body: "Synthetic test only", status: "draft",
+    subject: "Legacy orphan fixture", body: "Synthetic test only", status: "draft", sent: false,
     createdAt: now,
   }),
   drafts.doc("legacy-mismatched-campaign-draft").set({
     leadId: validLeadId, campaignId: "legacy-other-campaign",
-    subject: "Legacy mismatched campaign fixture", body: "Synthetic test only", status: "draft",
+    subject: "Legacy mismatched campaign fixture", body: "Synthetic test only", status: "draft", sent: false,
     createdAt: now,
   }),
   drafts.doc("legacy-missing-campaign-record-draft").set({
     leadId: "legacy-missing-campaign-lead", campaignId: "legacy-missing-campaign",
-    subject: "Legacy missing campaign record fixture", body: "Synthetic test only", status: "draft",
+    subject: "Legacy missing campaign record fixture", body: "Synthetic test only", status: "draft", sent: false,
     createdAt: now,
   }),
   drafts.doc("legacy-non-draft-status").set({
@@ -93,28 +93,33 @@ await Promise.all([
   }),
   drafts.doc("legacy-missing-status").set({
     leadId: validLeadId, campaignId: validCampaignId,
-    subject: "Legacy missing status fixture", body: "Synthetic test only",
+    subject: "Legacy missing status fixture", body: "Synthetic test only", sent: false,
+    createdAt: now,
+  }),
+  drafts.doc("legacy-missing-sent-flag").set({
+    leadId: validLeadId, campaignId: validCampaignId,
+    subject: "Legacy missing sent flag fixture", body: "Synthetic test only", status: "draft",
     createdAt: now,
   }),
   drafts.doc("legacy-missing-restriction-draft").set({
     leadId: "legacy-missing-restriction-lead", campaignId: validCampaignId,
-    subject: "Legacy missing restriction fixture", body: "Synthetic test only", status: "draft",
+    subject: "Legacy missing restriction fixture", body: "Synthetic test only", status: "draft", sent: false,
     createdAt: now,
   }),
   drafts.doc("legacy-malformed-restriction-draft").set({
     leadId: "legacy-malformed-restriction-lead", campaignId: validCampaignId,
-    subject: "Legacy malformed restriction fixture", body: "Synthetic test only", status: "draft",
+    subject: "Legacy malformed restriction fixture", body: "Synthetic test only", status: "draft", sent: false,
     createdAt: now,
   }),
   drafts.doc("legacy-malformed-content-draft").set({
     leadId: validLeadId, campaignId: validCampaignId,
-    subject: { unexpected: "object instead of string" }, body: 12345, status: "draft",
+    subject: { unexpected: "object instead of string" }, body: 12345, status: "draft", sent: false,
     createdAt: now,
   }),
   drafts.doc("legacy-malformed-timestamp-draft").set({
     leadId: validLeadId, campaignId: validCampaignId,
-    subject: "Legacy malformed timestamp fixture", body: "Synthetic test only", status: "draft",
+    subject: "Legacy malformed timestamp fixture", body: "Synthetic test only", status: "draft", sent: false,
     createdAt: { toDate: "not-a-function" },
   }),
 ]);
-console.log("Seeded emulator-only orphan, mismatched-campaign, missing-campaign, and non-draft-status and missing-status legacy draft fixtures.");
+console.log("Seeded emulator-only orphan, mismatched-campaign, missing-campaign, non-draft-status, missing-status, and missing-sent-flag legacy draft fixtures.");

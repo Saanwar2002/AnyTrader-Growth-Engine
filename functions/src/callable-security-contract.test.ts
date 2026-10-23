@@ -367,7 +367,7 @@ it("revalidates lead suppression and campaign integrity inside outreach draft tr
   const updateEnd = callableSource.indexOf("export const ", updateStart + 1);
   const updateBody = callableSource.slice(updateStart, updateEnd < 0 ? callableSource.length : updateEnd);
   expect(updateBody).toContain("await requireTransactionalRole(transaction, organisationId, uid, \"lead\")");
-  expect(updateBody).toContain('if (draft.status !== "draft" || draft.sent === true)');
+  expect(updateBody).toContain('if (draft.status !== "draft" || draft.sent !== false)');
   expect(updateBody).toContain("hasConsistentDraftCampaign(draft.campaignId, lead.campaignId)");
   expect(updateBody).toContain("canCreateServerOutreachDraft(lead.doNotContact, lead.contactReviewStatus)");
   expect(updateBody).toContain("const campaignSnapshot = await transaction.get(campaignRef)");
@@ -378,7 +378,7 @@ it("revalidates lead suppression and campaign integrity inside outreach draft tr
   const listStart = callableSource.indexOf("export const listOutreachDrafts = onCall(");
   const listEnd = callableSource.indexOf("export const ", listStart + 1);
   const listBody = callableSource.slice(listStart, listEnd < 0 ? callableSource.length : listEnd);
-  expect(listBody).toContain('const draftStatusValid = draft.status === "draft" && draft.sent !== true');
+  expect(listBody).toContain('const draftStatusValid = draft.status === "draft" && draft.sent === false');
   expect(listBody).toContain("Draft status or sent flag is inconsistent; review the record before use.");
 });
 

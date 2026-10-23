@@ -1698,6 +1698,7 @@ try {
   const missingCampaignLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-missing-campaign-record-draft");
   const nonDraftStatusLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-non-draft-status");
   const missingStatusLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-missing-status");
+  const missingSentFlagLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-missing-sent-flag");
   const missingRestrictionLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-missing-restriction-draft");
   const malformedRestrictionLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-malformed-restriction-draft");
   const malformedContentLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-malformed-content-draft");
@@ -1806,6 +1807,9 @@ try {
   assert.equal(missingStatusLegacyDraft.requiresReview, true, "legacy record with a missing status requires review");
   assert.equal(missingStatusLegacyDraft.status, "unknown", "missing legacy status is displayed as unknown rather than draft");
   assert.match(nonDraftStatusLegacyDraft.reviewReason, /status or sent flag is inconsistent|status is missing or is not draft/i);
+  assert.ok(missingSentFlagLegacyDraft, "legacy draft missing the sent flag remains visible for review");
+  assert.equal(missingSentFlagLegacyDraft.requiresReview, true, "missing sent flag requires review");
+  assert.match(missingSentFlagLegacyDraft.reviewReason, /status or sent flag is inconsistent/i);
   await expectCallableFailure(callOne("updateOutreachDraft", {
     organisationId: orgOne.organisationId, draftId: "legacy-non-draft-status",
     subject: "Must not reopen a sent record", body: "Status must remain blocked",
@@ -1814,6 +1818,10 @@ try {
     organisationId: orgOne.organisationId, draftId: "legacy-missing-status",
     subject: "Must not infer draft status", body: "Missing status remains untrusted",
   }), "functions/failed-precondition", "editing a legacy outreach record with missing status");
+  await expectCallableFailure(callOne("updateOutreachDraft", {
+    organisationId: orgOne.organisationId, draftId: "legacy-missing-sent-flag",
+    subject: "Must not infer unsent state", body: "Missing sent flag remains untrusted",
+  }), "functions/failed-precondition", "editing a legacy outreach record with missing sent flag");
   const legacyDraftsAfterRejectedEdits = (await callOne("listOutreachDrafts", {
     organisationId: orgOne.organisationId,
   })).drafts;
@@ -1822,8 +1830,11 @@ try {
   assert.equal(sentRecordAfterRejectedEdit?.subject, "Legacy non-draft status fixture", "rejected edit preserves the sent record subject");
   assert.equal(sentRecordAfterRejectedEdit?.body, "Synthetic test only", "rejected edit preserves the sent record body");
   const missingStatusAfterRejectedEdit = legacyDraftsAfterRejectedEdits.find((item) => item.id === "legacy-missing-status");
+  const missingSentFlagAfterRejectedEdit = legacyDraftsAfterRejectedEdits.find((item) => item.id === "legacy-missing-sent-flag");
   assert.equal(missingStatusAfterRejectedEdit?.status, "unknown", "rejected edit does not normalise missing status to draft");
   assert.equal(missingStatusAfterRejectedEdit?.subject, "Legacy missing status fixture", "rejected edit preserves the missing-status record content");
+  assert.equal(missingSentFlagAfterRejectedEdit?.status, "draft", "rejected edit preserves the stored draft status");
+  assert.equal(missingSentFlagAfterRejectedEdit?.subject, "Legacy missing sent flag fixture", "rejected edit preserves the missing-sent-flag record content");
   // A rejected edit of an untrusted legacy record must not consume the final
   // quota slot or create an activity event; the valid draft edit should still succeed.
   execFileSync(process.execPath, [

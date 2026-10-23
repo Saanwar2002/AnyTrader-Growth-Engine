@@ -945,7 +945,7 @@ export const listOutreachDrafts = onCall(async (request) => {
       const lead = leadSnapshot?.data();
       const campaignId = typeof lead?.campaignId === "string" ? lead.campaignId : "";
       const campaignExists = isValidDocumentId(campaignId) && campaignById.get(campaignId)?.exists === true;
-      const draftStatusValid = draft.status === "draft" && draft.sent !== true;
+      const draftStatusValid = draft.status === "draft" && draft.sent === false;
       const draftContentValid = typeof draft.subject === "string"
         && draft.subject.trim().length > 0
         && draft.subject.length <= 200
@@ -1009,7 +1009,7 @@ export const updateOutreachDraft = onCall(async (request) => {
     const draftSnapshot = await transaction.get(draftRef);
     if (!draftSnapshot.exists) throw new HttpsError("not-found", "Outreach draft was not found in this organisation.");
     const draft = draftSnapshot.data() ?? {};
-    if (draft.status !== "draft" || draft.sent === true) {
+    if (draft.status !== "draft" || draft.sent !== false) {
       throw new HttpsError("failed-precondition", "Only unsent drafts can be edited; this record requires review.");
     }
     leadId = requireDocumentId(draft.leadId, "draft leadId");
