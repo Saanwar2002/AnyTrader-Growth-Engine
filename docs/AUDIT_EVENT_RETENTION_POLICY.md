@@ -47,7 +47,8 @@ The trusted backend must construct events. Client code must not be allowed to wr
 - [x] Add the CSV-import success event in the same Firestore transaction as the import and idempotency record.
 - [x] Add atomic success events for CSV import, contact-detail edits, and contact-restriction changes.
 - [x] Add atomic, metadata-minimised success events for campaign creation/status changes, lead status/notes changes, outreach-draft create/update/delete, manual lead creation, and organisation creation; verify CI and emulator evidence before treating coverage as complete.
-- [ ] Add tests proving clients cannot write/read audit records directly and tenant users cannot read another tenant's events.
+- [x] Add emulator smoke assertions proving clients cannot read or write `securityAuditEvents` directly under the deny-by-default Firestore rules.
+- [ ] If tenant-scoped audit retrieval is introduced, add tests proving users cannot read another tenant's events before enabling that access.
 - [x] Emulator smoke test asserts one event for a first import, no extra event for a replay, and one event for a distinct concurrent import key.
 - [ ] Add broader tests proving rejected mutations do not emit success events and do not mutate protected records.
 - [ ] Add paginated, rate-limited, tenant-authorised audit access only if the product requires it.
