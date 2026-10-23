@@ -40,6 +40,51 @@ describe("callable security contract", () => {
     expect(callableSource).toContain('["active", "paused", "completed"]');
   });
 
+  it("keeps the audit event catalogue, resource map, metadata map, and callsites aligned", () => {
+    const typeStart = callableSource.indexOf("type SecurityAuditEventType =");
+    const typeEnd = callableSource.indexOf("type SecurityAuditEventMetadata =", typeStart);
+    expect(typeStart).toBeGreaterThanOrEqual(0);
+    expect(typeEnd).toBeGreaterThan(typeStart);
+    const typeBlock = callableSource.slice(typeStart, typeEnd);
+    const eventTypes = [...typeBlock.matchAll(/"([a-z]+(?:\\.[a-z_]+)+)"/g)]
+      .map((match) => match[1]);
+    expect(eventTypes.length).toBeGreaterThan(0);
+    expect(new Set(eventTypes).size).toBe(eventTypes.length);
+
+    const resourceMapStart = callableSource.indexOf("const AUDIT_EVENT_RESOURCE_TYPES:");
+    const metadataMapStart = callableSource.indexOf("const AUDIT_METADATA_KEYS:");
+    const validatorStart = callableSource.indexOf("function isBoundedAuditMetadata(");
+    expect(resourceMapStart).toBeGreaterThan(typeEnd);
+    expect(metadataMapStart).toBeGreaterThan(resourceMapStart);
+    expect(validatorStart).toBeGreaterThan(metadataMapStart);
+    const resourceMap = callableSource.slice(resourceMapStart, metadataMapStart);
+    const metadataMap = callableSource.slice(metadataMapStart, validatorStart);
+    const resourceEvents = [...resourceMap.matchAll(/^\\s*"([^"]+)":/gm)].map((match) => match[1]);
+    const metadataEvents = [...metadataMap.matchAll(/^\\s*"([^"]+)":/gm)].map((match) => match[1]);
+    expect(resourceEvents.sort()).toEqual([...eventTypes].sort());
+    expect(metadataEvents.sort()).toEqual([...eventTypes].sort());
+
+    const auditCalls = [...callableSource.matchAll(/writeSecurityAuditEvent\\(transaction,\\s*[^,]+,\\s*[^,]+,\\s*"([^"]+)",\\s*"([^"]+)"/g)];
+    const callPairs = new Set(auditCalls.map((match) => `${match[1]}|${match[2]}`));
+    expect(auditCalls.length).toBe(12);
+    for (const [eventType, resourceType] of [
+      ["organisation.created", "organisation"],
+      ["lead.csv_import.completed", "campaign"],
+      ["lead.contact_updated", "lead"],
+      ["lead.contact_restriction_changed", "lead"],
+      ["lead.created", "lead"],
+      ["campaign.created", "campaign"],
+      ["campaign.status_changed", "campaign"],
+      ["lead.status_changed", "lead"],
+      ["lead.notes_changed", "lead"],
+      ["outreach_draft.created", "outreachDraft"],
+      ["outreach_draft.updated", "outreachDraft"],
+      ["outreach_draft.deleted", "outreachDraft"],
+    ]) {
+      expect(callPairs.has(`${eventType}|${resourceType}`), `${eventType} resource mapping`).toBe(true);
+    }
+  });
+
   it("keeps emulator unauthenticated coverage aligned with every callable export", () => {
     const smokeSource = readFileSync(
       fileURLToPath(new URL("../../scripts/emulator-smoke-test.mjs", import.meta.url)),
