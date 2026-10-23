@@ -233,6 +233,24 @@ describe("callable security contract", () => {
     expect(Object.keys(expectedRateLimitType)).not.toContain("sendOutreach");
   });
 
+  it("allows tenant-authorized cleanup of malformed legacy outreach records without implying delivery", () => {
+    const start = callableSource.indexOf("export const deleteOutreachDraft = onCall(");
+    const nextStart = callableSource.indexOf("export const ", start + 1);
+    const body = callableSource.slice(start, nextStart < 0 ? callableSource.length : nextStart);
+
+    expect(body).toContain('await requireTransactionalRole(transaction, organisationId, uid, "lead")');
+    expect(body).toContain('if (!draftSnapshot.exists) throw new HttpsError("not-found"');
+    expect(body).toContain("const rawLeadId = draftSnapshot.data()?.leadId");
+    expect(body).toContain("const leadId = isValidDocumentId(rawLeadId) ? rawLeadId : null");
+    expect(body).toContain("transaction.delete(draftRef)");
+    expect(body).toContain('writeSecurityAuditEvent(transaction, organisationId, uid, "outreach_draft.deleted", "outreachDraft", draftId, { draftAction: "deleted" })');
+    expect(body).toContain("Malformed outreach record deleted; this action did not send a message");
+    expect(body).toContain("Outreach record deleted; this action did not send a message");
+    expect(body).toContain("return { draftId, deleted: true, sent: false, messageSentByThisAction: false }");
+    expect(body).not.toContain("transaction.get(leadRef)");
+    expect(body).not.toContain("sendOutreach");
+  });
+
   it("keeps every expected callable authenticated and rate-limited", () => {
     const declarations = [...callableSource.matchAll(/export const (\w+) = onCall\(/g)];
     expect(declarations.map((match) => match[1]).sort()).toEqual(
