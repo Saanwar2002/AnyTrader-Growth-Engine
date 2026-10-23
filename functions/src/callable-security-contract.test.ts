@@ -273,6 +273,21 @@ describe("callable security contract", () => {
 });
 
 
+  it("authorizes tenant-scoped list calls before consuming quota or reading tenant collections", () => {
+    for (const callableName of ["listCampaigns", "listLeads", "listOutreachDrafts"]) {
+      const start = callableSource.indexOf(`export const ${callableName} = onCall(`);
+      expect(start, `${callableName} callable must exist`).toBeGreaterThanOrEqual(0);
+      const nextStart = callableSource.indexOf("export const ", start + 1);
+      const body = callableSource.slice(start, nextStart < 0 ? callableSource.length : nextStart);
+      const membershipCheck = body.indexOf("await requireMembership(organisationId, uid)");
+      const quotaCheck = body.indexOf("await consumeReadRateLimit(organisationId, uid");
+      expect(membershipCheck, `${callableName} must validate tenant membership`).toBeGreaterThanOrEqual(0);
+      expect(quotaCheck, `${callableName} must consume a tenant-scoped read quota`).toBeGreaterThan(membershipCheck);
+      const collectionRead = body.search(/\.collection\(["'][^"']+["']\)/);
+      expect(collectionRead, `${callableName} must read a tenant collection`).toBeGreaterThan(quotaCheck);
+    }
+  });
+
   it("rechecks tenant membership and role inside every tenant-scoped mutation transaction", () => {
     for (const callableName of Object.keys(expectedRateLimitType).filter(
       (name) => expectedRateLimitType[name] === "mutation" && name !== "createOrganisation",
