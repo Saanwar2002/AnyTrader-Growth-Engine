@@ -1048,9 +1048,9 @@ try {
   await expectCallableFailure(viewerCall("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0020", organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Viewer denied", body: "Must not be created" }), "functions/permission-denied", "viewer cannot create outreach draft");
 
   const draftPayload = { organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Test draft", body: "Review before use", idempotencyKey: "outreach-draft-create-idempotency-0001" };
-  const draft = await callOne("createOutreachDraft", draftPayload);
+  const draft = await callOne("createOutreachDraft", { ...draftPayload });
   assert.equal(draft.sent, false);
-  const draftReplay = await callOne("createOutreachDraft", draftPayload);
+  const draftReplay = await callOne("createOutreachDraft", { ...draftPayload });
   assert.deepEqual(draftReplay, draft, "draft creation retry returns the original draft");
   await expectCallableFailure(callOne("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0007", ...draftPayload, subject: "Changed draft subject" }), "functions/already-exists", "draft creation rejects key reuse with a different payload");
   const concurrentDraftPayload = { ...draftPayload, subject: "Concurrent retry draft", idempotencyKey: "outreach-draft-create-concurrent-0001" };
