@@ -1005,35 +1005,64 @@ export const createOutreachDraft = onCall(async (request) => {
   const leadId = requireDocumentId(data.leadId, "leadId");
   const subject = normaliseRequiredText(data.subject, 200);
   const body = normaliseRequiredText(data.body, 10000);
+  const idempotencyKey = data.idempotencyKey;
   if (!subject || !body) throw new HttpsError("invalid-argument", "Draft subject and body are required and must fit the allowed limits.");
+  if (typeof idempotencyKey !== "string" || !/^[A-Za-z0-9._:-]{16,128}$/.test(idempotencyKey)) {
+    throw new HttpsError("invalid-argument", "idempotencyKey must be 16-128 safe characters.");
+  }
   await requireLeadEditor(organisationId, uid);
-  const leadRef = db.collection("organisations").doc(organisationId).collection("leads").doc(leadId);
-  const draft = db.collection("organisations").doc(organisationId).collection("outreachDrafts").doc();
-  const activity = db.collection("organisations").doc(organisationId).collection("leadActivities").doc();
-  let campaignId = "";
-  await db.runTransaction(async (transaction: Transaction) => {
+  const organisationRef = db.collection("organisations").doc(organisationId);
+  const leadRef = organisationRef.collection("leads").doc(leadId);
+  const draft = organisationRef.collection("outreachDrafts").doc();
+  const activity = organisationRef.collection("leadActivities").doc();
+  const requestHash = createHash("sha256").update(JSON.stringify({ organisationId, leadId, subject, body })).digest("hex");
+  const idempotencyDocumentId = createHash("sha256").update(JSON.stringify([organisationId, uid, idempotencyKey])).digest("hex");
+  const idempotencyRef = organisationRef.collection("outreachDraftCreationIdempotency").doc(idempotencyDocumentId);
+  return db.runTransaction(async (transaction: Transaction) => {
     await requireTransactionalRole(transaction, organisationId, uid, "lead");
-    // Reading the lead and creating the draft in one transaction prevents a concurrent
-    // suppression change from racing past the do-not-contact gate.
+    // Always re-check suppression/review before a replay. A retry must never reopen
+    // a draft-creation path while the lead is suppressed or contact review is pending.
     const leadSnapshot = await transaction.get(leadRef);
     if (!leadSnapshot.exists) throw new HttpsError("not-found", "Lead was not found in this organisation.");
     const lead = leadSnapshot.data() ?? {};
     if (!canCreateServerOutreachDraft(lead.doNotContact, lead.contactReviewStatus)) throw new HttpsError("failed-precondition", lead.doNotContact === true || lead.contactReviewStatus === "blocked"
       ? "This lead is suppressed. Remove the restriction before creating an outreach draft."
       : "The lead contact review is pending or unverified; resolve it before creating an outreach draft.");
-    campaignId = requireDocumentId(lead.campaignId, "lead campaignId");
-    const campaignRef = db.collection("organisations").doc(organisationId).collection("campaigns").doc(campaignId);
+    const campaignId = requireDocumentId(lead.campaignId, "lead campaignId");
+    const campaignRef = organisationRef.collection("campaigns").doc(campaignId);
     const campaignSnapshot = await transaction.get(campaignRef);
     if (!campaignSnapshot.exists) throw new HttpsError("failed-precondition", "The lead's campaign no longer exists in this organisation.");
+
+    const idempotencySnapshot = await transaction.get(idempotencyRef);
+    if (idempotencySnapshot.exists) {
+      const saved = idempotencySnapshot.data() ?? {};
+      if (saved.requestHash !== requestHash || !saved.result || typeof saved.result !== "object") {
+        throw new HttpsError("already-exists", "This idempotencyKey was already used with a different draft payload.");
+      }
+      const savedResult = saved.result as Record<string, unknown>;
+      if (typeof savedResult.draftId !== "string" || savedResult.leadId !== leadId || savedResult.campaignId !== campaignId
+        || savedResult.subject !== subject || savedResult.body !== body || savedResult.status !== "draft" || savedResult.sent !== false) {
+        throw new HttpsError("failed-precondition", "Saved draft retry state is invalid and requires operator review.");
+      }
+      const savedDraftRef = organisationRef.collection("outreachDrafts").doc(savedResult.draftId);
+      const savedDraftSnapshot = await transaction.get(savedDraftRef);
+      if (!savedDraftSnapshot.exists || savedDraftSnapshot.data()?.leadId !== leadId
+        || savedDraftSnapshot.data()?.createdBy !== uid || savedDraftSnapshot.data()?.sent === true) {
+        throw new HttpsError("failed-precondition", "The draft created by this request is no longer available to retry.");
+      }
+      return savedResult as { draftId: string; leadId: string; campaignId: string; subject: string; body: string; status: "draft"; sent: false };
+    }
+
     const now = FieldValue.serverTimestamp();
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "createOutreachDraft", 200);
+    const result = { draftId: draft.id, leadId, campaignId, subject, body, status: "draft" as const, sent: false as const };
     transaction.create(draft, { leadId, campaignId, subject, body, status: "draft", sent: false, createdBy: uid, createdAt: now, updatedAt: now });
     transaction.create(activity, { leadId, actorUid: uid, message: "Outreach draft created; not sent", createdAt: now });
+    transaction.create(idempotencyRef, { requestHash, result, actorUid: uid, createdAt: FieldValue.serverTimestamp() });
     writeSecurityAuditEvent(transaction, organisationId, uid, "outreach_draft.created", "outreachDraft", draft.id, { draftAction: "created" });
+    return result;
   });
-  return { draftId: draft.id, leadId, campaignId, subject, body, status: "draft" as const, sent: false };
 });
-
 
 export const listOutreachDrafts = onCall(async (request) => {
   const uid = requireUid(request.auth?.uid);
