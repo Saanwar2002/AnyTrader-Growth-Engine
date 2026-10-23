@@ -1047,6 +1047,12 @@ export const createOutreachDraft = onCall(async (request) => {
         throw new HttpsError("already-exists", "This idempotencyKey was already used for a different lead or campaign.");
       }
       if (savedResult.subject !== subject || savedResult.body !== body) {
+        logger.warn("Outreach draft idempotency payload mismatch", {
+          subjectMatches: savedResult.subject === subject,
+          bodyMatches: savedResult.body === body,
+          savedSubjectType: typeof savedResult.subject,
+          savedBodyType: typeof savedResult.body,
+        });
         throw new HttpsError("already-exists", "This idempotencyKey was already used with different draft text.");
       }
       if (typeof savedResult.draftId !== "string" || savedResult.status !== "draft" || savedResult.sent !== false) {
