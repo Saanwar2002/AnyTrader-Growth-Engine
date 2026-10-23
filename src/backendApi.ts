@@ -9,7 +9,7 @@ export interface CallableInvoker {
 }
 
 export interface OrganisationSummary { organisationId: string; name: string; role: OrganisationRole; }
-export interface CampaignInput { organisationId: string; name: string; brand: string; category: string; location: string; goal: string; }
+export interface CampaignInput { organisationId: string; idempotencyKey: string; name: string; brand: string; category: string; location: string; goal: string; }
 export interface CampaignSummary { id: string; name: string; brand: string; category: string; location: string; goal: string; status: ServerCampaignStatus; createdAt: string | null; }
 export interface LeadFieldsInput { organisationId: string; campaignId: string; businessName: string; category?: string; location?: string; website?: string; email?: string; phone?: string; }
 export interface LeadInput extends LeadFieldsInput { idempotencyKey: string; }
