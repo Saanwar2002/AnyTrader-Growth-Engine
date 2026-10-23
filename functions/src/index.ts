@@ -1037,6 +1037,14 @@ export const createOutreachDraft = onCall(async (request) => {
     if (idempotencySnapshot.exists) {
       const saved = idempotencySnapshot.data() ?? {};
       if (saved.requestHash !== requestHash) {
+        logger.warn("Outreach draft retry fingerprint mismatch", {
+          savedHashType: typeof saved.requestHash,
+          savedHashMatches: saved.requestHash === requestHash,
+          savedHashLength: typeof saved.requestHash === "string" ? saved.requestHash.length : null,
+          requestHashLength: requestHash.length,
+          savedLeadIdMatches: (saved.result as Record<string, unknown> | undefined)?.leadId === leadId,
+          savedCampaignIdMatches: (saved.result as Record<string, unknown> | undefined)?.campaignId === campaignId,
+        });
         throw new HttpsError("already-exists", "This idempotencyKey was already used with a different draft payload.");
       }
       if (!saved.result || typeof saved.result !== "object") {
