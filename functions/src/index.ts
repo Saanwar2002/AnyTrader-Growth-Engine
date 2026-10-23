@@ -1037,13 +1037,20 @@ export const createOutreachDraft = onCall(async (request) => {
     if (idempotencySnapshot.exists) {
       const saved = idempotencySnapshot.data() ?? {};
       if (saved.requestHash !== requestHash) {
+        const savedResultForDiagnostics = saved.result as Record<string, unknown> | undefined;
         logger.warn("Outreach draft retry fingerprint mismatch", {
           savedHashType: typeof saved.requestHash,
           savedHashMatches: saved.requestHash === requestHash,
           savedHashLength: typeof saved.requestHash === "string" ? saved.requestHash.length : null,
           requestHashLength: requestHash.length,
-          savedLeadIdMatches: (saved.result as Record<string, unknown> | undefined)?.leadId === leadId,
-          savedCampaignIdMatches: (saved.result as Record<string, unknown> | undefined)?.campaignId === campaignId,
+          savedLeadIdMatches: savedResultForDiagnostics?.leadId === leadId,
+          savedCampaignIdMatches: savedResultForDiagnostics?.campaignId === campaignId,
+          savedSubjectMatches: savedResultForDiagnostics?.subject === subject,
+          savedBodyMatches: savedResultForDiagnostics?.body === body,
+          savedSubjectHash: typeof savedResultForDiagnostics?.subject === "string" ? createHash("sha256").update(savedResultForDiagnostics.subject).digest("hex") : null,
+          requestSubjectHash: createHash("sha256").update(subject).digest("hex"),
+          savedBodyHash: typeof savedResultForDiagnostics?.body === "string" ? createHash("sha256").update(savedResultForDiagnostics.body).digest("hex") : null,
+          requestBodyHash: createHash("sha256").update(body).digest("hex"),
         });
         throw new HttpsError("already-exists", "This idempotencyKey was already used with a different draft payload.");
       }
