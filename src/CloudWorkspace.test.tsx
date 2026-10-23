@@ -394,8 +394,10 @@ describe("cloud authentication gate", () => {
     render(<CloudWorkspace />);
     expect(await screen.findByText("Northside Painting")).toBeTruthy();
     expect(screen.getByText("City Decorators")).toBeTruthy();
+    expect(screen.getByText("Showing 2 of 2 loaded leads.")).toBeTruthy();
 
     fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: "salford" } });
+    expect(screen.getByText("Showing 1 of 2 loaded leads.")).toBeTruthy();
     expect(screen.getByText("City Decorators")).toBeTruthy();
     expect(screen.queryByText("Northside Painting")).toBeNull();
 
