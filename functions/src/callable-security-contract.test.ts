@@ -46,7 +46,7 @@ describe("callable security contract", () => {
     expect(typeStart).toBeGreaterThanOrEqual(0);
     expect(typeEnd).toBeGreaterThan(typeStart);
     const typeBlock = callableSource.slice(typeStart, typeEnd);
-    const eventTypes = [...typeBlock.matchAll(/"([a-z]+(?:\.[a-z_]+)+)"/g)]
+    const eventTypes = [...typeBlock.matchAll(/"([a-z_]+(?:\\.[a-z_]+)+)"/g)]
       .map((match) => match[1]);
     expect(eventTypes.length).toBeGreaterThan(0);
     expect(new Set(eventTypes).size).toBe(eventTypes.length);
