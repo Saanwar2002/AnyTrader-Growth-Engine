@@ -299,6 +299,7 @@ try {
   const invalidContactEditLead = await callOne("createLead", {
     organisationId: orgOne.organisationId,
     campaignId: campaignOne.campaignId,
+    idempotencyKey: "manual-lead-smoke-0001",
     businessName: "Synthetic Invalid Contact Edit Guard Ltd",
     category: "Painters",
     location: "Manchester",
@@ -334,6 +335,7 @@ try {
   const unsafeWebsiteLead = await callOne("createLead", {
     organisationId: orgOne.organisationId,
     campaignId: campaignOne.campaignId,
+    idempotencyKey: "manual-lead-smoke-0002",
     businessName: "Synthetic Unsafe Website Guard Ltd",
     category: "Painters",
     location: "Manchester",
@@ -515,6 +517,7 @@ try {
   const staleClearSideEffectLead = await callOne("createLead", {
     organisationId: orgOne.organisationId,
     campaignId: campaignOne.campaignId,
+    idempotencyKey: "manual-lead-smoke-0003",
     businessName: "Synthetic Stale Clearance Side Effect Guard Ltd",
     category: "Painters",
     location: "Manchester",
@@ -562,6 +565,7 @@ try {
   const malformedRevisionLead = await callOne("createLead", {
     organisationId: orgOne.organisationId,
     campaignId: campaignOne.campaignId,
+    idempotencyKey: "manual-lead-smoke-0004",
     businessName: "Synthetic Malformed Review Revision Guard Ltd",
     category: "Painters",
     location: "Manchester",
@@ -668,6 +672,7 @@ try {
   const maxRevisionLead = await callOne("createLead", {
     organisationId: orgOne.organisationId,
     campaignId: campaignOne.campaignId,
+    idempotencyKey: "manual-lead-smoke-0005",
     businessName: "Synthetic Maximum Review Revision Guard Ltd",
     category: "Painters",
     location: "Manchester",
@@ -744,6 +749,7 @@ try {
   const concurrentReviewLead = await callOne("createLead", {
     organisationId: orgOne.organisationId,
     campaignId: campaignOne.campaignId,
+    idempotencyKey: "manual-lead-smoke-0006",
     businessName: "Synthetic Concurrent Contact Review Ltd",
     category: "Painters",
     location: "Manchester",
@@ -874,6 +880,7 @@ try {
   const viewerNotesLead = await callOne("createLead", {
     organisationId: orgOne.organisationId,
     campaignId: campaignOne.campaignId,
+    idempotencyKey: "manual-lead-smoke-0007",
     businessName: "Synthetic Viewer Notes Guard Ltd",
     category: "Security regression",
     location: "Manchester",
@@ -919,6 +926,7 @@ try {
   const viewerContactEditLead = await callOne("createLead", {
     organisationId: orgOne.organisationId,
     campaignId: campaignOne.campaignId,
+    idempotencyKey: "manual-lead-smoke-0008",
     businessName: "Synthetic Viewer Contact Edit Guard Ltd",
     category: "Painters",
     location: "Manchester",
@@ -955,6 +963,7 @@ try {
   const viewerSuppressionLead = await callOne("createLead", {
     organisationId: orgOne.organisationId,
     campaignId: campaignOne.campaignId,
+    idempotencyKey: "manual-lead-smoke-0009",
     businessName: "Synthetic Viewer Suppression Guard Ltd",
     category: "Painters",
     location: "Manchester",
@@ -1061,6 +1070,7 @@ try {
   const viewerStatusLead = await callOne("createLead", {
     organisationId: orgOne.organisationId,
     campaignId: campaignOne.campaignId,
+    idempotencyKey: "manual-lead-smoke-0010",
     businessName: "Synthetic Viewer Status Guard Ltd",
     category: "Security regression",
     location: "Manchester",
@@ -1089,6 +1099,7 @@ try {
   const viewerDraftGuardLead = await callOne("createLead", {
     organisationId: orgOne.organisationId,
     campaignId: campaignOne.campaignId,
+    idempotencyKey: "manual-lead-smoke-0011",
     businessName: "Synthetic Viewer Draft Guard Ltd",
     category: "Security regression",
     location: "Manchester",
@@ -1265,6 +1276,7 @@ try {
   await expectCallableFailure(callOne("createLead", {
     organisationId: "owner-mismatch-org",
     campaignId: "fixture-campaign",
+    idempotencyKey: "manual-lead-smoke-0012",
     businessName: "Must be denied",
     category: "Painters",
     location: "Manchester",
@@ -1332,6 +1344,7 @@ try {
     callOne("createLead", {
       organisationId: "orphaned-org",
       campaignId: "orphaned-campaign",
+    idempotencyKey: "manual-lead-smoke-0013",
       businessName: "Must not persist",
       category: "Painters",
       location: "Manchester",
@@ -1397,6 +1410,7 @@ try {
     await callOne("createLead", {
       organisationId: orgOne.organisationId,
       campaignId: campaignOne.campaignId,
+    idempotencyKey: `manual-lead-pagination-${index}`,
       businessName: `Synthetic Pagination Lead ${String(index + 1).padStart(3, "0")}`,
       category: "Painters",
       location: "Manchester",
@@ -1673,6 +1687,7 @@ try {
   await expectCallableFailure(callOne("createLead", {
     organisationId: orgOne.organisationId,
     campaignId: missingCampaignId,
+    idempotencyKey: "manual-lead-smoke-0015",
     businessName: "Missing campaign lead test",
     category: "Painters",
     location: "Manchester",
