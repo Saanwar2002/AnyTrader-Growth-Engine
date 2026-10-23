@@ -348,3 +348,29 @@ it("validates tenant list pagination tokens against the requested organisation a
   }
 });
 
+
+
+it("revalidates lead suppression and campaign integrity inside outreach draft transactions", () => {
+  const createStart = callableSource.indexOf("export const createOutreachDraft = onCall(");
+  const createEnd = callableSource.indexOf("export const ", createStart + 1);
+  const createBody = callableSource.slice(createStart, createEnd < 0 ? callableSource.length : createEnd);
+  expect(createBody).toContain("await requireTransactionalRole(transaction, organisationId, uid, \"lead\")");
+  expect(createBody).toContain("const leadSnapshot = await transaction.get(leadRef)");
+  expect(createBody).toContain("canCreateServerOutreachDraft(lead.doNotContact, lead.contactReviewStatus)");
+  expect(createBody).toContain("const campaignSnapshot = await transaction.get(campaignRef)");
+  expect(createBody).toContain("if (!campaignSnapshot.exists)");
+  expect(createBody).toContain("transaction.create(draft,");
+  expect(createBody).toContain("sent: false");
+
+  const updateStart = callableSource.indexOf("export const updateOutreachDraft = onCall(");
+  const updateEnd = callableSource.indexOf("export const ", updateStart + 1);
+  const updateBody = callableSource.slice(updateStart, updateEnd < 0 ? callableSource.length : updateEnd);
+  expect(updateBody).toContain("await requireTransactionalRole(transaction, organisationId, uid, \"lead\")");
+  expect(updateBody).toContain("if (draft.status !== \"draft\")");
+  expect(updateBody).toContain("hasConsistentDraftCampaign(draft.campaignId, lead.campaignId)");
+  expect(updateBody).toContain("canCreateServerOutreachDraft(lead.doNotContact, lead.contactReviewStatus)");
+  expect(updateBody).toContain("const campaignSnapshot = await transaction.get(campaignRef)");
+  expect(updateBody).toContain("if (!campaignSnapshot.exists)");
+  expect(updateBody).toContain("transaction.update(draftRef,");
+  expect(updateBody).toContain("sent: false");
+});
