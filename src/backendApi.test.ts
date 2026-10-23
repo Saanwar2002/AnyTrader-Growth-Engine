@@ -133,4 +133,13 @@ describe("typed backend API boundary", () => {
     expect(response.messageSentByThisAction).toBe(false);
   });
 
+  it("passes the stable idempotency key for outreach draft creation", async () => {
+    const response = { draftId: "draft-1", leadId: "lead-1", campaignId: "campaign-1", subject: "Review me", body: "Draft only", status: "draft" as const, sent: false as const };
+    const { invoke, calls } = makeInvoker([response]);
+    const api = createGrowthEngineApi(invoke);
+    const payload = { organisationId: "org-1", leadId: "lead-1", subject: "Review me", body: "Draft only", idempotencyKey: "outreach-draft-create-key-0001" };
+    await expect(api.createOutreachDraft(payload)).resolves.toEqual(response);
+    expect(calls).toEqual([{ name: "createOutreachDraft", payload }]);
+  });
+
 });
