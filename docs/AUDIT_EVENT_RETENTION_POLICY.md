@@ -41,7 +41,7 @@ The trusted backend must construct events. Client code must not be allowed to wr
 
 ## 5. Implementation and verification checklist
 
-- [ ] Define the approved event catalogue and metadata allow-list.
+- [x] Define a code-enforced event catalogue, resource-type mapping, event-specific metadata allow-list, and bounded metadata validation; automated contract test guards the writer.
 - [x] Implement a minimal trusted server-side audit writer for successful CSV imports, with an allow-listed event type and bounded metadata.
 - [x] Extend the writer to contact-detail edits and contact-restriction changes with bounded, non-contact metadata.
 - [x] Add the CSV-import success event in the same Firestore transaction as the import and idempotency record.
