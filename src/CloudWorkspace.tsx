@@ -340,7 +340,7 @@ export default function CloudWorkspace() {
   const selectedOrganisation = organisations.find((org) => org.organisationId === organisationId);
   const filteredLeads = leads.filter((lead) => {
     const query = leadSearch.trim().toLocaleLowerCase("en-GB");
-    const matchesSearch = !query || [lead.businessName, lead.category, lead.location, lead.email, lead.phone]
+    const matchesSearch = !query || [lead.businessName, lead.category, lead.location, lead.website, lead.email, lead.phone]
       .some((value) => value.toLocaleLowerCase("en-GB").includes(query));
     return matchesSearch && (leadStatusFilter === "all" || lead.status === leadStatusFilter)
       && (leadCampaignFilter === "all" || lead.campaignId === leadCampaignFilter);
