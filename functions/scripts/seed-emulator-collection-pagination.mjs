@@ -55,6 +55,7 @@ for (let i = 0; i < 105; i += 1) {
     subject: `Synthetic pagination draft ${suffix}`,
     body: "Emulator test only; never send.",
     status: "draft",
+    sent: false,
     createdAt,
   });
 }
