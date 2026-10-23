@@ -146,6 +146,13 @@ try {
     "lead.created",
     "1",
   ], { stdio: "inherit" });
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-rate-limit-count.mjs",
+    orgOne.organisationId,
+    first.auth.currentUser.uid,
+    "createLead",
+    "1",
+  ], { stdio: "inherit" });
   const concurrentManualPayload = {
     organisationId: orgOne.organisationId,
     campaignId: campaignOne.campaignId,
@@ -167,6 +174,13 @@ try {
     "functions/scripts/assert-emulator-audit-event-count.mjs",
     orgOne.organisationId,
     "lead.created",
+    "2",
+  ], { stdio: "inherit" });
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-rate-limit-count.mjs",
+    orgOne.organisationId,
+    first.auth.currentUser.uid,
+    "createLead",
     "2",
   ], { stdio: "inherit" });
   await expectCallableFailure(callOne("updateLeadNotes", {
