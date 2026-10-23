@@ -1544,7 +1544,7 @@ try {
     campaigns: currentQuotaCount("listCampaigns", crossTenantReadUid),
     drafts: currentQuotaCount("listOutreachDrafts", crossTenantReadUid),
   }, crossTenantReadQuotaBefore, "denied cross-tenant reads must not create or consume read quotas");
-  await expectCallableFailure(callTwo("createLead", { organisationId: orgTwo.organisationId, campaignId: campaignOne.campaignId, businessName: "Cross Tenant Attempt" }), "functions/not-found", "cross-tenant campaign reference denial");
+  await expectCallableFailure(callTwo("createLead", { organisationId: orgTwo.organisationId, campaignId: campaignOne.campaignId, businessName: "Cross Tenant Attempt", idempotencyKey: "cross-tenant-campaign-0001" }), "functions/not-found", "cross-tenant campaign reference denial");
   await expectCallableFailure(callTwo("createOutreachDraft", { organisationId: orgTwo.organisationId, leadId: leadOne.leadId, subject: "Cross tenant", body: "Must not be created" }), "functions/not-found", "cross-tenant lead reference denial");
   await expectCallableFailure(callTwo("updateOutreachDraft", { organisationId: orgTwo.organisationId, draftId: draft.draftId, subject: "Cross tenant", body: "Must not be updated" }), "functions/not-found", "cross-tenant draft update denial");
   await expectCallableFailure(callTwo("deleteOutreachDraft", { organisationId: orgTwo.organisationId, draftId: draft.draftId }), "functions/not-found", "cross-tenant draft delete denial");
