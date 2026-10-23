@@ -76,6 +76,52 @@ type SecurityAuditEventMetadata = {
   draftAction?: "created" | "updated" | "deleted";
 };
 
+const AUDIT_EVENT_RESOURCE_TYPES: Record<SecurityAuditEventType, "organisation" | "campaign" | "lead" | "outreachDraft"> = {
+  "organisation.created": "organisation",
+  "lead.csv_import.completed": "campaign",
+  "lead.contact_updated": "lead",
+  "lead.contact_restriction_changed": "lead",
+  "lead.created": "lead",
+  "campaign.created": "campaign",
+  "campaign.status_changed": "campaign",
+  "lead.status_changed": "lead",
+  "lead.notes_changed": "lead",
+  "outreach_draft.created": "outreachDraft",
+  "outreach_draft.updated": "outreachDraft",
+  "outreach_draft.deleted": "outreachDraft",
+};
+
+const AUDIT_METADATA_KEYS: Record<SecurityAuditEventType, readonly (keyof SecurityAuditEventMetadata)[]> = {
+  "organisation.created": [],
+  "lead.csv_import.completed": ["importedCount", "duplicatesSkipped"],
+  "lead.contact_updated": ["contactChannelsChanged", "contactReviewRevision"],
+  "lead.contact_restriction_changed": ["doNotContact", "contactReviewRevision", "contactReviewStatus"],
+  "lead.created": ["leadStatus"],
+  "campaign.created": ["campaignStatus"],
+  "campaign.status_changed": ["campaignStatus"],
+  "lead.status_changed": ["leadStatus"],
+  "lead.notes_changed": ["notesCleared"],
+  "outreach_draft.created": ["draftAction"],
+  "outreach_draft.updated": ["draftAction"],
+  "outreach_draft.deleted": ["draftAction"],
+};
+
+function isBoundedAuditMetadata(eventType: SecurityAuditEventType, metadata: SecurityAuditEventMetadata): boolean {
+  const allowedKeys = AUDIT_METADATA_KEYS[eventType];
+  if (Object.keys(metadata).some((key) => !allowedKeys.includes(key as keyof SecurityAuditEventMetadata))) return false;
+  if (("importedCount" in metadata && (!Number.isSafeInteger(metadata.importedCount) || metadata.importedCount! < 0 || metadata.importedCount! > 5000))
+    || ("duplicatesSkipped" in metadata && (!Number.isSafeInteger(metadata.duplicatesSkipped) || metadata.duplicatesSkipped! < 0 || metadata.duplicatesSkipped! > 5000))
+    || ("contactReviewRevision" in metadata && (!Number.isSafeInteger(metadata.contactReviewRevision) || metadata.contactReviewRevision! < 0))
+    || ("contactChannelsChanged" in metadata && typeof metadata.contactChannelsChanged !== "boolean")
+    || ("doNotContact" in metadata && typeof metadata.doNotContact !== "boolean")
+    || ("notesCleared" in metadata && typeof metadata.notesCleared !== "boolean")) return false;
+  if ("campaignStatus" in metadata && !["active", "paused", "completed"].includes(metadata.campaignStatus ?? "")) return false;
+  if ("leadStatus" in metadata && !["new", "reviewing", "qualified", "contacted", "onboarded", "rejected"].includes(metadata.leadStatus ?? "")) return false;
+  if ("contactReviewStatus" in metadata && !["pending", "cleared", "blocked"].includes(metadata.contactReviewStatus ?? "")) return false;
+  if ("draftAction" in metadata && !["created", "updated", "deleted"].includes(metadata.draftAction ?? "")) return false;
+  return true;
+}
+
 function writeSecurityAuditEvent(
   transaction: Transaction,
   organisationId: string,
@@ -85,6 +131,9 @@ function writeSecurityAuditEvent(
   resourceId: string,
   metadata: SecurityAuditEventMetadata,
 ): void {
+  if (AUDIT_EVENT_RESOURCE_TYPES[eventType] !== resourceType || !isBoundedAuditMetadata(eventType, metadata)) {
+    throw new Error("Invalid security audit event resource or metadata contract.");
+  }
   const eventRef = db.collection("organisations").doc(organisationId).collection("securityAuditEvents").doc();
   transaction.create(eventRef, {
     schemaVersion: 1,
