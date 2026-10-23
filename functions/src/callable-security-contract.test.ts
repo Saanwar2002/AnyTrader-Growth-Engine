@@ -374,3 +374,38 @@ it("revalidates lead suppression and campaign integrity inside outreach draft tr
   expect(updateBody).toContain("transaction.update(draftRef,");
   expect(updateBody).toContain("sent: false");
 });
+
+
+it("keeps CSV imports bounded, atomic, tenant-authorized, idempotent, and suppressed by default", () => {
+  const start = callableSource.indexOf("export const importLeads = onCall(");
+  const nextStart = callableSource.indexOf("export const ", start + 1);
+  const body = callableSource.slice(start, nextStart < 0 ? callableSource.length : nextStart);
+
+  expect(body).toContain("data.leads.length < 1 || data.leads.length > 25");
+  expect(body).toContain("data.leads.map((value, index) =>");
+  expect(body).toContain("Validate the complete payload before any writes");
+  expect(body).toContain("await requireLeadEditor(organisationId, uid)");
+  expect(body).toContain("await requireTransactionalRole(transaction, organisationId, uid, \"lead\")");
+  expect(body).toContain("const campaignSnapshot = await transaction.get(campaignRef)");
+  expect(body).toContain('new HttpsError("not-found", "Campaign was not found in this organisation.")');
+  expect(body).toContain("const idempotencySnapshot = await transaction.get(idempotencyRef)");
+  expect(body).toContain("saved.requestHash !== requestHash");
+  expect(body).toContain("await consumeTransactionalRateLimit(transaction, organisationId, uid, \"importLeads\", 10)");
+  expect(body).toContain("transaction.create(leadRef,");
+  expect(body).toContain("transaction.create(idempotencyRef,");
+  expect(body).toContain("doNotContact: true");
+  expect(body).toContain('contactReviewStatus: "pending"');
+  expect(body).toContain("contactReviewRevision: 0");
+  expect(body).toContain('source: "csv_import"');
+  expect(body).toContain("sent: false as const");
+  expect(body).toContain("messageSentByThisAction: false as const");
+  expect(body).toContain('writeSecurityAuditEvent(transaction, organisationId, uid, "lead.csv_import.completed"');
+
+  const writesIndex = body.indexOf("transaction.create(leadRef,");
+  const validationIndex = body.indexOf("const rows = data.leads.map");
+  expect(validationIndex).toBeGreaterThanOrEqual(0);
+  expect(writesIndex).toBeGreaterThan(validationIndex);
+  expect(body.indexOf("transaction.create(idempotencyRef,")).toBeLessThan(
+    body.indexOf('writeSecurityAuditEvent(transaction, organisationId, uid, "lead.csv_import.completed"'),
+  );
+});
