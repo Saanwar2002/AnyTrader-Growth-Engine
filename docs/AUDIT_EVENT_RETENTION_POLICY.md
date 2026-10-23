@@ -58,6 +58,36 @@ The trusted backend must construct events. Client code must not be allowed to wr
 - [ ] Configure production log access, monitoring, backup/recovery, and incident-response procedures.
 - [ ] Update the production-readiness checklist with evidence from the dedicated project.
 
-## 6. Current boundary
+## 6. Offboarding and tenant-data lifecycle (required design before implementation)
+
+Offboarding must be an explicit, authorised workflow; removing a user's login or membership alone is not proof that tenant data has been handled correctly. No tenant-wide deletion or audit-export callable is currently approved by this policy.
+
+### Required sequence
+
+1. **Authenticate and authorise:** require a recent authenticated session where supported; verify the actor is an active organisation owner/admin using authoritative membership data inside the same transaction as any membership-state mutation. A client-supplied role or organisation ID is never authoritative.
+2. **Freeze access first:** mark the organisation as offboarding or disable active memberships before any destructive work. All tenant-scoped callables must fail closed for an offboarding organisation. Do not rely on UI hiding.
+3. **Inventory owned data:** enumerate tenant-owned campaigns, leads, lead activity, outreach drafts, import-idempotency records, and any future exports/integrations. Record counts and a versioned inventory, not the underlying contact/message content.
+4. **Separate retention classes:** apply approved retention rules to operational/product records, security audit events, abuse/security logs, backups, and legally held records. Do not silently cascade-delete audit evidence merely because a tenant is closing.
+5. **Execute bounded deletion:** use a resumable server-side job with pagination, an idempotent job ID, progress checkpoints, retry handling, and per-batch limits. Avoid a single unbounded Firestore transaction or a client-driven recursive delete.
+6. **Verify completion:** re-query each known data class, confirm tenant access remains blocked, and record counts plus a completion outcome. Treat TTL as eventual cleanup only, not proof that deletion completed.
+7. **Handle exceptions:** document legal holds, unresolved incidents, failed batches, backup expiry, and restoration procedures. A restore must not silently reactivate a closed tenant or resurrect deleted access.
+8. **Minimise the final record:** preserve only a minimal offboarding outcome and job reference for the approved period. Never copy lead contact fields, notes, or draft bodies into the offboarding audit event.
+
+### Implementation and test gates
+
+- [ ] Define owner/admin authority and any second-person approval requirement for tenant-wide deletion/export.
+- [ ] Define tenant lifecycle states and prove every callable rejects offboarding tenants.
+- [ ] Add a dry-run inventory mode that exposes counts only to authorised operators.
+- [ ] Add resumable, idempotent deletion jobs with explicit per-data-class policies.
+- [ ] Test interruption/retry, duplicate job requests, partial failure, concurrent writes, legal holds, and restore behavior using synthetic emulator data.
+- [ ] Verify closed tenants cannot recreate access through stale memberships, old tokens, or replayed requests.
+- [ ] Define the minimal completion audit schema and retention period after privacy/legal review.
+- [ ] Document support escalation and a manual recovery path before production.
+
+### Current implementation boundary
+
+The existing backend has organisation creation and membership/tenant checks, but this policy does not establish that tenant offboarding, tenant-wide deletion, audit retrieval, TTL cleanup, or backup deletion are implemented. Do not expose new deletion/export endpoints until the authority model, retention rules, and emulator tests above are approved.
+
+## 7. Current boundary
 
 The current project has a deny-all Firestore client rule set and product-level `leadActivities`; this does **not** mean the policy above is implemented. Until the checklist is verified, use synthetic data only, keep outreach draft-only, and do not deploy publicly.
