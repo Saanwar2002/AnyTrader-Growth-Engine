@@ -11,6 +11,15 @@ function makeInvoker(responses: unknown[] = []) {
 }
 
 describe("typed backend API boundary", () => {
+  it("passes the stable idempotency key for organisation creation", async () => {
+    const response = { organisationId: "org-1", name: "Pilot", role: "owner" as const };
+    const { invoke, calls } = makeInvoker([response]);
+    const api = createGrowthEngineApi(invoke);
+    const payload = { name: "Pilot", idempotencyKey: "organisation-create-key-0001" };
+    await expect(api.createOrganisation(payload)).resolves.toEqual(response);
+    expect(calls).toEqual([{ name: "createOrganisation", payload }]);
+  });
+
   it("passes the stable idempotency key for campaign creation", async () => {
     const response = { campaignId: "campaign-1", organisationId: "org-1", status: "active" as const };
     const { invoke, calls } = makeInvoker([response]);
