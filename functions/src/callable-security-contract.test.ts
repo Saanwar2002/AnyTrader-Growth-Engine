@@ -271,3 +271,19 @@ describe("callable security contract", () => {
     }
   });
 });
+
+
+  it("rechecks tenant membership and role inside every tenant-scoped mutation transaction", () => {
+    for (const callableName of Object.keys(expectedRateLimitType).filter(
+      (name) => expectedRateLimitType[name] === "mutation" && name !== "createOrganisation",
+    )) {
+      const start = callableSource.indexOf(`export const ${callableName} = onCall(`);
+      expect(start, `${callableName} callable must exist`).toBeGreaterThanOrEqual(0);
+      const nextStart = callableSource.indexOf("export const ", start + 1);
+      const body = callableSource.slice(start, nextStart < 0 ? callableSource.length : nextStart);
+      expect(
+        body,
+        `${callableName} must revalidate authoritative membership inside its transaction`,
+      ).toMatch(/requireTransactionalRole\(transaction,\s*organisationId,\s*uid,/);
+    }
+  });
