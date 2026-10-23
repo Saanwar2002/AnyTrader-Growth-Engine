@@ -1045,7 +1045,7 @@ try {
     organisationId: orgOne.organisationId, leadId: leadOne.leadId, doNotContact: false,
     contactReviewRevision: await currentContactReviewRevision(leadOne.leadId),
   }), "functions/permission-denied", "viewer cannot clear suppression");
-  await expectCallableFailure(viewerCall("createOutreachDraft", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Viewer denied", body: "Must not be created" }), "functions/permission-denied", "viewer cannot create outreach draft");
+  await expectCallableFailure(viewerCall("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0020", organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Viewer denied", body: "Must not be created" }), "functions/permission-denied", "viewer cannot create outreach draft");
 
   const draftPayload = { organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Test draft", body: "Review before use", idempotencyKey: "outreach-draft-create-idempotency-0001" };
   const draft = await callOne("createOutreachDraft", draftPayload);
@@ -1113,7 +1113,7 @@ try {
   const memberEditedLead = memberEditedLeadList.leads.find((lead) => lead.id === leadOne.leadId);
   assert.equal(memberEditedLead?.doNotContact, true, "member contact-channel edits require fresh review");
   assert.equal(memberEditedLead?.contactReviewStatus, "pending", "member contact-channel edits invalidate old clearance");
-  await expectCallableFailure(memberCall("createOutreachDraft", {
+  await expectCallableFailure(memberCall("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0021",
     organisationId: orgOne.organisationId,
     leadId: leadOne.leadId,
     subject: "Fresh review required",
@@ -1127,7 +1127,7 @@ try {
   });
   assert.equal(memberStatus.status, "qualified", "member can update lead lifecycle status");
 
-  const memberDraft = await memberCall("createOutreachDraft", {
+  const memberDraft = await memberCall("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0022",
     organisationId: orgOne.organisationId,
     leadId: leadOne.leadId,
     subject: "Member-owned test draft",
@@ -1618,7 +1618,7 @@ try {
     drafts: currentQuotaCount("listOutreachDrafts", crossTenantReadUid),
   }, crossTenantReadQuotaBefore, "denied cross-tenant reads must not create or consume read quotas");
   await expectCallableFailure(callTwo("createLead", { organisationId: orgTwo.organisationId, campaignId: campaignOne.campaignId, businessName: "Cross Tenant Attempt", idempotencyKey: "cross-tenant-campaign-0001" }), "functions/not-found", "cross-tenant campaign reference denial");
-  await expectCallableFailure(callTwo("createOutreachDraft", { organisationId: orgTwo.organisationId, leadId: leadOne.leadId, subject: "Cross tenant", body: "Must not be created" }), "functions/not-found", "cross-tenant lead reference denial");
+  await expectCallableFailure(callTwo("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0023", organisationId: orgTwo.organisationId, leadId: leadOne.leadId, subject: "Cross tenant", body: "Must not be created" }), "functions/not-found", "cross-tenant lead reference denial");
   await expectCallableFailure(callTwo("updateOutreachDraft", { organisationId: orgTwo.organisationId, draftId: draft.draftId, subject: "Cross tenant", body: "Must not be updated" }), "functions/not-found", "cross-tenant draft update denial");
   await expectCallableFailure(callTwo("deleteOutreachDraft", { organisationId: orgTwo.organisationId, draftId: draft.draftId }), "functions/not-found", "cross-tenant draft delete denial");
 
@@ -1632,7 +1632,7 @@ try {
     ["updateLeadStatus", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, status: "qualified" }],
     ["updateLeadNotes", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, notes: "Must not be written" }],
     ["setLeadSuppression", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, doNotContact: true }],
-    ["createOutreachDraft", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Denied draft", body: "Must not be created" }],
+    ["createOutreachDraft", { idempotencyKey: "draft-smoke-key-0024", organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Denied draft", body: "Must not be created" }],
     ["updateOutreachDraft", { organisationId: orgOne.organisationId, draftId: draft.draftId, subject: "Denied edit", body: "Must not be updated" }],
     ["deleteOutreachDraft", { organisationId: orgOne.organisationId, draftId: draft.draftId }],
   ];
@@ -1675,7 +1675,7 @@ try {
     location: "Manchester",
     goal: "Must be denied",
   }), "functions/permission-denied", "cross-tenant campaign creation denial");
-  await expectCallableFailure(callTwo("createOutreachDraft", {
+  await expectCallableFailure(callTwo("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0025",
     organisationId: orgOne.organisationId,
     leadId: leadOne.leadId,
     subject: "Cross-tenant draft creation attempt",
