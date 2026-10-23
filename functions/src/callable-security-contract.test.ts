@@ -30,6 +30,8 @@ describe("callable security contract", () => {
   it("enforces an event-specific audit metadata allow-list and resource mapping", () => {
     expect(callableSource).toContain("const AUDIT_EVENT_RESOURCE_TYPES:");
     expect(callableSource).toContain("const AUDIT_METADATA_KEYS:");
+    expect(callableSource).toContain('"lead.contact_updated": ["contactChannelsChanged", "contactReviewRevision", "contactReviewStatus", "doNotContact"]');
+    expect(callableSource).toContain('"lead.contact_restriction_changed": ["doNotContact", "contactReviewRevision", "contactReviewStatus"]');
     expect(callableSource).toContain("function isBoundedAuditMetadata(");
     expect(callableSource).toContain("Object.keys(metadata).some((key) => !allowedKeys.includes");
     expect(callableSource).toContain("Number.isSafeInteger(metadata.importedCount)");
