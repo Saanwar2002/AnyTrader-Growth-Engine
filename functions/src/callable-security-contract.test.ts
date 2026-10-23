@@ -360,19 +360,26 @@ it("revalidates lead suppression and campaign integrity inside outreach draft tr
   expect(createBody).toContain("const campaignSnapshot = await transaction.get(campaignRef)");
   expect(createBody).toContain("if (!campaignSnapshot.exists)");
   expect(createBody).toContain("transaction.create(draft,");
+  expect(createBody).toContain('status: "draft", sent: false, createdBy: uid');
   expect(createBody).toContain("sent: false");
 
   const updateStart = callableSource.indexOf("export const updateOutreachDraft = onCall(");
   const updateEnd = callableSource.indexOf("export const ", updateStart + 1);
   const updateBody = callableSource.slice(updateStart, updateEnd < 0 ? callableSource.length : updateEnd);
   expect(updateBody).toContain("await requireTransactionalRole(transaction, organisationId, uid, \"lead\")");
-  expect(updateBody).toContain("if (draft.status !== \"draft\")");
+  expect(updateBody).toContain('if (draft.status !== "draft" || draft.sent === true)');
   expect(updateBody).toContain("hasConsistentDraftCampaign(draft.campaignId, lead.campaignId)");
   expect(updateBody).toContain("canCreateServerOutreachDraft(lead.doNotContact, lead.contactReviewStatus)");
   expect(updateBody).toContain("const campaignSnapshot = await transaction.get(campaignRef)");
   expect(updateBody).toContain("if (!campaignSnapshot.exists)");
   expect(updateBody).toContain("transaction.update(draftRef,");
   expect(updateBody).toContain("sent: false");
+
+  const listStart = callableSource.indexOf("export const listOutreachDrafts = onCall(");
+  const listEnd = callableSource.indexOf("export const ", listStart + 1);
+  const listBody = callableSource.slice(listStart, listEnd < 0 ? callableSource.length : listEnd);
+  expect(listBody).toContain('const draftStatusValid = draft.status === "draft" && draft.sent !== true');
+  expect(listBody).toContain("Draft status or sent flag is inconsistent; review the record before use.");
 });
 
 
