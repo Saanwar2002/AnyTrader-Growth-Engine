@@ -109,6 +109,12 @@ try {
     organisationId: orgOne.organisationId, campaignId: campaignOne.campaignId,
     businessName: "X".repeat(161),
   }), "functions/invalid-argument", "server rejects oversized business name");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "lead.created",
+    "0",
+  ], { stdio: "inherit" });
   const leadOne = await callOne("createLead", { organisationId: orgOne.organisationId, campaignId: campaignOne.campaignId, businessName: "Synthetic Test Painting Ltd", category: "Painters", location: "Manchester", email: "hello@example.test" });
   await expectCallableFailure(callOne("importLeads", {
     organisationId: orgOne.organisationId,
@@ -327,6 +333,12 @@ try {
   const campaignAfterInvalidStatus = await callOne("listCampaigns", { organisationId: orgOne.organisationId });
   assert.equal(campaignAfterInvalidStatus.campaigns.find((campaign) => campaign.id === campaignOne.campaignId)?.status,
     "active", "invalid campaign status preserves the stored campaign state");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "campaign.status_changed",
+    "2",
+  ], { stdio: "inherit" });
   const campaignQuotaBeforeMissingTarget = currentQuotaCount("updateCampaignStatus");
   await expectCallableFailure(callOne("updateCampaignStatus", {
     organisationId: orgOne.organisationId,
