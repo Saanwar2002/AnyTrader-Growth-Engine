@@ -116,6 +116,19 @@ try {
     "0",
   ], { stdio: "inherit" });
   const leadOne = await callOne("createLead", { organisationId: orgOne.organisationId, campaignId: campaignOne.campaignId, businessName: "Synthetic Test Painting Ltd", category: "Painters", location: "Manchester", email: "hello@example.test" });
+  await expectCallableFailure(callOne("updateLeadNotes", {
+    organisationId: orgOne.organisationId,
+    leadId: leadOne.leadId,
+    notes: "N".repeat(4001),
+  }), "functions/invalid-argument", "oversized lead notes are rejected before mutation");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "lead.notes_changed",
+    "0",
+    leadOne.leadId,
+  ], { stdio: "inherit" });
+
   await expectCallableFailure(callOne("importLeads", {
     organisationId: orgOne.organisationId,
     campaignId: campaignOne.campaignId,
@@ -913,6 +926,31 @@ try {
 
   const draft = await callOne("createOutreachDraft", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Test draft", body: "Review before use" });
   assert.equal(draft.sent, false);
+  await expectCallableFailure(callOne("updateOutreachDraft", {
+    organisationId: orgOne.organisationId,
+    draftId: draft.draftId,
+    subject: "S".repeat(201),
+    body: "Invalid update must not alter the existing draft.",
+  }), "functions/invalid-argument", "oversized draft subject is rejected before mutation");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "outreach_draft.updated",
+    "0",
+    draft.draftId,
+  ], { stdio: "inherit" });
+  await expectCallableFailure(callOne("deleteOutreachDraft", {
+    organisationId: orgOne.organisationId,
+    draftId: "nonexistent-audit-draft",
+  }), "functions/not-found", "deleting a nonexistent draft is rejected");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "outreach_draft.deleted",
+    "0",
+    "nonexistent-audit-draft",
+  ], { stdio: "inherit" });
+
 
   // Confirm member lifecycle permissions and viewer denial on existing records.
   await memberCall("updateLeadContact", {
