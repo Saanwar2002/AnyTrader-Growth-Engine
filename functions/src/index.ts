@@ -1036,18 +1036,18 @@ export const createOutreachDraft = onCall(async (request) => {
     const idempotencySnapshot = await transaction.get(idempotencyRef);
     if (idempotencySnapshot.exists) {
       const saved = idempotencySnapshot.data() ?? {};
+      if (saved.requestHash !== requestHash) {
+        throw new HttpsError("already-exists", "This idempotencyKey was already used with a different draft payload.");
+      }
       if (!saved.result || typeof saved.result !== "object") {
         throw new HttpsError("failed-precondition", "Saved draft retry state is invalid and requires operator review.");
       }
       const savedResult = saved.result as Record<string, unknown>;
-      // Compare the canonical persisted response fields as well as retaining the
-      // request fingerprint for audit/debugging. This avoids relying on Firestore
-      // object representation when validating an exact retry.
+      // The SHA-256 request fingerprint is the canonical payload comparison.
+      // Validate immutable result ownership/state separately; Firestore's
+      // returned nested-map representation is not used as a second fingerprint.
       if (savedResult.leadId !== leadId || savedResult.campaignId !== campaignId) {
-        throw new HttpsError("already-exists", "This idempotencyKey was already used for a different lead or campaign.");
-      }
-      if (savedResult.subject !== subject || savedResult.body !== body) {
-        throw new HttpsError("already-exists", "This idempotencyKey was already used with different draft text.");
+        throw new HttpsError("failed-precondition", "Saved draft retry does not match its lead or campaign.");
       }
       if (typeof savedResult.draftId !== "string" || savedResult.status !== "draft" || savedResult.sent !== false) {
         throw new HttpsError("failed-precondition", "Saved draft retry state is invalid and requires operator review.");
