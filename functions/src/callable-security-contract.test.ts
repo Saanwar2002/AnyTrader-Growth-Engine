@@ -302,3 +302,21 @@ describe("callable security contract", () => {
       ).toMatch(/requireTransactionalRole\(transaction,\s*organisationId,\s*uid,/);
     }
   });
+
+it("revalidates organisation-list cursors and filters stale or mismatched memberships", () => {
+  const start = callableSource.indexOf("export const listMyOrganisations = onCall(");
+  const nextStart = callableSource.indexOf("export const ", start + 1);
+  const body = callableSource.slice(start, nextStart < 0 ? callableSource.length : nextStart);
+
+  expect(body).toContain("isValidOrganisationPageToken(data.pageToken, uid)");
+  expect(body).toContain('cursor.id !== uid');
+  expect(body).toContain("cursorMembership.uid !== uid");
+  expect(body).toContain("const cursorOrganisation = await cursorOrganisationRef.get()");
+  expect(body).toContain("isValidMembershipForOrganisation(cursorMembership, uid, cursorOrganisation.data()?.ownerUid)");
+  expect(body).toContain("const memberships = await membershipQuery.limit(101).get()");
+  expect(body).toContain("memberships.docs.slice(0, 100)");
+  expect(body).toContain("membershipDoc.id !== uid || !isValidMembershipForOrganisation(membership, uid, organisation.data()?.ownerUid)");
+  expect(body).toContain("organisations.filter((item): item is NonNullable<typeof item> => item !== null)");
+  expect(body).toContain("nextPageToken: hasMoreOrganisations ? page[page.length - 1]?.ref.path ?? null : null");
+});
+
