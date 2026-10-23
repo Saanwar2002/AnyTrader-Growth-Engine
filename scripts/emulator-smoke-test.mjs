@@ -85,7 +85,12 @@ try {
     "functions/scripts/assert-emulator-rate-limit-expiry.mjs",
     "global", first.auth.currentUser.uid, "createOrganisation",
   ], { stdio: "inherit" });
-  const campaignOne = await callOne("createCampaign", { organisationId: orgOne.organisationId, name: "Painter pilot", brand: "Example", category: "Painters", location: "Manchester", goal: "Recruit providers" });
+  const campaignOnePayload = { organisationId: orgOne.organisationId, idempotencyKey: "campaign-create-idempotency-0001", name: "Painter pilot", brand: "Example", category: "Painters", location: "Manchester", goal: "Recruit providers" };
+  const campaignOne = await callOne("createCampaign", campaignOnePayload);
+  const campaignOneReplay = await callOne("createCampaign", campaignOnePayload);
+  assert.deepEqual(campaignOneReplay, campaignOne, "campaign creation retry returns the original result");
+  await expectCallableFailure(callOne("createCampaign", { ...campaignOnePayload, name: "Changed campaign payload" }), "functions/already-exists", "campaign creation rejects key reuse with a different payload");
+  assert.equal((await callOne("listCampaigns", { organisationId: orgOne.organisationId })).campaigns.filter((campaign) => campaign.name === "Painter pilot").length, 1, "campaign retry persists exactly one campaign");
   const pausedCampaign = await callOne("updateCampaignStatus", {
     organisationId: orgOne.organisationId,
     campaignId: campaignOne.campaignId,
@@ -876,7 +881,7 @@ try {
   await createUserWithEmailAndPassword(admin.auth, "admin@example.test", "testing-password-admin");
   seedRole(admin.auth.currentUser.uid, "admin");
   const adminCall = (name, payload = {}) => httpsCallable(admin.functions, name, { timeout: 30000 })(payload).then((response) => response.data);
-  const adminCampaign = await adminCall("createCampaign", { organisationId: orgOne.organisationId, name: "Admin role campaign", brand: "Example", category: "Painters", location: "Manchester", goal: "Role test" });
+  const adminCampaign = await adminCall("createCampaign", { organisationId: orgOne.organisationId, idempotencyKey: "campaign-admin-create-0001", name: "Admin role campaign", brand: "Example", category: "Painters", location: "Manchester", goal: "Role test" });
   assert.equal(adminCampaign.status, "active", "admin can create a campaign");
   await adminCall("updateCampaignStatus", { organisationId: orgOne.organisationId, campaignId: adminCampaign.campaignId, status: "paused" });
   await clearLeadRestriction(leadOne.leadId, adminCall);
@@ -1451,6 +1456,7 @@ try {
   for (let index = 0; index < 99; index += 1) {
     await callOne("createCampaign", {
       organisationId: orgOne.organisationId,
+      idempotencyKey: `campaign-pagination-create-${String(index + 1).padStart(3, "0")}`,
       name: `Synthetic Pagination Campaign ${String(index + 1).padStart(3, "0")}`,
       brand: "Example",
       category: "Painters",
