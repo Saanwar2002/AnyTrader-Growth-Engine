@@ -386,7 +386,7 @@ describe("cloud authentication gate", () => {
     ] });
     mocks.api.listLeads.mockResolvedValue({
       leads: [
-        lead("lead-1", "Northside Painting", "Painters", "Manchester", "new"),
+        { ...lead("lead-1", "Northside Painting", "Painters", "Manchester", "new"), website: "https://northside.example" },
         { ...lead("lead-2", "City Decorators", "Decorators", "Salford", "qualified"), campaignId: "campaign-2" },
       ],
     });
@@ -395,6 +395,11 @@ describe("cloud authentication gate", () => {
     expect(await screen.findByText("Northside Painting")).toBeTruthy();
     expect(screen.getByText("City Decorators")).toBeTruthy();
     expect(screen.getByText("Showing 2 of 2 loaded leads.")).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: "northside.example" } });
+    expect(screen.getByText("Northside Painting")).toBeTruthy();
+    expect(screen.queryByText("City Decorators")).toBeNull();
+    fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: "" } });
 
     fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: "salford" } });
     expect(screen.getByText("Showing 1 of 2 loaded leads.")).toBeTruthy();
