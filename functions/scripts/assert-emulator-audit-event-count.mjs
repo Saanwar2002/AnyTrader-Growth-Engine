@@ -18,7 +18,7 @@ initializeApp({ projectId });
 const db = getFirestore();
 const snapshot = await db.collection("organisations").doc(organisationId)
   .collection("securityAuditEvents").where("eventType", "==", eventType).get();
-assert.equal(snapshot.size, Number(expectedCountArg), \`audit-event count for \${eventType} must match successful mutations only\`);
+assert.equal(snapshot.size, Number(expectedCountArg), "audit-event count for " + eventType + " must match successful mutations only");
 for (const event of snapshot.docs) {
   const value = event.data();
   assert.equal(value.eventType, eventType, "audit event type must match the query");
@@ -28,4 +28,4 @@ for (const event of snapshot.docs) {
   assert.equal(value.schemaVersion, 1, "audit event must carry schema version 1");
   assert.ok(value.createdAt, "audit event must carry a server timestamp");
 }
-console.log(\`AUDIT_EVENT_COUNT:\${eventType}:\${snapshot.size}\`);
+console.log("AUDIT_EVENT_COUNT:" + eventType + ":" + snapshot.size);
