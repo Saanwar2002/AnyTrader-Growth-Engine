@@ -365,6 +365,38 @@ describe("cloud authentication gate", () => {
     expect(screen.getByText(/nothing was sent/i)).toBeTruthy();
   });
 
+  it("filters the lead directory by business details and status", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+    });
+    const lead = (id: string, businessName: string, category: string, location: string, status: string) => ({
+      id, campaignId: "campaign-1", businessName, category, location, website: "",
+      email: "", phone: "", source: "manual", status, score: 20, scoreReasons: [],
+      notes: "", doNotContact: true, contactRestrictionVerified: false,
+      contactReviewStatus: "pending", createdAt: null,
+    });
+    mocks.api.listLeads.mockResolvedValue({
+      leads: [
+        lead("lead-1", "Northside Painting", "Painters", "Manchester", "new"),
+        lead("lead-2", "City Decorators", "Decorators", "Salford", "qualified"),
+      ],
+    });
+
+    render(<CloudWorkspace />);
+    expect(await screen.findByText("Northside Painting")).toBeTruthy();
+    expect(screen.getByText("City Decorators")).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: "salford" } });
+    expect(screen.getByText("City Decorators")).toBeTruthy();
+    expect(screen.queryByText("Northside Painting")).toBeNull();
+
+    fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: "" } });
+    fireEvent.change(screen.getByLabelText("Filter by status"), { target: { value: "qualified" } });
+    expect(screen.getByText("City Decorators")).toBeTruthy();
+    expect(screen.queryByText("Northside Painting")).toBeNull();
+  });
+
   it("offers account creation without weakening the required password length", () => {
     render(<CloudWorkspace />);
     fireEvent.click(screen.getByRole("button", { name: /Need an account/i }));
