@@ -4,11 +4,11 @@ on:
   push:
     branches:
       - main
-      - development/chatgpt-mvp
+      - development/next-phase
   pull_request:
     branches:
       - main
-      - development/chatgpt-mvp
+      - development/next-phase
   workflow_dispatch:
 
 permissions:
