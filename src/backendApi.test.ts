@@ -82,4 +82,29 @@ describe("typed backend API boundary", () => {
       { name: "listOutreachDrafts", payload: { organisationId: "org-1", pageToken: "organisations/org-1/outreachDrafts/draft-100" } },
     ]);
   });
+
+  it("submits reviewed CSV rows through the tenant-scoped idempotent import callable", async () => {
+    const response = {
+      organisationId: "org-1", campaignId: "campaign-1", received: 2, imported: 1,
+      duplicatesSkipped: 1, leads: [{ leadId: "lead-new", businessName: "North Star Roofing" }],
+      sent: false as const, messageSentByThisAction: false as const,
+    };
+    const { invoke, calls } = makeInvoker([response]);
+    const api = createGrowthEngineApi(invoke);
+    const payload = {
+      organisationId: "org-1",
+      campaignId: "campaign-1",
+      idempotencyKey: "csv-import-key-0001",
+      leads: [
+        { businessName: "North Star Roofing", category: "Roofers", location: "Leeds", email: "hello@example.test" },
+        { businessName: "Duplicate Roofing", category: "Roofers", location: "Leeds", website: "https://duplicate.example" },
+      ],
+    };
+
+    await expect(api.importLeads(payload)).resolves.toEqual(response);
+    expect(calls).toEqual([{ name: "importLeads", payload }]);
+    expect(response.sent).toBe(false);
+    expect(response.messageSentByThisAction).toBe(false);
+  });
+
 });
