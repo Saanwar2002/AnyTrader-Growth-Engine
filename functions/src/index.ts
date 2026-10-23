@@ -881,7 +881,7 @@ export const createOutreachDraft = onCall(async (request) => {
     if (!campaignSnapshot.exists) throw new HttpsError("failed-precondition", "The lead's campaign no longer exists in this organisation.");
     const now = FieldValue.serverTimestamp();
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "createOutreachDraft", 200);
-    transaction.create(draft, { leadId, campaignId, subject, body, status: "draft", createdBy: uid, createdAt: now, updatedAt: now });
+    transaction.create(draft, { leadId, campaignId, subject, body, status: "draft", sent: false, createdBy: uid, createdAt: now, updatedAt: now });
     transaction.create(activity, { leadId, actorUid: uid, message: "Outreach draft created; not sent", createdAt: now });
     writeSecurityAuditEvent(transaction, organisationId, uid, "outreach_draft.created", "outreachDraft", draft.id, { draftAction: "created" });
   });
@@ -945,7 +945,7 @@ export const listOutreachDrafts = onCall(async (request) => {
       const lead = leadSnapshot?.data();
       const campaignId = typeof lead?.campaignId === "string" ? lead.campaignId : "";
       const campaignExists = isValidDocumentId(campaignId) && campaignById.get(campaignId)?.exists === true;
-      const draftStatusValid = draft.status === "draft";
+      const draftStatusValid = draft.status === "draft" && draft.sent !== true;
       const draftContentValid = typeof draft.subject === "string"
         && draft.subject.trim().length > 0
         && draft.subject.length <= 200
@@ -965,7 +965,7 @@ export const listOutreachDrafts = onCall(async (request) => {
           leadSuppressed: leadExists && (lead?.doNotContact === true || lead?.contactReviewStatus === "blocked"),
           requiresReview: true,
           reviewReason: !draftStatusValid
-            ? "Draft status is missing or is not draft; review the record before use."
+            ? "Draft status or sent flag is inconsistent; review the record before use."
             : !leadExists
               ? "Lead record is missing; review before use."
               : (lead?.doNotContact === true || lead?.contactReviewStatus === "blocked")
@@ -1009,7 +1009,7 @@ export const updateOutreachDraft = onCall(async (request) => {
     const draftSnapshot = await transaction.get(draftRef);
     if (!draftSnapshot.exists) throw new HttpsError("not-found", "Outreach draft was not found in this organisation.");
     const draft = draftSnapshot.data() ?? {};
-    if (draft.status !== "draft") {
+    if (draft.status !== "draft" || draft.sent === true) {
       throw new HttpsError("failed-precondition", "Only unsent drafts can be edited; this record requires review.");
     }
     leadId = requireDocumentId(draft.leadId, "draft leadId");
