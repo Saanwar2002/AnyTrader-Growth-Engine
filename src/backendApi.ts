@@ -22,7 +22,7 @@ export interface OutreachDraftSummary { id: string; leadId: string; campaignId: 
 export function createGrowthEngineApi(call: CallableInvoker) {
   return {
     listMyOrganisations: (pageToken?: string) => call<{ pageToken?: string }, { organisations: OrganisationSummary[]; hasMoreOrganisations: boolean; nextPageToken: string | null }>("listMyOrganisations", pageToken ? { pageToken } : {}),
-    createOrganisation: (payload: { name: string }) => call<typeof payload, OrganisationSummary>("createOrganisation", payload),
+    createOrganisation: (payload: { name: string; idempotencyKey: string }) => call<typeof payload, OrganisationSummary>("createOrganisation", payload),
     createCampaign: (payload: CampaignInput) => call<CampaignInput, { campaignId: string; status: ServerCampaignStatus }>("createCampaign", payload),
     updateCampaignStatus: (payload: { organisationId: string; campaignId: string; status: ServerCampaignStatus }) => call<typeof payload, { campaignId: string; status: ServerCampaignStatus }>("updateCampaignStatus", payload),
     listCampaigns: (payload: { organisationId: string; pageToken?: string }) => call<typeof payload, { campaigns: CampaignSummary[]; hasMoreCampaigns: boolean; nextPageToken: string | null }>("listCampaigns", payload),
