@@ -70,7 +70,7 @@ describe("typed backend API boundary", () => {
   it("uses draft-only callable names and has no send operation", async () => {
     const { invoke, calls } = makeInvoker([{ draftId: "draft-1", leadId: "lead-1", status: "draft", sent: false }]);
     const api = createGrowthEngineApi(invoke);
-    const result = await api.createOutreachDraft({ organisationId: "org-1", leadId: "lead-1", subject: "Hello", body: "Please review" });
+    const result = await api.createOutreachDraft({ organisationId: "org-1", leadId: "lead-1", subject: "Hello", body: "Please review", idempotencyKey: "outreach-draft-api-test-0001" });
     expect(calls[0]?.name).toBe("createOutreachDraft");
     expect(result.sent).toBe(false);
     expect(Object.keys(api).some((key) => /send/i.test(key))).toBe(false);
