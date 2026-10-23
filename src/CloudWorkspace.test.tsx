@@ -265,6 +265,38 @@ describe("cloud authentication gate", () => {
     expect((screen.getByRole("button", { name: /create draft/i }) as HTMLButtonElement).disabled).toBe(true);
   });
 
+  it("reuses the same manual lead idempotency key and payload after an uncertain failure", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
+    mocks.api.listCampaigns.mockResolvedValue({ campaigns: [{
+      id: "campaign-1", name: "Painter pilot", brand: "AnyTrader", category: "Painters",
+      location: "Manchester", goal: "Recruit providers", status: "active", createdAt: null,
+    }] });
+    mocks.api.createLead
+      .mockRejectedValueOnce(new Error("Network request timed out"))
+      .mockResolvedValueOnce({ leadId: "lead-retry", status: "new" });
+
+    render(<CloudWorkspace />);
+    const businessName = await screen.findByLabelText("Business name");
+    fireEvent.change(businessName, { target: { value: "Retry-safe Painting Ltd" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save lead" }));
+
+    const retryButton = await screen.findByRole("button", { name: "Retry save (same request)" });
+    expect((screen.getByLabelText("Business name") as HTMLInputElement).disabled).toBe(true);
+    expect((screen.getByLabelText("Campaign") as HTMLSelectElement).disabled).toBe(true);
+    expect(retryButton).toBeTruthy();
+    const firstPayload = mocks.api.createLead.mock.calls[0][0];
+    expect(firstPayload.idempotencyKey).toMatch(/^manual-lead-[A-Za-z0-9-]+$/);
+    expect(firstPayload.businessName).toBe("Retry-safe Painting Ltd");
+
+    fireEvent.click(retryButton);
+    await waitFor(() => expect(mocks.api.createLead).toHaveBeenCalledTimes(2));
+    expect(mocks.api.createLead.mock.calls[1][0]).toEqual(firstPayload);
+    await screen.findByText(/Lead saved securely to the selected organisation/);
+    expect((screen.getByLabelText("Business name") as HTMLInputElement).value).toBe("");
+    expect((screen.getByLabelText("Business name") as HTMLInputElement).disabled).toBe(false);
+  });
+
   it("disables clearing a pending restriction for non-admin organisation roles", async () => {
     mocks.currentUser = { email: "member@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "member" }] });
