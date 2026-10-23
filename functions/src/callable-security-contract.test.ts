@@ -320,3 +320,31 @@ it("revalidates organisation-list cursors and filters stale or mismatched member
   expect(body).toContain("nextPageToken: hasMoreOrganisations ? page[page.length - 1]?.ref.path ?? null : null");
 });
 
+it("validates tenant list pagination tokens against the requested organisation and collection", () => {
+  const listCallables = [
+    ["listCampaigns", "campaigns", "Campaign"],
+    ["listLeads", "leads", "Lead"],
+    ["listOutreachDrafts", "outreachDrafts", "Outreach draft"],
+  ] as const;
+
+  for (const [callableName, collectionName, label] of listCallables) {
+    const start = callableSource.indexOf(`export const ${callableName} = onCall(`);
+    expect(start, `${callableName} callable must exist`).toBeGreaterThanOrEqual(0);
+    const nextStart = callableSource.indexOf("export const ", start + 1);
+    const body = callableSource.slice(start, nextStart < 0 ? callableSource.length : nextStart);
+
+    expect(body).toContain(
+      `isValidOrganisationCollectionPageToken(data.pageToken, organisationId, "${collectionName}")`,
+    );
+    expect(body).toContain(`"${label} page token is invalid for this organisation."`);
+    expect(body).toContain("const cursor = await db.doc(data.pageToken).get()");
+    expect(body).toContain("!cursor.exists || !isValidFirestoreTimestamp(cursor.data()?.createdAt)");
+    expect(body).toContain(`"${label} page token is no longer valid."`);
+    expect(body).toContain("cursorSnapshot = cursor as QueryDocumentSnapshot");
+    expect(body).toContain(".startAfter(cursorSnapshot)");
+    expect(body).toContain(".limit(101).get()");
+    expect(body).toContain("snapshot.docs.slice(0, 100)");
+    expect(body).toContain(`nextPageToken: snapshot.size > 100 ? page[page.length - 1]?.ref.path ?? null : null`);
+  }
+});
+
