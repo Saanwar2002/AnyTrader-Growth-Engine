@@ -1043,9 +1043,11 @@ export const createOutreachDraft = onCall(async (request) => {
       // Compare the canonical persisted response fields as well as retaining the
       // request fingerprint for audit/debugging. This avoids relying on Firestore
       // object representation when validating an exact retry.
-      if (savedResult.leadId !== leadId || savedResult.campaignId !== campaignId
-        || savedResult.subject !== subject || savedResult.body !== body) {
-        throw new HttpsError("already-exists", "This idempotencyKey was already used with a different draft payload.");
+      if (savedResult.leadId !== leadId || savedResult.campaignId !== campaignId) {
+        throw new HttpsError("already-exists", "This idempotencyKey was already used for a different lead or campaign.");
+      }
+      if (savedResult.subject !== subject || savedResult.body !== body) {
+        throw new HttpsError("already-exists", "This idempotencyKey was already used with different draft text.");
       }
       if (typeof savedResult.draftId !== "string" || savedResult.status !== "draft" || savedResult.sent !== false) {
         throw new HttpsError("failed-precondition", "Saved draft retry state is invalid and requires operator review.");
