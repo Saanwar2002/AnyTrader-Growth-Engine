@@ -46,7 +46,7 @@ describe("callable security contract", () => {
     expect(typeStart).toBeGreaterThanOrEqual(0);
     expect(typeEnd).toBeGreaterThan(typeStart);
     const typeBlock = callableSource.slice(typeStart, typeEnd);
-    const eventTypes = [...typeBlock.matchAll(/"([a-z]+(?:\\.[a-z_]+)+)"/g)]
+    const eventTypes = [...typeBlock.matchAll(/"([a-z]+(?:\.[a-z_]+)+)"/g)]
       .map((match) => match[1]);
     expect(eventTypes.length).toBeGreaterThan(0);
     expect(new Set(eventTypes).size).toBe(eventTypes.length);
@@ -59,12 +59,12 @@ describe("callable security contract", () => {
     expect(validatorStart).toBeGreaterThan(metadataMapStart);
     const resourceMap = callableSource.slice(resourceMapStart, metadataMapStart);
     const metadataMap = callableSource.slice(metadataMapStart, validatorStart);
-    const resourceEvents = [...resourceMap.matchAll(/^\\s*"([^"]+)":/gm)].map((match) => match[1]);
-    const metadataEvents = [...metadataMap.matchAll(/^\\s*"([^"]+)":/gm)].map((match) => match[1]);
+    const resourceEvents = [...resourceMap.matchAll(/^\s*"([^"]+)":/gm)].map((match) => match[1]);
+    const metadataEvents = [...metadataMap.matchAll(/^\s*"([^"]+)":/gm)].map((match) => match[1]);
     expect(resourceEvents.sort()).toEqual([...eventTypes].sort());
     expect(metadataEvents.sort()).toEqual([...eventTypes].sort());
 
-    const auditCalls = [...callableSource.matchAll(/writeSecurityAuditEvent\\(transaction,\\s*[^,]+,\\s*[^,]+,\\s*"([^"]+)",\\s*"([^"]+)"/g)];
+    const auditCalls = [...callableSource.matchAll(/writeSecurityAuditEvent\(transaction,\s*[^,]+,\s*[^,]+,\s*"([^"]+)",\s*"([^"]+)"/g)];
     const callPairs = new Set(auditCalls.map((match) => `${match[1]}|${match[2]}`));
     expect(auditCalls.length).toBe(12);
     for (const [eventType, resourceType] of [
