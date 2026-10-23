@@ -53,8 +53,19 @@ try {
     "functions/scripts/assert-emulator-rate-limit-expiry.mjs",
     "global", first.auth.currentUser.uid, "listMyOrganisations", "fresh-window",
   ], { stdio: "inherit" });
-  const orgOne = await callOne("createOrganisation", { name: "Tenant One" });
+  const orgOnePayload = { name: "Tenant One", idempotencyKey: "organisation-create-idempotency-0001" };
+  const orgOne = await callOne("createOrganisation", orgOnePayload);
   assert.equal(orgOne.role, "owner");
+  const orgOneReplay = await callOne("createOrganisation", orgOnePayload);
+  assert.deepEqual(orgOneReplay, orgOne, "organisation creation retry returns the original result");
+  await expectCallableFailure(callOne("createOrganisation", { ...orgOnePayload, name: "Changed tenant payload" }), "functions/already-exists", "organisation creation rejects key reuse with a different payload");
+  assert.equal((await callOne("listMyOrganisations")).organisations.filter((item) => item.organisationId === orgOne.organisationId).length, 1, "organisation retry persists exactly one organisation");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "organisation.created",
+    "1",
+  ], { stdio: "inherit" });
   async function currentContactReviewRevision(leadId) {
     const result = await callOne("listLeads", { organisationId: orgOne.organisationId });
     const lead = result.leads.find((item) => item.id === leadId);
@@ -1538,7 +1549,7 @@ try {
     drafts: currentQuotaCount("listOutreachDrafts", crossTenantReadUid),
   };
   await expectCallableFailure(callTwo("listLeads", { organisationId: orgOne.organisationId }), "functions/permission-denied", "cross-tenant lead listing denial");
-  const orgTwo = await callTwo("createOrganisation", { name: "Tenant Two" });
+  const orgTwo = await callTwo("createOrganisation", { name: "Tenant Two", idempotencyKey: "organisation-create-tenant-two-0001" });
   // A cursor scoped to another tenant must be rejected before its target document is read.
   await expectCallableFailure(callOne("listCampaigns", { organisationId: orgOne.organisationId, pageToken: `organisations/${orgTwo.organisationId}/campaigns/cursor-only` }), "functions/invalid-argument", "campaign cursor from another organisation");
   await expectCallableFailure(callOne("listLeads", { organisationId: orgOne.organisationId, pageToken: `organisations/${orgTwo.organisationId}/leads/cursor-only` }), "functions/invalid-argument", "lead cursor from another organisation");
@@ -2079,7 +2090,7 @@ try {
     "functions/scripts/seed-emulator-rate-limit.mjs",
     "global", first.auth.currentUser.uid, "createOrganisation", "expired",
   ], { stdio: "inherit" });
-  const afterExpiredMutationQuota = await callOne("createOrganisation", { name: "Tenant After Expired Quota" });
+  const afterExpiredMutationQuota = await callOne("createOrganisation", { name: "Tenant After Expired Quota", idempotencyKey: "organisation-after-expiry-0001" });
   assert.equal(afterExpiredMutationQuota.role, "owner", "expired mutation quota permits the first request in a new window");
   execFileSync(process.execPath, [
     "functions/scripts/assert-emulator-rate-limit-expiry.mjs",
