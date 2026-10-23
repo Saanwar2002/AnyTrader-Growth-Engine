@@ -376,9 +376,13 @@ describe("cloud authentication gate", () => {
       notes: "", doNotContact: true, contactRestrictionVerified: false,
       contactReviewStatus: "pending", createdAt: null,
     });
+    const campaign = (id: string, name: string) => ({
+      id, name, brand: "AnyTrader", category: "Painters", location: "Manchester",
+      goal: "Recruit providers", status: "active", createdAt: null,
+    });
     mocks.api.listCampaigns.mockResolvedValue({ campaigns: [
-      { id: "campaign-1", name: "Painter campaign" },
-      { id: "campaign-2", name: "Decorator campaign" },
+      campaign("campaign-1", "Painter campaign"),
+      campaign("campaign-2", "Decorator campaign"),
     ] });
     mocks.api.listLeads.mockResolvedValue({
       leads: [
