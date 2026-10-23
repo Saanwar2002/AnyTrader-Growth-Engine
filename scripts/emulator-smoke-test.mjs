@@ -500,7 +500,7 @@ try {
   const campaignsAfterMissingTarget = await callOne("listCampaigns", { organisationId: orgOne.organisationId });
   assert.equal(campaignsAfterMissingTarget.campaigns.find((campaign) => campaign.id === campaignOne.campaignId)?.status,
     "active", "missing campaign target does not alter other campaign state");
-  await expectCallableFailure(callOne("createOutreachDraft", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Blocked before review", body: "Must not be created" }), "functions/failed-precondition", "new lead draft gate before contact review");
+  await expectCallableFailure(callOne("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0001", organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Blocked before review", body: "Must not be created" }), "functions/failed-precondition", "new lead draft gate before contact review");
   await callOne("setLeadSuppression", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, doNotContact: true });
   // Updating ordinary contact fields must never silently clear a do-not-contact restriction.
   await callOne("updateLeadContact", {
@@ -515,7 +515,7 @@ try {
   const suppressedLeadAfterContactEdit = stillSuppressed.leads.find((lead) => lead.id === leadOne.leadId);
   assert.equal(suppressedLeadAfterContactEdit?.doNotContact, true, "contact-detail edits preserve do-not-contact restriction");
   assert.equal(suppressedLeadAfterContactEdit?.contactReviewStatus, "blocked", "contact-detail edits preserve blocked review state");
-  await expectCallableFailure(callOne("createOutreachDraft", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Blocked", body: "Must not be created" }), "functions/failed-precondition", "suppressed lead draft gate after contact edit");
+  await expectCallableFailure(callOne("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0002", organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Blocked", body: "Must not be created" }), "functions/failed-precondition", "suppressed lead draft gate after contact edit");
   await expectCallableFailure(callOne("updateLeadStatus", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, status: "contacted" }), "functions/failed-precondition", "suppressed lead contacted status gate");
   await clearLeadRestriction(leadOne.leadId);
   const clearedLeadList = await callOne("listLeads", { organisationId: orgOne.organisationId });
@@ -697,7 +697,7 @@ try {
     "stricter suppression action keeps a malformed-revision lead suppressed");
   assert.equal(blockedMalformedRevision?.contactReviewStatus, "blocked",
     "stricter suppression action records blocked status despite malformed revision");
-  await expectCallableFailure(callOne("createOutreachDraft", {
+  await expectCallableFailure(callOne("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0003",
     organisationId: orgOne.organisationId,
     leadId: malformedRevisionLead.leadId,
     subject: "Synthetic blocked lead test",
@@ -797,7 +797,7 @@ try {
     "persisted suppression remains enabled after non-channel edit");
   console.log("PASS: non-contact-channel edits preserve the maximum revision and cannot relax suppression.");
 
-  await expectCallableFailure(callOne("createOutreachDraft", {
+  await expectCallableFailure(callOne("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0004",
     organisationId: orgOne.organisationId,
     leadId: leadOne.leadId,
     subject: "Stale clearance must not permit a draft",
@@ -817,7 +817,7 @@ try {
     email: "before-race@example.test",
   });
   await clearLeadRestriction(concurrentReviewLead.leadId);
-  const concurrentDraftAttempt = callOne("createOutreachDraft", {
+  const concurrentDraftAttempt = callOne("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0005",
     organisationId: orgOne.organisationId,
     leadId: concurrentReviewLead.leadId,
     subject: "Concurrent review test",
@@ -875,7 +875,7 @@ try {
     const updatedChannelLead = updatedChannelList.leads.find((lead) => lead.id === leadOne.leadId);
     assert.equal(updatedChannelLead?.doNotContact, true, `changing ${channel} re-applies the contact restriction`);
     assert.equal(updatedChannelLead?.contactReviewStatus, "pending", `changing ${channel} requires fresh review`);
-    await expectCallableFailure(callOne("createOutreachDraft", {
+    await expectCallableFailure(callOne("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0006",
       organisationId: orgOne.organisationId,
       leadId: leadOne.leadId,
       subject: "Changed contact channel requires review",
@@ -1047,8 +1047,33 @@ try {
   }), "functions/permission-denied", "viewer cannot clear suppression");
   await expectCallableFailure(viewerCall("createOutreachDraft", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Viewer denied", body: "Must not be created" }), "functions/permission-denied", "viewer cannot create outreach draft");
 
-  const draft = await callOne("createOutreachDraft", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Test draft", body: "Review before use" });
+  const draftPayload = { organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Test draft", body: "Review before use", idempotencyKey: "outreach-draft-create-idempotency-0001" };
+  const draft = await callOne("createOutreachDraft", draftPayload);
   assert.equal(draft.sent, false);
+  const draftReplay = await callOne("createOutreachDraft", draftPayload);
+  assert.deepEqual(draftReplay, draft, "draft creation retry returns the original draft");
+  await expectCallableFailure(callOne("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0007", ...draftPayload, subject: "Changed draft subject" }), "functions/already-exists", "draft creation rejects key reuse with a different payload");
+  const concurrentDraftPayload = { ...draftPayload, subject: "Concurrent retry draft", idempotencyKey: "outreach-draft-create-concurrent-0001" };
+  const concurrentDraftResults = await Promise.all([
+    callOne("createOutreachDraft", concurrentDraftPayload),
+    callOne("createOutreachDraft", concurrentDraftPayload),
+  ]);
+  assert.equal(concurrentDraftResults[0].draftId, concurrentDraftResults[1].draftId, "concurrent draft retries return the same draft ID");
+  assert.equal((await callOne("listOutreachDrafts", { organisationId: orgOne.organisationId })).drafts.filter((item) => item.subject === "Concurrent retry draft").length, 1, "concurrent draft retries persist one draft");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "outreach_draft.created",
+    "1",
+    draft.draftId,
+  ], { stdio: "inherit" });
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "outreach_draft.created",
+    "1",
+    concurrentDraftResults[0].draftId,
+  ], { stdio: "inherit" });
   await expectCallableFailure(callOne("updateOutreachDraft", {
     organisationId: orgOne.organisationId,
     draftId: draft.draftId,
@@ -1167,7 +1192,7 @@ try {
     email: "viewer-draft-guard@example.test",
   });
   await clearLeadRestriction(viewerDraftGuardLead.leadId);
-  const viewerGuardDraft = await callOne("createOutreachDraft", {
+  const viewerGuardDraft = await callOne("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0008",
     organisationId: orgOne.organisationId,
     leadId: viewerDraftGuardLead.leadId,
     subject: "Dedicated viewer draft guard",
@@ -1364,7 +1389,7 @@ try {
     leadId: "fixture-lead",
     status: "qualified",
   }), "functions/permission-denied", "lead status update with owner membership conflicting with parent ownerUid");
-  await expectCallableFailure(callOne("createOutreachDraft", {
+  await expectCallableFailure(callOne("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0009",
     organisationId: "owner-mismatch-org",
     leadId: "fixture-lead",
     subject: "Must be denied",
@@ -1448,14 +1473,14 @@ try {
   assert.equal(suppressedDraft.leadSuppressed, true);
   assert.equal(suppressedDraft.requiresReview, true);
   await expectCallableFailure(callOne("updateOutreachDraft", { organisationId: orgOne.organisationId, draftId: draft.draftId, subject: "Blocked update", body: "Must not be edited" }), "functions/failed-precondition", "suppression added after draft creation");
-  await expectCallableFailure(callOne("createOutreachDraft", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Blocked new draft", body: "Must not be created while suppressed" }), "functions/failed-precondition", "suppressed lead cannot create a new draft");
+  await expectCallableFailure(callOne("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0010", organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Blocked new draft", body: "Must not be created while suppressed" }), "functions/failed-precondition", "suppressed lead cannot create a new draft");
   await callOne("updateLeadNotes", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, notes: "Administrative note while contact is restricted" });
   const suppressedLeadAfterNotes = await callOne("listLeads", { organisationId: orgOne.organisationId });
   const restrictedLeadAfterNotes = suppressedLeadAfterNotes.leads.find((lead) => lead.id === leadOne.leadId);
   assert.equal(restrictedLeadAfterNotes?.doNotContact, true, "editing notes cannot clear do-not-contact");
   assert.equal(restrictedLeadAfterNotes?.contactReviewStatus, "blocked", "editing notes preserves blocked review status");
   await expectCallableFailure(callOne("updateLeadStatus", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, status: "contacted" }), "functions/failed-precondition", "suppressed lead cannot be marked contacted");
-  await expectCallableFailure(callOne("createOutreachDraft", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Still blocked after note edit", body: "Must remain blocked" }), "functions/failed-precondition", "notes edit cannot reopen outreach eligibility");
+  await expectCallableFailure(callOne("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0011", organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Still blocked after note edit", body: "Must remain blocked" }), "functions/failed-precondition", "notes edit cannot reopen outreach eligibility");
 
   await clearLeadRestriction(leadOne.leadId);
   await callOne("updateOutreachDraft", { organisationId: orgOne.organisationId, draftId: draft.draftId, subject: "Updated test draft", body: "Still draft only" });
@@ -1524,7 +1549,7 @@ try {
   // Exercise draft pagination beyond the 100-record page boundary. Reuse the cleared
   // synthetic lead so this specifically tests paging rather than contact-gate setup.
   for (let index = 0; index < 100; index += 1) {
-    await callOne("createOutreachDraft", {
+    await callOne("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0012",
       organisationId: orgOne.organisationId,
       leadId: leadOne.leadId,
       subject: `Synthetic Pagination Draft ${String(index + 1).padStart(3, "0")}`,
@@ -1633,7 +1658,7 @@ try {
 
   // Create a fresh victim draft after the pagination fixtures so the owner-list
   // verification below is guaranteed to find it on the first page.
-  const victimDraft = await callOne("createOutreachDraft", {
+  const victimDraft = await callOne("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0013",
     organisationId: orgOne.organisationId,
     leadId: leadOne.leadId,
     subject: "Cross-tenant victim draft",
@@ -1764,7 +1789,7 @@ try {
     organisationId: orgOne.organisationId,
     draftId: missingDraftId,
   }), "functions/not-found", "deleting a missing draft");
-  await expectCallableFailure(callOne("createOutreachDraft", {
+  await expectCallableFailure(callOne("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0014",
     organisationId: orgOne.organisationId,
     leadId: missingLeadId,
     subject: "Missing lead",
@@ -1805,7 +1830,7 @@ try {
   const orphanLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-orphan-draft");
   const mismatchedLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-mismatched-campaign-draft");
   // Even a legacy lead marked internally cleared must not get a new draft if its campaign record is gone.
-  await expectCallableFailure(callOne("createOutreachDraft", {
+  await expectCallableFailure(callOne("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0015",
     organisationId: orgOne.organisationId,
     leadId: "legacy-missing-campaign-lead",
     subject: "Missing campaign must block draft",
@@ -1833,13 +1858,13 @@ try {
   const malformedRestrictionLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-malformed-restriction-draft");
   const malformedContentLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-malformed-content-draft");
   const malformedTimestampLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-malformed-timestamp-draft");
-  await expectCallableFailure(callOne("createOutreachDraft", {
+  await expectCallableFailure(callOne("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0016",
     organisationId: orgOne.organisationId,
     leadId: "legacy-missing-restriction-lead",
     subject: "Missing restriction must block",
     body: "Must not be created without a verified restriction",
   }), "functions/failed-precondition", "draft creation for a lead with a missing doNotContact value");
-  await expectCallableFailure(callOne("createOutreachDraft", {
+  await expectCallableFailure(callOne("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0017",
     organisationId: orgOne.organisationId,
     leadId: "legacy-malformed-restriction-lead",
     subject: "Malformed restriction must block",
