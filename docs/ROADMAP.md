@@ -38,7 +38,7 @@
 - [x] Implement server-side CSV batch import with validation, cross-identifier deduplication, and a 25-row batch limit (PR #10; CI passed on head `76a45ed6c4dc8f580433bc374475773dc1235101`; review still required).
 - [x] Add cursor pagination for lead, campaign, outreach-draft, and organisation directories.
 - [x] Add idempotency protection for CSV import retries; CI and emulator smoke tests passed on head `76a45ed6c4dc8f580433bc374475773dc1235101`.
-- [ ] Add idempotency protection to other high-impact mutations after reviewing client retry semantics.
+- [x] Add idempotency protection to manual lead creation and campaign creation with stable client retry keys, server-side payload binding, and atomic replay; keep other mutations pending until their retry semantics are reviewed.
 - [x] Document proposed audit-event retention and access policy (`docs/AUDIT_EVENT_RETENTION_POLICY.md`).
 - [x] Add a minimal transactional audit event for successful CSV imports; CI passed on head `6b117e14a25dd734bc72dedd5576483da087995a`.
 - [x] Add atomic, PII-minimised audit events for lead contact edits and contact-restriction changes (CI passed on `0c7821a82cb787dea5fa7c9a3fc63a516352a899`).
