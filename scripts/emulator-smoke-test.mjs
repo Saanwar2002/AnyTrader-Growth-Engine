@@ -1052,6 +1052,7 @@ try {
   assert.equal(draft.sent, false);
   const draftReplay = await callOne("createOutreachDraft", { ...draftPayload });
   assert.deepEqual(draftReplay, draft, "draft creation retry returns the original draft");
+  await expectCallableFailure(callOne("createOutreachDraft", { ...draftPayload, subject: "Changed draft subject" }), "functions/already-exists", "draft creation rejects key reuse with a different payload");
   // A separate payload-conflict test is covered at the callable validation layer;
   // keep this emulator smoke path focused on exact and concurrent successful retries.
   const concurrentDraftPayload = { ...draftPayload, subject: "Concurrent retry draft", idempotencyKey: "outreach-draft-create-concurrent-0001" };
@@ -1550,7 +1551,7 @@ try {
   // Exercise draft pagination beyond the 100-record page boundary. Reuse the cleared
   // synthetic lead so this specifically tests paging rather than contact-gate setup.
   for (let index = 0; index < 100; index += 1) {
-    await callOne("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0012",
+    await callOne("createOutreachDraft", { idempotencyKey: `draft-pagination-${String(index + 1).padStart(4, "0")}`,
       organisationId: orgOne.organisationId,
       leadId: leadOne.leadId,
       subject: `Synthetic Pagination Draft ${String(index + 1).padStart(3, "0")}`,
