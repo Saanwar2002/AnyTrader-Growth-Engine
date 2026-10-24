@@ -9,6 +9,7 @@ const callableSource = readFileSync(
 
 const expectedRateLimitType: Record<string, "read" | "mutation"> = {
   listMyOrganisations: "read",
+  previewOrganisationOffboarding: "read",
   createOrganisation: "mutation",
   createCampaign: "mutation",
   listCampaigns: "read",
@@ -619,4 +620,25 @@ describe("server-side business/location duplicate protection", () => {
     expect(body).toContain('existingBusinesses.has(row.businessKey)');
     expect(body).toContain("existingBusinesses.add(row.businessKey)");
   });
+});
+
+
+it("keeps offboarding preview owner-only, bounded, tenant-scoped, and non-destructive", () => {
+  const start = callableSource.indexOf("export const previewOrganisationOffboarding = onCall(");
+  expect(start).toBeGreaterThanOrEqual(0);
+  const nextStart = callableSource.indexOf("export const ", start + 1);
+  const body = callableSource.slice(start, nextStart < 0 ? callableSource.length : nextStart);
+
+  expect(body).toContain("requireUid(request.auth?.uid)");
+  expect(body).toContain("await requireMembership(organisationId, uid)");
+  expect(body).toContain('membership.role !== "owner"');
+  expect(body).toContain('consumeReadRateLimit(organisationId, uid, "previewOrganisationOffboarding", 10)');
+  expect(body).toContain("createOffboardingPreview(async (category, afterId, limit)");
+  expect(body).toContain("OFFBOARDING_PREVIEW_CATEGORIES");
+  expect(body).toContain('db.collection("organisations").doc(organisationId)');
+  expect(body).toContain(".orderBy(FieldPath.documentId())");
+  expect(body).toContain(".limit(limit)");
+  expect(body).toContain("destructiveActionPerformed: false");
+  expect(body).not.toContain("batch.delete(");
+  expect(body).not.toContain("transaction.delete(");
 });
