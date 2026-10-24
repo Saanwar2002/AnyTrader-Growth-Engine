@@ -56,10 +56,9 @@ describe("bounded read-only lead identifier audit coordinator", () => {
   });
 
   it("rejects repeated cursors rather than looping forever", async () => {
-    const fetchPage = vi.fn().mockResolvedValue({
-      records: [{ id: "a" }],
-      nextCursor: "same",
-    });
+    const fetchPage = vi.fn()
+      .mockResolvedValueOnce({ records: [{ id: "a" }], nextCursor: "same" })
+      .mockResolvedValueOnce({ records: [{ id: "b" }], nextCursor: "same" });
     await expect(runBoundedLeadIdentifierAudit({
       tenantId: "tenant-1", pageSize: 1, maxRecords: 5, dryRun: true, fetchPage,
     })).rejects.toThrow("repeated cursor");
