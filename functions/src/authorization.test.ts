@@ -344,6 +344,10 @@ describe("membership record validation", () => {
     inheritedUid.role = "admin";
     expect(isValidMembershipRecord(inheritedUid, "user-1")).toBe(false);
 
+    const inheritedRole = Object.create({ role: "owner" }) as Record<string, unknown>;
+    inheritedRole.uid = "user-1";
+    expect(isValidMembershipRecord(inheritedRole, "user-1")).toBe(false);
+
     const ownFieldsOnNullPrototype = Object.assign(Object.create(null) as Record<string, unknown>, {
       uid: "user-1",
       role: "member",
