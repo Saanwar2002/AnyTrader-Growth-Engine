@@ -273,21 +273,26 @@ export function evaluateRateLimit(state: unknown, nowMs: number, maxRequests: nu
     return { allowed: true, invalidState: false, nextState: { windowStartedAtMs: nowMs, count: 1 }, retryAfterMs: 0 };
   }
   if (typeof state !== "object" || Array.isArray(state)) return { allowed: false, invalidState: true, nextState: null, retryAfterMs: 0 };
-  const value = state as Record<string, unknown>;
-  // Persisted quota fields must be explicit record fields, not inherited values.
-  if (!Object.prototype.hasOwnProperty.call(value, "windowStartedAtMs")
-    || !Object.prototype.hasOwnProperty.call(value, "count")) {
+  try {
+    const value = state as Record<string, unknown>;
+    // Persisted quota fields must be explicit record fields, not inherited values.
+    if (!Object.prototype.hasOwnProperty.call(value, "windowStartedAtMs")
+      || !Object.prototype.hasOwnProperty.call(value, "count")) {
+      return { allowed: false, invalidState: true, nextState: null, retryAfterMs: 0 };
+    }
+    // Treat hostile/malformed accessors like any other invalid persisted state.
+    const started = value.windowStartedAtMs;
+    const count = value.count;
+    if (typeof started !== "number" || !Number.isSafeInteger(started) || started < 0 || typeof count !== "number" || !Number.isSafeInteger(count) || count < 1 || count > maxRequests) {
+      return { allowed: false, invalidState: true, nextState: null, retryAfterMs: 0 };
+    }
+    const elapsed = nowMs - started;
+    if (elapsed >= windowMs) return { allowed: true, invalidState: false, nextState: { windowStartedAtMs: nowMs, count: 1 }, retryAfterMs: 0 };
+    // If the clock moves backwards, wait until the original window end; do not understate retry time.
+    const retryAfterMs = Math.min(Number.MAX_SAFE_INTEGER, Math.max(0, windowMs - elapsed));
+    if (count >= maxRequests) return { allowed: false, invalidState: false, nextState: null, retryAfterMs };
+    return { allowed: true, invalidState: false, nextState: { windowStartedAtMs: started, count: count + 1 }, retryAfterMs: 0 };
+  } catch {
     return { allowed: false, invalidState: true, nextState: null, retryAfterMs: 0 };
   }
-  const started = value.windowStartedAtMs;
-  const count = value.count;
-  if (typeof started !== "number" || !Number.isSafeInteger(started) || started < 0 || typeof count !== "number" || !Number.isSafeInteger(count) || count < 1 || count > maxRequests) {
-    return { allowed: false, invalidState: true, nextState: null, retryAfterMs: 0 };
-  }
-  const elapsed = nowMs - started;
-  if (elapsed >= windowMs) return { allowed: true, invalidState: false, nextState: { windowStartedAtMs: nowMs, count: 1 }, retryAfterMs: 0 };
-  // If the clock moves backwards, wait until the original window end; do not understate retry time.
-  const retryAfterMs = Math.min(Number.MAX_SAFE_INTEGER, Math.max(0, windowMs - elapsed));
-  if (count >= maxRequests) return { allowed: false, invalidState: false, nextState: null, retryAfterMs };
-  return { allowed: true, invalidState: false, nextState: { windowStartedAtMs: started, count: count + 1 }, retryAfterMs: 0 };
 }
