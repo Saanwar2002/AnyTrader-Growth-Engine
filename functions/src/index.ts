@@ -36,6 +36,10 @@ import {
 initializeApp();
 const db = getFirestore();
 
+// The Functions emulator has no production App Check attestation. Every deployed
+// callable requires App Check; only the local emulator receives this explicit bypass.
+const callableOptions = { enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true" };
+
 // Persisted records can predate current validation rules or be corrupted by manual
 // imports. Keep list responses JSON-safe and bounded rather than trusting Firestore shape.
 function safePersistedText(value: unknown, maxLength: number): string {
@@ -293,7 +297,7 @@ function normaliseLeadFields(data: Record<string, unknown>) {
   const dedupeBusinessLocationKey = canonicalLeadBusinessLocationKey(businessName, location);
   return { businessName, category, location, website, email, phone, dedupeEmailKey, dedupeWebsiteKey, dedupeBusinessLocationKey };
 }
-export const listMyOrganisations = onCall(async (request) => {
+export const listMyOrganisations = onCall(callableOptions, async (request) => {
   const uid = requireUid(request.auth?.uid);
   await consumeReadRateLimit("global", uid, "listMyOrganisations", 120);
   const data = (request.data ?? {}) as Record<string, unknown>;
@@ -348,7 +352,7 @@ export const listMyOrganisations = onCall(async (request) => {
   };
 });
 
-export const createOrganisation = onCall(async (request) => {
+export const createOrganisation = onCall(callableOptions, async (request) => {
   const uid = requireUid(request.auth?.uid);
   const data = (request.data ?? {}) as Record<string, unknown>;
   const name = normaliseRequiredText(data.name, 100);
@@ -405,7 +409,7 @@ export const createOrganisation = onCall(async (request) => {
   });
 });
 
-export const createCampaign = onCall(async (request) => {
+export const createCampaign = onCall(callableOptions, async (request) => {
   const uid = requireUid(request.auth?.uid);
   const data = (request.data ?? {}) as Record<string, unknown>;
   const organisationId = requireOrganisationId(data.organisationId);
@@ -497,7 +501,7 @@ export const createCampaign = onCall(async (request) => {
   });
 });
 
-export const listCampaigns = onCall(async (request) => {
+export const listCampaigns = onCall(callableOptions, async (request) => {
   const uid = requireUid(request.auth?.uid);
   const data = (request.data ?? {}) as Record<string, unknown>;
   const organisationId = requireOrganisationId(data.organisationId);
@@ -537,7 +541,7 @@ export const listCampaigns = onCall(async (request) => {
   };
 });
 
-export const updateCampaignStatus = onCall(async (request) => {
+export const updateCampaignStatus = onCall(callableOptions, async (request) => {
   const uid = requireUid(request.auth?.uid);
   const data = (request.data ?? {}) as Record<string, unknown>;
   const organisationId = requireOrganisationId(data.organisationId);
@@ -558,7 +562,7 @@ export const updateCampaignStatus = onCall(async (request) => {
   return { campaignId, status };
 });
 
-export const listLeads = onCall(async (request) => {
+export const listLeads = onCall(callableOptions, async (request) => {
   const uid = requireUid(request.auth?.uid);
   const data = (request.data ?? {}) as Record<string, unknown>;
   const organisationId = requireOrganisationId(data.organisationId);
@@ -615,7 +619,7 @@ export const listLeads = onCall(async (request) => {
  * This callable persists only validated rows and leaves every new contact suppressed
  * until an authorised reviewer explicitly clears the contact restriction.
  */
-export const importLeads = onCall(async (request) => {
+export const importLeads = onCall(callableOptions, async (request) => {
   const uid = requireUid(request.auth?.uid);
   const data = (request.data ?? {}) as Record<string, unknown>;
   const organisationId = requireOrganisationId(data.organisationId);
@@ -804,7 +808,7 @@ export const importLeads = onCall(async (request) => {
   });
 });
 
-export const createLead = onCall(async (request) => {
+export const createLead = onCall(callableOptions, async (request) => {
   const uid = requireUid(request.auth?.uid);
   const data = (request.data ?? {}) as Record<string, unknown>;
   const organisationId = requireOrganisationId(data.organisationId);
@@ -941,7 +945,7 @@ export const createLead = onCall(async (request) => {
   });
 });
 
-export const updateLeadContact = onCall(async (request) => {
+export const updateLeadContact = onCall(callableOptions, async (request) => {
   const uid = requireUid(request.auth?.uid);
   const data = (request.data ?? {}) as Record<string, unknown>;
   const organisationId = requireOrganisationId(data.organisationId);
@@ -1010,7 +1014,7 @@ export const updateLeadContact = onCall(async (request) => {
   return { leadId, ...fields, score: completeness.score, scoreReasons: completeness.reasons, ...contactRestriction };
 });
 
-export const updateLeadStatus = onCall(async (request) => {
+export const updateLeadStatus = onCall(callableOptions, async (request) => {
   const uid = requireUid(request.auth?.uid);
   const data = (request.data ?? {}) as Record<string, unknown>;
   const organisationId = requireOrganisationId(data.organisationId);
@@ -1049,7 +1053,7 @@ export const updateLeadStatus = onCall(async (request) => {
   return { leadId, status };
 });
 
-export const updateLeadNotes = onCall(async (request) => {
+export const updateLeadNotes = onCall(callableOptions, async (request) => {
   const uid = requireUid(request.auth?.uid);
   const data = (request.data ?? {}) as Record<string, unknown>;
   const organisationId = requireOrganisationId(data.organisationId);
@@ -1072,7 +1076,7 @@ export const updateLeadNotes = onCall(async (request) => {
   return { leadId, notes };
 });
 
-export const setLeadSuppression = onCall(async (request) => {
+export const setLeadSuppression = onCall(callableOptions, async (request) => {
   const uid = requireUid(request.auth?.uid);
   const data = (request.data ?? {}) as Record<string, unknown>;
   const organisationId = requireOrganisationId(data.organisationId);
@@ -1127,7 +1131,7 @@ export const setLeadSuppression = onCall(async (request) => {
   return { leadId, doNotContact: data.doNotContact };
 });
 
-export const createOutreachDraft = onCall(async (request) => {
+export const createOutreachDraft = onCall(callableOptions, async (request) => {
   const uid = requireUid(request.auth?.uid);
   const data = (request.data ?? {}) as Record<string, unknown>;
   const organisationId = requireOrganisationId(data.organisationId);
@@ -1201,7 +1205,7 @@ export const createOutreachDraft = onCall(async (request) => {
   });
 });
 
-export const listOutreachDrafts = onCall(async (request) => {
+export const listOutreachDrafts = onCall(callableOptions, async (request) => {
   const uid = requireUid(request.auth?.uid);
   const data = (request.data ?? {}) as Record<string, unknown>;
   const organisationId = requireOrganisationId(data.organisationId);
@@ -1304,7 +1308,7 @@ export const listOutreachDrafts = onCall(async (request) => {
   };
 });
 
-export const updateOutreachDraft = onCall(async (request) => {
+export const updateOutreachDraft = onCall(callableOptions, async (request) => {
   const uid = requireUid(request.auth?.uid);
   const data = (request.data ?? {}) as Record<string, unknown>;
   const organisationId = requireOrganisationId(data.organisationId);
@@ -1348,7 +1352,7 @@ export const updateOutreachDraft = onCall(async (request) => {
   return { draftId, leadId, subject, body, status: "draft" as const, sent: false };
 });
 
-export const deleteOutreachDraft = onCall(async (request) => {
+export const deleteOutreachDraft = onCall(callableOptions, async (request) => {
   const uid = requireUid(request.auth?.uid);
   const data = (request.data ?? {}) as Record<string, unknown>;
   const organisationId = requireOrganisationId(data.organisationId);
