@@ -399,6 +399,19 @@ describe("malformed membership accessors", () => {
 });
 
 describe("organisation membership role integrity", () => {
+  it("fails closed if an owner membership role accessor throws on a later read", () => {
+    let reads = 0;
+    const unstableRole = Object.defineProperty({ uid: "user-1" }, "role", {
+      enumerable: true,
+      get() {
+        reads += 1;
+        if (reads > 1) throw new Error("unstable membership role");
+        return "owner";
+      },
+    });
+    expect(isValidMembershipForOrganisation(unstableRole, "user-1", "user-1")).toBe(false);
+  });
+
   it("requires owner-role membership to match the parent organisation owner", () => {
     expect(isValidMembershipForOrganisation({ uid: "user-1", role: "owner" }, "user-1", "user-1")).toBe(true);
     expect(isValidMembershipForOrganisation({ uid: "user-1", role: "owner" }, "user-1", "other-owner")).toBe(false);
