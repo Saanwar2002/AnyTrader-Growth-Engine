@@ -23,8 +23,10 @@ The audit found 16 callable exports and no `enforceAppCheck` options in `functio
 
 - [ ] Create the separate Growth Engine Firebase project.
 - [ ] Register each supported app with Firebase App Check and configure the appropriate production provider.
-- [ ] Enforce App Check on every callable after legitimate clients are configured to send valid tokens.
-- [ ] In a production-like environment, verify missing/invalid tokens are rejected and valid tokens work.
+- [x] Add `enforceAppCheck` to all 16 callable exports for deployed runtimes; the explicit `FUNCTIONS_EMULATOR` exception exists only for local emulator tests.
+- [x] Require the web App Check site key before the frontend enters cloud mode and initialise the reCAPTCHA v3 provider with automatic token refresh.
+- [ ] Configure the dedicated project, register the app/provider and authorised domains, then verify valid client tokens against deployed or production-like Functions before enabling cloud mode.
+- [ ] In a production-like environment, verify missing/invalid tokens are rejected and valid tokens work; source-contract and emulator tests do not prove live attestation.
 - [ ] Retain authentication, authorisation, and tenant-isolation checks; App Check does not replace them.
 
 ## Abuse monitoring and cost controls

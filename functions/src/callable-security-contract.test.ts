@@ -27,6 +27,32 @@ const expectedRateLimitType: Record<string, "read" | "mutation"> = {
 };
 
 describe("callable security contract", () => {
+  it("enforces App Check on every deployed callable and only bypasses it in the Functions emulator", () => {
+    expect(callableSource).toContain('const callableOptions = { enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true" }');
+    expect((callableSource.match(/= onCall\(callableOptions, async \(request\) => \{/g) ?? [])).toHaveLength(16);
+    expect(callableSource.includes("= onCall(async (request) => {")).toBe(false);
+  });
+
+  it("requires the same production App Check enforcement for every inline callable options object", () => {
+    // Most callables share callableOptions. Any future inline options must keep
+    // the exact emulator-only bypass; merely including enforceAppCheck: false
+    // must not satisfy this security contract.
+    const inlineCallables = [...callableSource.matchAll(
+      /export const (\w+) = onCall\(\s*(\{[^}]*\})/gs,
+    )];
+
+    for (const [, callableName, options] of inlineCallables) {
+      expect(
+        options,
+        `${callableName} must enforce App Check outside the Functions emulator`,
+      ).toContain('enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true"');
+    }
+
+    expect(callableSource).not.toMatch(
+      /export const \w+ = onCall\(\s*\{(?![^}]*enforceAppCheck)/s,
+    );
+  });
+
   it("enforces an event-specific audit metadata allow-list and resource mapping", () => {
     expect(callableSource).toContain("const AUDIT_EVENT_RESOURCE_TYPES:");
     expect(callableSource).toContain("const AUDIT_METADATA_KEYS:");
