@@ -1126,3 +1126,11 @@ Continue the callable authorization audit and integration-test reliability work;
 - CI runs were created for intermediate heads; latest commit CI must be checked on exact head `638e5bf6bdbf0af056994e4db238be8ab1ebaced`. Do not infer the latest test batch passed from earlier green runs.
 - Next: inspect exact-head CI; if tests pass, continue targeted role/lifecycle and audit-event invariant coverage. If failures appear, retrieve the first actionable log and fix only evidence-supported causes.
 - No merge, deployment, live outreach, production Firebase access, secrets, billing, or branch protection changes were performed.
+
+
+## AutoPilot continuation — email and rate-limit validation hardening (2026-10-24)
+
+- Added finite-number and safe-integer boundary cases for rate-limit configuration: `51c26c73578a79eb54ff55efa60bb8d87a51cc17`.
+- Tightened the server-side email syntax guard to reject whitespace/header injection, malformed dot placement, malformed domain labels, oversized local/domain parts, and invalid top-level labels. Added invalid and valid boundary cases, including plus-addressing and subdomains. Commits: `145e3cf1b5b82e6eccc6fe3124ca1574277479e9`, `f5054a8c0d2273c0d756d1783a33cffcba2e8aa3`, `93455dc415680c05ee6274667084fc1ca0a16c72`.
+- The exact latest head is `93455dc415680c05ee6274667084fc1ca0a16c72`. CI status for this head is not yet returned by GitHub at the time of this update; prior green runs do not validate this change. Check the exact-head workflow before claiming tests pass.
+- PR #10 remains open and draft; no merge or deployment. Synthetic data only; outreach remains draft-only.
