@@ -339,6 +339,35 @@ try {
   const canonicalWebsiteLead = canonicalLeads.find((lead) => lead.businessName === "Canonical URL Host First Ltd");
   assert.equal(canonicalWebsiteLead?.website, "https://case.example.test/CasePath",
     "website hostname is lowercased while path case is preserved");
+  // Older records may lack canonical keys; exact legacy-field fallbacks must still prevent duplicates.
+  execFileSync(process.execPath, [
+    "functions/scripts/seed-emulator-legacy-dedupe-leads.mjs",
+    orgOne.organisationId,
+    campaignOne.campaignId,
+  ], { stdio: "inherit" });
+  const legacyFallbackImport = await callOne("importLeads", {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    idempotencyKey: "csv-import-legacy-exact-fallback-0001",
+    leads: [
+      {
+        businessName: "Incoming Legacy Email Duplicate Ltd",
+        category: "Painters",
+        location: "Leeds",
+        email: "LEGACY-EXACT-EMAIL@example.test",
+      },
+      {
+        businessName: "Incoming Legacy Website Duplicate Ltd",
+        category: "Painters",
+        location: "Leeds",
+        website: "HTTPS://LEGACY-EXACT.example.test/LegacyPath",
+      },
+    ],
+  });
+  assert.equal(legacyFallbackImport.imported, 0,
+    "CSV import must not duplicate legacy records without canonical keys when the exact legacy field matches");
+  assert.equal(legacyFallbackImport.duplicatesSkipped, 2,
+    "exact-value legacy email and website fallbacks must both detect duplicates");
   const importedLeads = (await callOne("listLeads", { organisationId: orgOne.organisationId })).leads;
   for (const importedName of ["Synthetic Imported Alpha Ltd", "Synthetic Imported Beta Ltd"]) {
     const imported = importedLeads.find((lead) => lead.businessName === importedName);
