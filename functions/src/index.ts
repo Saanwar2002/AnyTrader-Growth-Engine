@@ -369,7 +369,7 @@ export const createOrganisation = onCall(async (request) => {
     const idempotencySnapshot = await transaction.get(idempotencyRef);
     if (idempotencySnapshot.exists) {
       const saved = idempotencySnapshot.data() ?? {};
-      if (saved.requestHash !== requestHash || !saved.result || typeof saved.result !== "object") {
+      if (saved.requestHash !== requestHash || saved.actorUid !== uid || !saved.result || typeof saved.result !== "object") {
         throw new HttpsError("already-exists", "This idempotencyKey was already used with a different organisation payload.");
       }
       const savedResult = saved.result as Record<string, unknown>;
