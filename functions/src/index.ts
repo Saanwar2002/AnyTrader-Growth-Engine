@@ -260,21 +260,32 @@ function normaliseLeadFields(data: Record<string, unknown>) {
   const businessName = normaliseRequiredText(data.businessName, 160);
   const category = normaliseOptionalText(data.category, 100);
   const location = normaliseOptionalText(data.location, 160);
-  const website = normaliseOptionalText(data.website, 500);
-  const email = normaliseOptionalText(data.email, 254);
+  const rawWebsite = normaliseOptionalText(data.website, 500);
+  const rawEmail = normaliseOptionalText(data.email, 254);
   const phone = normaliseOptionalText(data.phone, 80);
   if (!businessName || category === null || location === null || rawWebsite === null || rawEmail === null || phone === null) {
     throw new HttpsError("invalid-argument", "Lead fields are missing or exceed their allowed length.");
   }
-  if (website && !isSafeWebsiteAddress(website)) {
+  if (rawWebsite && !isSafeWebsiteAddress(rawWebsite)) {
     throw new HttpsError("invalid-argument", "Lead website must be a safe HTTP(S) URL or a plain domain.");
   }
-  if (email && !isValidEmailAddress(email)) {
+  if (rawEmail && !isValidEmailAddress(rawEmail)) {
     throw new HttpsError("invalid-argument", "Lead email address is not valid.");
   }
+
+  // Canonicalise identifiers for new writes. URL host/scheme are case-insensitive,
+  // but paths may be case-sensitive and must retain their original casing.
+  let website = rawWebsite;
+  if (rawWebsite) {
+    const hasScheme = /^[a-z][a-z\\d+.-]*:\/\//i.test(rawWebsite);
+    const parsed = new URL(hasScheme ? rawWebsite : `https://${rawWebsite}`);
+    const path = parsed.pathname === "/" ? "" : parsed.pathname;
+    website = `${parsed.protocol}//${parsed.host}${path}${parsed.search}${parsed.hash}`;
+    if (!hasScheme && path === "" && !parsed.search && !parsed.hash) website = parsed.hostname;
+  }
+  const email = rawEmail.toLowerCase();
   return { businessName, category, location, website, email, phone };
 }
-
 export const listMyOrganisations = onCall(async (request) => {
   const uid = requireUid(request.auth?.uid);
   await consumeReadRateLimit("global", uid, "listMyOrganisations", 120);
