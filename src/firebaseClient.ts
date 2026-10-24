@@ -1,12 +1,14 @@
 import { getApps, initializeApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
 import { getFunctions, type Functions } from "firebase/functions";
+import { initializeAppCheck, ReCaptchaV3Provider, type AppCheck } from "firebase/app-check";
 
 export interface FirebaseWebConfig {
   apiKey: string;
   authDomain: string;
   projectId: string;
   appId: string;
+  appCheckSiteKey: string;
   messagingSenderId?: string;
   storageBucket?: string;
 }
@@ -15,6 +17,7 @@ export interface FirebaseClient {
   app: FirebaseApp;
   auth: Auth;
   functions: Functions;
+  appCheck: AppCheck;
   projectId: string;
 }
 
@@ -24,12 +27,14 @@ export function readFirebaseWebConfig(env: Record<string, string | undefined>): 
   const authDomain = env.VITE_FIREBASE_AUTH_DOMAIN?.trim();
   const projectId = env.VITE_FIREBASE_PROJECT_ID?.trim();
   const appId = env.VITE_FIREBASE_APP_ID?.trim();
-  if (!apiKey || !authDomain || !projectId || !appId) return null;
+  const appCheckSiteKey = env.VITE_FIREBASE_APPCHECK_SITE_KEY?.trim();
+  if (!apiKey || !authDomain || !projectId || !appId || !appCheckSiteKey) return null;
   return {
     apiKey,
     authDomain,
     projectId,
     appId,
+    appCheckSiteKey,
     ...(env.VITE_FIREBASE_MESSAGING_SENDER_ID?.trim() ? { messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID.trim() } : {}),
     ...(env.VITE_FIREBASE_STORAGE_BUCKET?.trim() ? { storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET.trim() } : {}),
   };
@@ -45,7 +50,11 @@ export function createFirebaseClient(config: FirebaseWebConfig): FirebaseClient 
   const existingDefaultApp = getApps().find((app) => app.name === "[DEFAULT]");
   const app = existingDefaultApp ?? initializeApp(config);
   if (existingDefaultApp) assertFirebaseProjectMatches(config.projectId, app.options.projectId);
-  return { app, auth: getAuth(app), functions: getFunctions(app), projectId: app.options.projectId ?? config.projectId };
+  const appCheck = initializeAppCheck(app, {
+    provider: new ReCaptchaV3Provider(config.appCheckSiteKey),
+    isTokenAutoRefreshEnabled: true,
+  });
+  return { app, auth: getAuth(app), functions: getFunctions(app), appCheck, projectId: app.options.projectId ?? config.projectId };
 }
 
 const config = readFirebaseWebConfig(import.meta.env);
