@@ -76,4 +76,4 @@ Remain in synthetic-data development/demo use until every blocking item above is
 
 ## Latest review checkpoint — 24 October 2026
 
-The latest inspected PR head is `151edd22b2822223e93d69e4e8b725192882ab98`. CI run [40092830751](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40092830751) completed successfully for this head, with both the Functions and frontend/emulator jobs green. PR #10 remains open and draft; CI success is not a substitute for review or approval to merge. A focused code review also corrected the fallback duplicate-key encoding so names/locations containing a delimiter cannot accidentally collide.
+The latest inspected PR head is `9fdffcfe86a57f631a27d641705a06ec466d284d`. GitHub Actions CI run [40093634576](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40093634576) completed successfully for this exact head, with both the Functions and frontend/emulator jobs green. The commit also adds collision-safe business/location duplicate-key encoding and regression tests for delimiter-containing values. PR #10 remains open and draft; CI success is not a substitute for full review or approval to merge.
