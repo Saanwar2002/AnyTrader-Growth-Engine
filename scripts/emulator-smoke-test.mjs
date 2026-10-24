@@ -2028,6 +2028,13 @@ try {
   assert.equal(nonDraftStatusCleanup.deleted, true, "non-draft legacy record remains deletable for cleanup");
   assert.equal(nonDraftStatusCleanup.sent, false, "cleanup does not send outreach");
   assert.equal(nonDraftStatusCleanup.messageSentByThisAction, false, "cleanup response explicitly states this action did not send a message");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "outreach_draft.deleted",
+    "1",
+    "legacy-non-draft-status",
+  ], { stdio: "inherit" });
   await expectCallableFailure(callOne("updateOutreachDraft", {
     organisationId: orgOne.organisationId, draftId: "legacy-missing-status",
     subject: "Must not reopen an unknown-status record", body: "Status must remain blocked",
@@ -2038,6 +2045,13 @@ try {
   assert.equal(missingStatusCleanup.deleted, true, "missing-status legacy record remains deletable for cleanup");
   assert.equal(missingStatusCleanup.sent, false, "missing-status cleanup does not send outreach");
   assert.equal(missingStatusCleanup.messageSentByThisAction, false, "missing-status cleanup explicitly confirms this action did not send a message");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "outreach_draft.deleted",
+    "1",
+    "legacy-missing-status",
+  ], { stdio: "inherit" });
   await expectCallableFailure(callOne("updateOutreachDraft", {
     organisationId: orgOne.organisationId, draftId: "legacy-orphan-draft",
     subject: "Should remain blocked", body: "Do not update an orphan",
@@ -2055,15 +2069,36 @@ try {
   });
   assert.equal(missingCampaignCleanup.deleted, true, "missing-campaign legacy draft remains deletable for cleanup");
   assert.equal(missingCampaignCleanup.sent, false, "missing-campaign cleanup never sends outreach");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "outreach_draft.deleted",
+    "1",
+    "legacy-missing-campaign-record-draft",
+  ], { stdio: "inherit" });
   const orphanCleanup = await callOne("deleteOutreachDraft", {
     organisationId: orgOne.organisationId, draftId: "legacy-orphan-draft",
   });
   assert.equal(orphanCleanup.deleted, true, "orphan legacy draft remains deletable for cleanup");
   assert.equal(orphanCleanup.sent, false, "legacy cleanup never sends outreach");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "outreach_draft.deleted",
+    "1",
+    "legacy-orphan-draft",
+  ], { stdio: "inherit" });
   const legacyCleanupList = await callOne("listOutreachDrafts", { organisationId: orgOne.organisationId });
   assert.equal(legacyCleanupList.drafts.some((item) => item.id === "legacy-orphan-draft"), false, "deleted orphan no longer appears in the list");
 
   await callOne("deleteOutreachDraft", { organisationId: orgOne.organisationId, draftId: draft.draftId });
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "outreach_draft.deleted",
+    "1",
+    draft.draftId,
+  ], { stdio: "inherit" });
 
   // Exercise organisation pagination with more than 100 memberships for one caller.
   execFileSync(process.execPath, [
