@@ -23,7 +23,7 @@ describe("Firebase web configuration", () => {
       VITE_FIREBASE_API_KEY: "key", VITE_FIREBASE_AUTH_DOMAIN: "example.firebaseapp.com",
       VITE_FIREBASE_PROJECT_ID: "project", VITE_FIREBASE_APP_ID: "app", VITE_FIREBASE_APPCHECK_SITE_KEY: "site-key",
       VITE_FIREBASE_MESSAGING_SENDER_ID: " ", VITE_FIREBASE_STORAGE_BUCKET: "",
-    })).toEqual({ apiKey: "key", authDomain: "example.firebaseapp.com", projectId: "project", appId: "app" });
+    })).toEqual({ apiKey: "key", authDomain: "example.firebaseapp.com", projectId: "project", appId: "app", appCheckSiteKey: "site-key" });
   });
 });
 
