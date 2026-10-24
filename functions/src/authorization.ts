@@ -253,10 +253,11 @@ export function isValidOrganisationCollectionPageToken(value: unknown, organisat
 /** True only for a usable Firestore Timestamp value used by ordered pagination. */
 export function isValidFirestoreTimestamp(value: unknown): boolean {
   if (!value || typeof value !== "object") return false;
-  const timestamp = value as { toMillis?: unknown };
-  if (typeof timestamp.toMillis !== "function") return false;
   try {
-    const milliseconds = (timestamp.toMillis as () => unknown).call(value);
+    const timestamp = value as { toMillis?: unknown };
+    const toMillis = timestamp.toMillis;
+    if (typeof toMillis !== "function") return false;
+    const milliseconds = (toMillis as () => unknown).call(value);
     // Firestore timestamps retain nanosecond precision, so toMillis() may legitimately
     // be fractional. Require a finite value within the safe numeric range instead.
     return typeof milliseconds === "number"
