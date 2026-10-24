@@ -277,7 +277,7 @@ function normaliseLeadFields(data: Record<string, unknown>) {
   // but paths may be case-sensitive and must retain their original casing.
   let website = rawWebsite;
   if (rawWebsite) {
-    const hasScheme = /^[a-z][a-z\\d+.-]*:\/\//i.test(rawWebsite);
+    const hasScheme = rawWebsite.includes("://");
     const parsed = new URL(hasScheme ? rawWebsite : `https://${rawWebsite}`);
     const path = parsed.pathname === "/" ? "" : parsed.pathname;
     website = `${parsed.protocol}//${parsed.host}${path}${parsed.search}${parsed.hash}`;
