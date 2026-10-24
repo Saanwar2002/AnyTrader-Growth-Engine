@@ -33,10 +33,24 @@ describe("callable security contract", () => {
     expect(callableSource.includes("= onCall(async (request) => {")).toBe(false);
   });
 
-  it("rejects callable-specific options that omit App Check", () => {
-    // Most callables share callableOptions; inline options are allowed only when
-    // they explicitly preserve the same App Check requirement.
-    expect(callableSource).not.toMatch(/export const \w+ = onCall\(\s*\{(?![^}]*enforceAppCheck)/s);
+  it("requires the same production App Check enforcement for every inline callable options object", () => {
+    // Most callables share callableOptions. Any future inline options must keep
+    // the exact emulator-only bypass; merely including enforceAppCheck: false
+    // must not satisfy this security contract.
+    const inlineCallables = [...callableSource.matchAll(
+      /export const (\w+) = onCall\(\s*(\{[^}]*\})/gs,
+    )];
+
+    for (const [, callableName, options] of inlineCallables) {
+      expect(
+        options,
+        `${callableName} must enforce App Check outside the Functions emulator`,
+      ).toContain('enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true"');
+    }
+
+    expect(callableSource).not.toMatch(
+      /export const \w+ = onCall\(\s*\{(?![^}]*enforceAppCheck)/s,
+    );
   });
 
   it("enforces an event-specific audit metadata allow-list and resource mapping", () => {
