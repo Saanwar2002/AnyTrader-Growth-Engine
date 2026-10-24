@@ -13,6 +13,8 @@ describe("safe persisted timestamp serialization", () => {
     expect(safeTimestampToIso({ toDate: () => "not-a-date" })).toBeNull();
     expect(safeTimestampToIso({ toDate: () => new Date(Number.NaN) })).toBeNull();
     expect(safeTimestampToIso({ toDate: () => { throw new Error("corrupt legacy value"); } })).toBeNull();
+    const throwingGetter = Object.defineProperty({}, "toDate", { get() { throw new Error("corrupt legacy getter"); } });
+    expect(safeTimestampToIso(throwingGetter)).toBeNull();
   });
 });
 
