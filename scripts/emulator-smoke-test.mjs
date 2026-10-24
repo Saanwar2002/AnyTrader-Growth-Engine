@@ -423,6 +423,7 @@ try {
     "5",
     "1",
     "0",
+    "2",
   ], { stdio: "inherit" });
   const malformedLegacyImportReplay = await callOne("importLeads", malformedLegacyImportPayload);
   assert.deepEqual(malformedLegacyImportReplay, malformedLegacyImport,
@@ -434,6 +435,7 @@ try {
     "5",
     "1",
     "0",
+    "2",
   ], { stdio: "inherit" });
   const malformedLegacyLead = (await callOne("listLeads", { organisationId: orgOne.organisationId }))
     .leads.find((lead) => lead.id === "legacy-malformed-contact-fixture");

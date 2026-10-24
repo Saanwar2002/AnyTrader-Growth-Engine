@@ -1,3 +1,12 @@
+## AutoPilot run — CSV audit assertion corrected for repeated aggregate counts (2026-10-24)
+
+- CI runs [40092254379](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40092254379) and [40092258779](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40092258779) failed in the emulator smoke step; both Functions jobs passed.
+- Root cause was test-helper strictness, not import behaviour: two legitimate successful imports had the same aggregate audit metadata (`importedCount: 1`, `duplicatesSkipped: 0`), while the assertion helper assumed those counts could occur only once. The total event count remained the primary exactly-once check.
+- The helper now accepts an explicit expected number of events matching aggregate counts; the malformed-legacy scenario expects two such events and still verifies the total audit count stays at five after replay.
+- The corrected head requires a fresh CI run before proceeding. No production data, deployment, merge, or outreach was involved.
+
+---
+
 ## AutoPilot run — malformed legacy import safety regression (2026-10-24)
 
 - Verified the previous head `6fb122b55c9eef9d0dc22d25455b5a97890ca905`; Growth Engine CI run [40091962211](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40091962211) completed successfully for both frontend/emulator and Functions jobs.
