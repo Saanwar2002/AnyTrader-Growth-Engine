@@ -30,6 +30,10 @@ Do not describe the new key fields as a complete legacy deduplication solution b
 6. Only after the backfill is verified should the team claim canonical duplicate detection covers legacy records. Retain exact-value fallback until there is evidence it can safely be removed.
 7. Run the full CI suite and review the migration report before any production rollout. No production migration or outreach is authorized by this document.
 
+## Read-only audit helper
+
+`functions/src/lead-identifier-migration-audit.ts` provides a pure, read-only analyzer for a bounded set of records already fetched by a caller. It reports missing/stale key record IDs, malformed website record IDs, and duplicate groups. Collision identifiers are represented by SHA-256 fingerprints so reports do not expose raw emails or websites. The helper does not connect to Firestore, paginate collections, write data, or run a migration; a future adapter must enforce per-organisation scoping and explicit page limits before passing records to it. Tests cover legacy gaps, collisions, URL path-case distinctions, deterministic output, and contact-data redaction.
+
 ## Regression coverage
 
 The callable security contract test asserts that all write paths share normalization, canonical key lookups remain bounded, legacy exact-value fallbacks remain present, and URL path casing is explicitly preserved. Add behavioral emulator tests for mixed-case legacy records and URL edge cases when the migration/backfill harness is introduced.
