@@ -151,6 +151,23 @@ describe("callable security contract", () => {
     expect(body.indexOf("await transaction.get(savedCampaignRef)")).toBeLessThan(body.indexOf("return savedResult as typeof result;"));
   });
 
+  it("validates saved CSV import retry ownership, result totals, suppression flags, and campaign existence", () => {
+    const start = callableSource.indexOf("export const importLeads = onCall(");
+    const nextStart = callableSource.indexOf("export const ", start + 1);
+    const body = callableSource.slice(start, nextStart < 0 ? callableSource.length : nextStart);
+
+    expect(body).toContain("saved.actorUid !== uid");
+    expect(body).toContain("savedResult.organisationId !== organisationId");
+    expect(body).toContain("savedResult.campaignId !== campaignId");
+    expect(body).toContain("savedResult.received !== prepared.length");
+    expect(body).toContain("(savedResult.imported as number) + (savedResult.duplicatesSkipped as number) !== prepared.length");
+    expect(body).toContain("savedLeads.length !== savedResult.imported");
+    expect(body).toContain("savedResult.sent !== false");
+    expect(body).toContain("savedResult.messageSentByThisAction !== false");
+    expect(body).toContain("await transaction.get(campaignRef)");
+    expect(body).toContain('new HttpsError("failed-precondition", "Saved import retry state is invalid and requires operator review.")');
+  });
+
   it("requires durable idempotency for CSV imports", () => {
     const start = callableSource.indexOf("export const importLeads = onCall(");
     const nextStart = callableSource.indexOf("export const ", start + 1);
