@@ -122,7 +122,13 @@ export function isSafeWebsiteAddress(value: string): boolean {
       return false;
     }
   }
-  return !/\s/.test(value);
+  // Bare domains may include paths and queries, but must never smuggle URL userinfo.
+  try {
+    const parsed = new URL("https://" + value);
+    return Boolean(parsed.hostname) && parsed.username === "" && parsed.password === "";
+  } catch {
+    return false;
+  }
 }
 
 export function isValidEmailAddress(value: string): boolean {
