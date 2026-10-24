@@ -452,7 +452,31 @@ export const createCampaign = onCall(async (request) => {
       if (saved.requestHash !== requestHash || !saved.result || typeof saved.result !== "object") {
         throw new HttpsError("already-exists", "This idempotencyKey was already used with a different campaign payload.");
       }
-      return saved.result as typeof result;
+      const savedResult = saved.result as Record<string, unknown>;
+      if (!isValidDocumentId(savedResult.campaignId)
+        || savedResult.organisationId !== organisationId
+        || savedResult.name !== name
+        || savedResult.category !== category
+        || savedResult.location !== location
+        || savedResult.brand !== brand
+        || savedResult.goal !== goal
+        || savedResult.status !== "active"
+        || saved.actorUid !== uid) {
+        throw new HttpsError("failed-precondition", "Saved campaign retry state is invalid and requires operator review.");
+      }
+      const savedCampaignRef = organisationRef.collection("campaigns").doc(savedResult.campaignId);
+      const savedCampaignSnapshot = await transaction.get(savedCampaignRef);
+      const savedCampaign = savedCampaignSnapshot.data() ?? {};
+      if (!savedCampaignSnapshot.exists
+        || savedCampaign.createdBy !== uid
+        || savedCampaign.name !== name
+        || savedCampaign.category !== category
+        || savedCampaign.location !== location
+        || savedCampaign.brand !== brand
+        || savedCampaign.goal !== goal) {
+        throw new HttpsError("failed-precondition", "The campaign created by this request is no longer available to its original creator.");
+      }
+      return savedResult as typeof result;
     }
 
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "createCampaign", 150);
