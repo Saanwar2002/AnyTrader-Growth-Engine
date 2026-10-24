@@ -16,3 +16,8 @@ export function canonicalLeadWebsiteKey(website: string): string {
   const path = parsed.pathname === "/" ? "" : parsed.pathname;
   return `${parsed.protocol}//${parsed.host}${path}${parsed.search}${parsed.hash}`;
 }
+
+/** Stable, collision-safe key for the business-name/location fallback. */
+export function canonicalLeadBusinessLocationKey(businessName: string, location: string): string {
+  return JSON.stringify([businessName.trim().toLowerCase(), location.trim().toLowerCase()]);
+}

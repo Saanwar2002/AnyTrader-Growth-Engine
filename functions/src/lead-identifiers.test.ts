@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canonicalLeadEmailKey, canonicalLeadWebsiteKey } from "./lead-identifiers";
+import { canonicalLeadBusinessLocationKey, canonicalLeadEmailKey, canonicalLeadWebsiteKey } from "./lead-identifiers";
 
 describe("canonical lead duplicate identifiers", () => {
   it("matches email identifiers case-insensitively and trims whitespace", () => {
@@ -27,5 +27,12 @@ describe("canonical lead duplicate identifiers", () => {
   it("returns an empty key for an absent website", () => {
     expect(canonicalLeadWebsiteKey("")).toBe("");
     expect(canonicalLeadWebsiteKey("   ")).toBe("");
+  });
+});
+
+describe("canonical lead business/location fallback identifier", () => {
+  it("keeps delimiter-containing names and locations in distinct buckets", () => {
+    expect(canonicalLeadBusinessLocationKey("A|B", "C")).not.toBe(canonicalLeadBusinessLocationKey("A", "B|C"));
+    expect(canonicalLeadBusinessLocationKey("  Example Ltd ", " Manchester ")).toBe(canonicalLeadBusinessLocationKey("example ltd", "manchester"));
   });
 });

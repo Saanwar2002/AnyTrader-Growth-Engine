@@ -3,7 +3,7 @@ import { initializeApp } from "firebase-admin/app";
 import { FieldValue, Timestamp, getFirestore, type QueryDocumentSnapshot, type Transaction } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
-import { canonicalLeadEmailKey, canonicalLeadWebsiteKey } from "./lead-identifiers";
+import { canonicalLeadBusinessLocationKey, canonicalLeadEmailKey, canonicalLeadWebsiteKey } from "./lead-identifiers";
 import {
   calculateLeadCompleteness,
   canChangeSuppression,
@@ -627,7 +627,7 @@ export const importLeads = onCall(async (request) => {
   const prepared = rows.map(({ fields }) => {
     const emailKey = fields.dedupeEmailKey;
     const websiteKey = fields.dedupeWebsiteKey;
-    const businessKey = `${fields.businessName.toLowerCase()}|${fields.location.toLowerCase()}`;
+    const businessKey = canonicalLeadBusinessLocationKey(fields.businessName, fields.location);
     const duplicateInBatch = Boolean(
       (emailKey && seenEmails.has(emailKey))
       || (websiteKey && seenWebsites.has(websiteKey))
