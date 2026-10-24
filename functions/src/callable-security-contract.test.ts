@@ -36,7 +36,7 @@ describe("callable security contract", () => {
   it("rejects callable-specific options that omit App Check", () => {
     // Most callables share callableOptions; inline options are allowed only when
     // they explicitly preserve the same App Check requirement.
-    expect(callableSource).not.toMatch(/export const \\w+ = onCall\\(\\s*\\{(?![^}]*enforceAppCheck)/s);
+    expect(callableSource).not.toMatch(/export const \w+ = onCall\(\s*\{(?![^}]*enforceAppCheck)/s);
   });
 
   it("enforces an event-specific audit metadata allow-list and resource mapping", () => {
