@@ -95,6 +95,10 @@ The local demo is not a secure multi-user service. It uses browser localStorage,
 6. **Attribution and SaaS controls:** onboarding attribution, plans, quotas, and later billing.
 7. **Production hardening:** privacy/retention workflows, monitoring, backups, recovery, and security review.
 
+## Cloud release readiness
+
+Before enabling cloud mode or deploying Firebase resources, complete the [Cloud Release Readiness Gate](docs/CLOUD_RELEASE_READINESS_GATE.md). A green CI run is necessary but does not prove that a real Firebase project, App Check, privacy controls, or recovery procedures are ready. Keep cloud mode disabled until the dedicated Growth Engine Firebase project is created and verified.
+
 ## Safety and privacy principles
 
 - Do not use unauthorised scraping or bypass access controls.
