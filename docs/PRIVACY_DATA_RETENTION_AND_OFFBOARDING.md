@@ -29,6 +29,28 @@ The current backend uses organisation-scoped Firestore records and server-genera
 
 This inventory is a checklist, not a claim that every category currently exists as a separate collection. The implementation must reconcile the table against actual code and Firestore data before using real data.
 
+## Schema-backed inventory from the current server implementation
+
+The following collection paths were verified in `functions/src/index.ts` on `main` during this review. This is a source-code inventory, not proof that production data exists or that no legacy/manual collections exist.
+
+| Verified path | Data purpose / offboarding consideration |
+| --- | --- |
+| `organisations/{organisationId}` | Tenant profile; do not remove until ownership and membership handling are defined. |
+| `organisations/{organisationId}/members/{uid}` | Tenant membership and role records; final-owner transfer/removal must be explicit. |
+| `organisations/{organisationId}/campaigns/{campaignId}` | Campaign setup and state. |
+| `organisations/{organisationId}/leads/{leadId}` | Lead records, potentially including business contact details, notes, suppression and review fields. |
+| `organisations/{organisationId}/leadActivities/{activityId}` | Product activity history; may contain resource identifiers and must be inspected for user-entered or identifying fields before retention decisions. |
+| `organisations/{organisationId}/outreachDrafts/{draftId}` | Unsent outreach drafts; draft bodies may contain personal/business data. Deletion must never send drafts. |
+| `organisations/{organisationId}/securityAuditEvents/{eventId}` | Minimal server-generated security audit events; retention/legal-hold rules must be decided separately from tenant content deletion. |
+| `organisations/{organisationId}/campaignCreationIdempotency/{key}` | Retry/idempotency records scoped to campaign creation. |
+| `organisations/{organisationId}/importIdempotency/{key}` | CSV-import retry records. |
+| `organisations/{organisationId}/leadCreationIdempotency/{key}` | Manual lead-creation retry records. |
+| `organisations/{organisationId}/outreachDraftCreationIdempotency/{key}` | Draft-creation retry records. |
+| `organisationCreationIdempotency/{key}` | Root-level organisation-creation retry records keyed from caller and request key; cannot be blindly deleted with a single organisation. |
+| `rateLimits/{key}` | Root-level rate-limit/quota state; cleanup needs its own expiry and abuse-investigation rules. |
+
+Before implementation, inspect every field written to `leadActivities`, each idempotency record, and any additional collections created outside `functions/src/index.ts`. Do not assume Firestore parent-document deletion removes subcollections: any future job must explicitly enumerate each allow-listed path and verify completion. Root-level records must not be attributed to a tenant unless their schema proves the relationship.
+
 ## Required workflow before any destructive implementation
 
 1. **Request:** authenticated owner/admin selects an organisation and a stated reason. Do not accept a client-supplied arbitrary path, collection name, or deletion count.
