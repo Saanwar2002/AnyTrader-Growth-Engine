@@ -95,8 +95,12 @@ describe("callable security contract", () => {
     expect(callableSource).toContain('leadsRef.where("website", "==", website).limit(1)');
     expect(callableSource).toContain("URL path casing remains significant.");
     expect(callableSource).toContain("never scan an unbounded tenant collection");
-    expect(callableSource).toContain("const emailKey = fields.dedupeEmailKey;");
-    expect(callableSource).toContain("const websiteKey = fields.dedupeWebsiteKey;");
+    expect(callableSource).toContain("emailKey: fields.dedupeEmailKey,");
+    expect(callableSource).toContain("websiteKey: fields.dedupeWebsiteKey,");
+    expect(callableSource).not.toContain("duplicateInBatch");
+    expect(callableSource).toContain("if (row.emailKey) existingEmails.add(row.emailKey);");
+    expect(callableSource).toContain("if (row.websiteKey) existingWebsites.add(row.websiteKey);");
+    expect(callableSource).toContain("existingBusinesses.add(row.businessKey);");
   });
 
   it("keeps emulator unauthenticated coverage aligned with every callable export", () => {
