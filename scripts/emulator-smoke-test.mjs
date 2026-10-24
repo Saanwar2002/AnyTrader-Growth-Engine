@@ -845,6 +845,13 @@ try {
     assert.ok(racedDraft, "a draft created before the contact edit remains visible for review");
     assert.equal(racedDraft.requiresReview, true, "draft created before a concurrent contact edit is flagged for review");
     assert.equal(racedDraft.leadSuppressed, true, "draft created before a concurrent contact edit reflects current suppression");
+    await expectCallableFailure(callOne("createOutreachDraft", {
+      idempotencyKey: "draft-smoke-key-0005",
+      organisationId: orgOne.organisationId,
+      leadId: concurrentReviewLead.leadId,
+      subject: "Concurrent review test",
+      body: "This is a draft only and must never be sent automatically.",
+    }), "functions/failed-precondition", "same-key draft retry cannot bypass a newly pending contact review");
   } else {
     assert.equal(concurrentDraftResult.reason?.code, "functions/failed-precondition",
       "draft creation that loses the race to contact edit is rejected by the contact-review gate");
