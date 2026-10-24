@@ -1,3 +1,13 @@
+## AutoPilot run — legacy duplicate fallback regression verified (2026-10-24)
+
+- Verified the repository and active branch: `Saanwar2002/AnyTrader-Growth-Engine`, `development/next-phase`. PR #10 remains open, draft, and unmerged. No merge, deployment, production data access, or outreach sending occurred.
+- Added an emulator-only seed fixture for two legacy leads without `dedupeEmailKey`/`dedupeWebsiteKey`, plus smoke coverage that exact-value email and website fallbacks skip both duplicates. The fixture refuses to run outside the local `demo-growth-engine-test` Firestore emulator.
+- The first attempt exposed an over-escaped emulator-host guard; fixed it in commit `82dfaaf085044a361903daea7f7a64d7c0ce6496`.
+- Both Growth Engine CI runs [40088182846](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40088182846) and [40088188514](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40088188514) completed successfully on that exact head. Frontend/emulator and Functions jobs passed.
+- Next safe engineering batch: add focused audit-event invariants around duplicate-only imports and malformed legacy records, avoiding redundant assertions where existing emulator checks already cover the contract. Legacy mixed-case records still require a reviewed dry-run/backfill before canonical duplicate coverage can be claimed. Production blockers remain: dedicated Growth Engine Firebase project, App Check setup/enforcement, operational monitoring/TTL, and privacy/retention review. Synthetic data only; outreach remains draft-only.
+
+---
+
 ## AutoPilot run — documentation and CI evidence sync (2026-10-24)
 
 - Verified repository: `Saanwar2002/AnyTrader-Growth-Engine`; active development branch: `development/next-phase`; PR #10 remains open, draft, and unmerged. No merge or deployment was performed.

@@ -47,6 +47,7 @@
 - [x] Add a transactional, PII-minimised audit event for manual lead creation (CI passed on head `04b39a1de61cf9c04f7219ad83e08f324eb23f79`).
 - [x] Add an atomic, metadata-minimised audit event when an organisation and its initial owner membership are created (verified by CI on `c2e31b169e81ccd9fda1fd1cad0189b09669ba1c`; frontend/emulator and Functions jobs passed).
 - [x] Add emulator assertions for audit metadata allowlists, scalar/bounded values, and rejection of content-bearing fields (CI run `40043306751` passed on head `05dfef69c19db738c048212bc97487cb1722b7e7`).
+- [x] Add emulator coverage proving exact-value legacy email and website fallbacks prevent duplicate imports when canonical key fields are absent (CI run `40088188514` passed on head `82dfaaf085044a361903daea7f7a64d7c0ce6496`).
 - [ ] Complete audit access/retention controls after privacy/legal policy review; do not configure production TTL or broaden audit reads before that review.
 - Keep provenance, import review, deduplication, and data minimisation.
 
