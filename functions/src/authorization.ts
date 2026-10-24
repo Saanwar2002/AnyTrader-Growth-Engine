@@ -227,11 +227,16 @@ export function isValidMembershipForOrganisation(
   organisationOwnerUid: unknown,
 ): boolean {
   if (!isValidMembershipRecord(value, expectedUid)) return false;
-  const record = value as Record<string, unknown>;
-  // Owner-role membership must match the organisation's authoritative ownerUid.
-  // Missing or conflicting ownership metadata must not silently grant owner powers.
-  if (record.role === "owner") return typeof organisationOwnerUid === "string" && organisationOwnerUid === expectedUid;
-  return true;
+  try {
+    const record = value as Record<string, unknown>;
+    // Owner-role membership must match the organisation's authoritative ownerUid.
+    // Missing or conflicting ownership metadata must not silently grant owner powers.
+    // Read role defensively again: hostile getters can change or throw between reads.
+    if (record.role === "owner") return typeof organisationOwnerUid === "string" && organisationOwnerUid === expectedUid;
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function isValidOrganisationCollectionPageToken(value: unknown, organisationId: string, collectionName: "campaigns" | "leads" | "outreachDrafts"): value is string {
