@@ -841,10 +841,54 @@ export const createLead = onCall(async (request) => {
     await requireTransactionalRole(transaction, organisationId, uid, "lead");
     if (idempotencySnapshot.exists) {
       const saved = idempotencySnapshot.data() ?? {};
-      if (saved.requestHash !== requestHash || !saved.result || typeof saved.result !== "object") {
+      if (saved.requestHash !== requestHash || !saved.result || typeof saved.result !== "object" || Array.isArray(saved.result)) {
         throw new HttpsError("already-exists", "This idempotencyKey was already used with a different lead payload.");
       }
-      return saved.result as {
+      const savedResult = saved.result as Record<string, unknown>;
+      const savedLeadId = savedResult.leadId;
+      const savedScoreReasons = savedResult.scoreReasons;
+      const validSavedResult = isValidDocumentId(savedLeadId)
+        && savedResult.organisationId === organisationId
+        && savedResult.campaignId === campaignId
+        && typeof savedResult.businessName === "string" && savedResult.businessName.length > 0
+        && typeof savedResult.category === "string"
+        && typeof savedResult.location === "string"
+        && typeof savedResult.website === "string"
+        && typeof savedResult.email === "string"
+        && typeof savedResult.phone === "string"
+        && savedResult.status === "new"
+        && savedResult.source === "manual"
+        && typeof savedResult.score === "number" && Number.isFinite(savedResult.score)
+        && Array.isArray(savedScoreReasons) && savedScoreReasons.every((reason) => typeof reason === "string")
+        && savedResult.doNotContact === true
+        && savedResult.contactReviewStatus === "pending"
+        && savedResult.contactReviewRevision === 0;
+      if (saved.actorUid !== uid || !validSavedResult) {
+        throw new HttpsError("failed-precondition", "Saved lead retry state is invalid and requires operator review.");
+      }
+      const replayLeadRef = organisationRef.collection("leads").doc(savedLeadId);
+      const [replayLeadSnapshot, replayCampaignSnapshot] = await Promise.all([
+        transaction.get(replayLeadRef),
+        transaction.get(campaignRef),
+      ]);
+      const replayLead = replayLeadSnapshot.data() ?? {};
+      if (!replayLeadSnapshot.exists || !replayCampaignSnapshot.exists
+        || replayLead.createdBy !== uid
+        || replayLead.campaignId !== campaignId
+        || replayLead.businessName !== savedResult.businessName
+        || replayLead.category !== savedResult.category
+        || replayLead.location !== savedResult.location
+        || replayLead.website !== savedResult.website
+        || replayLead.email !== savedResult.email
+        || replayLead.phone !== savedResult.phone
+        || replayLead.status !== "new"
+        || replayLead.source !== "manual"
+        || replayLead.doNotContact !== true
+        || replayLead.contactReviewStatus !== "pending"
+        || replayLead.contactReviewRevision !== 0) {
+        throw new HttpsError("failed-precondition", "Saved lead retry state no longer matches its authoritative records.");
+      }
+      return savedResult as {
         leadId: string;
         organisationId: string;
         campaignId: string;
