@@ -103,3 +103,8 @@ The local demo is not a secure multi-user service. It uses browser localStorage,
 - Keep synthetic fixtures clearly labelled as fictional.
 - Use server-side permission checks for all privileged operations; the initial callable Functions scaffold checks Firebase Auth context and organisation membership.
 - Use a separate Firebase project for Growth Engine; never reuse production AnyTrader credentials or databases.
+
+
+## Tenant offboarding preview
+
+See [`docs/TENANT_OFFBOARDING_PREVIEW.md`](docs/TENANT_OFFBOARDING_PREVIEW.md) for the owner-only, bounded, non-destructive inventory callable and its explicit limitations. No deletion or production retention policy is enabled.
