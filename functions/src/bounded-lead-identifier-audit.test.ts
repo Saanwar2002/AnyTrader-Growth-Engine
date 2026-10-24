@@ -55,6 +55,14 @@ describe("bounded read-only lead identifier audit coordinator", () => {
     expect(fetchPage).toHaveBeenCalledTimes(2);
   });
 
+  it("rejects empty continuation pages to prevent unbounded cursor-only loops", async () => {
+    const fetchPage = vi.fn().mockResolvedValue({ records: [], nextCursor: "another-cursor" });
+    await expect(runBoundedLeadIdentifierAudit({
+      tenantId: "tenant-1", pageSize: 10, maxRecords: 5, dryRun: true, fetchPage,
+    })).rejects.toThrow("empty page with a continuation cursor");
+    expect(fetchPage).toHaveBeenCalledTimes(1);
+  });
+
   it("rejects adapters that violate the requested page size", async () => {
     const fetchPage = vi.fn().mockResolvedValue({
       records: [{ id: "a" }, { id: "b" }],
