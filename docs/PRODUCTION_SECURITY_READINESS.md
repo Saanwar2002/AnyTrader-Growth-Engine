@@ -78,4 +78,14 @@ Remain in synthetic-data development/demo use until every blocking item above is
 
 ## Latest review checkpoint — 24 October 2026
 
-The latest inspected PR head is `9fdffcfe86a57f631a27d641705a06ec466d284d`. GitHub Actions CI run [40093634576](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40093634576) completed successfully for this exact head, with both the Functions and frontend/emulator jobs green. The commit also adds collision-safe business/location duplicate-key encoding and regression tests for delimiter-containing values. PR #10 remains open and draft; CI success is not a substitute for full review or approval to merge.
+PR #10 was merged into `main` via squash commit `9e110070f093f8ed28b3624457d8889283554507`; post-merge CI run [40110628299](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40110628299) passed. The current deployment-guard change is in draft PR #14 at head `14f09bc3dc28c4790ae87ef9c95bb054624d8f4d`; CI run [40132165677](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40132165677) completed successfully with both the Functions and frontend/emulator jobs green. CI success is not a substitute for reviewing overlapping PRs or approving a merge.
+
+
+## Deployment target allow-list guard
+
+- [x] Add a Firebase CLI predeploy guard that requires an explicit `GROWTH_ENGINE_FIREBASE_PROJECT_ID` allow-list and an exact match with `GCLOUD_PROJECT`.
+- [x] Reject missing target/allow-list values, mismatched project IDs, and `demo-*` projects; add unit tests for each case.
+- [ ] After the dedicated Growth Engine project is created, configure the expected project ID in the deployment environment and verify a deliberate mismatch is blocked and the approved target passes the guard. Do not deploy as part of this test.
+- [ ] Independently review the target project ID before any deployment; this guard cannot determine whether an operator intentionally configured the wrong project as the allow-list.
+
+The guard only protects Firebase CLI deployment flows that execute the repository's configured predeploy hook. It does not protect manual console changes, other deployment tools, or an operator who explicitly allow-lists the wrong project.
