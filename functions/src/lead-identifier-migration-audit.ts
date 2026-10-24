@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { canonicalLeadEmailKey, canonicalLeadWebsiteKey } from "./lead-identifiers";
 
 export interface LegacyLeadRecord {
@@ -10,7 +11,8 @@ export interface LegacyLeadRecord {
 
 export interface IdentifierCollision {
   identifierType: "email" | "website";
-  canonicalKey: string;
+  /** SHA-256 fingerprint of the canonical identifier; never contains contact data. */
+  canonicalKeyFingerprint: string;
   leadIds: string[];
 }
 
@@ -29,7 +31,8 @@ export interface LeadIdentifierAuditReport {
  * Build a read-only audit report for a bounded page set of lead records.
  *
  * This function never writes to a database and deliberately omits raw contact
- * values from the report. Callers must scope records to one organisation and
+ * values from the report. Collision groups contain only a SHA-256 fingerprint.
+ * Callers must scope records to one organisation and
  * page through the collection with an explicit limit before invoking it.
  */
 export function auditLeadIdentifierRecords(records: readonly LegacyLeadRecord[]): LeadIdentifierAuditReport {
