@@ -44,6 +44,17 @@ describe("bounded read-only lead identifier audit coordinator", () => {
     expect(fetchPage).not.toHaveBeenCalled();
   });
 
+  it("rejects non-string tenant scope and unsafe record budgets before reading", async () => {
+    const fetchPage = vi.fn();
+    await expect(runBoundedLeadIdentifierAudit({
+      tenantId: 42 as unknown as string, pageSize: 10, maxRecords: 10, dryRun: true, fetchPage,
+    })).rejects.toThrow("tenant scope");
+    await expect(runBoundedLeadIdentifierAudit({
+      tenantId: "tenant-1", pageSize: 10, maxRecords: Number.MAX_SAFE_INTEGER + 1, dryRun: true, fetchPage,
+    })).rejects.toThrow("maxRecords");
+    expect(fetchPage).not.toHaveBeenCalled();
+  });
+
   it("rejects repeated cursors rather than looping forever", async () => {
     const fetchPage = vi.fn().mockResolvedValue({
       records: [{ id: "a" }],
