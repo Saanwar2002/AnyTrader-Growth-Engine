@@ -1115,3 +1115,14 @@ Continue the callable authorization audit and integration-test reliability work;
 - Added emulator smoke assertions for exact replay, conflicting payload reuse, and concurrent same-key requests (expecting one persisted lead), plus a source-level contract test.
 - CI verification is pending. Check all jobs against the newest commit before treating the batch as complete. PR #10 remains unmerged; no production deployment and no automated outreach sending.
 - Next: add a concurrent same-key emulator regression; consider idempotency for other mutation callables only after reviewing client retry behavior. Keep audit-event retention/access policy and production App Check as release blockers.
+
+
+## AutoPilot continuation — adversarial validation tests (2026-10-24)
+
+- Repository/branch reverified: `Saanwar2002/AnyTrader-Growth-Engine`, `development/next-phase`. PR #10 remains open, draft, and unmerged.
+- Added website input regressions for control characters, newlines, backslashes, and safe URL forms with explicit ports/query strings and case-insensitive HTTP schemes. Commits: `8cad577ab5b377e9d92baaf8c54a62d381ed2ee7`, `13589f428bba91bdd07eb9d09e1e876b13f929cf`, `638e5bf6bdbf0af056994e4db238be8ab1ebaced`.
+- Added a throwing legacy timestamp getter regression: `682e45c59a1aa594bf50c6f196a110bcaedfbd6c`.
+- Added email validator boundary documentation/tests and non-finite/unsafe rate-limit configuration regressions: `5713dd87d8471f3f4dbbe0c2af84ae58f457f892`, `51c26c73578a79eb54ff55efa60bb8d87a51cc17`.
+- CI runs were created for intermediate heads; latest commit CI must be checked on exact head `638e5bf6bdbf0af056994e4db238be8ab1ebaced`. Do not infer the latest test batch passed from earlier green runs.
+- Next: inspect exact-head CI; if tests pass, continue targeted role/lifecycle and audit-event invariant coverage. If failures appear, retrieve the first actionable log and fix only evidence-supported causes.
+- No merge, deployment, live outreach, production Firebase access, secrets, billing, or branch protection changes were performed.
