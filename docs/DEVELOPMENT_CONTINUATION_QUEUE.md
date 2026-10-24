@@ -1,13 +1,14 @@
-## Latest continuation update — creation idempotency and retry UI verified (2026-10-23)
+## Latest continuation update — outreach-draft idempotency verified; CI green (2026-10-24)
 
-- Latest code/test commit: 89c8b2d2b2b7c6c27eb747129efaa0d998c82398. CI run 40038810939 completed successfully: frontend typecheck, unit tests, production build, emulator integration smoke tests, Functions authorization tests/build, and dependency advisory checks all passed.
-- Dependency security remediation remains verified: Functions lockfile uses body-parser 2.4.0 and CI checks its lock integrity against the npm registry before auditing dependencies.
-- Manual lead, campaign, and organisation creation now use server-side idempotency keys with payload-hash binding and transactional replay. Creation replays avoid duplicate records, quota consumption, and success audit events.
-- Campaign and organisation cloud forms retain the same request key and freeze the relevant inputs after uncertain failures. UI tests verify retry requests reuse the exact original payload. Emulator smoke tests cover sequential replay, conflicting-payload rejection, concurrent same-key requests, one persisted record, and one success audit event.
-- Next engineering candidate: review retry semantics for outreach-draft creation before adding idempotency there; do not apply a broad mutation framework without checking suppression and draft lifecycle behavior.
-- PR #10 remains open, draft, and unmerged. Do not merge or deploy without explicit approval.
-- Production remains blocked on the dedicated Firebase project, App Check enforcement/token tests, monitoring/budget alerts, TTL configuration where required, privacy/legal retention review, and operational recovery readiness. Synthetic data only; outreach remains draft-only.
-
+- Latest code/test commit: `f0b9753d257ace3a7ac5cb9a66246f8f73a8df71`.
+- CI run [40042551603](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40042551603) completed successfully on that exact head. Verified: frontend typecheck, unit tests, production build, Firebase emulator integration smoke tests, Functions authorization tests/build, and dependency advisory checks.
+- Outreach draft creation now requires a caller-scoped idempotency key, binds retries to a SHA-256 fingerprint of the normalized payload, validates current lead suppression/contact-review state before replay, and returns the original draft for exact retries. Reuse with changed payload is rejected. Draft creation remains draft-only and never sends messages.
+- UI retains a stable key after an uncertain failure and retries the same content. API/UI tests and emulator smoke coverage exercise retry behaviour, concurrent retries, and one persisted draft.
+- Fixed an emulator-fixture issue uncovered during verification: the 100-record draft-pagination loop had reused one idempotency key for different draft contents. It now uses a unique key per synthetic draft. This was a test-fixture collision, not a production-data issue.
+- Functions dependency remediation remains in place: `functions/package-lock.json` uses `body-parser@2.4.0`, with a CI registry-integrity check before dependency audit.
+- PR #10 remains open, draft, and unmerged. Keep work on `development/next-phase`; do not merge or deploy without explicit approval.
+- Next engineering batch: review remaining sensitive mutation audit coverage and role/lifecycle authorization gaps, adding targeted tests only where they close a documented gap. Keep production Firebase setup deferred, use synthetic data, and keep outreach draft-only.
+- Production remains blocked on the dedicated Firebase project, App Check enforcement/token tests, monitoring/budget alerts, TTL configuration where required, privacy/legal retention review, and operational recovery readiness.
 ---
 ## Latest continuation update — CSV retry regression fixed; CI green (2026-10-23)
 
