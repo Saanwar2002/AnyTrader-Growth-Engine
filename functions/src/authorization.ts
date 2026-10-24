@@ -255,6 +255,11 @@ export function evaluateRateLimit(state: unknown, nowMs: number, maxRequests: nu
   }
   if (typeof state !== "object" || Array.isArray(state)) return { allowed: false, invalidState: true, nextState: null, retryAfterMs: 0 };
   const value = state as Record<string, unknown>;
+  // Persisted quota fields must be explicit record fields, not inherited values.
+  if (!Object.prototype.hasOwnProperty.call(value, "windowStartedAtMs")
+    || !Object.prototype.hasOwnProperty.call(value, "count")) {
+    return { allowed: false, invalidState: true, nextState: null, retryAfterMs: 0 };
+  }
   const started = value.windowStartedAtMs;
   const count = value.count;
   if (typeof started !== "number" || !Number.isSafeInteger(started) || started < 0 || typeof count !== "number" || !Number.isSafeInteger(count) || count < 1 || count > maxRequests) {
