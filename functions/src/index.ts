@@ -383,6 +383,13 @@ export const previewOrganisationOffboarding = onCall(
       return { ids: page.docs.map((document) => document.id) };
     });
 
+    // Recheck access after the inventory read so a mid-preview membership
+    // revocation or role change cannot receive the accumulated counts.
+    const finalMembership = await requireMembership(organisationId, uid);
+    if (finalMembership.role !== "owner") {
+      throw new HttpsError("permission-denied", "Only the organisation owner can preview offboarding.");
+    }
+
     return {
       complete: preview.complete,
       destructiveActionPerformed: false,
