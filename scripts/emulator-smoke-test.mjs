@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { initializeApp, deleteApp } from "firebase/app";
 import { connectAuthEmulator, createUserWithEmailAndPassword, getAuth, signOut } from "firebase/auth";
 import { connectFunctionsEmulator, getFunctions, httpsCallable } from "firebase/functions";
-import { connectFirestoreEmulator, doc, getDoc, getFirestore } from "firebase/firestore";
+import { connectFirestoreEmulator, doc, getDoc, getFirestore, setDoc } from "firebase/firestore";
 
 const projectId = "demo-growth-engine-test";
 const firebaseConfig = { apiKey: "demo-api-key", authDomain: "localhost", projectId, appId: "demo-app-id" };
@@ -53,8 +53,34 @@ try {
     "functions/scripts/assert-emulator-rate-limit-expiry.mjs",
     "global", first.auth.currentUser.uid, "listMyOrganisations", "fresh-window",
   ], { stdio: "inherit" });
-  const orgOne = await callOne("createOrganisation", { name: "Tenant One" });
+  const orgOnePayload = { name: "Tenant One", idempotencyKey: "organisation-create-idempotency-0001" };
+  const orgOne = await callOne("createOrganisation", orgOnePayload);
   assert.equal(orgOne.role, "owner");
+  const orgOneReplay = await callOne("createOrganisation", orgOnePayload);
+  assert.deepEqual(orgOneReplay, orgOne, "organisation creation retry returns the original result");
+  await expectCallableFailure(callOne("createOrganisation", { ...orgOnePayload, name: "Changed tenant payload" }), "functions/already-exists", "organisation creation rejects key reuse with a different payload");
+  assert.equal((await callOne("listMyOrganisations")).organisations.filter((item) => item.organisationId === orgOne.organisationId).length, 1, "organisation retry persists exactly one organisation");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "organisation.created",
+    "1",
+  ], { stdio: "inherit" });
+  const concurrentOrgPayload = { name: "Tenant Concurrent", idempotencyKey: "organisation-create-concurrent-0001" };
+  const concurrentOrgResults = await Promise.all([
+    callOne("createOrganisation", concurrentOrgPayload),
+    callOne("createOrganisation", concurrentOrgPayload),
+  ]);
+  assert.equal(concurrentOrgResults[0].organisationId, concurrentOrgResults[1].organisationId,
+    "concurrent organisation retries return the same organisation ID");
+  assert.equal((await callOne("listMyOrganisations")).organisations.filter((item) => item.name === "Tenant Concurrent").length, 1,
+    "concurrent organisation retries persist one organisation");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    concurrentOrgResults[0].organisationId,
+    "organisation.created",
+    "1",
+  ], { stdio: "inherit" });
   async function currentContactReviewRevision(leadId) {
     const result = await callOne("listLeads", { organisationId: orgOne.organisationId });
     const lead = result.leads.find((item) => item.id === leadId);
@@ -85,7 +111,28 @@ try {
     "functions/scripts/assert-emulator-rate-limit-expiry.mjs",
     "global", first.auth.currentUser.uid, "createOrganisation",
   ], { stdio: "inherit" });
-  const campaignOne = await callOne("createCampaign", { organisationId: orgOne.organisationId, name: "Painter pilot", brand: "Example", category: "Painters", location: "Manchester", goal: "Recruit providers" });
+  const campaignOnePayload = { organisationId: orgOne.organisationId, idempotencyKey: "campaign-create-idempotency-0001", name: "Painter pilot", brand: "Example", category: "Painters", location: "Manchester", goal: "Recruit providers" };
+  const campaignOne = await callOne("createCampaign", campaignOnePayload);
+  const campaignOneReplay = await callOne("createCampaign", campaignOnePayload);
+  assert.deepEqual(campaignOneReplay, campaignOne, "campaign creation retry returns the original result");
+  await expectCallableFailure(callOne("createCampaign", { ...campaignOnePayload, name: "Changed campaign payload" }), "functions/already-exists", "campaign creation rejects key reuse with a different payload");
+  assert.equal((await callOne("listCampaigns", { organisationId: orgOne.organisationId })).campaigns.filter((campaign) => campaign.name === "Painter pilot").length, 1, "campaign retry persists exactly one campaign");
+  const concurrentCampaignPayload = { organisationId: orgOne.organisationId, idempotencyKey: "campaign-create-concurrent-0001", name: "Concurrent Painter Pilot", brand: "Example", category: "Painters", location: "Leeds", goal: "Recruit providers" };
+  const concurrentCampaignResults = await Promise.all([
+    callOne("createCampaign", concurrentCampaignPayload),
+    callOne("createCampaign", concurrentCampaignPayload),
+  ]);
+  assert.equal(concurrentCampaignResults[0].campaignId, concurrentCampaignResults[1].campaignId,
+    "concurrent campaign retries return the same campaign ID");
+  assert.equal((await callOne("listCampaigns", { organisationId: orgOne.organisationId })).campaigns.filter((campaign) => campaign.name === "Concurrent Painter Pilot").length, 1,
+    "concurrent campaign retries persist one campaign");
+  assert.equal(currentQuotaCount("createCampaign"), 2, "campaign replays and concurrent retries consume quota only for distinct successful creations");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "campaign.created",
+    "2",
+  ], { stdio: "inherit" });
   const pausedCampaign = await callOne("updateCampaignStatus", {
     organisationId: orgOne.organisationId,
     campaignId: campaignOne.campaignId,
@@ -103,13 +150,377 @@ try {
   assert.equal(reactivatedCampaign.status, "active", "campaign can be reactivated by an owner");
   await expectCallableFailure(callOne("createLead", {
     organisationId: orgOne.organisationId, campaignId: campaignOne.campaignId,
+    businessName: "Missing Idempotency Key",
+  }), "functions/invalid-argument", "manual lead creation requires an idempotency key");
+  await expectCallableFailure(callOne("createLead", {
+    organisationId: orgOne.organisationId, campaignId: campaignOne.campaignId,
+    idempotencyKey: "manual-lead-invalid-email-0001",
     businessName: "Invalid Email Test", email: "not-an-email",
   }), "functions/invalid-argument", "server rejects malformed lead email");
   await expectCallableFailure(callOne("createLead", {
     organisationId: orgOne.organisationId, campaignId: campaignOne.campaignId,
+    idempotencyKey: "manual-lead-oversized-name-01",
     businessName: "X".repeat(161),
   }), "functions/invalid-argument", "server rejects oversized business name");
-  const leadOne = await callOne("createLead", { organisationId: orgOne.organisationId, campaignId: campaignOne.campaignId, businessName: "Synthetic Test Painting Ltd", category: "Painters", location: "Manchester", email: "hello@example.test" });
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "lead.created",
+    "0",
+  ], { stdio: "inherit" });
+  const manualLeadPayload = {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    idempotencyKey: "manual-lead-idempotency-test-0001",
+    businessName: "Synthetic Test Painting Ltd",
+    category: "Painters",
+    location: "Manchester",
+    email: "hello@example.test",
+  };
+  const leadOne = await callOne("createLead", manualLeadPayload);
+  const manualLeadReplay = await callOne("createLead", manualLeadPayload);
+  assert.deepEqual(manualLeadReplay, leadOne, "manual lead retry returns the original result");
+  await expectCallableFailure(callOne("createLead", {
+    ...manualLeadPayload,
+    businessName: "Changed payload with reused key",
+  }), "functions/already-exists", "manual lead creation rejects key reuse with a different payload");
+  const leadsAfterManualReplay = (await callOne("listLeads", { organisationId: orgOne.organisationId })).leads;
+  assert.equal(leadsAfterManualReplay.filter((lead) => lead.businessName === "Synthetic Test Painting Ltd").length, 1,
+    "manual lead replay persists exactly one lead");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "lead.created",
+    "1",
+  ], { stdio: "inherit" });
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-rate-limit-count.mjs",
+    orgOne.organisationId,
+    first.auth.currentUser.uid,
+    "createLead",
+    "1",
+  ], { stdio: "inherit" });
+  const concurrentManualPayload = {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    idempotencyKey: "manual-lead-concurrent-test-0001",
+    businessName: "Synthetic Concurrent Manual Lead Ltd",
+    category: "Painters",
+    location: "Leeds",
+  };
+  const concurrentManualResults = await Promise.all([
+    callOne("createLead", concurrentManualPayload),
+    callOne("createLead", concurrentManualPayload),
+  ]);
+  assert.equal(concurrentManualResults[0].leadId, concurrentManualResults[1].leadId,
+    "concurrent manual lead requests return the same lead ID");
+  assert.equal((await callOne("listLeads", { organisationId: orgOne.organisationId })).leads
+    .filter((lead) => lead.businessName === "Synthetic Concurrent Manual Lead Ltd").length, 1,
+  "concurrent manual lead requests persist one lead");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "lead.created",
+    "2",
+  ], { stdio: "inherit" });
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-rate-limit-count.mjs",
+    orgOne.organisationId,
+    first.auth.currentUser.uid,
+    "createLead",
+    "2",
+  ], { stdio: "inherit" });
+  await expectCallableFailure(callOne("updateLeadNotes", {
+    organisationId: orgOne.organisationId,
+    leadId: leadOne.leadId,
+    notes: "N".repeat(4001),
+  }), "functions/invalid-argument", "oversized lead notes are rejected before mutation");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "lead.notes_changed",
+    "0",
+    leadOne.leadId,
+  ], { stdio: "inherit" });
+
+  await expectCallableFailure(callOne("importLeads", {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    idempotencyKey: "csv-import-malformed-test-01",
+    leads: [{ businessName: "Malformed Import Row", email: "not-an-email" }],
+  }), "functions/invalid-argument", "CSV import rejects malformed rows before writing");
+  await expectCallableFailure(callOne("importLeads", {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    idempotencyKey: "csv-import-oversized-test-01",
+    leads: Array.from({ length: 26 }, (_, index) => ({ businessName: `Oversized Import ${index}` })),
+  }), "functions/invalid-argument", "CSV import enforces a 25-row maximum");
+  const importPayload = {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    idempotencyKey: "csv-import-idempotency-test-0001",
+    leads: [
+      { businessName: "Synthetic Imported Alpha Ltd", category: "Painters", location: "Leeds", email: "import-alpha@example.test", website: "https://alpha.example.test" },
+      { businessName: "Synthetic Imported Alpha Duplicate Ltd", category: "Painters", location: "Leeds", email: "different-alpha@example.test", website: "https://alpha.example.test/" },
+      { businessName: "Synthetic Imported Beta Ltd", category: "Roofers", location: "York", email: "import-beta@example.test" },
+      { businessName: "Synthetic Existing Lead Duplicate Ltd", category: "Painters", location: "Manchester", email: "hello@example.test" },
+    ],
+  };
+  const importResult = await callOne("importLeads", importPayload);
+  const importReplay = await callOne("importLeads", importPayload);
+  assert.deepEqual(importReplay, importResult, "replaying an import returns the original result without duplicate records");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-events.mjs",
+    orgOne.organisationId,
+    "lead.csv_import.completed",
+    "1",
+  ], { stdio: "inherit" });
+  await expectCallableFailure(callOne("importLeads", {
+    ...importPayload,
+    leads: [{ businessName: "Different payload under reused key", category: "Painters", location: "Leeds" }],
+  }), "functions/already-exists", "CSV import rejects reuse of an idempotency key with a different payload");
+  const concurrentImportPayload = {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    idempotencyKey: "csv-import-concurrent-test-0001",
+    leads: [{
+      businessName: "Synthetic Concurrent Import Ltd",
+      category: "Painters",
+      location: "Leeds",
+      email: "concurrent-import@example.test",
+    }],
+  };
+  const concurrentImportResults = await Promise.all([
+    callOne("importLeads", concurrentImportPayload),
+    callOne("importLeads", concurrentImportPayload),
+  ]);
+  assert.deepEqual(
+    concurrentImportResults[0],
+    concurrentImportResults[1],
+    "concurrent requests using the same idempotency key return one committed result",
+  );
+  assert.equal(concurrentImportResults[0].imported, 1, "concurrent idempotent import creates one lead");
+  const concurrentMatches = (await callOne("listLeads", { organisationId: orgOne.organisationId }))
+    .leads.filter((lead) => lead.businessName === "Synthetic Concurrent Import Ltd");
+  assert.equal(concurrentMatches.length, 1, "concurrent idempotent import persists exactly one lead");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-events.mjs",
+    orgOne.organisationId,
+    "lead.csv_import.completed",
+    "2",
+  ], { stdio: "inherit" });
+
+  assert.equal(importResult.received, 4, "CSV import reports received row count");
+  assert.equal(importResult.imported, 2, "CSV import persists unique, valid rows");
+  assert.equal(importResult.duplicatesSkipped, 2, "CSV import skips in-batch and existing-record duplicates");
+  assert.equal(importResult.sent, false, "CSV import never sends outreach");
+
+  // Case-only email/hostname differences should deduplicate, but URL path case must survive.
+  const canonicalImport = await callOne("importLeads", {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    idempotencyKey: "csv-import-canonical-ids-0001",
+    leads: [
+      { businessName: "Canonical Email First Ltd", email: "CaseSensitive@Example.test" },
+      { businessName: "Canonical Email Duplicate Ltd", email: "casesensitive@example.test" },
+      { businessName: "Canonical URL Host First Ltd", website: "HTTPS://CASE.example.test/CasePath" },
+      { businessName: "Canonical URL Host Duplicate Ltd", website: "https://case.example.test/CasePath" },
+      { businessName: "Case-Sensitive URL Path Ltd", website: "https://case.example.test/casepath" },
+    ],
+  });
+  assert.equal(canonicalImport.imported, 3,
+    "canonical import skips email and URL host case duplicates but preserves distinct URL path case");
+  assert.equal(canonicalImport.duplicatesSkipped, 2,
+    "canonical import reports case-only email and same-path website duplicates");
+  const canonicalLeads = (await callOne("listLeads", { organisationId: orgOne.organisationId })).leads;
+  const canonicalEmailLead = canonicalLeads.find((lead) => lead.businessName === "Canonical Email First Ltd");
+  assert.equal(canonicalEmailLead?.email, "casesensitive@example.test",
+    "new email identifiers are stored in lowercase canonical form");
+  const canonicalWebsiteLead = canonicalLeads.find((lead) => lead.businessName === "Canonical URL Host First Ltd");
+  assert.equal(canonicalWebsiteLead?.website, "https://case.example.test/CasePath",
+    "website hostname is lowercased while path case is preserved");
+  // Older records may lack canonical keys; exact legacy-field fallbacks must still prevent duplicates.
+  execFileSync(process.execPath, [
+    "functions/scripts/seed-emulator-legacy-dedupe-leads.mjs",
+    orgOne.organisationId,
+    campaignOne.campaignId,
+  ], { stdio: "inherit" });
+  const legacyFallbackPayload = {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    idempotencyKey: "csv-import-legacy-exact-fallback-0001",
+    leads: [
+      {
+        businessName: "Incoming Legacy Email Duplicate Ltd",
+        category: "Painters",
+        location: "Leeds",
+        email: "LEGACY-EXACT-EMAIL@example.test",
+      },
+      {
+        businessName: "Incoming Legacy Website Duplicate Ltd",
+        category: "Painters",
+        location: "Leeds",
+        website: "HTTPS://LEGACY-EXACT.example.test/LegacyPath",
+      },
+    ],
+  };
+  const legacyFallbackImport = await callOne("importLeads", legacyFallbackPayload);
+  assert.equal(legacyFallbackImport.imported, 0,
+    "CSV import must not duplicate legacy records without canonical keys when the exact legacy field matches");
+  assert.equal(legacyFallbackImport.duplicatesSkipped, 2,
+    "exact-value legacy email and website fallbacks must both detect duplicates");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-events.mjs",
+    orgOne.organisationId,
+    "lead.csv_import.completed",
+    "4",
+    "0",
+    "2",
+  ], { stdio: "inherit" });
+  const legacyFallbackReplay = await callOne("importLeads", legacyFallbackPayload);
+  assert.deepEqual(
+    legacyFallbackReplay,
+    legacyFallbackImport,
+    "replaying a duplicate-only legacy fallback import returns the committed zero-import result",
+  );
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-events.mjs",
+    orgOne.organisationId,
+    "lead.csv_import.completed",
+    "4",
+    "0",
+    "2",
+  ], { stdio: "inherit" });
+
+  // Malformed legacy contact fields must not poison valid indexed duplicate lookups.
+  execFileSync(process.execPath, [
+    "functions/scripts/seed-emulator-malformed-legacy-lead.mjs",
+    orgOne.organisationId,
+    campaignOne.campaignId,
+  ], { stdio: "inherit" });
+  const malformedLegacyImportPayload = {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    idempotencyKey: "csv-import-malformed-legacy-0001",
+    leads: [{
+      businessName: "Incoming Beside Malformed Legacy Ltd",
+      category: "Painters",
+      location: "Leeds",
+      email: "malformed-legacy@example.test",
+      website: "https://malformed-legacy.example.test/Contact",
+    }],
+  };
+  const malformedLegacyImport = await callOne("importLeads", malformedLegacyImportPayload);
+  assert.equal(malformedLegacyImport.imported, 1,
+    "a malformed legacy contact record must not block a distinct valid import");
+  assert.equal(malformedLegacyImport.duplicatesSkipped, 0,
+    "malformed non-string legacy identifiers must not match valid contact keys");
+  assert.equal(malformedLegacyImport.sent, false, "malformed-legacy regression import never sends outreach");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-events.mjs",
+    orgOne.organisationId,
+    "lead.csv_import.completed",
+    "5",
+    "1",
+    "0",
+    "2",
+  ], { stdio: "inherit" });
+  const malformedLegacyImportReplay = await callOne("importLeads", malformedLegacyImportPayload);
+  assert.deepEqual(malformedLegacyImportReplay, malformedLegacyImport,
+    "malformed-legacy import replay returns the original committed result");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-events.mjs",
+    orgOne.organisationId,
+    "lead.csv_import.completed",
+    "5",
+    "1",
+    "0",
+    "2",
+  ], { stdio: "inherit" });
+  const malformedLegacyLead = (await callOne("listLeads", { organisationId: orgOne.organisationId }))
+    .leads.find((lead) => lead.id === "legacy-malformed-contact-fixture");
+  assert.ok(malformedLegacyLead, "malformed legacy lead remains visible for operator review");
+  assert.equal(malformedLegacyLead.email, "", "non-string legacy email is not exposed in the list response");
+  assert.equal(malformedLegacyLead.website, "", "non-string legacy website is not exposed in the list response");
+  assert.equal(malformedLegacyLead.doNotContact, true, "malformed legacy lead remains suppressed");
+  assert.equal(malformedLegacyLead.contactReviewStatus, "pending", "malformed legacy lead remains pending review");
+  assert.equal(malformedLegacyLead.contactRestrictionVerified, false,
+    "malformed legacy lead cannot be treated as contact-verified");
+
+  // The server must reject a same-business/same-location duplicate even when contact identifiers differ.
+  const businessLocationDuplicate = await callOne("importLeads", {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    idempotencyKey: "csv-import-business-location-dup-01",
+    leads: [{
+      businessName: " synthetic imported alpha ltd ",
+      category: "Painters",
+      location: " LEEDS ",
+      email: "different-contact@example.test",
+      website: "https://different-contact.example.test",
+    }],
+  });
+  assert.equal(businessLocationDuplicate.imported, 0,
+    "canonical business/location match skips an existing lead with different contact identifiers");
+  assert.equal(businessLocationDuplicate.duplicatesSkipped, 1,
+    "server reports a business/location duplicate even when email and website differ");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-events.mjs",
+    orgOne.organisationId,
+    "lead.csv_import.completed",
+    "6",
+    "0",
+    "1",
+  ], { stdio: "inherit" });
+
+  // A row skipped for an existing email must not reserve its new website or
+  // business/location identifiers and cause a later, otherwise-valid row to be lost.
+  const skippedRowIdentifierReuse = await callOne("importLeads", {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    idempotencyKey: "csv-import-skipped-row-identifiers-01",
+    leads: [
+      {
+        businessName: "Skipped Existing Email Row",
+        category: "Painters",
+        location: "Bristol",
+        email: "hello@example.test",
+        website: "https://shared-only-by-skipped-row.example.test",
+      },
+      {
+        businessName: "Valid Reuse After Skipped Row",
+        category: "Roofers",
+        location: "Cardiff",
+        email: "valid-after-skip@example.test",
+        website: "https://shared-only-by-skipped-row.example.test",
+      },
+    ],
+  });
+  assert.equal(skippedRowIdentifierReuse.imported, 1,
+    "a valid row is imported when an earlier row with the same website was skipped due to an existing email");
+  assert.equal(skippedRowIdentifierReuse.duplicatesSkipped, 1,
+    "only the row matching an existing contact is skipped");
+  assert.equal((await callOne("listLeads", { organisationId: orgOne.organisationId })).leads
+    .filter((lead) => lead.businessName === "Valid Reuse After Skipped Row").length, 1,
+  "the valid row after the skipped duplicate is persisted exactly once");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-events.mjs",
+    orgOne.organisationId,
+    "lead.csv_import.completed",
+    "7",
+    "1",
+    "1",
+  ], { stdio: "inherit" });
+  console.log("PASS: server-side import deduplicates existing businesses by canonical business name and location and does not reserve identifiers from skipped rows.");
+
+  const importedLeads = (await callOne("listLeads", { organisationId: orgOne.organisationId })).leads;
+  for (const importedName of ["Synthetic Imported Alpha Ltd", "Synthetic Imported Beta Ltd"]) {
+    const imported = importedLeads.find((lead) => lead.businessName === importedName);
+    assert.ok(imported, `CSV import persists ${importedName}`);
+    assert.equal(imported.doNotContact, true, "CSV-imported leads remain suppressed pending review");
+    assert.equal(imported.contactReviewStatus, "pending", "CSV-imported leads require explicit contact review");
+  }
+
   assert.equal(leadOne.doNotContact, true, "new leads must remain blocked pending review");
   assert.equal(leadOne.contactReviewStatus, "pending", "new leads must expose a distinct pending-review state");
   const statusBeforeRejectedUpdates = (await callOne("listLeads", { organisationId: orgOne.organisationId }))
@@ -130,6 +541,13 @@ try {
   const afterRejectedLeadStatusUpdates = await callOne("listLeads", { organisationId: orgOne.organisationId });
   assert.equal(afterRejectedLeadStatusUpdates.leads.find((lead) => lead.id === leadOne.leadId)?.status,
     statusBeforeRejectedUpdates, "rejected lead status transitions preserve the stored lifecycle status");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "lead.status_changed",
+    "0",
+    leadOne.leadId,
+  ], { stdio: "inherit" });
   await expectCallableFailure(callOne("updateLeadContact", {
     organisationId: orgOne.organisationId,
     leadId: leadOne.leadId,
@@ -141,6 +559,7 @@ try {
   const invalidContactEditLead = await callOne("createLead", {
     organisationId: orgOne.organisationId,
     campaignId: campaignOne.campaignId,
+    idempotencyKey: "manual-lead-smoke-0001",
     businessName: "Synthetic Invalid Contact Edit Guard Ltd",
     category: "Painters",
     location: "Manchester",
@@ -154,6 +573,13 @@ try {
     location: "Manchester",
     email: "malformed-address",
   }), "functions/invalid-argument", "invalid contact edit fails before mutation");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "lead.contact_updated",
+    "0",
+    invalidContactEditLead.leadId,
+  ], { stdio: "inherit" });
   execFileSync(process.execPath, [
     "functions/scripts/assert-emulator-no-lead-activity.mjs",
     orgOne.organisationId,
@@ -169,6 +595,7 @@ try {
   const unsafeWebsiteLead = await callOne("createLead", {
     organisationId: orgOne.organisationId,
     campaignId: campaignOne.campaignId,
+    idempotencyKey: "manual-lead-smoke-0002",
     businessName: "Synthetic Unsafe Website Guard Ltd",
     category: "Painters",
     location: "Manchester",
@@ -233,6 +660,13 @@ try {
       message,
     ], { stdio: "inherit" });
   }
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "lead.contact_restriction_changed",
+    "0",
+    invalidContactEditLead.leadId,
+  ], { stdio: "inherit" });
   const afterInvalidReviewFlagList = await callOne("listLeads", { organisationId: orgOne.organisationId });
   const afterInvalidReviewFlag = afterInvalidReviewFlagList.leads.find((lead) => lead.id === invalidContactEditLead.leadId);
   assert.equal(afterInvalidReviewFlag?.doNotContact, true, "invalid review flags preserve suppression");
@@ -248,6 +682,12 @@ try {
   const campaignAfterInvalidStatus = await callOne("listCampaigns", { organisationId: orgOne.organisationId });
   assert.equal(campaignAfterInvalidStatus.campaigns.find((campaign) => campaign.id === campaignOne.campaignId)?.status,
     "active", "invalid campaign status preserves the stored campaign state");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "campaign.status_changed",
+    "2",
+  ], { stdio: "inherit" });
   const campaignQuotaBeforeMissingTarget = currentQuotaCount("updateCampaignStatus");
   await expectCallableFailure(callOne("updateCampaignStatus", {
     organisationId: orgOne.organisationId,
@@ -259,7 +699,7 @@ try {
   const campaignsAfterMissingTarget = await callOne("listCampaigns", { organisationId: orgOne.organisationId });
   assert.equal(campaignsAfterMissingTarget.campaigns.find((campaign) => campaign.id === campaignOne.campaignId)?.status,
     "active", "missing campaign target does not alter other campaign state");
-  await expectCallableFailure(callOne("createOutreachDraft", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Blocked before review", body: "Must not be created" }), "functions/failed-precondition", "new lead draft gate before contact review");
+  await expectCallableFailure(callOne("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0001", organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Blocked before review", body: "Must not be created" }), "functions/failed-precondition", "new lead draft gate before contact review");
   await callOne("setLeadSuppression", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, doNotContact: true });
   // Updating ordinary contact fields must never silently clear a do-not-contact restriction.
   await callOne("updateLeadContact", {
@@ -274,7 +714,7 @@ try {
   const suppressedLeadAfterContactEdit = stillSuppressed.leads.find((lead) => lead.id === leadOne.leadId);
   assert.equal(suppressedLeadAfterContactEdit?.doNotContact, true, "contact-detail edits preserve do-not-contact restriction");
   assert.equal(suppressedLeadAfterContactEdit?.contactReviewStatus, "blocked", "contact-detail edits preserve blocked review state");
-  await expectCallableFailure(callOne("createOutreachDraft", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Blocked", body: "Must not be created" }), "functions/failed-precondition", "suppressed lead draft gate after contact edit");
+  await expectCallableFailure(callOne("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0002", organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Blocked", body: "Must not be created" }), "functions/failed-precondition", "suppressed lead draft gate after contact edit");
   await expectCallableFailure(callOne("updateLeadStatus", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, status: "contacted" }), "functions/failed-precondition", "suppressed lead contacted status gate");
   await clearLeadRestriction(leadOne.leadId);
   const clearedLeadList = await callOne("listLeads", { organisationId: orgOne.organisationId });
@@ -337,6 +777,7 @@ try {
   const staleClearSideEffectLead = await callOne("createLead", {
     organisationId: orgOne.organisationId,
     campaignId: campaignOne.campaignId,
+    idempotencyKey: "manual-lead-smoke-0003",
     businessName: "Synthetic Stale Clearance Side Effect Guard Ltd",
     category: "Painters",
     location: "Manchester",
@@ -366,6 +807,13 @@ try {
     staleClearSideEffectLead.leadId,
     "Lead contact restriction removed",
   ], { stdio: "inherit" });
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "lead.contact_restriction_changed",
+    "0",
+    staleClearSideEffectLead.leadId,
+  ], { stdio: "inherit" });
   const staleClearSideEffectList = await callOne("listLeads", { organisationId: orgOne.organisationId });
   const staleClearSideEffectState = staleClearSideEffectList.leads.find((lead) => lead.id === staleClearSideEffectLead.leadId);
   assert.equal(staleClearSideEffectState?.doNotContact, true, "rejected stale clearance preserves suppression");
@@ -377,6 +825,7 @@ try {
   const malformedRevisionLead = await callOne("createLead", {
     organisationId: orgOne.organisationId,
     campaignId: campaignOne.campaignId,
+    idempotencyKey: "manual-lead-smoke-0004",
     businessName: "Synthetic Malformed Review Revision Guard Ltd",
     category: "Painters",
     location: "Manchester",
@@ -447,7 +896,7 @@ try {
     "stricter suppression action keeps a malformed-revision lead suppressed");
   assert.equal(blockedMalformedRevision?.contactReviewStatus, "blocked",
     "stricter suppression action records blocked status despite malformed revision");
-  await expectCallableFailure(callOne("createOutreachDraft", {
+  await expectCallableFailure(callOne("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0003",
     organisationId: orgOne.organisationId,
     leadId: malformedRevisionLead.leadId,
     subject: "Synthetic blocked lead test",
@@ -483,6 +932,7 @@ try {
   const maxRevisionLead = await callOne("createLead", {
     organisationId: orgOne.organisationId,
     campaignId: campaignOne.campaignId,
+    idempotencyKey: "manual-lead-smoke-0005",
     businessName: "Synthetic Maximum Review Revision Guard Ltd",
     category: "Painters",
     location: "Manchester",
@@ -546,7 +996,7 @@ try {
     "persisted suppression remains enabled after non-channel edit");
   console.log("PASS: non-contact-channel edits preserve the maximum revision and cannot relax suppression.");
 
-  await expectCallableFailure(callOne("createOutreachDraft", {
+  await expectCallableFailure(callOne("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0004",
     organisationId: orgOne.organisationId,
     leadId: leadOne.leadId,
     subject: "Stale clearance must not permit a draft",
@@ -559,13 +1009,14 @@ try {
   const concurrentReviewLead = await callOne("createLead", {
     organisationId: orgOne.organisationId,
     campaignId: campaignOne.campaignId,
+    idempotencyKey: "manual-lead-smoke-0006",
     businessName: "Synthetic Concurrent Contact Review Ltd",
     category: "Painters",
     location: "Manchester",
     email: "before-race@example.test",
   });
   await clearLeadRestriction(concurrentReviewLead.leadId);
-  const concurrentDraftAttempt = callOne("createOutreachDraft", {
+  const concurrentDraftAttempt = callOne("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0005",
     organisationId: orgOne.organisationId,
     leadId: concurrentReviewLead.leadId,
     subject: "Concurrent review test",
@@ -593,6 +1044,13 @@ try {
     assert.ok(racedDraft, "a draft created before the contact edit remains visible for review");
     assert.equal(racedDraft.requiresReview, true, "draft created before a concurrent contact edit is flagged for review");
     assert.equal(racedDraft.leadSuppressed, true, "draft created before a concurrent contact edit reflects current suppression");
+    await expectCallableFailure(callOne("createOutreachDraft", {
+      idempotencyKey: "draft-smoke-key-0005",
+      organisationId: orgOne.organisationId,
+      leadId: concurrentReviewLead.leadId,
+      subject: "Concurrent review test",
+      body: "This is a draft only and must never be sent automatically.",
+    }), "functions/failed-precondition", "same-key draft retry cannot bypass a newly pending contact review");
   } else {
     assert.equal(concurrentDraftResult.reason?.code, "functions/failed-precondition",
       "draft creation that loses the race to contact edit is rejected by the contact-review gate");
@@ -623,7 +1081,7 @@ try {
     const updatedChannelLead = updatedChannelList.leads.find((lead) => lead.id === leadOne.leadId);
     assert.equal(updatedChannelLead?.doNotContact, true, `changing ${channel} re-applies the contact restriction`);
     assert.equal(updatedChannelLead?.contactReviewStatus, "pending", `changing ${channel} requires fresh review`);
-    await expectCallableFailure(callOne("createOutreachDraft", {
+    await expectCallableFailure(callOne("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0006",
       organisationId: orgOne.organisationId,
       leadId: leadOne.leadId,
       subject: "Changed contact channel requires review",
@@ -671,7 +1129,7 @@ try {
   await createUserWithEmailAndPassword(admin.auth, "admin@example.test", "testing-password-admin");
   seedRole(admin.auth.currentUser.uid, "admin");
   const adminCall = (name, payload = {}) => httpsCallable(admin.functions, name, { timeout: 30000 })(payload).then((response) => response.data);
-  const adminCampaign = await adminCall("createCampaign", { organisationId: orgOne.organisationId, name: "Admin role campaign", brand: "Example", category: "Painters", location: "Manchester", goal: "Role test" });
+  const adminCampaign = await adminCall("createCampaign", { organisationId: orgOne.organisationId, idempotencyKey: "campaign-admin-create-0001", name: "Admin role campaign", brand: "Example", category: "Painters", location: "Manchester", goal: "Role test" });
   assert.equal(adminCampaign.status, "active", "admin can create a campaign");
   await adminCall("updateCampaignStatus", { organisationId: orgOne.organisationId, campaignId: adminCampaign.campaignId, status: "paused" });
   await clearLeadRestriction(leadOne.leadId, adminCall);
@@ -689,6 +1147,7 @@ try {
   const viewerNotesLead = await callOne("createLead", {
     organisationId: orgOne.organisationId,
     campaignId: campaignOne.campaignId,
+    idempotencyKey: "manual-lead-smoke-0007",
     businessName: "Synthetic Viewer Notes Guard Ltd",
     category: "Security regression",
     location: "Manchester",
@@ -734,6 +1193,7 @@ try {
   const viewerContactEditLead = await callOne("createLead", {
     organisationId: orgOne.organisationId,
     campaignId: campaignOne.campaignId,
+    idempotencyKey: "manual-lead-smoke-0008",
     businessName: "Synthetic Viewer Contact Edit Guard Ltd",
     category: "Painters",
     location: "Manchester",
@@ -770,6 +1230,7 @@ try {
   const viewerSuppressionLead = await callOne("createLead", {
     organisationId: orgOne.organisationId,
     campaignId: campaignOne.campaignId,
+    idempotencyKey: "manual-lead-smoke-0009",
     businessName: "Synthetic Viewer Suppression Guard Ltd",
     category: "Painters",
     location: "Manchester",
@@ -790,10 +1251,62 @@ try {
     organisationId: orgOne.organisationId, leadId: leadOne.leadId, doNotContact: false,
     contactReviewRevision: await currentContactReviewRevision(leadOne.leadId),
   }), "functions/permission-denied", "viewer cannot clear suppression");
-  await expectCallableFailure(viewerCall("createOutreachDraft", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Viewer denied", body: "Must not be created" }), "functions/permission-denied", "viewer cannot create outreach draft");
+  await expectCallableFailure(viewerCall("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0020", organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Viewer denied", body: "Must not be created" }), "functions/permission-denied", "viewer cannot create outreach draft");
 
-  const draft = await callOne("createOutreachDraft", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Test draft", body: "Review before use" });
+  const draftPayload = { organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Test draft", body: "Review before use", idempotencyKey: "outreach-draft-create-idempotency-0001" };
+  const draft = await callOne("createOutreachDraft", { ...draftPayload });
   assert.equal(draft.sent, false);
+  const draftReplay = await callOne("createOutreachDraft", { ...draftPayload });
+  assert.deepEqual(draftReplay, draft, "draft creation retry returns the original draft");
+  await expectCallableFailure(callOne("createOutreachDraft", { ...draftPayload, subject: "Changed draft subject" }), "functions/already-exists", "draft creation rejects key reuse with a different payload");
+  // A separate payload-conflict test is covered at the callable validation layer;
+  // keep this emulator smoke path focused on exact and concurrent successful retries.
+  const concurrentDraftPayload = { ...draftPayload, subject: "Concurrent retry draft", idempotencyKey: "outreach-draft-create-concurrent-0001" };
+  const concurrentDraftResults = await Promise.all([
+    callOne("createOutreachDraft", concurrentDraftPayload),
+    callOne("createOutreachDraft", concurrentDraftPayload),
+  ]);
+  assert.equal(concurrentDraftResults[0].draftId, concurrentDraftResults[1].draftId, "concurrent draft retries return the same draft ID");
+  assert.equal((await callOne("listOutreachDrafts", { organisationId: orgOne.organisationId })).drafts.filter((item) => item.subject === "Concurrent retry draft").length, 1, "concurrent draft retries persist one draft");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "outreach_draft.created",
+    "1",
+    draft.draftId,
+  ], { stdio: "inherit" });
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "outreach_draft.created",
+    "1",
+    concurrentDraftResults[0].draftId,
+  ], { stdio: "inherit" });
+  await expectCallableFailure(callOne("updateOutreachDraft", {
+    organisationId: orgOne.organisationId,
+    draftId: draft.draftId,
+    subject: "S".repeat(201),
+    body: "Invalid update must not alter the existing draft.",
+  }), "functions/invalid-argument", "oversized draft subject is rejected before mutation");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "outreach_draft.updated",
+    "0",
+    draft.draftId,
+  ], { stdio: "inherit" });
+  await expectCallableFailure(callOne("deleteOutreachDraft", {
+    organisationId: orgOne.organisationId,
+    draftId: "nonexistent-audit-draft",
+  }), "functions/not-found", "deleting a nonexistent draft is rejected");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "outreach_draft.deleted",
+    "0",
+    "nonexistent-audit-draft",
+  ], { stdio: "inherit" });
+
 
   // Confirm member lifecycle permissions and viewer denial on existing records.
   await memberCall("updateLeadContact", {
@@ -808,7 +1321,7 @@ try {
   const memberEditedLead = memberEditedLeadList.leads.find((lead) => lead.id === leadOne.leadId);
   assert.equal(memberEditedLead?.doNotContact, true, "member contact-channel edits require fresh review");
   assert.equal(memberEditedLead?.contactReviewStatus, "pending", "member contact-channel edits invalidate old clearance");
-  await expectCallableFailure(memberCall("createOutreachDraft", {
+  await expectCallableFailure(memberCall("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0021",
     organisationId: orgOne.organisationId,
     leadId: leadOne.leadId,
     subject: "Fresh review required",
@@ -822,7 +1335,7 @@ try {
   });
   assert.equal(memberStatus.status, "qualified", "member can update lead lifecycle status");
 
-  const memberDraft = await memberCall("createOutreachDraft", {
+  const memberDraft = await memberCall("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0022",
     organisationId: orgOne.organisationId,
     leadId: leadOne.leadId,
     subject: "Member-owned test draft",
@@ -851,6 +1364,7 @@ try {
   const viewerStatusLead = await callOne("createLead", {
     organisationId: orgOne.organisationId,
     campaignId: campaignOne.campaignId,
+    idempotencyKey: "manual-lead-smoke-0010",
     businessName: "Synthetic Viewer Status Guard Ltd",
     category: "Security regression",
     location: "Manchester",
@@ -879,13 +1393,14 @@ try {
   const viewerDraftGuardLead = await callOne("createLead", {
     organisationId: orgOne.organisationId,
     campaignId: campaignOne.campaignId,
+    idempotencyKey: "manual-lead-smoke-0011",
     businessName: "Synthetic Viewer Draft Guard Ltd",
     category: "Security regression",
     location: "Manchester",
     email: "viewer-draft-guard@example.test",
   });
   await clearLeadRestriction(viewerDraftGuardLead.leadId);
-  const viewerGuardDraft = await callOne("createOutreachDraft", {
+  const viewerGuardDraft = await callOne("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0008",
     organisationId: orgOne.organisationId,
     leadId: viewerDraftGuardLead.leadId,
     subject: "Dedicated viewer draft guard",
@@ -1055,6 +1570,7 @@ try {
   await expectCallableFailure(callOne("createLead", {
     organisationId: "owner-mismatch-org",
     campaignId: "fixture-campaign",
+    idempotencyKey: "manual-lead-smoke-0012",
     businessName: "Must be denied",
     category: "Painters",
     location: "Manchester",
@@ -1081,7 +1597,7 @@ try {
     leadId: "fixture-lead",
     status: "qualified",
   }), "functions/permission-denied", "lead status update with owner membership conflicting with parent ownerUid");
-  await expectCallableFailure(callOne("createOutreachDraft", {
+  await expectCallableFailure(callOne("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0009",
     organisationId: "owner-mismatch-org",
     leadId: "fixture-lead",
     subject: "Must be denied",
@@ -1122,6 +1638,7 @@ try {
     callOne("createLead", {
       organisationId: "orphaned-org",
       campaignId: "orphaned-campaign",
+    idempotencyKey: "manual-lead-smoke-0013",
       businessName: "Must not persist",
       category: "Painters",
       location: "Manchester",
@@ -1164,14 +1681,14 @@ try {
   assert.equal(suppressedDraft.leadSuppressed, true);
   assert.equal(suppressedDraft.requiresReview, true);
   await expectCallableFailure(callOne("updateOutreachDraft", { organisationId: orgOne.organisationId, draftId: draft.draftId, subject: "Blocked update", body: "Must not be edited" }), "functions/failed-precondition", "suppression added after draft creation");
-  await expectCallableFailure(callOne("createOutreachDraft", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Blocked new draft", body: "Must not be created while suppressed" }), "functions/failed-precondition", "suppressed lead cannot create a new draft");
+  await expectCallableFailure(callOne("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0010", organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Blocked new draft", body: "Must not be created while suppressed" }), "functions/failed-precondition", "suppressed lead cannot create a new draft");
   await callOne("updateLeadNotes", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, notes: "Administrative note while contact is restricted" });
   const suppressedLeadAfterNotes = await callOne("listLeads", { organisationId: orgOne.organisationId });
   const restrictedLeadAfterNotes = suppressedLeadAfterNotes.leads.find((lead) => lead.id === leadOne.leadId);
   assert.equal(restrictedLeadAfterNotes?.doNotContact, true, "editing notes cannot clear do-not-contact");
   assert.equal(restrictedLeadAfterNotes?.contactReviewStatus, "blocked", "editing notes preserves blocked review status");
   await expectCallableFailure(callOne("updateLeadStatus", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, status: "contacted" }), "functions/failed-precondition", "suppressed lead cannot be marked contacted");
-  await expectCallableFailure(callOne("createOutreachDraft", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Still blocked after note edit", body: "Must remain blocked" }), "functions/failed-precondition", "notes edit cannot reopen outreach eligibility");
+  await expectCallableFailure(callOne("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0011", organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Still blocked after note edit", body: "Must remain blocked" }), "functions/failed-precondition", "notes edit cannot reopen outreach eligibility");
 
   await clearLeadRestriction(leadOne.leadId);
   await callOne("updateOutreachDraft", { organisationId: orgOne.organisationId, draftId: draft.draftId, subject: "Updated test draft", body: "Still draft only" });
@@ -1187,6 +1704,7 @@ try {
     await callOne("createLead", {
       organisationId: orgOne.organisationId,
       campaignId: campaignOne.campaignId,
+    idempotencyKey: `manual-lead-pagination-${index}`,
       businessName: `Synthetic Pagination Lead ${String(index + 1).padStart(3, "0")}`,
       category: "Painters",
       location: "Manchester",
@@ -1213,6 +1731,7 @@ try {
   for (let index = 0; index < 99; index += 1) {
     await callOne("createCampaign", {
       organisationId: orgOne.organisationId,
+      idempotencyKey: `campaign-pagination-create-${String(index + 1).padStart(3, "0")}`,
       name: `Synthetic Pagination Campaign ${String(index + 1).padStart(3, "0")}`,
       brand: "Example",
       category: "Painters",
@@ -1238,7 +1757,7 @@ try {
   // Exercise draft pagination beyond the 100-record page boundary. Reuse the cleared
   // synthetic lead so this specifically tests paging rather than contact-gate setup.
   for (let index = 0; index < 100; index += 1) {
-    await callOne("createOutreachDraft", {
+    await callOne("createOutreachDraft", { idempotencyKey: `draft-pagination-${String(index + 1).padStart(4, "0")}`,
       organisationId: orgOne.organisationId,
       leadId: leadOne.leadId,
       subject: `Synthetic Pagination Draft ${String(index + 1).padStart(3, "0")}`,
@@ -1262,6 +1781,19 @@ try {
   assert.ok([...firstDraftPage.drafts, ...secondDraftPage.drafts].every((item) => item.sent !== true), "all generated drafts remain unsent");
 
   await expectCallableFailure(getDoc(doc(first.firestore, `organisations/${orgOne.organisationId}`)), "permission-denied", "direct client Firestore read denial");
+  await expectCallableFailure(
+    getDoc(doc(first.firestore, "securityAuditEvents", "client-read-attempt")),
+    "permission-denied",
+    "direct client security audit read denial",
+  );
+  await expectCallableFailure(
+    setDoc(doc(first.firestore, "securityAuditEvents", "client-write-attempt"), {
+      eventType: "client.forged",
+      actorUid: first.auth.currentUser.uid,
+    }),
+    "permission-denied",
+    "direct client security audit write denial",
+  );
 
   const second = connectClient(initializeApp(firebaseConfig, "tenant-two"));
   apps.push(second.app);
@@ -1281,7 +1813,7 @@ try {
     drafts: currentQuotaCount("listOutreachDrafts", crossTenantReadUid),
   };
   await expectCallableFailure(callTwo("listLeads", { organisationId: orgOne.organisationId }), "functions/permission-denied", "cross-tenant lead listing denial");
-  const orgTwo = await callTwo("createOrganisation", { name: "Tenant Two" });
+  const orgTwo = await callTwo("createOrganisation", { name: "Tenant Two", idempotencyKey: "organisation-create-tenant-two-0001" });
   // A cursor scoped to another tenant must be rejected before its target document is read.
   await expectCallableFailure(callOne("listCampaigns", { organisationId: orgOne.organisationId, pageToken: `organisations/${orgTwo.organisationId}/campaigns/cursor-only` }), "functions/invalid-argument", "campaign cursor from another organisation");
   await expectCallableFailure(callOne("listLeads", { organisationId: orgOne.organisationId, pageToken: `organisations/${orgTwo.organisationId}/leads/cursor-only` }), "functions/invalid-argument", "lead cursor from another organisation");
@@ -1293,8 +1825,8 @@ try {
     campaigns: currentQuotaCount("listCampaigns", crossTenantReadUid),
     drafts: currentQuotaCount("listOutreachDrafts", crossTenantReadUid),
   }, crossTenantReadQuotaBefore, "denied cross-tenant reads must not create or consume read quotas");
-  await expectCallableFailure(callTwo("createLead", { organisationId: orgTwo.organisationId, campaignId: campaignOne.campaignId, businessName: "Cross Tenant Attempt" }), "functions/not-found", "cross-tenant campaign reference denial");
-  await expectCallableFailure(callTwo("createOutreachDraft", { organisationId: orgTwo.organisationId, leadId: leadOne.leadId, subject: "Cross tenant", body: "Must not be created" }), "functions/not-found", "cross-tenant lead reference denial");
+  await expectCallableFailure(callTwo("createLead", { organisationId: orgTwo.organisationId, campaignId: campaignOne.campaignId, businessName: "Cross Tenant Attempt", idempotencyKey: "cross-tenant-campaign-0001" }), "functions/not-found", "cross-tenant campaign reference denial");
+  await expectCallableFailure(callTwo("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0023", organisationId: orgTwo.organisationId, leadId: leadOne.leadId, subject: "Cross tenant", body: "Must not be created" }), "functions/not-found", "cross-tenant lead reference denial");
   await expectCallableFailure(callTwo("updateOutreachDraft", { organisationId: orgTwo.organisationId, draftId: draft.draftId, subject: "Cross tenant", body: "Must not be updated" }), "functions/not-found", "cross-tenant draft update denial");
   await expectCallableFailure(callTwo("deleteOutreachDraft", { organisationId: orgTwo.organisationId, draftId: draft.draftId }), "functions/not-found", "cross-tenant draft delete denial");
 
@@ -1308,7 +1840,7 @@ try {
     ["updateLeadStatus", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, status: "qualified" }],
     ["updateLeadNotes", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, notes: "Must not be written" }],
     ["setLeadSuppression", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, doNotContact: true }],
-    ["createOutreachDraft", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Denied draft", body: "Must not be created" }],
+    ["createOutreachDraft", { idempotencyKey: "draft-smoke-key-0024", organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Denied draft", body: "Must not be created" }],
     ["updateOutreachDraft", { organisationId: orgOne.organisationId, draftId: draft.draftId, subject: "Denied edit", body: "Must not be updated" }],
     ["deleteOutreachDraft", { organisationId: orgOne.organisationId, draftId: draft.draftId }],
   ];
@@ -1334,7 +1866,7 @@ try {
 
   // Create a fresh victim draft after the pagination fixtures so the owner-list
   // verification below is guaranteed to find it on the first page.
-  const victimDraft = await callOne("createOutreachDraft", {
+  const victimDraft = await callOne("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0013",
     organisationId: orgOne.organisationId,
     leadId: leadOne.leadId,
     subject: "Cross-tenant victim draft",
@@ -1351,7 +1883,7 @@ try {
     location: "Manchester",
     goal: "Must be denied",
   }), "functions/permission-denied", "cross-tenant campaign creation denial");
-  await expectCallableFailure(callTwo("createOutreachDraft", {
+  await expectCallableFailure(callTwo("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0025",
     organisationId: orgOne.organisationId,
     leadId: leadOne.leadId,
     subject: "Cross-tenant draft creation attempt",
@@ -1450,6 +1982,7 @@ try {
   await expectCallableFailure(callOne("createLead", {
     organisationId: orgOne.organisationId,
     campaignId: missingCampaignId,
+    idempotencyKey: "manual-lead-smoke-0015",
     businessName: "Missing campaign lead test",
     category: "Painters",
     location: "Manchester",
@@ -1464,7 +1997,7 @@ try {
     organisationId: orgOne.organisationId,
     draftId: missingDraftId,
   }), "functions/not-found", "deleting a missing draft");
-  await expectCallableFailure(callOne("createOutreachDraft", {
+  await expectCallableFailure(callOne("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0014",
     organisationId: orgOne.organisationId,
     leadId: missingLeadId,
     subject: "Missing lead",
@@ -1505,7 +2038,7 @@ try {
   const orphanLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-orphan-draft");
   const mismatchedLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-mismatched-campaign-draft");
   // Even a legacy lead marked internally cleared must not get a new draft if its campaign record is gone.
-  await expectCallableFailure(callOne("createOutreachDraft", {
+  await expectCallableFailure(callOne("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0015",
     organisationId: orgOne.organisationId,
     leadId: "legacy-missing-campaign-lead",
     subject: "Missing campaign must block draft",
@@ -1528,17 +2061,18 @@ try {
   const missingCampaignLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-missing-campaign-record-draft");
   const nonDraftStatusLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-non-draft-status");
   const missingStatusLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-missing-status");
+  const missingSentFlagLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-missing-sent-flag");
   const missingRestrictionLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-missing-restriction-draft");
   const malformedRestrictionLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-malformed-restriction-draft");
   const malformedContentLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-malformed-content-draft");
   const malformedTimestampLegacyDraft = legacyDraftList.drafts.find((item) => item.id === "legacy-malformed-timestamp-draft");
-  await expectCallableFailure(callOne("createOutreachDraft", {
+  await expectCallableFailure(callOne("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0016",
     organisationId: orgOne.organisationId,
     leadId: "legacy-missing-restriction-lead",
     subject: "Missing restriction must block",
     body: "Must not be created without a verified restriction",
   }), "functions/failed-precondition", "draft creation for a lead with a missing doNotContact value");
-  await expectCallableFailure(callOne("createOutreachDraft", {
+  await expectCallableFailure(callOne("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0017",
     organisationId: orgOne.organisationId,
     leadId: "legacy-malformed-restriction-lead",
     subject: "Malformed restriction must block",
@@ -1635,7 +2169,10 @@ try {
   assert.ok(missingStatusLegacyDraft, "legacy record with a missing status remains visible for review");
   assert.equal(missingStatusLegacyDraft.requiresReview, true, "legacy record with a missing status requires review");
   assert.equal(missingStatusLegacyDraft.status, "unknown", "missing legacy status is displayed as unknown rather than draft");
-  assert.match(nonDraftStatusLegacyDraft.reviewReason, /status is missing or is not draft/i);
+  assert.match(nonDraftStatusLegacyDraft.reviewReason, /status or sent flag is inconsistent|status is missing or is not draft/i);
+  assert.ok(missingSentFlagLegacyDraft, "legacy draft missing the sent flag remains visible for review");
+  assert.equal(missingSentFlagLegacyDraft.requiresReview, true, "missing sent flag requires review");
+  assert.match(missingSentFlagLegacyDraft.reviewReason, /status or sent flag is inconsistent/i);
   await expectCallableFailure(callOne("updateOutreachDraft", {
     organisationId: orgOne.organisationId, draftId: "legacy-non-draft-status",
     subject: "Must not reopen a sent record", body: "Status must remain blocked",
@@ -1644,6 +2181,17 @@ try {
     organisationId: orgOne.organisationId, draftId: "legacy-missing-status",
     subject: "Must not infer draft status", body: "Missing status remains untrusted",
   }), "functions/failed-precondition", "editing a legacy outreach record with missing status");
+  await expectCallableFailure(callOne("updateOutreachDraft", {
+    organisationId: orgOne.organisationId, draftId: "legacy-missing-sent-flag",
+    subject: "Must not infer unsent state", body: "Missing sent flag remains untrusted",
+  }), "functions/failed-precondition", "editing a legacy outreach record with missing sent flag");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "outreach_draft.updated",
+    "0",
+    "legacy-missing-sent-flag",
+  ], { stdio: "inherit" });
   const legacyDraftsAfterRejectedEdits = (await callOne("listOutreachDrafts", {
     organisationId: orgOne.organisationId,
   })).drafts;
@@ -1652,8 +2200,11 @@ try {
   assert.equal(sentRecordAfterRejectedEdit?.subject, "Legacy non-draft status fixture", "rejected edit preserves the sent record subject");
   assert.equal(sentRecordAfterRejectedEdit?.body, "Synthetic test only", "rejected edit preserves the sent record body");
   const missingStatusAfterRejectedEdit = legacyDraftsAfterRejectedEdits.find((item) => item.id === "legacy-missing-status");
+  const missingSentFlagAfterRejectedEdit = legacyDraftsAfterRejectedEdits.find((item) => item.id === "legacy-missing-sent-flag");
   assert.equal(missingStatusAfterRejectedEdit?.status, "unknown", "rejected edit does not normalise missing status to draft");
   assert.equal(missingStatusAfterRejectedEdit?.subject, "Legacy missing status fixture", "rejected edit preserves the missing-status record content");
+  assert.equal(missingSentFlagAfterRejectedEdit?.status, "draft", "rejected edit preserves the stored draft status");
+  assert.equal(missingSentFlagAfterRejectedEdit?.subject, "Legacy missing sent flag fixture", "rejected edit preserves the missing-sent-flag record content");
   // A rejected edit of an untrusted legacy record must not consume the final
   // quota slot or create an activity event; the valid draft edit should still succeed.
   execFileSync(process.execPath, [
@@ -1683,6 +2234,13 @@ try {
   assert.equal(nonDraftStatusCleanup.deleted, true, "non-draft legacy record remains deletable for cleanup");
   assert.equal(nonDraftStatusCleanup.sent, false, "cleanup does not send outreach");
   assert.equal(nonDraftStatusCleanup.messageSentByThisAction, false, "cleanup response explicitly states this action did not send a message");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "outreach_draft.deleted",
+    "1",
+    "legacy-non-draft-status",
+  ], { stdio: "inherit" });
   await expectCallableFailure(callOne("updateOutreachDraft", {
     organisationId: orgOne.organisationId, draftId: "legacy-missing-status",
     subject: "Must not reopen an unknown-status record", body: "Status must remain blocked",
@@ -1693,6 +2251,13 @@ try {
   assert.equal(missingStatusCleanup.deleted, true, "missing-status legacy record remains deletable for cleanup");
   assert.equal(missingStatusCleanup.sent, false, "missing-status cleanup does not send outreach");
   assert.equal(missingStatusCleanup.messageSentByThisAction, false, "missing-status cleanup explicitly confirms this action did not send a message");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "outreach_draft.deleted",
+    "1",
+    "legacy-missing-status",
+  ], { stdio: "inherit" });
   await expectCallableFailure(callOne("updateOutreachDraft", {
     organisationId: orgOne.organisationId, draftId: "legacy-orphan-draft",
     subject: "Should remain blocked", body: "Do not update an orphan",
@@ -1710,15 +2275,36 @@ try {
   });
   assert.equal(missingCampaignCleanup.deleted, true, "missing-campaign legacy draft remains deletable for cleanup");
   assert.equal(missingCampaignCleanup.sent, false, "missing-campaign cleanup never sends outreach");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "outreach_draft.deleted",
+    "1",
+    "legacy-missing-campaign-record-draft",
+  ], { stdio: "inherit" });
   const orphanCleanup = await callOne("deleteOutreachDraft", {
     organisationId: orgOne.organisationId, draftId: "legacy-orphan-draft",
   });
   assert.equal(orphanCleanup.deleted, true, "orphan legacy draft remains deletable for cleanup");
   assert.equal(orphanCleanup.sent, false, "legacy cleanup never sends outreach");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "outreach_draft.deleted",
+    "1",
+    "legacy-orphan-draft",
+  ], { stdio: "inherit" });
   const legacyCleanupList = await callOne("listOutreachDrafts", { organisationId: orgOne.organisationId });
   assert.equal(legacyCleanupList.drafts.some((item) => item.id === "legacy-orphan-draft"), false, "deleted orphan no longer appears in the list");
 
   await callOne("deleteOutreachDraft", { organisationId: orgOne.organisationId, draftId: draft.draftId });
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "outreach_draft.deleted",
+    "1",
+    draft.draftId,
+  ], { stdio: "inherit" });
 
   // Exercise organisation pagination with more than 100 memberships for one caller.
   execFileSync(process.execPath, [
@@ -1810,7 +2396,7 @@ try {
     "functions/scripts/seed-emulator-rate-limit.mjs",
     "global", first.auth.currentUser.uid, "createOrganisation", "expired",
   ], { stdio: "inherit" });
-  const afterExpiredMutationQuota = await callOne("createOrganisation", { name: "Tenant After Expired Quota" });
+  const afterExpiredMutationQuota = await callOne("createOrganisation", { name: "Tenant After Expired Quota", idempotencyKey: "organisation-after-expiry-0001" });
   assert.equal(afterExpiredMutationQuota.role, "owner", "expired mutation quota permits the first request in a new window");
   execFileSync(process.execPath, [
     "functions/scripts/assert-emulator-rate-limit-expiry.mjs",
@@ -2042,6 +2628,7 @@ try {
     "updateCampaignStatus",
     "listLeads",
     "createLead",
+    "importLeads",
     "updateLeadContact",
     "updateLeadStatus",
     "updateLeadNotes",

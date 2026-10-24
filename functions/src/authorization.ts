@@ -122,11 +122,30 @@ export function isSafeWebsiteAddress(value: string): boolean {
       return false;
     }
   }
-  return !/\s/.test(value);
+  // Bare domains may include paths and queries, but must never smuggle URL userinfo
+  // or be normalised from a relative path into a misleading hostname.
+  if (/^[/?#]/.test(value)) return false;
+  const authority = value.split(/[/?#]/, 1)[0];
+  if (authority.includes("@")) return false;
+  try {
+    const parsed = new URL("https://" + value);
+    return Boolean(parsed.hostname) && parsed.username === "" && parsed.password === "";
+  } catch {
+    return false;
+  }
 }
 
 export function isValidEmailAddress(value: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  if (value.length === 0 || value.length > 254 || /\s/.test(value)) return false;
+  const parts = value.split("@");
+  if (parts.length !== 2) return false;
+  const [local, domain] = parts;
+  if (local.length === 0 || local.length > 64 || local.startsWith(".") || local.endsWith(".") || local.includes("..")) return false;
+  if (!/^[A-Za-z0-9.!#$%&'*+/=?^_{}|~-]+$/.test(local)) return false;
+  const labels = domain.split(".");
+  if (labels.length < 2 || labels.some((label) => label.length === 0 || label.length > 63
+    || !/^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$/.test(label))) return false;
+  return /^[A-Za-z]{2,63}$/.test(labels[labels.length - 1]);
 }
 
 
@@ -185,9 +204,20 @@ export function isValidOrganisationPageToken(value: unknown, uid: string): value
 
 export function isValidMembershipRecord(value: unknown, expectedUid: string): boolean {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
-  const record = value as Record<string, unknown>;
-  const validRole = record.role === "owner" || record.role === "admin" || record.role === "member" || record.role === "viewer";
-  return record.uid === expectedUid && validRole;
+  try {
+    const record = value as Record<string, unknown>;
+    // Membership identity and role must be stored on the record itself; inherited
+    // properties are not authoritative persisted membership fields.
+    if (!Object.prototype.hasOwnProperty.call(record, "uid")
+      || !Object.prototype.hasOwnProperty.call(record, "role")) return false;
+    // Malformed accessors must not turn a legacy membership read into an exception.
+    const uid = record.uid;
+    const role = record.role;
+    const validRole = role === "owner" || role === "admin" || role === "member" || role === "viewer";
+    return uid === expectedUid && validRole;
+  } catch {
+    return false;
+  }
 }
 
 /** Validates membership role integrity against the parent organisation record. */
@@ -197,11 +227,16 @@ export function isValidMembershipForOrganisation(
   organisationOwnerUid: unknown,
 ): boolean {
   if (!isValidMembershipRecord(value, expectedUid)) return false;
-  const record = value as Record<string, unknown>;
-  // Owner-role membership must match the organisation's authoritative ownerUid.
-  // Missing or conflicting ownership metadata must not silently grant owner powers.
-  if (record.role === "owner") return typeof organisationOwnerUid === "string" && organisationOwnerUid === expectedUid;
-  return true;
+  try {
+    const record = value as Record<string, unknown>;
+    // Owner-role membership must match the organisation's authoritative ownerUid.
+    // Missing or conflicting ownership metadata must not silently grant owner powers.
+    // Read role defensively again: hostile getters can change or throw between reads.
+    if (record.role === "owner") return typeof organisationOwnerUid === "string" && organisationOwnerUid === expectedUid;
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function isValidOrganisationCollectionPageToken(value: unknown, organisationId: string, collectionName: "campaigns" | "leads" | "outreachDrafts"): value is string {
@@ -218,10 +253,11 @@ export function isValidOrganisationCollectionPageToken(value: unknown, organisat
 /** True only for a usable Firestore Timestamp value used by ordered pagination. */
 export function isValidFirestoreTimestamp(value: unknown): boolean {
   if (!value || typeof value !== "object") return false;
-  const timestamp = value as { toMillis?: unknown };
-  if (typeof timestamp.toMillis !== "function") return false;
   try {
-    const milliseconds = (timestamp.toMillis as () => unknown).call(value);
+    const timestamp = value as { toMillis?: unknown };
+    const toMillis = timestamp.toMillis;
+    if (typeof toMillis !== "function") return false;
+    const milliseconds = (toMillis as () => unknown).call(value);
     // Firestore timestamps retain nanosecond precision, so toMillis() may legitimately
     // be fractional. Require a finite value within the safe numeric range instead.
     return typeof milliseconds === "number"
@@ -250,16 +286,26 @@ export function evaluateRateLimit(state: unknown, nowMs: number, maxRequests: nu
     return { allowed: true, invalidState: false, nextState: { windowStartedAtMs: nowMs, count: 1 }, retryAfterMs: 0 };
   }
   if (typeof state !== "object" || Array.isArray(state)) return { allowed: false, invalidState: true, nextState: null, retryAfterMs: 0 };
-  const value = state as Record<string, unknown>;
-  const started = value.windowStartedAtMs;
-  const count = value.count;
-  if (typeof started !== "number" || !Number.isSafeInteger(started) || started < 0 || typeof count !== "number" || !Number.isSafeInteger(count) || count < 1 || count > maxRequests) {
+  try {
+    const value = state as Record<string, unknown>;
+    // Persisted quota fields must be explicit record fields, not inherited values.
+    if (!Object.prototype.hasOwnProperty.call(value, "windowStartedAtMs")
+      || !Object.prototype.hasOwnProperty.call(value, "count")) {
+      return { allowed: false, invalidState: true, nextState: null, retryAfterMs: 0 };
+    }
+    // Treat hostile/malformed accessors like any other invalid persisted state.
+    const started = value.windowStartedAtMs;
+    const count = value.count;
+    if (typeof started !== "number" || !Number.isSafeInteger(started) || started < 0 || typeof count !== "number" || !Number.isSafeInteger(count) || count < 1 || count > maxRequests) {
+      return { allowed: false, invalidState: true, nextState: null, retryAfterMs: 0 };
+    }
+    const elapsed = nowMs - started;
+    if (elapsed >= windowMs) return { allowed: true, invalidState: false, nextState: { windowStartedAtMs: nowMs, count: 1 }, retryAfterMs: 0 };
+    // If the clock moves backwards, wait until the original window end; do not understate retry time.
+    const retryAfterMs = Math.min(Number.MAX_SAFE_INTEGER, Math.max(0, windowMs - elapsed));
+    if (count >= maxRequests) return { allowed: false, invalidState: false, nextState: null, retryAfterMs };
+    return { allowed: true, invalidState: false, nextState: { windowStartedAtMs: started, count: count + 1 }, retryAfterMs: 0 };
+  } catch {
     return { allowed: false, invalidState: true, nextState: null, retryAfterMs: 0 };
   }
-  const elapsed = nowMs - started;
-  if (elapsed >= windowMs) return { allowed: true, invalidState: false, nextState: { windowStartedAtMs: nowMs, count: 1 }, retryAfterMs: 0 };
-  // If the clock moves backwards, wait until the original window end; do not understate retry time.
-  const retryAfterMs = Math.min(Number.MAX_SAFE_INTEGER, Math.max(0, windowMs - elapsed));
-  if (count >= maxRequests) return { allowed: false, invalidState: false, nextState: null, retryAfterMs };
-  return { allowed: true, invalidState: false, nextState: { windowStartedAtMs: started, count: count + 1 }, retryAfterMs: 0 };
 }

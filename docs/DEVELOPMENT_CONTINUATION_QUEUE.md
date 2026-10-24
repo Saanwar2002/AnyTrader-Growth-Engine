@@ -1,3 +1,90 @@
+## AutoPilot run — malformed legacy import regression verified (2026-10-24)
+
+- The malformed-legacy import fixture and audit-event assertions were added in commit `63fb24943043fd170f052f372d4e8fb6fced2481`. Initial CI runs exposed an overly strict aggregate-count assertion; commit `14cc0c286559e5ec2b976bde9272aa1a68c39e04` corrected the helper without changing import behaviour.
+- CI runs [40092440423](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40092440423) and [40092444096](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40092444096) completed successfully on the corrected head; both frontend/emulator and Functions jobs passed.
+- The emulator now proves malformed legacy contact/key types do not block a distinct valid import, audit events contain aggregate metadata only, replay does not create a second event, and malformed legacy contact fields remain suppressed/pending review.
+- Next safe batch: reject malformed record entries from the bounded audit adapter instead of allowing null/missing-ID records to fail later inside the analyzer. Legacy mixed-case duplicate backfill and production controls remain gated on review and the separate Firebase project.
+
+---
+
+## AutoPilot run — CSV audit assertion corrected for repeated aggregate counts (2026-10-24)
+
+- CI runs [40092254379](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40092254379) and [40092258779](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40092258779) failed in the emulator smoke step; both Functions jobs passed.
+- Root cause was test-helper strictness, not import behaviour: two legitimate successful imports had the same aggregate audit metadata (`importedCount: 1`, `duplicatesSkipped: 0`), while the assertion helper assumed those counts could occur only once. The total event count remained the primary exactly-once check.
+- The helper now accepts an explicit expected number of events matching aggregate counts; the malformed-legacy scenario expects two such events and still verifies the total audit count stays at five after replay.
+- The corrected head requires a fresh CI run before proceeding. No production data, deployment, merge, or outreach was involved.
+
+---
+
+## AutoPilot run — malformed legacy import safety regression (2026-10-24)
+
+- Verified the previous head `6fb122b55c9eef9d0dc22d25455b5a97890ca905`; Growth Engine CI run [40091962211](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40091962211) completed successfully for both frontend/emulator and Functions jobs.
+- Added an emulator-only malformed legacy lead fixture with non-string contact/canonical-key fields. The smoke test checks that a separate valid import succeeds, audit metadata records only aggregate counts, idempotent replay adds no second audit event, malformed fields are serialized safely, and the legacy lead stays suppressed/pending review.
+- At the time of this entry, CI for the new code/test head still needs its own verification; the prior green run does not validate this change.
+- Keep all fixtures restricted to the local `demo-growth-engine-test` Firestore emulator. Legacy mixed-case duplicates still require a reviewed dry-run/backfill before complete legacy coverage can be claimed. Production blockers remain unchanged; no deployment or outreach is authorized.
+
+---
+
+## AutoPilot run — legacy duplicate fallback regression verified (2026-10-24)
+
+- Verified the repository and active branch: `Saanwar2002/AnyTrader-Growth-Engine`, `development/next-phase`. PR #10 remains open, draft, and unmerged. No merge, deployment, production data access, or outreach sending occurred.
+- Added an emulator-only seed fixture for two legacy leads without `dedupeEmailKey`/`dedupeWebsiteKey`, plus smoke coverage that exact-value email and website fallbacks skip both duplicates. The fixture refuses to run outside the local `demo-growth-engine-test` Firestore emulator.
+- The first attempt exposed an over-escaped emulator-host guard; fixed it in commit `82dfaaf085044a361903daea7f7a64d7c0ce6496`.
+- Both Growth Engine CI runs [40088182846](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40088182846) and [40088188514](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40088188514) completed successfully on that exact head. Frontend/emulator and Functions jobs passed.
+- Next safe engineering batch: add focused audit-event invariants around duplicate-only imports and malformed legacy records, avoiding redundant assertions where existing emulator checks already cover the contract. Legacy mixed-case records still require a reviewed dry-run/backfill before canonical duplicate coverage can be claimed. Production blockers remain: dedicated Growth Engine Firebase project, App Check setup/enforcement, operational monitoring/TTL, and privacy/retention review. Synthetic data only; outreach remains draft-only.
+
+---
+
+## AutoPilot run — documentation and CI evidence sync (2026-10-24)
+
+- Verified repository: `Saanwar2002/AnyTrader-Growth-Engine`; active development branch: `development/next-phase`; PR #10 remains open, draft, and unmerged. No merge or deployment was performed.
+- Verified the PR head `a3d973ae7a138b0fb6adfb2fa67b9e5f983637b3` had successful Growth Engine CI run [40080470912](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40080470912): both frontend/emulator and Functions jobs passed, including typecheck, unit tests, build, emulator smoke tests, dependency audit, and Functions tests/build.
+- Documentation batches completed: marked emulator coverage accurately in `docs/ROADMAP.md`; refreshed the verified CI evidence in `docs/PRODUCTION_SECURITY_READINESS.md` and `README.md`.
+- These documentation-only commits were then created on this branch: `9b25a4398bd9d8feea890610a18c2fe16d67839b`, `5e439cdf199b5de0552cffbce371ff6f988a2d29`, and `438dd5b6d95d2ba4323745ba4fbebcf6fac9e9e3`. CI for the final documentation commit must be checked separately; the earlier green run does not validate these later commits.
+- Next safe engineering batch: continue targeted malformed-legacy-record and audit-event invariant regressions, inspect test conventions before editing, and validate the exact new head in CI. Production blockers remain: dedicated Growth Engine Firebase project, App Check setup/enforcement, operational monitoring/TTL, and privacy/retention review. Synthetic data only; outreach remains draft-only.
+
+---
+
+## Latest continuation update — draft retry safety and audit metadata checks verified (2026-10-24)
+
+- Latest code/test commit: `05dfef69c19db738c048212bc97487cb1722b7e7`.
+- CI run [40043306751](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40043306751) completed successfully on that exact head. Both jobs passed: frontend typecheck, unit tests, production build, emulator integration smoke tests, and Firebase Functions authorization tests/build plus dependency audit.
+- Outreach draft creation uses caller-scoped idempotency keys and a normalized-payload SHA-256 fingerprint; exact retries return the original draft, changed payload reuse is rejected, and replay rechecks lead suppression/contact-review state before returning. UI retains the key after uncertain failures; no message is sent automatically.
+- Emulator coverage now explicitly verifies a retry cannot bypass a contact review that becomes pending after a draft was created. The 100-record draft-pagination fixture uses a unique key per draft, avoiding false duplicate-payload conflicts.
+- Audit event emulator assertions now check per-event metadata allowlists and reject unexpected or content-bearing keys, in addition to checking event counts, tenant scope, actor, outcome, schema version, and timestamp.
+- Dependency security remediation remains in place: `functions/package-lock.json` uses `body-parser@2.4.0`, and CI verifies the registry integrity before dependency auditing.
+- PR #10 remains open, draft, and unmerged. All work stays on `development/next-phase`; do not merge or deploy without explicit approval.
+- Next safe batch: continue targeted role/lifecycle tests for malformed legacy records and audit invariants. Production access/retention controls remain blocked on policy review and the dedicated Firebase project. Synthetic data only; outreach remains draft-only.
+---
+## Latest continuation update — CSV retry regression fixed; CI green (2026-10-23)
+
+- Latest commit: `c2e31b169e81ccd9fda1fd1cad0189b09669ba1c` (`test: make CSV retry success response explicit`).
+- CI runs [40028252434](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40028252434) and [40028245069](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40028245069) both completed successfully on that exact head. Verified: frontend typecheck, unit tests, production build, emulator smoke tests, Functions authorization tests/build, and dependency advisory checks.
+- The CSV retry regression now explicitly mocks a one-lead successful retry after a simulated timeout. The previous failure was caused by the test's shared default mock returning two imported leads while the assertion expected one; the implementation's campaign/idempotency binding was not the failing assertion.
+- PR #10 remains open and unmerged. Continue only on `development/next-phase`; do not merge without explicit approval.
+- Next engineering batch: add retry idempotency to manual lead creation (server-side key/payload binding, atomic replay, and a stable client key across uncertain failures), then consider other mutations only after reviewing retry semantics. Keep this scoped; do not expand into a broad idempotency framework.
+- Production remains blocked on the separate Firebase project, App Check enforcement and token tests, monitoring/budget alerts, TTL configuration where required, privacy/legal retention review, and operational recovery readiness. Synthetic data only; outreach remains draft-only.
+
+---
+
+## Latest continuation update — CSV import idempotency verified; audit policy documented (2026-10-22)
+
+- CI run [39843237307](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39843237307) completed successfully for head `76a45ed6c4dc8f580433bc374475773dc1235101`. Both jobs passed: frontend typecheck/unit tests/build plus Firebase Emulator integration smoke tests, and Functions authorization tests/build. The smoke job includes same-key replay, conflicting payload rejection, and concurrent import retry coverage.
+- PR #10 remains open and unmerged: https://github.com/Saanwar2002/AnyTrader-Growth-Engine/pull/10. Keep all work on `development/next-phase`; do not merge without explicit approval.
+- Added `docs/AUDIT_EVENT_RETENTION_POLICY.md` as a proposed policy. It distinguishes product lead activity from security audit events and specifies minimal event fields, tenant-authorised access, tamper resistance, retention/deletion decisions, and verification gates. This is documentation, not implementation of a durable audit event store.
+- Next engineering batch: implement a minimal trusted audit-event writer and cover the highest-impact mutations first, after checking transaction boundaries and existing activity records. Keep event metadata allow-listed and avoid copying lead contact details. Add emulator tests for atomic success events, rejected mutations, and tenant isolation.
+- Production remains blocked on dedicated Firebase project, App Check enforcement and token tests, monitoring/budget alerts, TTL configuration where required, privacy/legal retention review, and operational recovery readiness. Synthetic data only; outreach remains draft-only.
+
+---
+
+## Phase 3A follow-up — CSV import duplicate hardening (2026-10-22)
+
+- Added server-side `importLeads` in PR #10, capped at 25 rows, with authenticated tenant membership and transactional role checks, per-operation rate limiting, server-side validation, activity records, and suppression/pending-review defaults.
+- Follow-up review identified a duplicate edge case: choosing only one primary key could miss two rows that shared a website but had different emails. The batch now tracks email, website, and business/location identifiers independently, and emulator coverage exercises the website variant.
+- CI status must be checked against the latest PR head after these follow-up commits; do not treat earlier green jobs as validation of the latest changes.
+- Next Phase 3 items: add cursor-based pagination for lead and draft directories; then design idempotency keys for retried mutations and a durable audit-event/retention policy.
+- Release remains blocked on a dedicated Firebase project, App Check setup/enforcement tests, operational monitoring, quota calibration, and privacy/consent/retention review. Keep synthetic data only and outreach draft-only.
+
 ## Dependency automation and App Check boundary review — 2026-10-21
 
 - Confirmed CI runs for commits `273fa515` and `e9acd485` completed successfully. This validates the existing `Growth Engine CI` workflow for those commits, but does not by itself execute the new scheduled dependency-audit workflow.
@@ -1055,3 +1142,78 @@ Continue the callable authorization audit and integration-test reliability work;
 - This specifically closes the race where a clear action started against old contact details could otherwise commit after a concurrent channel edit and clear the new details without a fresh review. Legacy records without a revision are treated as revision zero until updated; malformed stored revisions fail closed on clearance.
 - Implementation commits: `5a591dd3799f30ed028eb83aefc7f137096d13cf` (server), `7f71e1aedc2ab050371c31e2b955c1eaadeb8c6c` (API types), `b188ccfc4e1b837e0192ed68b1f8cbfe3d657b53` (UI), `aa8b5553836aa81d9a445c648f3ea7b9d1dbd837` (stale-revision regression). Follow-up type hardening and role/orphan fixture updates are committed in `a68fa73d623de5e542a723840ab11d2e50928e3f`, `fe92a9151dc63f3d6a0b9922a2783d6e84a3c99a`, `bcd3907722d9716afc8cbb2b4cc5c8d4799b17bc`, and `d3ef797e84728bc9042ff43488715f402bc53a54`.
 - CI must pass before considering this fix verified. Work remains on `development/chatgpt-mvp`; no production deployment or automated outreach sending.
+
+
+## CSV import idempotency and retry safety — 2026-10-22
+
+- Added a required bounded `idempotencyKey` to the server-side `importLeads` callable. The key is hashed with the organisation and authenticated UID to create an organisation-scoped, user-scoped Firestore record ID.
+- The request hash is based on the normalised campaign and lead fields. Repeating the same key and payload returns the original committed result without creating new leads/activity records or consuming another import quota. Reusing the key with a different normalised payload fails with `functions/already-exists`.
+- Idempotency record, lead writes, activity writes, and rate-limit update are committed in the same Firestore transaction. Concurrent requests are expected to serialize through the idempotency document; emulator coverage should confirm this behavior.
+- Added emulator smoke assertions for exact replay, conflicting payload reuse, and concurrent same-key requests (expecting one persisted lead), plus a source-level contract test.
+- CI verification is pending. Check all jobs against the newest commit before treating the batch as complete. PR #10 remains unmerged; no production deployment and no automated outreach sending.
+- Next: add a concurrent same-key emulator regression; consider idempotency for other mutation callables only after reviewing client retry behavior. Keep audit-event retention/access policy and production App Check as release blockers.
+
+
+## AutoPilot continuation — adversarial validation tests (2026-10-24)
+
+- Repository/branch reverified: `Saanwar2002/AnyTrader-Growth-Engine`, `development/next-phase`. PR #10 remains open, draft, and unmerged.
+- Added website input regressions for control characters, newlines, backslashes, and safe URL forms with explicit ports/query strings and case-insensitive HTTP schemes. Commits: `8cad577ab5b377e9d92baaf8c54a62d381ed2ee7`, `13589f428bba91bdd07eb9d09e1e876b13f929cf`, `638e5bf6bdbf0af056994e4db238be8ab1ebaced`.
+- Added a throwing legacy timestamp getter regression: `682e45c59a1aa594bf50c6f196a110bcaedfbd6c`.
+- Added email validator boundary documentation/tests and non-finite/unsafe rate-limit configuration regressions: `5713dd87d8471f3f4dbbe0c2af84ae58f457f892`, `51c26c73578a79eb54ff55efa60bb8d87a51cc17`.
+- CI runs were created for intermediate heads; latest commit CI must be checked on exact head `638e5bf6bdbf0af056994e4db238be8ab1ebaced`. Do not infer the latest test batch passed from earlier green runs.
+- Next: inspect exact-head CI; if tests pass, continue targeted role/lifecycle and audit-event invariant coverage. If failures appear, retrieve the first actionable log and fix only evidence-supported causes.
+- No merge, deployment, live outreach, production Firebase access, secrets, billing, or branch protection changes were performed.
+
+
+## AutoPilot continuation — email and rate-limit validation hardening (2026-10-24)
+
+- Added finite-number and safe-integer boundary cases for rate-limit configuration: `51c26c73578a79eb54ff55efa60bb8d87a51cc17`.
+- Tightened the server-side email syntax guard to reject whitespace/header injection, malformed dot placement, malformed domain labels, oversized local/domain parts, and invalid top-level labels. Added invalid and valid boundary cases, including plus-addressing and subdomains. Commits: `145e3cf1b5b82e6eccc6fe3124ca1574277479e9`, `f5054a8c0d2273c0d756d1783a33cffcba2e8aa3`, `93455dc415680c05ee6274667084fc1ca0a16c72`.
+- The exact latest head is `93455dc415680c05ee6274667084fc1ca0a16c72`. CI status for this head is not yet returned by GitHub at the time of this update; prior green runs do not validate this change. Check the exact-head workflow before claiming tests pass.
+- PR #10 remains open and draft; no merge or deployment. Synthetic data only; outreach remains draft-only.
+
+
+## AutoPilot continuation — fail-closed legacy record access and validation boundaries (2026-10-24)
+
+- Added defensive handling for throwing property accessors in persisted fixed-window rate-limit state. Malformed state now returns the existing fail-closed invalid-state result rather than throwing; regression coverage checks both quota fields.
+- Added defensive handling for throwing membership uid/role accessors, with tests proving malformed membership records fail closed.
+- Expanded email validation boundary coverage for the maximum accepted 254-character address and a 255-character rejected address.
+- Relevant commits: d5fda1335d31f7d0d3855f828d390ca3c30a5e6c, 7fa862cbeac26ae7190bed216cade9a1b7f9ee8a, 85786627ffd27da8fa3ee1c97a758d68fb0c99fc, 1073150ef95495f43bbdcf4a178b5e706fd1af3c, 310289e739ef31faef2767eebcb87e1f9741c079.
+- CI run 40082371134 on an earlier head passed Functions authorization tests/build and frontend typecheck, unit tests, and production build, but its emulator smoke step was cancelled after a newer push. This does not verify the current head.
+- Exact current code head before this tracking update: 310289e739ef31faef2767eebcb87e1f9741c079; check the newest CI run for final results. Do not infer success while checks are pending or cancelled.
+- PR #10 remains open, draft, and unmerged. All work remains on development/next-phase; no merge, deployment, production Firebase access, secrets, billing, or live outreach changes.
+
+
+## AutoPilot continuation — accessor failure hardening (2026-10-24, follow-up)
+
+- The latest CI run on commit 3629028bb884598ca414fa2918a721e3d548390a completed later than the prior checkpoint: run 40082659004 was fully green, including frontend typecheck, unit tests, production build, emulator smoke tests, Functions authorization tests/build, and dependency audits. This verified the code head ecf31e2d0a27a3d8f23fc00b19aa071e1c951e4c, not subsequent commits.
+- Hardened organisation-owner membership validation against a role accessor that changes/throws on a second read; added a regression test. Commits c3d924e938f735e787e62117d500dfeafbb78de7 and 3629028bb884598ca414fa2918a721e3d548390a.
+- Hardened Firestore timestamp cursor validation so a throwing toMillis property getter fails closed; added a regression test. Commits 2d64b20a4ac55cfc553d89aeac009671ee12a1de and 44b505bd62d61ea77b6c7fc448cd13932ec74cc2.
+- CI run 40083358789 was started for commit 3629028bb884598ca414fa2918a721e3d548390a and was still in progress at last check. The latest timestamp changes have not yet been verified by CI; check the exact current head and its workflow before claiming success.
+- PR #10 remains open, draft, and unmerged. Continue only on development/next-phase. No merge, deployment, live outreach, production Firebase access, secrets, billing, or branch-protection changes.
+
+
+## AutoPilot continuation — timestamp and hostile membership regression tests (2026-10-24)
+
+- Added a membership proxy regression proving that throwing own-property inspection fails closed. Commit d16074ba410dcebe2eb3c346c3e0b619aaef286e.
+- The Firestore timestamp accessor hardening and getter regression are in commits 2d64b20a4ac55cfc553d89aeac009671ee12a1de and 44b505bd62d61ea77b6c7fc448cd13932ec74cc2.
+- Earlier exact-head run 40082659004 was fully green for commit ecf31e2d0a27a3d8f23fc00b19aa071e1c951e4c. Later run 40083358789 passed Functions authorization tests/build and frontend typecheck, unit tests, production build, and dependency audit, but its emulator smoke step was cancelled after another commit arrived. These results do not verify the latest head.
+- Current code head: d16074ba410dcebe2eb3c346c3e0b619aaef286e. CI run 40083462699 is in progress; wait for final results and do not infer success from intermediate green steps.
+- PR #10 remains open, draft, and unmerged. Continue only on development/next-phase. No merge, deployment, live outreach, production Firebase access, secrets, billing, or branch-protection changes.
+
+
+## AutoPilot exact-head verification — 2026-10-24
+
+- Reverified repository `Saanwar2002/AnyTrader-Growth-Engine`, branch `development/next-phase`, HEAD `c845b624b63647258e0dac5cbf20eaf594c8bda4`; PR #10 is still open, draft, and unmerged.
+- Exact-head GitHub Actions run [40083503789](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40083503789) completed successfully. Both jobs passed: Functions authorization tests/build, patched `body-parser` lock-integrity check and dependency audit; frontend typecheck, unit tests, production build, emulator smoke tests and dependency audit.
+- The earlier note about run 40083462699 being in progress is historical; the current HEAD has a later completed green run. No merge, deployment, production Firebase connection, secrets, billing, branch-protection changes, or live outreach were performed.
+- Next safe development focus: review audit-event coverage for tenant-scoped mutations and add targeted regression tests only where an invariant is currently missing. Re-fetch branch HEAD before any code write and require exact-head CI before proceeding to the following batch.
+
+
+## Latest continuation checkpoint — 24 October 2026
+
+- Reviewed PR #10 on `development/next-phase`; latest verified head at this checkpoint: `9fdffcfe86a57f631a27d641705a06ec466d284d`.
+- Fixed a potential false-positive lead duplicate match: business/location fallback identifiers now encode the pair as a structured JSON tuple rather than concatenating values with a delimiter. Added unit regressions for delimiter collisions and whitespace/case normalization.
+- GitHub Actions run [40093634576](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40093634576) passed both the Functions tests/build and frontend typecheck/tests/build/emulator smoke-test jobs for that exact head.
+- Next safe batch: continue review of callable idempotency replay integrity and tenant-scoped audit-event invariants; update docs when verification status changes. PR #10 is still open and draft. Do not merge until the full diff and intended 263-commit scope are reviewed.
+- Production blockers remain unchanged: dedicated Growth Engine Firebase project, App Check setup/enforcement, deployed operational/budget alerts and TTL, and privacy/legal/retention review. Keep data synthetic and outreach draft-only.

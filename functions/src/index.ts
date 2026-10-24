@@ -1,7 +1,9 @@
+import { createHash } from "node:crypto";
 import { initializeApp } from "firebase-admin/app";
 import { FieldValue, Timestamp, getFirestore, type QueryDocumentSnapshot, type Transaction } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
+import { canonicalLeadBusinessLocationKey, canonicalLeadEmailKey, canonicalLeadWebsiteKey } from "./lead-identifiers";
 import {
   calculateLeadCompleteness,
   canChangeSuppression,
@@ -46,6 +48,105 @@ function safePersistedStringArray(value: unknown, maxItems: number, maxLength: n
     .filter((item): item is string => typeof item === "string")
     .slice(0, maxItems)
     .map((item) => item.slice(0, maxLength));
+}
+
+type SecurityAuditEventType =
+  | "organisation.created"
+  | "lead.csv_import.completed"
+  | "lead.contact_updated"
+  | "lead.contact_restriction_changed"
+  | "lead.created"
+  | "campaign.created"
+  | "campaign.status_changed"
+  | "lead.status_changed"
+  | "lead.notes_changed"
+  | "outreach_draft.created"
+  | "outreach_draft.updated"
+  | "outreach_draft.deleted";
+
+type SecurityAuditEventMetadata = {
+  importedCount?: number;
+  duplicatesSkipped?: number;
+  contactChannelsChanged?: boolean;
+  contactReviewRevision?: number;
+  doNotContact?: boolean;
+  contactReviewStatus?: "pending" | "cleared" | "blocked";
+  campaignStatus?: "active" | "paused" | "completed";
+  leadStatus?: string;
+  notesCleared?: boolean;
+  draftAction?: "created" | "updated" | "deleted";
+};
+
+const AUDIT_EVENT_RESOURCE_TYPES: Record<SecurityAuditEventType, "organisation" | "campaign" | "lead" | "outreachDraft"> = {
+  "organisation.created": "organisation",
+  "lead.csv_import.completed": "campaign",
+  "lead.contact_updated": "lead",
+  "lead.contact_restriction_changed": "lead",
+  "lead.created": "lead",
+  "campaign.created": "campaign",
+  "campaign.status_changed": "campaign",
+  "lead.status_changed": "lead",
+  "lead.notes_changed": "lead",
+  "outreach_draft.created": "outreachDraft",
+  "outreach_draft.updated": "outreachDraft",
+  "outreach_draft.deleted": "outreachDraft",
+};
+
+const AUDIT_METADATA_KEYS: Record<SecurityAuditEventType, readonly (keyof SecurityAuditEventMetadata)[]> = {
+  "organisation.created": [],
+  "lead.csv_import.completed": ["importedCount", "duplicatesSkipped"],
+  "lead.contact_updated": ["contactChannelsChanged", "contactReviewRevision", "contactReviewStatus", "doNotContact"],
+  "lead.contact_restriction_changed": ["doNotContact", "contactReviewRevision", "contactReviewStatus"],
+  "lead.created": ["leadStatus"],
+  "campaign.created": ["campaignStatus"],
+  "campaign.status_changed": ["campaignStatus"],
+  "lead.status_changed": ["leadStatus"],
+  "lead.notes_changed": ["notesCleared"],
+  "outreach_draft.created": ["draftAction"],
+  "outreach_draft.updated": ["draftAction"],
+  "outreach_draft.deleted": ["draftAction"],
+};
+
+function isBoundedAuditMetadata(eventType: SecurityAuditEventType, metadata: SecurityAuditEventMetadata): boolean {
+  const allowedKeys = AUDIT_METADATA_KEYS[eventType];
+  if (Object.keys(metadata).some((key) => !allowedKeys.includes(key as keyof SecurityAuditEventMetadata))) return false;
+  if (("importedCount" in metadata && (!Number.isSafeInteger(metadata.importedCount) || metadata.importedCount! < 0 || metadata.importedCount! > 5000))
+    || ("duplicatesSkipped" in metadata && (!Number.isSafeInteger(metadata.duplicatesSkipped) || metadata.duplicatesSkipped! < 0 || metadata.duplicatesSkipped! > 5000))
+    || ("contactReviewRevision" in metadata && (!Number.isSafeInteger(metadata.contactReviewRevision) || metadata.contactReviewRevision! < 0))
+    || ("contactChannelsChanged" in metadata && typeof metadata.contactChannelsChanged !== "boolean")
+    || ("doNotContact" in metadata && typeof metadata.doNotContact !== "boolean")
+    || ("notesCleared" in metadata && typeof metadata.notesCleared !== "boolean")) return false;
+  if ("campaignStatus" in metadata && !["active", "paused", "completed"].includes(metadata.campaignStatus ?? "")) return false;
+  if ("leadStatus" in metadata && !["new", "reviewing", "qualified", "contacted", "onboarded", "rejected"].includes(metadata.leadStatus ?? "")) return false;
+  if ("contactReviewStatus" in metadata && !["pending", "cleared", "blocked"].includes(metadata.contactReviewStatus ?? "")) return false;
+  if ("draftAction" in metadata && !["created", "updated", "deleted"].includes(metadata.draftAction ?? "")) return false;
+  return true;
+}
+
+function writeSecurityAuditEvent(
+  transaction: Transaction,
+  organisationId: string,
+  actorUid: string,
+  eventType: SecurityAuditEventType,
+  resourceType: "organisation" | "campaign" | "lead" | "outreachDraft",
+  resourceId: string,
+  metadata: SecurityAuditEventMetadata,
+): void {
+  if (AUDIT_EVENT_RESOURCE_TYPES[eventType] !== resourceType || !isBoundedAuditMetadata(eventType, metadata)) {
+    throw new Error("Invalid security audit event resource or metadata contract.");
+  }
+  const eventRef = db.collection("organisations").doc(organisationId).collection("securityAuditEvents").doc();
+  transaction.create(eventRef, {
+    schemaVersion: 1,
+    eventType,
+    organisationId,
+    actorUid,
+    resourceType,
+    resourceId,
+    outcome: "success",
+    metadata,
+    createdAt: FieldValue.serverTimestamp(),
+  });
 }
 
 const RATE_LIMIT_WINDOW_MS = 60000;
@@ -160,21 +261,38 @@ function normaliseLeadFields(data: Record<string, unknown>) {
   const businessName = normaliseRequiredText(data.businessName, 160);
   const category = normaliseOptionalText(data.category, 100);
   const location = normaliseOptionalText(data.location, 160);
-  const website = normaliseOptionalText(data.website, 500);
-  const email = normaliseOptionalText(data.email, 254);
+  const rawWebsite = normaliseOptionalText(data.website, 500);
+  const rawEmail = normaliseOptionalText(data.email, 254);
   const phone = normaliseOptionalText(data.phone, 80);
-  if (!businessName || category === null || location === null || website === null || email === null || phone === null) {
+  if (!businessName || category === null || location === null || rawWebsite === null || rawEmail === null || phone === null) {
     throw new HttpsError("invalid-argument", "Lead fields are missing or exceed their allowed length.");
   }
-  if (website && !isSafeWebsiteAddress(website)) {
+  if (rawWebsite && !isSafeWebsiteAddress(rawWebsite)) {
     throw new HttpsError("invalid-argument", "Lead website must be a safe HTTP(S) URL or a plain domain.");
   }
-  if (email && !isValidEmailAddress(email)) {
+  if (rawEmail && !isValidEmailAddress(rawEmail)) {
     throw new HttpsError("invalid-argument", "Lead email address is not valid.");
   }
-  return { businessName, category, location, website, email, phone };
-}
 
+  // Canonicalise identifiers for new writes. URL host/scheme are case-insensitive,
+  // but paths may be case-sensitive and must retain their original casing.
+  let website = rawWebsite;
+  if (rawWebsite) {
+    const hasScheme = rawWebsite.includes("://");
+    const parsed = new URL(hasScheme ? rawWebsite : `https://${rawWebsite}`);
+    const path = parsed.pathname === "/" ? "" : parsed.pathname;
+    website = `${parsed.protocol}//${parsed.host}${path}${parsed.search}${parsed.hash}`;
+    if (!hasScheme && path === "" && !parsed.search && !parsed.hash) website = parsed.hostname;
+  }
+  const email = rawEmail.toLowerCase();
+  // Persist indexed canonical identifiers on every lead write path. Email matching
+  // follows this product's case-insensitive policy. Website matching lowercases
+  // only scheme/host (above); URL path casing remains significant.
+  const dedupeEmailKey = canonicalLeadEmailKey(email);
+  const dedupeWebsiteKey = canonicalLeadWebsiteKey(website);
+  const dedupeBusinessLocationKey = canonicalLeadBusinessLocationKey(businessName, location);
+  return { businessName, category, location, website, email, phone, dedupeEmailKey, dedupeWebsiteKey, dedupeBusinessLocationKey };
+}
 export const listMyOrganisations = onCall(async (request) => {
   const uid = requireUid(request.auth?.uid);
   await consumeReadRateLimit("global", uid, "listMyOrganisations", 120);
@@ -232,17 +350,59 @@ export const listMyOrganisations = onCall(async (request) => {
 
 export const createOrganisation = onCall(async (request) => {
   const uid = requireUid(request.auth?.uid);
-  const name = normaliseRequiredText((request.data as { name?: unknown } | undefined)?.name, 100);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const name = normaliseRequiredText(data.name, 100);
   if (!name) throw new HttpsError("invalid-argument", "Organisation name must be 1–100 characters.");
+  const idempotencyKey = data.idempotencyKey;
+  if (typeof idempotencyKey !== "string" || !/^[A-Za-z0-9._:-]{16,128}$/.test(idempotencyKey)) {
+    throw new HttpsError("invalid-argument", "idempotencyKey must be 16-128 safe characters.");
+  }
 
+  const requestHash = createHash("sha256").update(JSON.stringify({ name })).digest("hex");
+  const idempotencyDocumentId = createHash("sha256").update(JSON.stringify([uid, idempotencyKey])).digest("hex");
+  const idempotencyRef = db.collection("organisationCreationIdempotency").doc(idempotencyDocumentId);
   const organisation = db.collection("organisations").doc();
   const membership = organisation.collection("members").doc(uid);
-  await db.runTransaction(async (transaction: Transaction) => {
+  const result = { organisationId: organisation.id, name, role: "owner" as const };
+
+  return db.runTransaction(async (transaction: Transaction) => {
+    const idempotencySnapshot = await transaction.get(idempotencyRef);
+    if (idempotencySnapshot.exists) {
+      const saved = idempotencySnapshot.data() ?? {};
+      if (saved.requestHash !== requestHash || saved.actorUid !== uid || !saved.result || typeof saved.result !== "object") {
+        throw new HttpsError("already-exists", "This idempotencyKey was already used with a different organisation payload.");
+      }
+      const savedResult = saved.result as Record<string, unknown>;
+      if (!isValidOrganisationId(savedResult.organisationId) || savedResult.name !== name || savedResult.role !== "owner") {
+        throw new HttpsError("failed-precondition", "Saved organisation retry state is invalid and requires operator review.");
+      }
+      const savedOrganisationRef = db.collection("organisations").doc(savedResult.organisationId);
+      const savedMembershipRef = savedOrganisationRef.collection("members").doc(uid);
+      const [savedOrganisation, savedMembership] = await Promise.all([
+        transaction.get(savedOrganisationRef),
+        transaction.get(savedMembershipRef),
+      ]);
+      if (!savedOrganisation.exists || savedOrganisation.data()?.ownerUid !== uid
+        || !savedMembership.exists
+        || !isValidMembershipForOrganisation(savedMembership.data(), uid, savedOrganisation.data()?.ownerUid)
+        || savedMembership.data()?.role !== "owner") {
+        throw new HttpsError("failed-precondition", "The organisation created by this request is no longer available to its original owner.");
+      }
+      return savedResult as { organisationId: string; name: string; role: "owner" };
+    }
+
     await consumeTransactionalRateLimit(transaction, "global", uid, "createOrganisation", 5, 60 * 60_000);
     transaction.create(organisation, { name, ownerUid: uid, createdAt: FieldValue.serverTimestamp() });
     transaction.create(membership, { uid, role: "owner", createdAt: FieldValue.serverTimestamp() });
+    transaction.create(idempotencyRef, {
+      requestHash,
+      result,
+      actorUid: uid,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    writeSecurityAuditEvent(transaction, organisation.id, uid, "organisation.created", "organisation", organisation.id, {});
+    return result;
   });
-  return { organisationId: organisation.id, name, role: "owner" as const };
 });
 
 export const createCampaign = onCall(async (request) => {
@@ -262,13 +422,79 @@ export const createCampaign = onCall(async (request) => {
   if (!hasCampaignWritePermission(membership.role)) {
     throw new HttpsError("permission-denied", "Only organisation owners and admins can create campaigns.");
   }
-  const campaign = db.collection("organisations").doc(organisationId).collection("campaigns").doc();
-  await db.runTransaction(async (transaction: Transaction) => {
+  const idempotencyKey = data.idempotencyKey;
+  if (typeof idempotencyKey !== "string" || !/^[A-Za-z0-9._:-]{16,128}$/.test(idempotencyKey)) {
+    throw new HttpsError("invalid-argument", "idempotencyKey must be 16-128 safe characters.");
+  }
+  const requestHash = createHash("sha256")
+    .update(JSON.stringify({ organisationId, name, category, location, brand, goal }))
+    .digest("hex");
+  const organisationRef = db.collection("organisations").doc(organisationId);
+  const campaign = organisationRef.collection("campaigns").doc();
+  const idempotencyDocumentId = createHash("sha256")
+    .update(JSON.stringify([organisationId, uid, idempotencyKey]))
+    .digest("hex");
+  const idempotencyRef = organisationRef.collection("campaignCreationIdempotency").doc(idempotencyDocumentId);
+  const result = {
+    campaignId: campaign.id,
+    organisationId,
+    name,
+    category,
+    location,
+    brand,
+    goal,
+    status: "active" as const,
+  };
+
+  return db.runTransaction(async (transaction: Transaction) => {
+    const idempotencySnapshot = await transaction.get(idempotencyRef);
     await requireTransactionalRole(transaction, organisationId, uid, "campaign");
+    if (idempotencySnapshot.exists) {
+      const saved = idempotencySnapshot.data() ?? {};
+      if (saved.requestHash !== requestHash || !saved.result || typeof saved.result !== "object") {
+        throw new HttpsError("already-exists", "This idempotencyKey was already used with a different campaign payload.");
+      }
+      const savedResult = saved.result as Record<string, unknown>;
+      if (!isValidDocumentId(savedResult.campaignId)
+        || savedResult.organisationId !== organisationId
+        || savedResult.name !== name
+        || savedResult.category !== category
+        || savedResult.location !== location
+        || savedResult.brand !== brand
+        || savedResult.goal !== goal
+        || savedResult.status !== "active"
+        || saved.actorUid !== uid) {
+        throw new HttpsError("failed-precondition", "Saved campaign retry state is invalid and requires operator review.");
+      }
+      const savedCampaignRef = organisationRef.collection("campaigns").doc(savedResult.campaignId);
+      const savedCampaignSnapshot = await transaction.get(savedCampaignRef);
+      const savedCampaign = savedCampaignSnapshot.data() ?? {};
+      if (!savedCampaignSnapshot.exists
+        || savedCampaign.createdBy !== uid
+        || savedCampaign.name !== name
+        || savedCampaign.category !== category
+        || savedCampaign.location !== location
+        || savedCampaign.brand !== brand
+        || savedCampaign.goal !== goal) {
+        throw new HttpsError("failed-precondition", "The campaign created by this request is no longer available to its original creator.");
+      }
+      return savedResult as typeof result;
+    }
+
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "createCampaign", 150);
-    transaction.create(campaign, { name, category, location, brand, goal, status: "active", createdBy: uid, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
+    transaction.create(campaign, {
+      name, category, location, brand, goal, status: "active", createdBy: uid,
+      createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
+    });
+    transaction.create(idempotencyRef, {
+      requestHash,
+      result,
+      actorUid: uid,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    writeSecurityAuditEvent(transaction, organisationId, uid, "campaign.created", "campaign", campaign.id, { campaignStatus: "active" });
+    return result;
   });
-  return { campaignId: campaign.id, organisationId, name, category, location, brand, goal, status: "active" as const };
 });
 
 export const listCampaigns = onCall(async (request) => {
@@ -317,6 +543,7 @@ export const updateCampaignStatus = onCall(async (request) => {
   const organisationId = requireOrganisationId(data.organisationId);
   const campaignId = requireDocumentId(data.campaignId, "campaignId");
   if (!isValidCampaignStatus(data.status)) throw new HttpsError("invalid-argument", "Campaign status is not valid.");
+  const status = data.status as "active" | "paused" | "completed";
   const membership = await requireMembership(organisationId, uid);
   if (!hasCampaignWritePermission(membership.role)) throw new HttpsError("permission-denied", "Only organisation owners and admins can change campaign status.");
   const campaignRef = db.collection("organisations").doc(organisationId).collection("campaigns").doc(campaignId);
@@ -325,9 +552,10 @@ export const updateCampaignStatus = onCall(async (request) => {
     const campaignSnapshot = await transaction.get(campaignRef);
     if (!campaignSnapshot.exists) throw new HttpsError("not-found", "Campaign was not found in this organisation.");
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "updateCampaignStatus", 30);
-    transaction.update(campaignRef, { status: data.status, updatedAt: FieldValue.serverTimestamp(), updatedBy: uid });
+    transaction.update(campaignRef, { status, updatedAt: FieldValue.serverTimestamp(), updatedBy: uid });
+    writeSecurityAuditEvent(transaction, organisationId, uid, "campaign.status_changed", "campaign", campaignId, { campaignStatus: status });
   });
-  return { campaignId, status: data.status };
+  return { campaignId, status };
 });
 
 export const listLeads = onCall(async (request) => {
@@ -382,30 +610,335 @@ export const listLeads = onCall(async (request) => {
   };
 });
 
+/**
+ * Import a bounded CSV-mapped batch through the trusted server path.
+ * This callable persists only validated rows and leaves every new contact suppressed
+ * until an authorised reviewer explicitly clears the contact restriction.
+ */
+export const importLeads = onCall(async (request) => {
+  const uid = requireUid(request.auth?.uid);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const organisationId = requireOrganisationId(data.organisationId);
+  const campaignId = requireDocumentId(data.campaignId, "campaignId");
+  const idempotencyKey = data.idempotencyKey;
+  if (typeof idempotencyKey !== "string" || !/^[A-Za-z0-9._:-]{16,128}$/.test(idempotencyKey)) {
+    throw new HttpsError("invalid-argument", "idempotencyKey must be 16-128 safe characters.");
+  }
+  if (!Array.isArray(data.leads) || data.leads.length < 1 || data.leads.length > 25) {
+    throw new HttpsError("invalid-argument", "leads must contain between 1 and 25 records per import batch.");
+  }
+
+  // Validate the complete payload before any writes: malformed batches are all-or-nothing.
+  const rows = data.leads.map((value, index) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      throw new HttpsError("invalid-argument", `Lead row ${index + 1} must be an object.`);
+    }
+    const row = value as Record<string, unknown>;
+    return { fields: normaliseLeadFields(row), index };
+  });
+  await requireLeadEditor(organisationId, uid);
+
+  const requestHash = createHash("sha256")
+    .update(JSON.stringify({ organisationId, campaignId, leads: rows.map(({ fields }) => fields) }))
+    .digest("hex");
+  const idempotencyDocumentId = createHash("sha256")
+    .update(JSON.stringify([organisationId, uid, idempotencyKey]))
+    .digest("hex");
+  const organisationRef = db.collection("organisations").doc(organisationId);
+  const campaignRef = organisationRef.collection("campaigns").doc(campaignId);
+  const leadsRef = organisationRef.collection("leads");
+  const idempotencyRef = organisationRef.collection("importIdempotency").doc(idempotencyDocumentId);
+  // Duplicate decisions are made in transaction order below, after checking
+  // persisted records. Do not pre-mark rows as duplicates here: an earlier row
+  // may itself be skipped due to a persisted duplicate and therefore must not
+  // reserve its otherwise-new identifiers against later valid rows.
+  const prepared = rows.map(({ fields }) => ({
+    fields,
+    emailKey: fields.dedupeEmailKey,
+    websiteKey: fields.dedupeWebsiteKey,
+    businessKey: canonicalLeadBusinessLocationKey(fields.businessName, fields.location),
+  }));
+
+  return db.runTransaction(async (transaction: Transaction) => {
+    // A replay returns the committed result without consuming quota or creating new records.
+    // Concurrent requests with the same key serialize on this document; Firestore retries
+    // the loser, which then observes and returns the winner's result.
+    const idempotencySnapshot = await transaction.get(idempotencyRef);
+    await requireTransactionalRole(transaction, organisationId, uid, "lead");
+    if (idempotencySnapshot.exists) {
+      const saved = idempotencySnapshot.data() ?? {};
+      if (saved.requestHash !== requestHash || !saved.result || typeof saved.result !== "object") {
+        throw new HttpsError("already-exists", "This idempotencyKey was already used with a different import payload.");
+      }
+      const savedResult = saved.result as Record<string, unknown>;
+      const savedLeads = savedResult.leads;
+      const validSavedLeads = Array.isArray(savedLeads)
+        && savedLeads.every((lead) => lead !== null
+          && typeof lead === "object"
+          && !Array.isArray(lead)
+          && isValidDocumentId((lead as Record<string, unknown>).leadId)
+          && typeof (lead as Record<string, unknown>).businessName === "string"
+          && ((lead as Record<string, unknown>).businessName as string).length > 0);
+      if (saved.actorUid !== uid
+        || savedResult.organisationId !== organisationId
+        || savedResult.campaignId !== campaignId
+        || savedResult.received !== prepared.length
+        || !Number.isSafeInteger(savedResult.imported)
+        || (savedResult.imported as number) < 0
+        || !Number.isSafeInteger(savedResult.duplicatesSkipped)
+        || (savedResult.duplicatesSkipped as number) < 0
+        || (savedResult.imported as number) + (savedResult.duplicatesSkipped as number) !== prepared.length
+        || !validSavedLeads
+        || !Array.isArray(savedLeads)
+        || savedLeads.length !== savedResult.imported
+        || savedResult.sent !== false
+        || savedResult.messageSentByThisAction !== false) {
+        throw new HttpsError("failed-precondition", "Saved import retry state is invalid and requires operator review.");
+      }
+      const replayCampaignSnapshot = await transaction.get(campaignRef);
+      if (!replayCampaignSnapshot.exists) {
+        throw new HttpsError("failed-precondition", "The campaign for this import retry is no longer available.");
+      }
+      return savedResult as {
+        organisationId: string;
+        campaignId: string;
+        received: number;
+        imported: number;
+        duplicatesSkipped: number;
+        leads: Array<{ leadId: string; businessName: string }>;
+        sent: false;
+        messageSentByThisAction: false;
+      };
+    }
+
+    const campaignSnapshot = await transaction.get(campaignRef);
+    if (!campaignSnapshot.exists) throw new HttpsError("not-found", "Campaign was not found in this organisation.");
+
+    // Query only supplied identifiers; never scan an unbounded tenant collection.
+    // Canonical-key queries cover records written by this version. Exact-value
+    // fallback preserves compatibility for legacy records until the backfill runs.
+    const emails = [...new Set(prepared.filter((row) => row.emailKey).map((row) => row.emailKey))];
+    const websites = [...new Set(prepared.filter((row) => row.websiteKey).map((row) => row.websiteKey))];
+    const existingEmailDocs = await Promise.all(emails.map((email) => Promise.all([
+      transaction.get(leadsRef.where("dedupeEmailKey", "==", email).limit(1)),
+      transaction.get(leadsRef.where("email", "==", email).limit(1)),
+    ])));
+    const existingWebsiteDocs = await Promise.all(websites.map((website) => Promise.all([
+      transaction.get(leadsRef.where("dedupeWebsiteKey", "==", website).limit(1)),
+      transaction.get(leadsRef.where("website", "==", website).limit(1)),
+    ])));
+    const businesses = [...new Map(prepared.map((row) => [row.businessKey, row] as const)).values()];
+    const existingBusinessDocs = await Promise.all(businesses.map((row) => Promise.all([
+      transaction.get(leadsRef.where("dedupeBusinessLocationKey", "==", row.businessKey).limit(1)),
+      // Exact-value fallback supports legacy records until the canonical-key backfill is verified.
+      transaction.get(leadsRef.where("businessName", "==", row.fields.businessName)
+        .where("location", "==", row.fields.location).limit(1)),
+    ])));
+    const existingEmails = new Set(emails.filter((_, index) => existingEmailDocs[index].some((snapshot) => !snapshot.empty)));
+    const existingWebsites = new Set(websites.filter((_, index) => existingWebsiteDocs[index].some((snapshot) => !snapshot.empty)));
+    const existingBusinesses = new Set(businesses
+      .filter((row, index) => existingBusinessDocs[index].some((snapshot) => !snapshot.empty))
+      .map((row) => row.businessKey));
+    await consumeTransactionalRateLimit(transaction, organisationId, uid, "importLeads", 10);
+
+    const newLeads: Array<{ leadId: string; businessName: string }> = [];
+    let duplicateCount = 0;
+    for (const row of prepared) {
+      if ((row.emailKey && existingEmails.has(row.emailKey)) || (row.websiteKey && existingWebsites.has(row.websiteKey)) || existingBusinesses.has(row.businessKey)) {
+        duplicateCount += 1;
+        continue;
+      }
+      const completeness = calculateLeadCompleteness(row.fields);
+      const leadRef = leadsRef.doc();
+      const activityRef = organisationRef.collection("leadActivities").doc();
+      const now = FieldValue.serverTimestamp();
+      transaction.create(leadRef, {
+        ...row.fields,
+        campaignId,
+        status: "new",
+        source: "csv_import",
+        score: completeness.score,
+        scoreReasons: completeness.reasons,
+        notes: "",
+        doNotContact: true,
+        contactReviewStatus: "pending",
+        contactReviewRevision: 0,
+        createdBy: uid,
+        createdAt: now,
+        updatedAt: now,
+      });
+      transaction.create(activityRef, {
+        leadId: leadRef.id,
+        actorUid: uid,
+        message: `Lead imported: ${row.fields.businessName}`,
+        createdAt: now,
+      });
+      newLeads.push({ leadId: leadRef.id, businessName: row.fields.businessName });
+      if (row.emailKey) existingEmails.add(row.emailKey);
+      if (row.websiteKey) existingWebsites.add(row.websiteKey);
+      existingBusinesses.add(row.businessKey);
+    }
+
+    const result = {
+      organisationId,
+      campaignId,
+      received: prepared.length,
+      imported: newLeads.length,
+      duplicatesSkipped: duplicateCount,
+      leads: newLeads,
+      sent: false as const,
+      messageSentByThisAction: false as const,
+    };
+    transaction.create(idempotencyRef, {
+      requestHash,
+      result,
+      actorUid: uid,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    // Record only the successful first execution; idempotent replays return above.
+    writeSecurityAuditEvent(transaction, organisationId, uid, "lead.csv_import.completed", "campaign", campaignId, {
+      importedCount: newLeads.length,
+      duplicatesSkipped: duplicateCount,
+    });
+    return result;
+  });
+});
+
 export const createLead = onCall(async (request) => {
   const uid = requireUid(request.auth?.uid);
   const data = (request.data ?? {}) as Record<string, unknown>;
   const organisationId = requireOrganisationId(data.organisationId);
   const campaignId = requireDocumentId(data.campaignId, "campaignId");
+  // Preserve authorization-denial semantics for non-editors before validating mutation details.
   await requireLeadEditor(organisationId, uid);
+  const idempotencyKey = data.idempotencyKey;
+  if (typeof idempotencyKey !== "string" || !/^[A-Za-z0-9._:-]{16,128}$/.test(idempotencyKey)) {
+    throw new HttpsError("invalid-argument", "idempotencyKey must be 16-128 safe characters.");
+  }
   const fields = normaliseLeadFields(data);
-  const campaignRef = db.collection("organisations").doc(organisationId).collection("campaigns").doc(campaignId);
-
+  const requestHash = createHash("sha256")
+    .update(JSON.stringify({ organisationId, campaignId, fields }))
+    .digest("hex");
+  const organisationRef = db.collection("organisations").doc(organisationId);
+  const campaignRef = organisationRef.collection("campaigns").doc(campaignId);
+  const idempotencyDocumentId = createHash("sha256")
+    .update(JSON.stringify([organisationId, uid, idempotencyKey]))
+    .digest("hex");
+  const idempotencyRef = organisationRef.collection("leadCreationIdempotency").doc(idempotencyDocumentId);
   const completeness = calculateLeadCompleteness(fields);
-  const lead = db.collection("organisations").doc(organisationId).collection("leads").doc();
-  const activity = db.collection("organisations").doc(organisationId).collection("leadActivities").doc();
-  const now = FieldValue.serverTimestamp();
-  await db.runTransaction(async (transaction: Transaction) => {
+
+  return db.runTransaction(async (transaction: Transaction) => {
+    // The organisation/user-scoped key serializes concurrent retries. A replay
+    // returns the committed response before consuming quota or writing activity.
+    const idempotencySnapshot = await transaction.get(idempotencyRef);
     await requireTransactionalRole(transaction, organisationId, uid, "lead");
+    if (idempotencySnapshot.exists) {
+      const saved = idempotencySnapshot.data() ?? {};
+      if (saved.requestHash !== requestHash || !saved.result || typeof saved.result !== "object" || Array.isArray(saved.result)) {
+        throw new HttpsError("already-exists", "This idempotencyKey was already used with a different lead payload.");
+      }
+      const savedResult = saved.result as Record<string, unknown>;
+      const savedLeadId = savedResult.leadId;
+      const savedScoreReasons = savedResult.scoreReasons;
+      const validSavedResult = isValidDocumentId(savedLeadId)
+        && savedResult.organisationId === organisationId
+        && savedResult.campaignId === campaignId
+        && typeof savedResult.businessName === "string" && savedResult.businessName.length > 0
+        && typeof savedResult.category === "string"
+        && typeof savedResult.location === "string"
+        && typeof savedResult.website === "string"
+        && typeof savedResult.email === "string"
+        && typeof savedResult.phone === "string"
+        && savedResult.status === "new"
+        && savedResult.source === "manual"
+        && typeof savedResult.score === "number" && Number.isFinite(savedResult.score)
+        && Array.isArray(savedScoreReasons) && savedScoreReasons.every((reason) => typeof reason === "string")
+        && savedResult.doNotContact === true
+        && savedResult.contactReviewStatus === "pending"
+        && savedResult.contactReviewRevision === 0;
+      if (saved.actorUid !== uid || !validSavedResult) {
+        throw new HttpsError("failed-precondition", "Saved lead retry state is invalid and requires operator review.");
+      }
+      const replayLeadRef = organisationRef.collection("leads").doc(savedLeadId);
+      const [replayLeadSnapshot, replayCampaignSnapshot] = await Promise.all([
+        transaction.get(replayLeadRef),
+        transaction.get(campaignRef),
+      ]);
+      const replayLead = replayLeadSnapshot.data() ?? {};
+      if (!replayLeadSnapshot.exists || !replayCampaignSnapshot.exists
+        || replayLead.createdBy !== uid
+        || replayLead.campaignId !== campaignId
+        || replayLead.businessName !== savedResult.businessName
+        || replayLead.category !== savedResult.category
+        || replayLead.location !== savedResult.location
+        || replayLead.website !== savedResult.website
+        || replayLead.email !== savedResult.email
+        || replayLead.phone !== savedResult.phone
+        || replayLead.status !== "new"
+        || replayLead.source !== "manual"
+        || replayLead.doNotContact !== true
+        || replayLead.contactReviewStatus !== "pending"
+        || replayLead.contactReviewRevision !== 0) {
+        throw new HttpsError("failed-precondition", "Saved lead retry state no longer matches its authoritative records.");
+      }
+      return savedResult as {
+        leadId: string;
+        organisationId: string;
+        campaignId: string;
+        businessName: string;
+        category: string;
+        location: string;
+        website: string;
+        email: string;
+        phone: string;
+        status: "new";
+        source: "manual";
+        score: number;
+        scoreReasons: string[];
+        doNotContact: true;
+        contactReviewStatus: "pending";
+        contactReviewRevision: 0;
+      };
+    }
+
     // Check campaign existence in the same transaction as lead creation so a
     // stale/deleted campaign cannot race past the precondition.
     const campaignSnapshot = await transaction.get(campaignRef);
     if (!campaignSnapshot.exists) throw new HttpsError("not-found", "Campaign was not found in this organisation.");
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "createLead", 200);
-    transaction.create(lead, { ...fields, campaignId, status: "new", source: "manual", score: completeness.score, scoreReasons: completeness.reasons, notes: "", doNotContact: true, contactReviewStatus: "pending", contactReviewRevision: 0, createdBy: uid, createdAt: now, updatedAt: now });
+
+    const lead = organisationRef.collection("leads").doc();
+    const activity = organisationRef.collection("leadActivities").doc();
+    const now = FieldValue.serverTimestamp();
+    const result = {
+      leadId: lead.id,
+      organisationId,
+      campaignId,
+      ...fields,
+      status: "new" as const,
+      source: "manual" as const,
+      score: completeness.score,
+      scoreReasons: completeness.reasons,
+      doNotContact: true as const,
+      contactReviewStatus: "pending" as const,
+      contactReviewRevision: 0 as const,
+    };
+    transaction.create(lead, {
+      ...fields, campaignId, status: "new", source: "manual", score: completeness.score,
+      scoreReasons: completeness.reasons, notes: "", doNotContact: true,
+      contactReviewStatus: "pending", contactReviewRevision: 0, createdBy: uid,
+      createdAt: now, updatedAt: now,
+    });
     transaction.create(activity, { leadId: lead.id, actorUid: uid, message: `Lead created: ${fields.businessName}`, createdAt: now });
+    transaction.create(idempotencyRef, {
+      requestHash,
+      result,
+      actorUid: uid,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    writeSecurityAuditEvent(transaction, organisationId, uid, "lead.created", "lead", lead.id, { leadStatus: "new" });
+    return result;
   });
-  return { leadId: lead.id, organisationId, campaignId, ...fields, status: "new" as const, source: "manual" as const, score: completeness.score, scoreReasons: completeness.reasons, doNotContact: true, contactReviewStatus: "pending" as const, contactReviewRevision: 0 };
 });
 
 export const updateLeadContact = onCall(async (request) => {
@@ -467,6 +1000,12 @@ export const updateLeadContact = onCall(async (request) => {
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "updateLeadContact", 120);
     transaction.update(leadRef, { ...fields, ...restrictionUpdate, contactReviewRevision: nextContactReviewRevision, score: completeness.score, scoreReasons: completeness.reasons, updatedAt: now, updatedBy: uid });
     transaction.create(activity, { leadId, actorUid: uid, message: "Lead contact details updated", createdAt: now });
+    writeSecurityAuditEvent(transaction, organisationId, uid, "lead.contact_updated", "lead", leadId, {
+      contactChannelsChanged,
+      contactReviewRevision: nextContactReviewRevision,
+      contactReviewStatus: nextReviewStatus,
+      doNotContact: nextDoNotContact,
+    });
   });
   return { leadId, ...fields, score: completeness.score, scoreReasons: completeness.reasons, ...contactRestriction };
 });
@@ -505,6 +1044,7 @@ export const updateLeadStatus = onCall(async (request) => {
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "updateLeadStatus", 240);
     transaction.update(leadRef, { status, updatedAt: now, updatedBy: uid });
     transaction.create(activity, { leadId, actorUid: uid, message: `Lead status changed to ${status}`, createdAt: now });
+    writeSecurityAuditEvent(transaction, organisationId, uid, "lead.status_changed", "lead", leadId, { leadStatus: status });
   });
   return { leadId, status };
 });
@@ -527,6 +1067,7 @@ export const updateLeadNotes = onCall(async (request) => {
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "updateLeadNotes", 240);
     transaction.update(leadRef, { notes, updatedAt: now, updatedBy: uid });
     transaction.create(activity, { leadId, actorUid: uid, message: notes ? "Lead notes updated" : "Lead notes cleared", createdAt: now });
+    writeSecurityAuditEvent(transaction, organisationId, uid, "lead.notes_changed", "lead", leadId, { notesCleared: notes.length === 0 });
   });
   return { leadId, notes };
 });
@@ -570,13 +1111,18 @@ export const setLeadSuppression = onCall(async (request) => {
     const now = FieldValue.serverTimestamp();
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "setLeadSuppression", 120);
     transaction.update(leadRef, {
-      doNotContact: data.doNotContact,
+      doNotContact: data.doNotContact as boolean,
       contactReviewStatus: data.doNotContact ? "blocked" : "cleared",
       ...(!data.doNotContact ? { contactReviewRevision: currentRevision } : {}),
       updatedAt: now,
       updatedBy: uid,
     });
     transaction.create(activity, { leadId, actorUid: uid, message: data.doNotContact ? "Lead marked do not contact" : "Lead contact restriction removed", createdAt: now });
+    writeSecurityAuditEvent(transaction, organisationId, uid, "lead.contact_restriction_changed", "lead", leadId, {
+      doNotContact: data.doNotContact as boolean,
+      contactReviewStatus: data.doNotContact ? "blocked" : "cleared",
+      contactReviewRevision: currentRevision,
+    });
   });
   return { leadId, doNotContact: data.doNotContact };
 });
@@ -588,34 +1134,72 @@ export const createOutreachDraft = onCall(async (request) => {
   const leadId = requireDocumentId(data.leadId, "leadId");
   const subject = normaliseRequiredText(data.subject, 200);
   const body = normaliseRequiredText(data.body, 10000);
+  const idempotencyKey = data.idempotencyKey;
   if (!subject || !body) throw new HttpsError("invalid-argument", "Draft subject and body are required and must fit the allowed limits.");
+  if (typeof idempotencyKey !== "string" || !/^[A-Za-z0-9._:-]{16,128}$/.test(idempotencyKey)) {
+    throw new HttpsError("invalid-argument", "idempotencyKey must be 16-128 safe characters.");
+  }
   await requireLeadEditor(organisationId, uid);
-  const leadRef = db.collection("organisations").doc(organisationId).collection("leads").doc(leadId);
-  const draft = db.collection("organisations").doc(organisationId).collection("outreachDrafts").doc();
-  const activity = db.collection("organisations").doc(organisationId).collection("leadActivities").doc();
-  let campaignId = "";
-  await db.runTransaction(async (transaction: Transaction) => {
+  const organisationRef = db.collection("organisations").doc(organisationId);
+  const leadRef = organisationRef.collection("leads").doc(leadId);
+  const draft = organisationRef.collection("outreachDrafts").doc();
+  const activity = organisationRef.collection("leadActivities").doc();
+  const requestHash = createHash("sha256").update(JSON.stringify({ organisationId, leadId, subject, body })).digest("hex");
+  const idempotencyDocumentId = createHash("sha256").update(JSON.stringify([organisationId, uid, idempotencyKey])).digest("hex");
+  const idempotencyRef = organisationRef.collection("outreachDraftCreationIdempotency").doc(idempotencyDocumentId);
+  return db.runTransaction(async (transaction: Transaction) => {
     await requireTransactionalRole(transaction, organisationId, uid, "lead");
-    // Reading the lead and creating the draft in one transaction prevents a concurrent
-    // suppression change from racing past the do-not-contact gate.
+    // Always re-check suppression/review before a replay. A retry must never reopen
+    // a draft-creation path while the lead is suppressed or contact review is pending.
     const leadSnapshot = await transaction.get(leadRef);
     if (!leadSnapshot.exists) throw new HttpsError("not-found", "Lead was not found in this organisation.");
     const lead = leadSnapshot.data() ?? {};
     if (!canCreateServerOutreachDraft(lead.doNotContact, lead.contactReviewStatus)) throw new HttpsError("failed-precondition", lead.doNotContact === true || lead.contactReviewStatus === "blocked"
       ? "This lead is suppressed. Remove the restriction before creating an outreach draft."
       : "The lead contact review is pending or unverified; resolve it before creating an outreach draft.");
-    campaignId = requireDocumentId(lead.campaignId, "lead campaignId");
-    const campaignRef = db.collection("organisations").doc(organisationId).collection("campaigns").doc(campaignId);
+    const campaignId = requireDocumentId(lead.campaignId, "lead campaignId");
+    const campaignRef = organisationRef.collection("campaigns").doc(campaignId);
     const campaignSnapshot = await transaction.get(campaignRef);
     if (!campaignSnapshot.exists) throw new HttpsError("failed-precondition", "The lead's campaign no longer exists in this organisation.");
+
+    const idempotencySnapshot = await transaction.get(idempotencyRef);
+    if (idempotencySnapshot.exists) {
+      const saved = idempotencySnapshot.data() ?? {};
+      if (saved.requestHash !== requestHash) {
+        throw new HttpsError("already-exists", "This idempotencyKey was already used with a different draft payload.");
+      }
+      if (!saved.result || typeof saved.result !== "object") {
+        throw new HttpsError("failed-precondition", "Saved draft retry state is invalid and requires operator review.");
+      }
+      const savedResult = saved.result as Record<string, unknown>;
+      // The SHA-256 request fingerprint is the canonical payload comparison.
+      // Validate immutable result ownership/state separately; Firestore's
+      // returned nested-map representation is not used as a second fingerprint.
+      if (savedResult.leadId !== leadId || savedResult.campaignId !== campaignId) {
+        throw new HttpsError("failed-precondition", "Saved draft retry does not match its lead or campaign.");
+      }
+      if (typeof savedResult.draftId !== "string" || savedResult.status !== "draft" || savedResult.sent !== false) {
+        throw new HttpsError("failed-precondition", "Saved draft retry state is invalid and requires operator review.");
+      }
+      const savedDraftRef = organisationRef.collection("outreachDrafts").doc(savedResult.draftId);
+      const savedDraftSnapshot = await transaction.get(savedDraftRef);
+      if (!savedDraftSnapshot.exists || savedDraftSnapshot.data()?.leadId !== leadId
+        || savedDraftSnapshot.data()?.createdBy !== uid || savedDraftSnapshot.data()?.sent === true) {
+        throw new HttpsError("failed-precondition", "The draft created by this request is no longer available to retry.");
+      }
+      return savedResult as { draftId: string; leadId: string; campaignId: string; subject: string; body: string; status: "draft"; sent: false };
+    }
+
     const now = FieldValue.serverTimestamp();
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "createOutreachDraft", 200);
-    transaction.create(draft, { leadId, campaignId, subject, body, status: "draft", createdBy: uid, createdAt: now, updatedAt: now });
+    const result = { draftId: draft.id, leadId, campaignId, subject, body, status: "draft" as const, sent: false as const };
+    transaction.create(draft, { leadId, campaignId, subject, body, status: "draft", sent: false, createdBy: uid, createdAt: now, updatedAt: now });
     transaction.create(activity, { leadId, actorUid: uid, message: "Outreach draft created; not sent", createdAt: now });
+    transaction.create(idempotencyRef, { requestHash, result, actorUid: uid, createdAt: FieldValue.serverTimestamp() });
+    writeSecurityAuditEvent(transaction, organisationId, uid, "outreach_draft.created", "outreachDraft", draft.id, { draftAction: "created" });
+    return result;
   });
-  return { draftId: draft.id, leadId, campaignId, subject, body, status: "draft" as const, sent: false };
 });
-
 
 export const listOutreachDrafts = onCall(async (request) => {
   const uid = requireUid(request.auth?.uid);
@@ -673,7 +1257,7 @@ export const listOutreachDrafts = onCall(async (request) => {
       const lead = leadSnapshot?.data();
       const campaignId = typeof lead?.campaignId === "string" ? lead.campaignId : "";
       const campaignExists = isValidDocumentId(campaignId) && campaignById.get(campaignId)?.exists === true;
-      const draftStatusValid = draft.status === "draft";
+      const draftStatusValid = draft.status === "draft" && draft.sent === false;
       const draftContentValid = typeof draft.subject === "string"
         && draft.subject.trim().length > 0
         && draft.subject.length <= 200
@@ -693,7 +1277,7 @@ export const listOutreachDrafts = onCall(async (request) => {
           leadSuppressed: leadExists && (lead?.doNotContact === true || lead?.contactReviewStatus === "blocked"),
           requiresReview: true,
           reviewReason: !draftStatusValid
-            ? "Draft status is missing or is not draft; review the record before use."
+            ? "Draft status or sent flag is inconsistent; review the record before use."
             : !leadExists
               ? "Lead record is missing; review before use."
               : (lead?.doNotContact === true || lead?.contactReviewStatus === "blocked")
@@ -737,7 +1321,7 @@ export const updateOutreachDraft = onCall(async (request) => {
     const draftSnapshot = await transaction.get(draftRef);
     if (!draftSnapshot.exists) throw new HttpsError("not-found", "Outreach draft was not found in this organisation.");
     const draft = draftSnapshot.data() ?? {};
-    if (draft.status !== "draft") {
+    if (draft.status !== "draft" || draft.sent !== false) {
       throw new HttpsError("failed-precondition", "Only unsent drafts can be edited; this record requires review.");
     }
     leadId = requireDocumentId(draft.leadId, "draft leadId");
@@ -759,6 +1343,7 @@ export const updateOutreachDraft = onCall(async (request) => {
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "updateOutreachDraft", 120);
     transaction.update(draftRef, { subject, body, updatedAt: now, updatedBy: uid });
     transaction.create(activity, { leadId, actorUid: uid, message: "Outreach draft updated; not sent", createdAt: now });
+    writeSecurityAuditEvent(transaction, organisationId, uid, "outreach_draft.updated", "outreachDraft", draftId, { draftAction: "updated" });
   });
   return { draftId, leadId, subject, body, status: "draft" as const, sent: false };
 });
@@ -781,6 +1366,7 @@ export const deleteOutreachDraft = onCall(async (request) => {
     const leadId = isValidDocumentId(rawLeadId) ? rawLeadId : null;
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "deleteOutreachDraft", 120);
     transaction.delete(draftRef);
+    writeSecurityAuditEvent(transaction, organisationId, uid, "outreach_draft.deleted", "outreachDraft", draftId, { draftAction: "deleted" });
     transaction.create(activity, {
       ...(leadId ? { leadId } : {}),
       actorUid: uid,

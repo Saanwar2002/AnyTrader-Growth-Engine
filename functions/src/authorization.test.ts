@@ -13,6 +13,8 @@ describe("safe persisted timestamp serialization", () => {
     expect(safeTimestampToIso({ toDate: () => "not-a-date" })).toBeNull();
     expect(safeTimestampToIso({ toDate: () => new Date(Number.NaN) })).toBeNull();
     expect(safeTimestampToIso({ toDate: () => { throw new Error("corrupt legacy value"); } })).toBeNull();
+    const throwingGetter = Object.defineProperty({}, "toDate", { get() { throw new Error("corrupt legacy getter"); } });
+    expect(safeTimestampToIso(throwingGetter)).toBeNull();
   });
 });
 
@@ -117,7 +119,7 @@ describe("server outreach safeguards", () => {
     expect(canCreateServerOutreachDraft(null)).toBe(false);
   });
 
-  it.each(["https://example.test", "http://example.test/path", "www.example.test", "example.test", ""])(
+  it.each(["https://example.test", "http://example.test/path", "HTTPS://Example.test/path", "https://example.test:8443/path?source=csv", "www.example.test", "example.test", ""])(
     "accepts ordinary website values: %s",
     (value) => expect(isSafeWebsiteAddress(value)).toBe(true),
   );
@@ -128,19 +130,44 @@ describe("server outreach safeguards", () => {
     "vbscript:msgbox(1)",
     "file:///etc/passwd",
     "ftp://example.test",
+    "user@example.test",
+    "example.test@attacker.test",
+    "@example.test",
+    "/relative/path",
+    "?source=csv",
+    "#section",
     "//example.test/path",
     "https://example.test/path with spaces",
     "https://user:password@example.test/path",
     "https://example.test@attacker.test/path",
+    "https://example.test/path\u0000suffix",
+    "https://example.test/path\nheader",
+    "https:\\\\example.test/path",
   ])("rejects unsafe or ambiguous website values: %s", (value) => {
     expect(isSafeWebsiteAddress(value)).toBe(false);
   });
 
   it("rejects malformed email addresses before persistence", () => {
     expect(isValidEmailAddress("hello@example.co.uk")).toBe(true);
+    expect(isValidEmailAddress("First.Last+tag@sub.example.co.uk")).toBe(true);
+    expect(isValidEmailAddress("HELLO@EXAMPLE.COM")).toBe(true);
+    const maximumLengthDomain = "a".repeat(63) + "." + "b".repeat(63) + "." + "c".repeat(61);
+    const overMaximumLengthDomain = "a".repeat(63) + "." + "b".repeat(63) + "." + "c".repeat(62);
+    expect(isValidEmailAddress("x".repeat(64) + "@" + maximumLengthDomain)).toBe(true);
+    expect(isValidEmailAddress("x".repeat(64) + "@" + overMaximumLengthDomain)).toBe(false);
+    expect(isValidEmailAddress("a".repeat(64) + "@example.com")).toBe(true);
+    expect(isValidEmailAddress("a".repeat(65) + "@example.com")).toBe(false);
+    expect(isValidEmailAddress("hello@" + "a".repeat(64) + ".com")).toBe(false);
     expect(isValidEmailAddress("not-an-email")).toBe(false);
     expect(isValidEmailAddress("a@b")).toBe(false);
     expect(isValidEmailAddress("x @example.com")).toBe(false);
+    expect(isValidEmailAddress("@example.com")).toBe(false);
+    expect(isValidEmailAddress("hello..world@example.com")).toBe(false);
+    expect(isValidEmailAddress("hello@example..com")).toBe(false);
+    expect(isValidEmailAddress("hello@example.com\nBcc:other@example.com")).toBe(false);
+    expect(isValidEmailAddress("hello@example.com.")).toBe(false);
+    expect(isValidEmailAddress("hello@-example.com")).toBe(false);
+    expect(isValidEmailAddress("hello@example-.com")).toBe(false);
   });
 });
 
@@ -336,10 +363,64 @@ describe("membership record validation", () => {
     expect(isValidMembershipRecord({ role: "member" }, "user-1")).toBe(false);
     expect(isValidMembershipRecord(null, "user-1")).toBe(false);
     expect(isValidMembershipRecord([], "user-1")).toBe(false);
+
+    const inheritedIdentity = Object.create({ uid: "user-1", role: "owner" }) as Record<string, unknown>;
+    expect(isValidMembershipRecord(inheritedIdentity, "user-1")).toBe(false);
+
+    const inheritedUid = Object.create({ uid: "user-1" }) as Record<string, unknown>;
+    inheritedUid.role = "admin";
+    expect(isValidMembershipRecord(inheritedUid, "user-1")).toBe(false);
+
+    const inheritedRole = Object.create({ role: "owner" }) as Record<string, unknown>;
+    inheritedRole.uid = "user-1";
+    expect(isValidMembershipRecord(inheritedRole, "user-1")).toBe(false);
+
+    const ownFieldsOnNullPrototype = Object.assign(Object.create(null) as Record<string, unknown>, {
+      uid: "user-1",
+      role: "member",
+    });
+    expect(isValidMembershipRecord(ownFieldsOnNullPrototype, "user-1")).toBe(true);
+  });
+});
+
+describe("malformed membership accessors", () => {
+  it("fails closed when persisted membership identity or role accessors throw", () => {
+    const throwingUid = Object.defineProperty({ role: "owner" }, "uid", {
+      enumerable: true,
+      get() { throw new Error("malformed membership uid"); },
+    });
+    const throwingRole = Object.defineProperty({ uid: "user-1" }, "role", {
+      enumerable: true,
+      get() { throw new Error("malformed membership role"); },
+    });
+    expect(isValidMembershipRecord(throwingUid, "user-1")).toBe(false);
+    expect(isValidMembershipRecord(throwingRole, "user-1")).toBe(false);
+  });
+
+  it("fails closed when a legacy membership proxy throws during own-field inspection", () => {
+    const hostileRecord = new Proxy({ uid: "user-1", role: "owner" }, {
+      getOwnPropertyDescriptor() {
+        throw new Error("malformed membership proxy");
+      },
+    });
+    expect(isValidMembershipRecord(hostileRecord, "user-1")).toBe(false);
   });
 });
 
 describe("organisation membership role integrity", () => {
+  it("fails closed if an owner membership role accessor throws on a later read", () => {
+    let reads = 0;
+    const unstableRole = Object.defineProperty({ uid: "user-1" }, "role", {
+      enumerable: true,
+      get() {
+        reads += 1;
+        if (reads > 1) throw new Error("unstable membership role");
+        return "owner";
+      },
+    });
+    expect(isValidMembershipForOrganisation(unstableRole, "user-1", "user-1")).toBe(false);
+  });
+
   it("requires owner-role membership to match the parent organisation owner", () => {
     expect(isValidMembershipForOrganisation({ uid: "user-1", role: "owner" }, "user-1", "user-1")).toBe(true);
     expect(isValidMembershipForOrganisation({ uid: "user-1", role: "owner" }, "user-1", "other-owner")).toBe(false);
@@ -565,6 +646,24 @@ describe("server-side rate-limit evaluation", () => {
   it("resets after the window expires", () => {
     expect(evaluateRateLimit({ windowStartedAtMs: 1000, count: 2 }, 61000, 2, 60000).nextState).toEqual({ windowStartedAtMs: 61000, count: 1 });
   });
+  it("fails closed when malformed persisted quota accessors throw", () => {
+    const throwingStart = Object.defineProperty({ count: 1 }, "windowStartedAtMs", {
+      enumerable: true,
+      get() { throw new Error("malformed legacy quota start"); },
+    });
+    const throwingCount = Object.defineProperty({ windowStartedAtMs: 1000 }, "count", {
+      enumerable: true,
+      get() { throw new Error("malformed legacy quota count"); },
+    });
+    for (const state of [throwingStart, throwingCount]) {
+      expect(evaluateRateLimit(state, 2000, 3, 60000)).toEqual({
+        allowed: false,
+        invalidState: true,
+        nextState: null,
+        retryAfterMs: 0,
+      });
+    }
+  });
   it("does not reset early when the local clock moves backwards", () => {
     expect(evaluateRateLimit({ windowStartedAtMs: 10000, count: 2 }, 9000, 2, 60000)).toEqual({ allowed: false, invalidState: false, nextState: null, retryAfterMs: 61000 });
   });
@@ -613,6 +712,31 @@ describe("server-side rate-limit evaluation", () => {
     expect(evaluateRateLimit(state, 2000, 3, 60000).invalidState).toBe(true);
     expect(evaluateRateLimit(state, 2000, 3, 60000).allowed).toBe(false);
   });
+
+  it("rejects inherited quota fields while accepting explicit own fields", () => {
+    const inheritedBoth = Object.create({ windowStartedAtMs: 1000, count: 1 }) as Record<string, unknown>;
+    const inheritedCount = Object.assign(Object.create({ count: 1 }), { windowStartedAtMs: 1000 });
+    const inheritedStart = Object.assign(Object.create({ windowStartedAtMs: 1000 }), { count: 1 });
+    const nullPrototype = Object.assign(Object.create(null) as Record<string, unknown>, {
+      windowStartedAtMs: 1000,
+      count: 1,
+    });
+
+    for (const state of [inheritedBoth, inheritedCount, inheritedStart]) {
+      expect(evaluateRateLimit(state, 2000, 3, 60000)).toEqual({
+        allowed: false,
+        invalidState: true,
+        nextState: null,
+        retryAfterMs: 0,
+      });
+    }
+    expect(evaluateRateLimit(nullPrototype, 2000, 3, 60000)).toEqual({
+      allowed: true,
+      invalidState: false,
+      nextState: { windowStartedAtMs: 1000, count: 2 },
+      retryAfterMs: 0,
+    });
+  });
 });
 
 
@@ -639,6 +763,7 @@ describe("Firestore timestamp cursor validation", () => {
     null,
     {},
     { toMillis: 1 },
+    Object.defineProperty({}, "toMillis", { get() { throw new Error("invalid timestamp getter"); } }),
     { toMillis: () => Number.NaN },
     { toMillis: () => Number.POSITIVE_INFINITY },
     { toMillis: () => Number.NEGATIVE_INFINITY },
@@ -698,5 +823,39 @@ describe("callable rate-limit coverage guard", () => {
         `callable ${name} must use its own operation key`,
       ).toContain(`"${name}"`);
     }
+  });
+});
+
+describe("contact-review lifecycle truth table", () => {
+  it.each([
+    [false, undefined, true],
+    [false, "cleared", true],
+    [false, "pending", false],
+    [false, "blocked", false],
+    [false, null, false],
+    [false, "unknown", false],
+    [false, 0, false],
+    [true, undefined, false],
+    [true, "cleared", false],
+    [true, "pending", false],
+    [true, "blocked", false],
+    [undefined, "cleared", false],
+    [null, undefined, false],
+    ["false", "cleared", false],
+    [0, "cleared", false],
+  ])("allows contact only for an explicit cleared state (restriction=%j, review=%j)", (doNotContact, reviewStatus, expected) => {
+    expect(canMarkLeadContacted(doNotContact, reviewStatus)).toBe(expected);
+    expect(canCreateServerOutreachDraft(doNotContact, reviewStatus)).toBe(expected);
+  });
+
+  it("never normalises malformed or contradictory legacy restrictions to cleared", () => {
+    for (const malformedRestriction of [undefined, null, "false", 0, 1, {}, []]) {
+      expect(normaliseContactReviewStatus(malformedRestriction, "cleared")).toBe("pending");
+    }
+    expect(normaliseContactReviewStatus(true, "cleared")).toBe("blocked");
+    expect(normaliseContactReviewStatus(false, "pending")).toBe("pending");
+    expect(normaliseContactReviewStatus(false, "blocked")).toBe("blocked");
+    expect(normaliseContactReviewStatus(false, "cleared")).toBe("cleared");
+    expect(normaliseContactReviewStatus(false, undefined)).toBe("cleared");
   });
 });

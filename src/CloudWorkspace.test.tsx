@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
   currentUser: null as unknown,
   api: {
     listMyOrganisations: vi.fn(), createOrganisation: vi.fn(), createCampaign: vi.fn(), updateCampaignStatus: vi.fn(),
-    listCampaigns: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(),
+    listCampaigns: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), importLeads: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(),
     updateLeadNotes: vi.fn(), setLeadSuppression: vi.fn(), createOutreachDraft: vi.fn(), listOutreachDrafts: vi.fn(),
     updateOutreachDraft: vi.fn(), deleteOutreachDraft: vi.fn(),
   },
@@ -44,6 +44,7 @@ beforeEach(() => {
   mocks.api.createOrganisation.mockResolvedValue({ organisationId: "org-new", name: "New Org", role: "owner" });
   mocks.api.createCampaign.mockResolvedValue({ campaignId: "campaign-new", status: "active" });
   mocks.api.createLead.mockResolvedValue({ leadId: "lead-new", status: "new" });
+  mocks.api.importLeads.mockResolvedValue({ organisationId: "org-1", campaignId: "campaign-1", received: 2, imported: 2, duplicatesSkipped: 0, leads: [{ leadId: "lead-csv-1", businessName: "Northside Painting" }, { leadId: "lead-csv-2", businessName: "City Decorators" }], sent: false, messageSentByThisAction: false });
   mocks.api.setLeadSuppression.mockResolvedValue({ leadId: "lead-1", doNotContact: true });
   mocks.api.createOutreachDraft.mockResolvedValue({ draftId: "draft-new", leadId: "lead-1", status: "draft", sent: false });
 });
@@ -264,6 +265,38 @@ describe("cloud authentication gate", () => {
     expect((screen.getByRole("button", { name: /create draft/i }) as HTMLButtonElement).disabled).toBe(true);
   });
 
+  it("reuses the same manual lead idempotency key and payload after an uncertain failure", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
+    mocks.api.listCampaigns.mockResolvedValue({ campaigns: [{
+      id: "campaign-1", name: "Painter pilot", brand: "AnyTrader", category: "Painters",
+      location: "Manchester", goal: "Recruit providers", status: "active", createdAt: null,
+    }] });
+    mocks.api.createLead
+      .mockRejectedValueOnce(new Error("Network request timed out"))
+      .mockResolvedValueOnce({ leadId: "lead-retry", status: "new" });
+
+    render(<CloudWorkspace />);
+    const businessName = await screen.findByLabelText("Business name");
+    fireEvent.change(businessName, { target: { value: "Retry-safe Painting Ltd" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save lead" }));
+
+    const retryButton = await screen.findByRole("button", { name: "Retry save (same request)" });
+    expect((screen.getByLabelText("Business name") as HTMLInputElement).disabled).toBe(true);
+    expect((screen.getByLabelText("Campaign") as HTMLSelectElement).disabled).toBe(true);
+    expect(retryButton).toBeTruthy();
+    const firstPayload = mocks.api.createLead.mock.calls[0][0];
+    expect(firstPayload.idempotencyKey).toMatch(/^manual-lead-[A-Za-z0-9-]+$/);
+    expect(firstPayload.businessName).toBe("Retry-safe Painting Ltd");
+
+    fireEvent.click(retryButton);
+    await waitFor(() => expect(mocks.api.createLead).toHaveBeenCalledTimes(2));
+    expect(mocks.api.createLead.mock.calls[1][0]).toEqual(firstPayload);
+    await screen.findByText(/Lead saved securely to the selected organisation/);
+    expect((screen.getByLabelText("Business name") as HTMLInputElement).value).toBe("");
+    expect((screen.getByLabelText("Business name") as HTMLInputElement).disabled).toBe(false);
+  });
+
   it("disables clearing a pending restriction for non-admin organisation roles", async () => {
     mocks.currentUser = { email: "member@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "member" }] });
@@ -327,10 +360,234 @@ describe("cloud authentication gate", () => {
     expect(screen.queryByRole("button", { name: "Load more organisations" })).toBeNull();
   });
 
+  it("previews a CSV and imports only after explicit confirmation", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    mocks.api.listCampaigns.mockResolvedValue({
+      campaigns: [{ id: "campaign-1", name: "Painter pilot", brand: "AnyTrader", category: "Painters", location: "Manchester", goal: "Recruit providers", status: "active", createdAt: null }],
+      hasMoreCampaigns: false,
+    });
+
+    render(<CloudWorkspace />);
+    await screen.findByRole("heading", { name: "Provider acquisition workspace" });
+    await screen.findAllByText("Painter pilot");
+    const file = new File([
+      "businessName,category,location,email,phone\nNorthside Painting,Painters,Manchester,hello@northside.example,01610000001\nCity Decorators,Decorators,Salford,team@citydecorators.example,01610000002",
+    ], "providers.csv", { type: "text/csv" });
+    fireEvent.change(screen.getByLabelText("CSV file"), { target: { files: [file] } });
+
+    expect(await screen.findByText("Northside Painting")).toBeTruthy();
+    expect(screen.getByText("Preview — no records have been imported yet")).toBeTruthy();
+    expect(mocks.api.importLeads).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Import 2 reviewed rows" }));
+    await waitFor(() => expect(mocks.api.importLeads).toHaveBeenCalledTimes(1));
+    const payload = mocks.api.importLeads.mock.calls[0][0];
+    expect(payload.organisationId).toBe("org-1");
+    expect(payload.campaignId).toBe("campaign-1");
+    expect(payload.idempotencyKey.length).toBeGreaterThanOrEqual(16);
+    expect(payload.leads).toEqual([
+      { businessName: "Northside Painting", category: "Painters", location: "Manchester", website: "", email: "hello@northside.example", phone: "01610000001" },
+      { businessName: "City Decorators", category: "Decorators", location: "Salford", website: "", email: "team@citydecorators.example", phone: "01610000002" },
+    ]);
+    expect(await screen.findByText(/2 imported, 0 duplicates skipped/i)).toBeTruthy();
+    expect(screen.getByText(/nothing was sent/i)).toBeTruthy();
+  });
+
+  it("keeps a CSV retry bound to the original campaign and idempotency key after an uncertain failure", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+    });
+    mocks.api.listCampaigns.mockResolvedValue({
+      campaigns: [
+        { id: "campaign-1", name: "Painter pilot", brand: "AnyTrader", category: "Painters", location: "Manchester", goal: "Recruit providers", status: "active", createdAt: null },
+        { id: "campaign-2", name: "Decorator pilot", brand: "AnyTrader", category: "Decorators", location: "Salford", goal: "Recruit providers", status: "active", createdAt: null },
+      ],
+    });
+    mocks.api.importLeads
+      .mockRejectedValueOnce(new Error("Network request timed out"))
+      .mockResolvedValueOnce({
+        organisationId: "org-1",
+        campaignId: "campaign-1",
+        received: 1,
+        imported: 1,
+        duplicatesSkipped: 0,
+        leads: [{ leadId: "lead-csv-retry-1", businessName: "Northside Painting" }],
+        sent: false,
+        messageSentByThisAction: false,
+      });
+
+    render(<CloudWorkspace />);
+    await screen.findByRole("heading", { name: "Provider acquisition workspace" });
+    await screen.findAllByText("Painter pilot");
+    const file = new File([
+      "businessName,category\nNorthside Painting,Painters",
+    ], "retry-providers.csv", { type: "text/csv" });
+    fireEvent.change(screen.getByLabelText(/CSV file/i), { target: { files: [file] } });
+    await screen.findByText("Northside Painting");
+
+    const campaignSelect = screen.getByLabelText("Import into campaign") as HTMLSelectElement;
+    expect(campaignSelect.value).toBe("campaign-1");
+    const importButton = screen.getByRole("button", { name: "Import 1 reviewed row" });
+    fireEvent.click(importButton);
+    await screen.findByText("Network request timed out");
+    const firstPayload = mocks.api.importLeads.mock.calls[0][0];
+
+    expect(campaignSelect.disabled).toBe(true);
+    fireEvent.click(importButton);
+    await waitFor(() => expect(mocks.api.importLeads).toHaveBeenCalledTimes(2));
+    const retryPayload = mocks.api.importLeads.mock.calls[1][0];
+    expect(retryPayload.campaignId).toBe(firstPayload.campaignId);
+    expect(retryPayload.idempotencyKey).toBe(firstPayload.idempotencyKey);
+    expect(retryPayload.leads).toEqual(firstPayload.leads);
+    expect(await screen.findByText(/1 imported, 0 duplicates skipped/i)).toBeTruthy();
+  });
+
+  it("filters the lead directory by business details and status", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+    });
+    const lead = (id: string, businessName: string, category: string, location: string, status: string) => ({
+      id, campaignId: "campaign-1", businessName, category, location, website: "",
+      email: "", phone: "", source: "manual", status, score: 20, scoreReasons: [],
+      notes: "", doNotContact: true, contactRestrictionVerified: false,
+      contactReviewStatus: "pending", createdAt: null,
+    });
+    const campaign = (id: string, name: string) => ({
+      id, name, brand: "AnyTrader", category: "Painters", location: "Manchester",
+      goal: "Recruit providers", status: "active", createdAt: null,
+    });
+    mocks.api.listCampaigns.mockResolvedValue({ campaigns: [
+      campaign("campaign-1", "Painter campaign"),
+      campaign("campaign-2", "Decorator campaign"),
+    ] });
+    mocks.api.listLeads.mockResolvedValue({
+      leads: [
+        { ...lead("lead-1", "Northside Painting", "Painters", "Manchester", "new"), website: "https://northside.example" },
+        { ...lead("lead-2", "City Decorators", "Decorators", "Salford", "qualified"), campaignId: "campaign-2" },
+      ],
+    });
+
+    render(<CloudWorkspace />);
+    expect(await screen.findByText("Northside Painting")).toBeTruthy();
+    expect(screen.getByText("City Decorators")).toBeTruthy();
+    expect(screen.getByText("Showing 2 of 2 loaded leads.")).toBeTruthy();
+    expect(screen.getByLabelText("Search leads").getAttribute("placeholder")).toBe("Business, category, location, website, email, or phone");
+
+    fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: "northside.example" } });
+    expect(screen.getByText("Northside Painting")).toBeTruthy();
+    expect(screen.queryByText("City Decorators")).toBeNull();
+    fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: "" } });
+
+    fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: "salford" } });
+    expect(screen.getByText("Showing 1 of 2 loaded leads.")).toBeTruthy();
+    expect(screen.getByText("City Decorators")).toBeTruthy();
+    expect(screen.queryByText("Northside Painting")).toBeNull();
+
+    fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: "" } });
+    fireEvent.change(screen.getByLabelText("Filter by status"), { target: { value: "qualified" } });
+    expect(screen.getByText("City Decorators")).toBeTruthy();
+    expect(screen.queryByText("Northside Painting")).toBeNull();
+
+    fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: "no-such-provider" } });
+    expect(screen.queryByText("City Decorators")).toBeNull();
+    expect(screen.getByRole("status").textContent).toContain("No leads match these filters");
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect((screen.getByLabelText("Search leads") as HTMLInputElement).value).toBe("");
+    expect((screen.getByLabelText("Filter by status") as HTMLSelectElement).value).toBe("all");
+    expect((screen.getByLabelText("Filter by campaign") as HTMLSelectElement).value).toBe("all");
+    expect(screen.getByText("Showing 2 of 2 loaded leads.")).toBeTruthy();
+    expect(screen.getByText("Northside Painting")).toBeTruthy();
+    expect(screen.getByText("City Decorators")).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Filter by campaign"), { target: { value: "campaign-2" } });
+    expect(screen.getByText("City Decorators")).toBeTruthy();
+    expect(screen.queryByText("Northside Painting")).toBeNull();
+
+    fireEvent.change(screen.getByLabelText("Filter by campaign"), { target: { value: "all" } });
+    fireEvent.change(screen.getByLabelText("Filter by status"), { target: { value: "new" } });
+    fireEvent.change(screen.getByLabelText("Filter by campaign"), { target: { value: "campaign-2" } });
+    expect(screen.queryByText("Northside Painting")).toBeNull();
+    expect(screen.queryByText("City Decorators")).toBeNull();
+    expect(screen.getByRole("status").textContent).toContain("No leads match these filters");
+  });
+
   it("offers account creation without weakening the required password length", () => {
     render(<CloudWorkspace />);
     fireEvent.click(screen.getByRole("button", { name: /Need an account/i }));
     expect(screen.getByRole("heading", { name: "Create your account" })).toBeTruthy();
     expect((screen.getByLabelText("Password") as HTMLInputElement).minLength).toBe(6);
   });
+
+  it("retries uncertain organisation creation with the same key and unchanged name", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.createOrganisation.mockRejectedValueOnce(new Error("temporary network failure"));
+    render(<CloudWorkspace />);
+    await screen.findByRole("heading", { name: "Provider acquisition workspace" });
+
+    const nameInput = screen.getByPlaceholderText("e.g. AnyTrader pilot");
+    fireEvent.change(nameInput, { target: { value: "Retry-safe workspace" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create organisation" }));
+    await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("temporary network failure"));
+    expect((nameInput as HTMLInputElement).disabled).toBe(true);
+
+    fireEvent.click(screen.getByRole("button", { name: "Retry save (same request)" }));
+    await waitFor(() => expect(mocks.api.createOrganisation).toHaveBeenCalledTimes(2));
+    expect(mocks.api.createOrganisation.mock.calls[1][0]).toEqual(mocks.api.createOrganisation.mock.calls[0][0]);
+    expect(mocks.api.createOrganisation.mock.calls[0][0].idempotencyKey).toMatch(/^organisation-create-/);
+  });
+
+  it("retries uncertain campaign creation with the same key and unchanged campaign fields", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    mocks.api.createCampaign.mockRejectedValueOnce(new Error("temporary network failure"));
+    render(<CloudWorkspace />);
+    await screen.findByRole("heading", { name: "Provider acquisition workspace" });
+
+    fireEvent.change(screen.getByLabelText("Campaign name"), { target: { value: "Retry-safe campaign" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create campaign" }));
+    await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("temporary network failure"));
+    expect((screen.getByLabelText("Campaign name") as HTMLInputElement).disabled).toBe(true);
+
+    fireEvent.click(screen.getByRole("button", { name: "Retry save (same request)" }));
+    await waitFor(() => expect(mocks.api.createCampaign).toHaveBeenCalledTimes(2));
+    expect(mocks.api.createCampaign.mock.calls[1][0]).toEqual(mocks.api.createCampaign.mock.calls[0][0]);
+    expect(mocks.api.createCampaign.mock.calls[0][0].idempotencyKey).toMatch(/^campaign-create-/);
+  });
+
+  it("retries uncertain draft creation with the same key and unchanged content", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
+    mocks.api.listLeads.mockResolvedValue({ leads: [{
+      id: "lead-1", campaignId: "campaign-1", businessName: "Synthetic Painting Co", category: "Painters",
+      location: "Manchester", website: "", email: "", phone: "", source: "manual", status: "new",
+      score: 40, scoreReasons: [], notes: "", doNotContact: false, contactRestrictionVerified: true,
+      contactReviewStatus: "cleared", createdAt: null,
+    }] });
+    mocks.api.createOutreachDraft
+      .mockRejectedValueOnce(new Error("Network request timed out"))
+      .mockResolvedValueOnce({ draftId: "draft-retry", leadId: "lead-1", status: "draft", sent: false });
+
+    render(<CloudWorkspace />);
+    const createButton = await screen.findByRole("button", { name: "Create draft" });
+    fireEvent.click(createButton);
+    const retryButton = await screen.findByRole("button", { name: "Retry draft (same request)" });
+    expect(retryButton).toBeTruthy();
+
+    fireEvent.click(retryButton);
+    await waitFor(() => expect(mocks.api.createOutreachDraft).toHaveBeenCalledTimes(2));
+    expect(mocks.api.createOutreachDraft.mock.calls[1][0]).toEqual(mocks.api.createOutreachDraft.mock.calls[0][0]);
+    expect(mocks.api.createOutreachDraft.mock.calls[0][0].idempotencyKey).toMatch(/^outreach-draft-/);
+    expect(mocks.api.createOutreachDraft.mock.calls[0][0].body).toContain("DRAFT ONLY — NOT SENT.");
+  });
+
 });

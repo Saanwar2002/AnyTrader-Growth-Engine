@@ -6,20 +6,20 @@ Use only the separate Growth Engine Firebase project and synthetic data until ev
 
 ## Verified development controls
 
-- Firebase Authentication is required for all 15 callable exports.
+- Firebase Authentication is required for all 16 callable exports.
 - Server-side organisation membership, role, and tenant checks are enforced.
 - Firestore client rules deny direct client reads and writes.
 - Contact-restriction and outreach-draft checks fail closed for malformed or unverified records.
 - All callable exports have server-side rate limits; mutation quota updates are transactional with the protected mutation, and read quotas are consumed before collection queries.
 - Rate-limit state validation fails closed. Structured quota logs use a hashed quota key and do not include raw user or organisation IDs.
 - Emulator regressions cover exhausted and malformed quota states, mutation side effects, concurrent mutation/read quota boundaries, exact persisted read-quota counts, and expired read-quota window reset with refreshed TTL expiry.
-- Latest verified CI for commit `40a015c6c059d72f3bcf6fda0d64a94dfbe78cd6` passed both the Firebase Functions tests/build and frontend typecheck/tests/build jobs, including the Firebase emulator integration smoke tests: [run 39821885291](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/39821885291). This run includes the regression asserting that a role-denied `setLeadSuppression` request does not consume the viewer's quota, alongside the existing callable security-contract checks and draft-only outreach assertions.
+- Latest verified CI for the previously verified PR head `82dfaaf085044a361903daea7f7a64d7c0ce6496` on `development/next-phase` passed both jobs in [run 40088188514](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40088188514). Verified job steps: frontend typecheck, unit tests, production build, emulator integration smoke tests, Functions authorization tests/build, dependency advisory checks, and the Functions lockfile integrity guard all completed successfully. This records the earlier verified head, not the current PR head or production readiness. Regression coverage includes tenant-scoped authorization ordering and transactional role revalidation, organisation cursor/membership validation, pagination-token binding to organisation and collection, transactional outreach-draft safeguards (including explicit `sent: false` on valid drafts and fail-closed handling of missing/inconsistent sent flags), bounded/atomic/idempotent CSV imports with new leads suppressed by default (including exact replay, conflicting payload rejection, and concurrent same-key requests), renewed contact review when lead email, phone, or website changes while preserving blocked-lead suppression, and lead-directory search/filter reset behaviour. The latest emulator batch also seeds two synthetic legacy leads without canonical keys and verifies exact-value email and website fallback queries skip duplicates; the fixture refuses to run outside the local demo Firestore emulator. The CI workflow push and pull-request branch filters target `development/next-phase` and `main`.
 
 These checks support development readiness only; they do not establish production readiness.
 
 ## Blocking: Firebase App Check
 
-The audit found 15 callable exports and no `enforceAppCheck` options in `functions/src/index.ts`. App Check is not currently enforced.
+The audit found 16 callable exports and no `enforceAppCheck` options in `functions/src/index.ts`. App Check is not currently enforced.
 
 - [ ] Create the separate Growth Engine Firebase project.
 - [ ] Register each supported app with Firebase App Check and configure the appropriate production provider.
@@ -47,7 +47,7 @@ The workflow runs `npm audit --audit-level=high` in both the root and Functions 
 - [x] Confirm the full frontend, Functions, and emulator CI run after adding the advisory gate.
 - [x] Add `.github/workflows/dependency-audit.yml` for weekly and manual root/Functions audits, with JSON artifacts retained for 30 days and high/critical findings failing the audit job.
 - [x] Add `.github/dependabot.yml` for weekly update PRs covering root npm dependencies, Functions npm dependencies, and GitHub Actions. Updates arrive as pull requests and still require CI and review; no automatic deployment is configured.
-- [ ] After review, promote the audit workflow and Dependabot configuration to the repository's default branch. GitHub scheduled workflows and Dependabot configuration are not active merely because the files exist on `development/chatgpt-mvp`; manual workflow dispatch also requires the workflow to exist on the default branch. **Important:** GitHub scheduled workflows run from the repository's default branch; because this work is intentionally confined to `development/chatgpt-mvp`, the weekly schedule will not become active until this workflow is reviewed and promoted to the default branch. It can be tested manually from this branch.
+- [ ] After review, promote the audit workflow and Dependabot configuration to the repository's default branch. GitHub scheduled workflows and Dependabot configuration are not active merely because the files exist on `development/next-phase`; manual workflow dispatch also requires the workflow to exist on the default branch. **Important:** GitHub scheduled workflows run from the repository's default branch; because this work is intentionally confined to `development/next-phase`, the weekly schedule will not become active until this workflow is reviewed and promoted to the default branch. It can be tested manually from this branch.
 - [ ] Re-run frontend, Functions, and emulator tests after any dependency updates.
 
 This is a point-in-time result for the committed lockfiles, not a guarantee against future disclosures. The Functions install also emits upstream deprecation warnings for dependencies (including `glob` and Node's `url.parse()`); these are maintenance signals and were not reported as npm audit vulnerabilities in this run.
@@ -72,3 +72,8 @@ Quota documents carry a server-managed `expireAt` timestamp based on the stored 
 ## Release rule
 
 Remain in synthetic-data development/demo use until every blocking item above is completed and independently verified. No production AnyTrader data, production integrations, or automated outreach before that point.
+
+
+## Latest review checkpoint — 24 October 2026
+
+The latest inspected PR head is `9fdffcfe86a57f631a27d641705a06ec466d284d`. GitHub Actions CI run [40093634576](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40093634576) completed successfully for this exact head, with both the Functions and frontend/emulator jobs green. The commit also adds collision-safe business/location duplicate-key encoding and regression tests for delimiter-containing values. PR #10 remains open and draft; CI success is not a substitute for full review or approval to merge.

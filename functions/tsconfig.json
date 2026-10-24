@@ -10,5 +10,5 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/index.ts", "src/authorization.ts"]
+  "include": ["src/index.ts", "src/authorization.ts", "src/lead-identifier-migration-audit.ts", "src/bounded-lead-identifier-audit.ts"]
 }

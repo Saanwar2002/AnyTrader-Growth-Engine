@@ -11,6 +11,32 @@ function makeInvoker(responses: unknown[] = []) {
 }
 
 describe("typed backend API boundary", () => {
+  it("passes the stable idempotency key for organisation creation", async () => {
+    const response = { organisationId: "org-1", name: "Pilot", role: "owner" as const };
+    const { invoke, calls } = makeInvoker([response]);
+    const api = createGrowthEngineApi(invoke);
+    const payload = { name: "Pilot", idempotencyKey: "organisation-create-key-0001" };
+    await expect(api.createOrganisation(payload)).resolves.toEqual(response);
+    expect(calls).toEqual([{ name: "createOrganisation", payload }]);
+  });
+
+  it("passes the stable idempotency key for campaign creation", async () => {
+    const response = { campaignId: "campaign-1", organisationId: "org-1", status: "active" as const };
+    const { invoke, calls } = makeInvoker([response]);
+    const api = createGrowthEngineApi(invoke);
+    const payload = {
+      organisationId: "org-1",
+      idempotencyKey: "campaign-create-key-0001",
+      name: "Provider pilot",
+      brand: "AnyTrader",
+      category: "Painters",
+      location: "Leeds",
+      goal: "Recruit providers",
+    };
+    await expect(api.createCampaign(payload)).resolves.toEqual(response);
+    expect(calls).toEqual([{ name: "createCampaign", payload }]);
+  });
+
   it("requests only the signed-in user's organisations without accepting a client UID", async () => {
     const response = { organisations: [{ organisationId: "org-1", name: "Example", role: "owner" }] };
     const { invoke, calls } = makeInvoker([response]);
@@ -44,7 +70,7 @@ describe("typed backend API boundary", () => {
   it("uses draft-only callable names and has no send operation", async () => {
     const { invoke, calls } = makeInvoker([{ draftId: "draft-1", leadId: "lead-1", status: "draft", sent: false }]);
     const api = createGrowthEngineApi(invoke);
-    const result = await api.createOutreachDraft({ organisationId: "org-1", leadId: "lead-1", subject: "Hello", body: "Please review" });
+    const result = await api.createOutreachDraft({ organisationId: "org-1", leadId: "lead-1", subject: "Hello", body: "Please review", idempotencyKey: "outreach-draft-api-test-0001" });
     expect(calls[0]?.name).toBe("createOutreachDraft");
     expect(result.sent).toBe(false);
     expect(Object.keys(api).some((key) => /send/i.test(key))).toBe(false);
@@ -82,4 +108,38 @@ describe("typed backend API boundary", () => {
       { name: "listOutreachDrafts", payload: { organisationId: "org-1", pageToken: "organisations/org-1/outreachDrafts/draft-100" } },
     ]);
   });
+
+  it("submits reviewed CSV rows through the tenant-scoped idempotent import callable", async () => {
+    const response = {
+      organisationId: "org-1", campaignId: "campaign-1", received: 2, imported: 1,
+      duplicatesSkipped: 1, leads: [{ leadId: "lead-new", businessName: "North Star Roofing" }],
+      sent: false as const, messageSentByThisAction: false as const,
+    };
+    const { invoke, calls } = makeInvoker([response]);
+    const api = createGrowthEngineApi(invoke);
+    const payload = {
+      organisationId: "org-1",
+      campaignId: "campaign-1",
+      idempotencyKey: "csv-import-key-0001",
+      leads: [
+        { businessName: "North Star Roofing", category: "Roofers", location: "Leeds", email: "hello@example.test" },
+        { businessName: "Duplicate Roofing", category: "Roofers", location: "Leeds", website: "https://duplicate.example" },
+      ],
+    };
+
+    await expect(api.importLeads(payload)).resolves.toEqual(response);
+    expect(calls).toEqual([{ name: "importLeads", payload }]);
+    expect(response.sent).toBe(false);
+    expect(response.messageSentByThisAction).toBe(false);
+  });
+
+  it("passes the stable idempotency key for outreach draft creation", async () => {
+    const response = { draftId: "draft-1", leadId: "lead-1", campaignId: "campaign-1", subject: "Review me", body: "Draft only", status: "draft" as const, sent: false as const };
+    const { invoke, calls } = makeInvoker([response]);
+    const api = createGrowthEngineApi(invoke);
+    const payload = { organisationId: "org-1", leadId: "lead-1", subject: "Review me", body: "Draft only", idempotencyKey: "outreach-draft-create-key-0001" };
+    await expect(api.createOutreachDraft(payload)).resolves.toEqual(response);
+    expect(calls).toEqual([{ name: "createOutreachDraft", payload }]);
+  });
+
 });
