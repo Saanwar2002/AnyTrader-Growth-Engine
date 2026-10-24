@@ -396,6 +396,15 @@ describe("malformed membership accessors", () => {
     expect(isValidMembershipRecord(throwingUid, "user-1")).toBe(false);
     expect(isValidMembershipRecord(throwingRole, "user-1")).toBe(false);
   });
+
+  it("fails closed when a legacy membership proxy throws during own-field inspection", () => {
+    const hostileRecord = new Proxy({ uid: "user-1", role: "owner" }, {
+      getOwnPropertyDescriptor() {
+        throw new Error("malformed membership proxy");
+      },
+    });
+    expect(isValidMembershipRecord(hostileRecord, "user-1")).toBe(false);
+  });
 });
 
 describe("organisation membership role integrity", () => {
