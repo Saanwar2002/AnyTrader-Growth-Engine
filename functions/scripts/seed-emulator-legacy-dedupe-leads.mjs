@@ -4,7 +4,7 @@ import { FieldValue, getFirestore } from "firebase-admin/firestore";
 // Strictly emulator-only synthetic legacy fixtures. Never seed a configured Firebase project.
 const projectId = process.env.GCLOUD_PROJECT ?? process.env.FIREBASE_PROJECT ?? "demo-growth-engine-test";
 const emulatorHost = process.env.FIRESTORE_EMULATOR_HOST;
-if (projectId !== "demo-growth-engine-test" || !emulatorHost || !/^(127\\.0\\.0\\.1:8080|localhost:8080)$/.test(emulatorHost)) {
+if (projectId !== "demo-growth-engine-test" || !emulatorHost || !/^(127\.0\.0\.1:8080|localhost:8080)$/.test(emulatorHost)) {
   throw new Error("Refusing to seed legacy duplicate fixtures outside the local demo Firestore emulator.");
 }
 const [organisationId, campaignId] = process.argv.slice(2);
