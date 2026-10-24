@@ -683,7 +683,7 @@ export const importLeads = onCall(async (request) => {
           && !Array.isArray(lead)
           && isValidDocumentId((lead as Record<string, unknown>).leadId)
           && typeof (lead as Record<string, unknown>).businessName === "string"
-          && (lead as Record<string, unknown>).businessName.length > 0);
+          && ((lead as Record<string, unknown>).businessName as string).length > 0);
       if (saved.actorUid !== uid
         || savedResult.organisationId !== organisationId
         || savedResult.campaignId !== campaignId
