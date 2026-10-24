@@ -122,7 +122,11 @@ export function isSafeWebsiteAddress(value: string): boolean {
       return false;
     }
   }
-  // Bare domains may include paths and queries, but must never smuggle URL userinfo.
+  // Bare domains may include paths and queries, but must never smuggle URL userinfo
+  // or be normalised from a relative path into a misleading hostname.
+  if (/^[/?#]/.test(value)) return false;
+  const authority = value.split(/[/?#]/, 1)[0];
+  if (authority.includes("@")) return false;
   try {
     const parsed = new URL("https://" + value);
     return Boolean(parsed.hostname) && parsed.username === "" && parsed.password === "";
