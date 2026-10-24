@@ -11,6 +11,10 @@ describe("rate-limit evaluation boundary inputs", () => {
     ["negative window", 20, 3, -1],
     ["zero window", 20, 3, 0],
     ["fractional window", 20, 3, 1.5],
+    ["non-finite clock", Number.POSITIVE_INFINITY, 3, 100],
+    ["non-finite limit", 20, Number.NaN, 100],
+    ["unsafe limit", 20, Number.MAX_SAFE_INTEGER + 1, 100],
+    ["non-finite window", 20, 3, Number.POSITIVE_INFINITY],
   ])("fails closed for invalid configuration: %s", (_label, now, max, window) => {
     expect(evaluateRateLimit(undefined, now, max, window)).toEqual({
       allowed: false,
