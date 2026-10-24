@@ -36,7 +36,7 @@ Do not describe the new key fields as a complete legacy deduplication solution b
 
 ## Bounded dry-run coordinator
 
-`functions/src/bounded-lead-identifier-audit.ts` adds a generic read-only pagination coordinator for a caller-provided data adapter. It requires an explicit tenant ID and `dryRun: true`, limits page size to 500, enforces a global record budget, detects repeated cursors, rejects oversized pages, and reports whether the scan was truncated. It has no write adapter and does not itself access Firestore. A future adapter must apply the supplied tenant scope to every query and use a stable cursor; do not run it against a live database until the dedicated Growth Engine Firebase project and access controls have been reviewed. Automated tests cover scope, bounds, pagination, truncation, malformed adapters and repeated cursors.
+`functions/src/bounded-lead-identifier-audit.ts` adds a generic read-only pagination coordinator for a caller-provided data adapter. It requires an explicit tenant ID and `dryRun: true`, limits page size to 500, enforces a global record budget, detects repeated cursors, rejects empty continuation pages and oversized pages, and reports whether the scan was truncated. It has no write adapter and does not itself access Firestore. A future adapter must apply the supplied tenant scope to every query and use a stable cursor; do not run it against a live database until the dedicated Growth Engine Firebase project and access controls have been reviewed. Automated tests cover scope, bounds, pagination, truncation, malformed adapters and repeated cursors.
 
 ## Regression coverage
 
