@@ -391,6 +391,60 @@ try {
     "0",
     "2",
   ], { stdio: "inherit" });
+
+  // Malformed legacy contact fields must not poison valid indexed duplicate lookups.
+  execFileSync(process.execPath, [
+    "functions/scripts/seed-emulator-malformed-legacy-lead.mjs",
+    orgOne.organisationId,
+    campaignOne.campaignId,
+  ], { stdio: "inherit" });
+  const malformedLegacyImportPayload = {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    idempotencyKey: "csv-import-malformed-legacy-0001",
+    leads: [{
+      businessName: "Incoming Beside Malformed Legacy Ltd",
+      category: "Painters",
+      location: "Leeds",
+      email: "malformed-legacy@example.test",
+      website: "https://malformed-legacy.example.test/Contact",
+    }],
+  };
+  const malformedLegacyImport = await callOne("importLeads", malformedLegacyImportPayload);
+  assert.equal(malformedLegacyImport.imported, 1,
+    "a malformed legacy contact record must not block a distinct valid import");
+  assert.equal(malformedLegacyImport.duplicatesSkipped, 0,
+    "malformed non-string legacy identifiers must not match valid contact keys");
+  assert.equal(malformedLegacyImport.sent, false, "malformed-legacy regression import never sends outreach");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-events.mjs",
+    orgOne.organisationId,
+    "lead.csv_import.completed",
+    "5",
+    "1",
+    "0",
+  ], { stdio: "inherit" });
+  const malformedLegacyImportReplay = await callOne("importLeads", malformedLegacyImportPayload);
+  assert.deepEqual(malformedLegacyImportReplay, malformedLegacyImport,
+    "malformed-legacy import replay returns the original committed result");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-events.mjs",
+    orgOne.organisationId,
+    "lead.csv_import.completed",
+    "5",
+    "1",
+    "0",
+  ], { stdio: "inherit" });
+  const malformedLegacyLead = (await callOne("listLeads", { organisationId: orgOne.organisationId }))
+    .leads.find((lead) => lead.id === "legacy-malformed-contact-fixture");
+  assert.ok(malformedLegacyLead, "malformed legacy lead remains visible for operator review");
+  assert.equal(malformedLegacyLead.email, "", "non-string legacy email is not exposed in the list response");
+  assert.equal(malformedLegacyLead.website, "", "non-string legacy website is not exposed in the list response");
+  assert.equal(malformedLegacyLead.doNotContact, true, "malformed legacy lead remains suppressed");
+  assert.equal(malformedLegacyLead.contactReviewStatus, "pending", "malformed legacy lead remains pending review");
+  assert.equal(malformedLegacyLead.contactRestrictionVerified, false,
+    "malformed legacy lead cannot be treated as contact-verified");
+
   const importedLeads = (await callOne("listLeads", { organisationId: orgOne.organisationId })).leads;
   for (const importedName of ["Synthetic Imported Alpha Ltd", "Synthetic Imported Beta Ltd"]) {
     const imported = importedLeads.find((lead) => lead.businessName === importedName);

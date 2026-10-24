@@ -1,3 +1,12 @@
+## AutoPilot run — malformed legacy import safety regression (2026-10-24)
+
+- Verified the previous head `6fb122b55c9eef9d0dc22d25455b5a97890ca905`; Growth Engine CI run [40091962211](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40091962211) completed successfully for both frontend/emulator and Functions jobs.
+- Added an emulator-only malformed legacy lead fixture with non-string contact/canonical-key fields. The smoke test checks that a separate valid import succeeds, audit metadata records only aggregate counts, idempotent replay adds no second audit event, malformed fields are serialized safely, and the legacy lead stays suppressed/pending review.
+- At the time of this entry, CI for the new code/test head still needs its own verification; the prior green run does not validate this change.
+- Keep all fixtures restricted to the local `demo-growth-engine-test` Firestore emulator. Legacy mixed-case duplicates still require a reviewed dry-run/backfill before complete legacy coverage can be claimed. Production blockers remain unchanged; no deployment or outreach is authorized.
+
+---
+
 ## AutoPilot run — legacy duplicate fallback regression verified (2026-10-24)
 
 - Verified the repository and active branch: `Saanwar2002/AnyTrader-Growth-Engine`, `development/next-phase`. PR #10 remains open, draft, and unmerged. No merge, deployment, production data access, or outreach sending occurred.
