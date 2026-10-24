@@ -56,10 +56,9 @@ describe("bounded read-only lead identifier audit coordinator", () => {
   });
 
   it("rejects repeated cursors rather than looping forever", async () => {
-    const fetchPage = vi.fn().mockResolvedValue({
-      records: [{ id: "a" }],
-      nextCursor: "same",
-    });
+    const fetchPage = vi.fn()
+      .mockResolvedValueOnce({ records: [{ id: "a" }], nextCursor: "same" })
+      .mockResolvedValueOnce({ records: [{ id: "b" }], nextCursor: "same" });
     await expect(runBoundedLeadIdentifierAudit({
       tenantId: "tenant-1", pageSize: 1, maxRecords: 5, dryRun: true, fetchPage,
     })).rejects.toThrow("repeated cursor");
@@ -100,6 +99,25 @@ describe("bounded read-only lead identifier audit coordinator", () => {
       tenantId: "tenant-1", pageSize: 10, maxRecords: 5, dryRun: true,
       fetchPage: fetchMissingRecordId,
     })).rejects.toThrow("malformed record");
+  });
+
+  it("rejects duplicate record IDs within a single page", async () => {
+    const fetchPage = vi.fn().mockResolvedValue({
+      records: [{ id: "same", email: "first@example.test" }, { id: "same", email: "second@example.test" }],
+    });
+    await expect(runBoundedLeadIdentifierAudit({
+      tenantId: "tenant-1", pageSize: 10, maxRecords: 5, dryRun: true, fetchPage,
+    })).rejects.toThrow("duplicate record ID");
+  });
+
+  it("rejects overlapping records across pages instead of inflating the audit report", async () => {
+    const fetchPage = vi.fn()
+      .mockResolvedValueOnce({ records: [{ id: "a", email: "a@example.test" }], nextCursor: "next" })
+      .mockResolvedValueOnce({ records: [{ id: "a", email: "a@example.test" }] });
+    await expect(runBoundedLeadIdentifierAudit({
+      tenantId: "tenant-1", pageSize: 10, maxRecords: 5, dryRun: true, fetchPage,
+    })).rejects.toThrow("duplicate record ID");
+    expect(fetchPage).toHaveBeenCalledTimes(2);
   });
 
   it("rejects adapters that violate the requested page size", async () => {

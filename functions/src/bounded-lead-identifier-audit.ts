@@ -49,6 +49,7 @@ export async function runBoundedLeadIdentifierAudit(
 
   const records: LegacyLeadRecord[] = [];
   const seenCursors = new Set<string>();
+  const seenRecordIds = new Set<string>();
   let cursor: string | undefined;
   let pagesRead = 0;
   let hasMore = false;
@@ -79,6 +80,12 @@ export async function runBoundedLeadIdentifierAudit(
       || !record.id.trim()
     ))) {
       throw new Error("Lead audit page adapter returned a malformed record.");
+    }
+    for (const record of page.records) {
+      if (seenRecordIds.has(record.id)) {
+        throw new Error("Lead audit pagination returned a duplicate record ID.");
+      }
+      seenRecordIds.add(record.id);
     }
     records.push(...page.records);
 
