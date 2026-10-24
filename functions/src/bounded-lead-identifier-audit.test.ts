@@ -63,6 +63,22 @@ describe("bounded read-only lead identifier audit coordinator", () => {
     expect(fetchPage).toHaveBeenCalledTimes(1);
   });
 
+  it("rejects malformed page objects and continuation cursors", async () => {
+    const fetchNullPage = vi.fn().mockResolvedValue(null);
+    await expect(runBoundedLeadIdentifierAudit({
+      tenantId: "tenant-1", pageSize: 10, maxRecords: 5, dryRun: true,
+      fetchPage: fetchNullPage,
+    })).rejects.toThrow("invalid page or records collection");
+
+    const fetchInvalidCursor = vi.fn().mockResolvedValue({
+      records: [{ id: "a" }], nextCursor: 123,
+    });
+    await expect(runBoundedLeadIdentifierAudit({
+      tenantId: "tenant-1", pageSize: 10, maxRecords: 5, dryRun: true,
+      fetchPage: fetchInvalidCursor,
+    })).rejects.toThrow("invalid continuation cursor");
+  });
+
   it("rejects adapters that violate the requested page size", async () => {
     const fetchPage = vi.fn().mockResolvedValue({
       records: [{ id: "a" }, { id: "b" }],
