@@ -1,7 +1,22 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { validateDeploymentProject } from "./guard-firebase-deploy.mjs";
 
 describe("Firebase deployment project guard", () => {
+  it("installs the project guard for both Functions and Firestore-only deployments", () => {
+    const config = JSON.parse(readFileSync(
+      fileURLToPath(new URL("../firebase.json", import.meta.url)),
+      "utf8",
+    )) as {
+      functions?: { predeploy?: string[] };
+      firestore?: { predeploy?: string[] };
+    };
+
+    expect(config.functions?.predeploy).toContain("node scripts/guard-firebase-deploy.mjs");
+    expect(config.firestore?.predeploy).toContain("node scripts/guard-firebase-deploy.mjs");
+  });
+
   it("requires an explicit approved Growth Engine project ID", () => {
     expect(validateDeploymentProject({ GCLOUD_PROJECT: "growth-prod-123" })).toMatchObject({
       ok: false,
