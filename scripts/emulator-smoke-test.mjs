@@ -314,6 +314,31 @@ try {
   assert.equal(importResult.imported, 2, "CSV import persists unique, valid rows");
   assert.equal(importResult.duplicatesSkipped, 2, "CSV import skips in-batch and existing-record duplicates");
   assert.equal(importResult.sent, false, "CSV import never sends outreach");
+
+  // Case-only email/hostname differences should deduplicate, but URL path case must survive.
+  const canonicalImport = await callOne("importLeads", {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    idempotencyKey: "csv-import-canonical-ids-0001",
+    leads: [
+      { businessName: "Canonical Email First Ltd", email: "CaseSensitive@Example.test" },
+      { businessName: "Canonical Email Duplicate Ltd", email: "casesensitive@example.test" },
+      { businessName: "Canonical URL Host First Ltd", website: "HTTPS://CASE.example.test/CasePath" },
+      { businessName: "Canonical URL Host Duplicate Ltd", website: "https://case.example.test/CasePath" },
+      { businessName: "Case-Sensitive URL Path Ltd", website: "https://case.example.test/casepath" },
+    ],
+  });
+  assert.equal(canonicalImport.imported, 3,
+    "canonical import skips email and URL host case duplicates but preserves distinct URL path case");
+  assert.equal(canonicalImport.duplicatesSkipped, 2,
+    "canonical import reports case-only email and same-path website duplicates");
+  const canonicalLeads = (await callOne("listLeads", { organisationId: orgOne.organisationId })).leads;
+  const canonicalEmailLead = canonicalLeads.find((lead) => lead.businessName === "Canonical Email First Ltd");
+  assert.equal(canonicalEmailLead?.email, "casesensitive@example.test",
+    "new email identifiers are stored in lowercase canonical form");
+  const canonicalWebsiteLead = canonicalLeads.find((lead) => lead.businessName === "Canonical URL Host First Ltd");
+  assert.equal(canonicalWebsiteLead?.website, "https://case.example.test/CasePath",
+    "website hostname is lowercased while path case is preserved");
   const importedLeads = (await callOne("listLeads", { organisationId: orgOne.organisationId })).leads;
   for (const importedName of ["Synthetic Imported Alpha Ltd", "Synthetic Imported Beta Ltd"]) {
     const imported = importedLeads.find((lead) => lead.businessName === importedName);
