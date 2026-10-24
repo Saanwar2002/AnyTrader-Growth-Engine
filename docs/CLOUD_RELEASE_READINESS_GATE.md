@@ -12,6 +12,7 @@ This checklist is a human-operated release gate for enabling the Growth Engine c
 - [ ] Confirm the intended branch, PR diff, reviewers, and CI run SHA match.
 - [ ] Confirm all required CI jobs have completed successfully, including frontend typecheck/tests/build, Functions tests/build, dependency advisory checks, and emulator integration smoke tests.
 - [ ] Review all open security and readiness PRs for overlap and dependencies before merging. Do not merge a draft merely because CI is green.
+- [ ] After each explicitly approved integration step, run and inspect CI against the resulting combined branch/head SHA; individual PR green checks are not sufficient evidence that overlapping changes work together. Re-run affected security-contract and emulator tests after integrating shared backend or configuration files.
 - [ ] Confirm no secrets, service-account keys, real lead/contact data, or local environment files are tracked.
 
 ## Gate 1 — dedicated Firebase project
