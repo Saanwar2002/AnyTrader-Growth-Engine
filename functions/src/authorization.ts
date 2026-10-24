@@ -126,7 +126,16 @@ export function isSafeWebsiteAddress(value: string): boolean {
 }
 
 export function isValidEmailAddress(value: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  if (value.length === 0 || value.length > 254 || /\s/.test(value)) return false;
+  const parts = value.split("@");
+  if (parts.length !== 2) return false;
+  const [local, domain] = parts;
+  if (local.length === 0 || local.length > 64 || local.startsWith(".") || local.endsWith(".") || local.includes("..")) return false;
+  if (!/^[A-Za-z0-9.!#$%&'*+/=?^_{}|~-]+$/.test(local)) return false;
+  const labels = domain.split(".");
+  if (labels.length < 2 || labels.some((label) => label.length === 0 || label.length > 63
+    || !/^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$/.test(label))) return false;
+  return /^[A-Za-z]{2,63}$/.test(labels[labels.length - 1]);
 }
 
 
