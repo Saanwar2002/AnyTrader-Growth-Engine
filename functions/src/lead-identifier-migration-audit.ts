@@ -90,12 +90,12 @@ export function auditLeadIdentifierRecords(records: readonly LegacyLeadRecord[])
 
   report.emailCollisions = [...emailGroups.entries()]
     .filter(([, ids]) => ids.length > 1)
-    .map(([canonicalKey, ids]) => ({ identifierType: "email", canonicalKey, leadIds: [...ids].sort() }))
-    .sort((a, b) => a.canonicalKey.localeCompare(b.canonicalKey));
+    .map(([key, ids]) => ({ identifierType: "email", canonicalKeyFingerprint: createHash("sha256").update(key).digest("hex"), leadIds: [...ids].sort() }))
+    .sort((a, b) => a.canonicalKeyFingerprint.localeCompare(b.canonicalKeyFingerprint));
   report.websiteCollisions = [...websiteGroups.entries()]
     .filter(([, ids]) => ids.length > 1)
-    .map(([canonicalKey, ids]) => ({ identifierType: "website", canonicalKey, leadIds: [...ids].sort() }))
-    .sort((a, b) => a.canonicalKey.localeCompare(b.canonicalKey));
+    .map(([key, ids]) => ({ identifierType: "website", canonicalKeyFingerprint: createHash("sha256").update(key).digest("hex"), leadIds: [...ids].sort() }))
+    .sort((a, b) => a.canonicalKeyFingerprint.localeCompare(b.canonicalKeyFingerprint));
 
   for (const field of [
     report.missingEmailKeys,
