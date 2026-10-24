@@ -103,3 +103,8 @@ The local demo is not a secure multi-user service. It uses browser localStorage,
 - Keep synthetic fixtures clearly labelled as fictional.
 - Use server-side permission checks for all privileged operations; the initial callable Functions scaffold checks Firebase Auth context and organisation membership.
 - Use a separate Firebase project for Growth Engine; never reuse production AnyTrader credentials or databases.
+
+
+## Firebase deployment safety gate
+
+Firebase CLI deployments are blocked unless `GROWTH_ENGINE_FIREBASE_PROJECT_ID` explicitly names the approved Growth Engine project and Firebase CLI supplies a matching `GCLOUD_PROJECT`. The guard rejects missing values, mismatched targets, and `demo-*` emulator project IDs before the Functions predeploy build. Set both values only after creating and reviewing the dedicated Growth Engine Firebase project; never set the expected ID to the production AnyTrader project. This is a guard against accidental target selection, not proof that the project is correctly secured or that App Check has been verified.
