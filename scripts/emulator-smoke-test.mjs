@@ -345,7 +345,7 @@ try {
     orgOne.organisationId,
     campaignOne.campaignId,
   ], { stdio: "inherit" });
-  const legacyFallbackImport = await callOne("importLeads", {
+  const legacyFallbackPayload = {
     organisationId: orgOne.organisationId,
     campaignId: campaignOne.campaignId,
     idempotencyKey: "csv-import-legacy-exact-fallback-0001",
@@ -363,11 +363,26 @@ try {
         website: "HTTPS://LEGACY-EXACT.example.test/LegacyPath",
       },
     ],
-  });
+  };
+  const legacyFallbackImport = await callOne("importLeads", legacyFallbackPayload);
   assert.equal(legacyFallbackImport.imported, 0,
     "CSV import must not duplicate legacy records without canonical keys when the exact legacy field matches");
   assert.equal(legacyFallbackImport.duplicatesSkipped, 2,
     "exact-value legacy email and website fallbacks must both detect duplicates");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-events.mjs",
+    orgOne.organisationId,
+    "lead.csv_import.completed",
+    "4",
+    "0",
+    "2",
+  ], { stdio: "inherit" });
+  const legacyFallbackReplay = await callOne("importLeads", legacyFallbackPayload);
+  assert.deepEqual(
+    legacyFallbackReplay,
+    legacyFallbackImport,
+    "replaying a duplicate-only legacy fallback import returns the committed zero-import result",
+  );
   execFileSync(process.execPath, [
     "functions/scripts/assert-emulator-audit-events.mjs",
     orgOne.organisationId,
