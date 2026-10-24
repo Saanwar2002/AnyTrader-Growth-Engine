@@ -620,7 +620,7 @@ export const importLeads = onCall(async (request) => {
   const seenBusinesses = new Set<string>();
   const prepared = rows.map(({ fields }) => {
     const emailKey = fields.email.toLowerCase();
-    const websiteKey = fields.website.toLowerCase().replace(/\/$/, "");
+    const websiteKey = fields.website.replace(/\/$/, "");
     const businessKey = `${fields.businessName.toLowerCase()}|${fields.location.toLowerCase()}`;
     const duplicateInBatch = Boolean(
       (emailKey && seenEmails.has(emailKey))
