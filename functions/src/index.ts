@@ -694,6 +694,7 @@ export const importLeads = onCall(async (request) => {
         || (savedResult.duplicatesSkipped as number) < 0
         || (savedResult.imported as number) + (savedResult.duplicatesSkipped as number) !== prepared.length
         || !validSavedLeads
+        || !Array.isArray(savedLeads)
         || savedLeads.length !== savedResult.imported
         || savedResult.sent !== false
         || savedResult.messageSentByThisAction !== false) {
