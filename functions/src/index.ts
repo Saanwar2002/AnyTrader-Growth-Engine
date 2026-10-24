@@ -675,7 +675,35 @@ export const importLeads = onCall(async (request) => {
       if (saved.requestHash !== requestHash || !saved.result || typeof saved.result !== "object") {
         throw new HttpsError("already-exists", "This idempotencyKey was already used with a different import payload.");
       }
-      return saved.result as {
+      const savedResult = saved.result as Record<string, unknown>;
+      const savedLeads = savedResult.leads;
+      const validSavedLeads = Array.isArray(savedLeads)
+        && savedLeads.every((lead) => lead !== null
+          && typeof lead === "object"
+          && !Array.isArray(lead)
+          && isValidDocumentId((lead as Record<string, unknown>).leadId)
+          && typeof (lead as Record<string, unknown>).businessName === "string"
+          && (lead as Record<string, unknown>).businessName.length > 0);
+      if (saved.actorUid !== uid
+        || savedResult.organisationId !== organisationId
+        || savedResult.campaignId !== campaignId
+        || savedResult.received !== prepared.length
+        || !Number.isSafeInteger(savedResult.imported)
+        || (savedResult.imported as number) < 0
+        || !Number.isSafeInteger(savedResult.duplicatesSkipped)
+        || (savedResult.duplicatesSkipped as number) < 0
+        || (savedResult.imported as number) + (savedResult.duplicatesSkipped as number) !== prepared.length
+        || !validSavedLeads
+        || savedLeads.length !== savedResult.imported
+        || savedResult.sent !== false
+        || savedResult.messageSentByThisAction !== false) {
+        throw new HttpsError("failed-precondition", "Saved import retry state is invalid and requires operator review.");
+      }
+      const replayCampaignSnapshot = await transaction.get(campaignRef);
+      if (!replayCampaignSnapshot.exists) {
+        throw new HttpsError("failed-precondition", "The campaign for this import retry is no longer available.");
+      }
+      return savedResult as {
         organisationId: string;
         campaignId: string;
         received: number;
