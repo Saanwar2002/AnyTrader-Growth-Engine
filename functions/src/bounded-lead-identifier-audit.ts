@@ -69,6 +69,9 @@ export async function runBoundedLeadIdentifierAudit(
     records.push(...page.records);
 
     const nextCursor = page.nextCursor || undefined;
+    if (page.records.length === 0 && nextCursor) {
+      throw new Error("Lead audit pagination returned an empty page with a continuation cursor.");
+    }
     hasMore = Boolean(nextCursor);
     if (!hasMore || records.length >= options.maxRecords) break;
     if (seenCursors.has(nextCursor!)) {
