@@ -336,6 +336,19 @@ describe("membership record validation", () => {
     expect(isValidMembershipRecord({ role: "member" }, "user-1")).toBe(false);
     expect(isValidMembershipRecord(null, "user-1")).toBe(false);
     expect(isValidMembershipRecord([], "user-1")).toBe(false);
+
+    const inheritedIdentity = Object.create({ uid: "user-1", role: "owner" }) as Record<string, unknown>;
+    expect(isValidMembershipRecord(inheritedIdentity, "user-1")).toBe(false);
+
+    const inheritedUid = Object.create({ uid: "user-1" }) as Record<string, unknown>;
+    inheritedUid.role = "admin";
+    expect(isValidMembershipRecord(inheritedUid, "user-1")).toBe(false);
+
+    const ownFieldsOnNullPrototype = Object.assign(Object.create(null) as Record<string, unknown>, {
+      uid: "user-1",
+      role: "member",
+    });
+    expect(isValidMembershipRecord(ownFieldsOnNullPrototype, "user-1")).toBe(true);
   });
 });
 
