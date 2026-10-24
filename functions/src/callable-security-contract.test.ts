@@ -86,8 +86,9 @@ describe("callable security contract", () => {
   });
 
   it("stores canonical duplicate identifiers and uses bounded lookups without lowercasing URL paths", () => {
-    expect(callableSource).toContain("const dedupeEmailKey = email;");
-    expect(callableSource).toContain("const dedupeWebsiteKey = website;");
+    expect(callableSource).toContain("const dedupeEmailKey = canonicalLeadEmailKey(email);");
+    expect(callableSource).toContain("canonicalLeadEmailKey, canonicalLeadWebsiteKey");
+    expect(callableSource).toContain("const dedupeWebsiteKey = canonicalLeadWebsiteKey(website);");
     expect(callableSource).toContain('leadsRef.where("dedupeEmailKey", "==", email).limit(1)');
     expect(callableSource).toContain('leadsRef.where("dedupeWebsiteKey", "==", website).limit(1)');
     expect(callableSource).toContain('leadsRef.where("email", "==", email).limit(1)');
