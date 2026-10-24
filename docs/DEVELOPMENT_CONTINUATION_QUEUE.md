@@ -1145,3 +1145,12 @@ Continue the callable authorization audit and integration-test reliability work;
 - CI run 40082371134 on an earlier head passed Functions authorization tests/build and frontend typecheck, unit tests, and production build, but its emulator smoke step was cancelled after a newer push. This does not verify the current head.
 - Exact current code head before this tracking update: 310289e739ef31faef2767eebcb87e1f9741c079; check the newest CI run for final results. Do not infer success while checks are pending or cancelled.
 - PR #10 remains open, draft, and unmerged. All work remains on development/next-phase; no merge, deployment, production Firebase access, secrets, billing, or live outreach changes.
+
+
+## AutoPilot continuation — accessor failure hardening (2026-10-24, follow-up)
+
+- The latest CI run on commit 3629028bb884598ca414fa2918a721e3d548390a completed later than the prior checkpoint: run 40082659004 was fully green, including frontend typecheck, unit tests, production build, emulator smoke tests, Functions authorization tests/build, and dependency audits. This verified the code head ecf31e2d0a27a3d8f23fc00b19aa071e1c951e4c, not subsequent commits.
+- Hardened organisation-owner membership validation against a role accessor that changes/throws on a second read; added a regression test. Commits c3d924e938f735e787e62117d500dfeafbb78de7 and 3629028bb884598ca414fa2918a721e3d548390a.
+- Hardened Firestore timestamp cursor validation so a throwing toMillis property getter fails closed; added a regression test. Commits 2d64b20a4ac55cfc553d89aeac009671ee12a1de and 44b505bd62d61ea77b6c7fc448cd13932ec74cc2.
+- CI run 40083358789 was started for commit 3629028bb884598ca414fa2918a721e3d548390a and was still in progress at last check. The latest timestamp changes have not yet been verified by CI; check the exact current head and its workflow before claiming success.
+- PR #10 remains open, draft, and unmerged. Continue only on development/next-phase. No merge, deployment, live outreach, production Firebase access, secrets, billing, or branch-protection changes.
