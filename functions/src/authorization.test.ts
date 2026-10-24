@@ -742,3 +742,37 @@ describe("callable rate-limit coverage guard", () => {
     }
   });
 });
+
+describe("contact-review lifecycle truth table", () => {
+  it.each([
+    [false, undefined, true],
+    [false, "cleared", true],
+    [false, "pending", false],
+    [false, "blocked", false],
+    [false, null, false],
+    [false, "unknown", false],
+    [false, 0, false],
+    [true, undefined, false],
+    [true, "cleared", false],
+    [true, "pending", false],
+    [true, "blocked", false],
+    [undefined, "cleared", false],
+    [null, undefined, false],
+    ["false", "cleared", false],
+    [0, "cleared", false],
+  ])("allows contact only for an explicit cleared state (restriction=%j, review=%j)", (doNotContact, reviewStatus, expected) => {
+    expect(canMarkLeadContacted(doNotContact, reviewStatus)).toBe(expected);
+    expect(canCreateServerOutreachDraft(doNotContact, reviewStatus)).toBe(expected);
+  });
+
+  it("never normalises malformed or contradictory legacy restrictions to cleared", () => {
+    for (const malformedRestriction of [undefined, null, "false", 0, 1, {}, []]) {
+      expect(normaliseContactReviewStatus(malformedRestriction, "cleared")).toBe("pending");
+    }
+    expect(normaliseContactReviewStatus(true, "cleared")).toBe("blocked");
+    expect(normaliseContactReviewStatus(false, "pending")).toBe("pending");
+    expect(normaliseContactReviewStatus(false, "blocked")).toBe("blocked");
+    expect(normaliseContactReviewStatus(false, "cleared")).toBe("cleared");
+    expect(normaliseContactReviewStatus(false, undefined)).toBe("cleared");
+  });
+});
