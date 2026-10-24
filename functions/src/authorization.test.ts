@@ -379,6 +379,7 @@ describe("membership record validation", () => {
   });
 });
 
+describe("malformed membership accessors", () => {
   it("fails closed when persisted membership identity or role accessors throw", () => {
     const throwingUid = Object.defineProperty({ role: "owner" }, "uid", {
       enumerable: true,
@@ -391,7 +392,8 @@ describe("membership record validation", () => {
     expect(isValidMembershipRecord(throwingUid, "user-1")).toBe(false);
     expect(isValidMembershipRecord(throwingRole, "user-1")).toBe(false);
   });
-  
+});
+
 describe("organisation membership role integrity", () => {
   it("requires owner-role membership to match the parent organisation owner", () => {
     expect(isValidMembershipForOrganisation({ uid: "user-1", role: "owner" }, "user-1", "user-1")).toBe(true);
