@@ -29,8 +29,8 @@ const expectedRateLimitType: Record<string, "read" | "mutation"> = {
 describe("callable security contract", () => {
   it("enforces App Check on every deployed callable and only bypasses it in the Functions emulator", () => {
     expect(callableSource).toContain('const callableOptions = { enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true" }');
-    expect(callableSource.match(/= onCall\\(callableOptions, async \\(request\\) => \\{/g) ?? []).toHaveLength(16);
-    expect(callableSource).not.toMatch(/= onCall\\(async \\(request\\) => \\{/);
+    expect((callableSource.match(/= onCall\(callableOptions, async \(request\) => \{/g) ?? [])).toHaveLength(16);
+    expect(callableSource.includes("= onCall(async (request) => {")).toBe(false);
   });
 
   it("enforces an event-specific audit metadata allow-list and resource mapping", () => {
