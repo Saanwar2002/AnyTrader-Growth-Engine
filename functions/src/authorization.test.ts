@@ -605,6 +605,24 @@ describe("server-side rate-limit evaluation", () => {
   it("resets after the window expires", () => {
     expect(evaluateRateLimit({ windowStartedAtMs: 1000, count: 2 }, 61000, 2, 60000).nextState).toEqual({ windowStartedAtMs: 61000, count: 1 });
   });
+  it("fails closed when malformed persisted quota accessors throw", () => {
+    const throwingStart = Object.defineProperty({ count: 1 }, "windowStartedAtMs", {
+      enumerable: true,
+      get() { throw new Error("malformed legacy quota start"); },
+    });
+    const throwingCount = Object.defineProperty({ windowStartedAtMs: 1000 }, "count", {
+      enumerable: true,
+      get() { throw new Error("malformed legacy quota count"); },
+    });
+    for (const state of [throwingStart, throwingCount]) {
+      expect(evaluateRateLimit(state, 2000, 3, 60000)).toEqual({
+        allowed: false,
+        invalidState: true,
+        nextState: null,
+        retryAfterMs: 0,
+      });
+    }
+  });
   it("does not reset early when the local clock moves backwards", () => {
     expect(evaluateRateLimit({ windowStartedAtMs: 10000, count: 2 }, 9000, 2, 60000)).toEqual({ allowed: false, invalidState: false, nextState: null, retryAfterMs: 61000 });
   });
