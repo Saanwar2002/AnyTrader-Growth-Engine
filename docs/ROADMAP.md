@@ -27,8 +27,8 @@
 - [x] Add deny-by-default Firestore rules, strict server input/role guards, and emulator configuration.
 - [ ] Create/configure a dedicated Growth Engine Firebase project; do not reuse AnyTrader production.
 - [x] Add email/password sign-in, account creation, sign-out, and a Firebase-config-gated cloud workspace UI.
-- [ ] Run callable functions and Firestore rules against Firebase Emulator Suite.
-- [ ] Add emulator-backed tests for unauthenticated requests, non-member access, role escalation, and cross-tenant isolation.
+- [x] Run callable functions and Firestore rules against Firebase Emulator Suite in CI using the local Firebase Emulator Suite; the dedicated project is still not configured.
+- [x] Add emulator-backed tests for unauthenticated requests, non-member access, role escalation, and cross-tenant isolation; continue adding targeted regressions as new workflows are introduced.
 - [x] Scaffold environment-gated Firebase client setup and a typed callable API adapter with unit tests.
 - [x] Connect core organisation, campaign, lead, suppression, and draft workflows through the typed API adapter; keep local demo mode separate.
 - [ ] Complete App Check strategy/enforcement, durable audit-event policy, and safe error-handling review before external exposure; rate limiting is implemented with provisional quotas.
