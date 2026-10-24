@@ -69,6 +69,15 @@ export async function runBoundedLeadIdentifierAudit(
     if (page.records.length > Math.min(options.pageSize, remaining)) {
       throw new Error("Lead audit page exceeded the requested page limit.");
     }
+    if (page.records.some((record) => (
+      !record
+      || typeof record !== "object"
+      || Array.isArray(record)
+      || typeof record.id !== "string"
+      || !record.id.trim()
+    ))) {
+      throw new Error("Lead audit page adapter returned a malformed record.");
+    }
     records.push(...page.records);
 
     const nextCursor = page.nextCursor || undefined;

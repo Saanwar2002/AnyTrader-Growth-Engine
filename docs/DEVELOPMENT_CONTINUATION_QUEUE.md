@@ -1,3 +1,12 @@
+## AutoPilot run — malformed legacy import regression verified (2026-10-24)
+
+- The malformed-legacy import fixture and audit-event assertions were added in commit `63fb24943043fd170f052f372d4e8fb6fced2481`. Initial CI runs exposed an overly strict aggregate-count assertion; commit `14cc0c286559e5ec2b976bde9272aa1a68c39e04` corrected the helper without changing import behaviour.
+- CI runs [40092440423](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40092440423) and [40092444096](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40092444096) completed successfully on the corrected head; both frontend/emulator and Functions jobs passed.
+- The emulator now proves malformed legacy contact/key types do not block a distinct valid import, audit events contain aggregate metadata only, replay does not create a second event, and malformed legacy contact fields remain suppressed/pending review.
+- Next safe batch: reject malformed record entries from the bounded audit adapter instead of allowing null/missing-ID records to fail later inside the analyzer. Legacy mixed-case duplicate backfill and production controls remain gated on review and the separate Firebase project.
+
+---
+
 ## AutoPilot run — CSV audit assertion corrected for repeated aggregate counts (2026-10-24)
 
 - CI runs [40092254379](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40092254379) and [40092258779](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40092258779) failed in the emulator smoke step; both Functions jobs passed.
