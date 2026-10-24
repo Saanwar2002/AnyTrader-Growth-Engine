@@ -567,6 +567,30 @@ it("binds CSV import idempotency to tenant, actor, and normalized payload", () =
 });
 
 
+describe("manual lead creation idempotency replay integrity", () => {
+  it("validates the saved response and authoritative lead and campaign before replay", () => {
+    const start = callableSource.indexOf("export const createLead = onCall(");
+    const end = callableSource.indexOf("export const ", start + 1);
+    const body = callableSource.slice(start, end < 0 ? callableSource.length : end);
+    const replayCheck = body.indexOf("if (idempotencySnapshot.exists)");
+    const savedValidation = body.indexOf("Saved lead retry state is invalid");
+    const leadRead = body.indexOf("transaction.get(replayLeadRef)");
+    const campaignRead = body.indexOf("transaction.get(campaignRef)", replayCheck);
+    const replayReturn = body.indexOf("return savedResult as {", replayCheck);
+
+    expect(replayCheck).toBeGreaterThanOrEqual(0);
+    expect(body).toContain("saved.actorUid !== uid");
+    expect(body).toContain("isValidDocumentId(savedLeadId)");
+    expect(body).toContain("Saved lead retry state no longer matches its authoritative records");
+    expect(savedValidation).toBeGreaterThan(replayCheck);
+    expect(leadRead).toBeGreaterThan(savedValidation);
+    expect(campaignRead).toBeGreaterThan(replayCheck);
+    expect(replayReturn).toBeGreaterThan(leadRead);
+    expect(body).toContain('replayLead.createdBy !== uid');
+    expect(body).toContain('replayLead.campaignId !== campaignId');
+  });
+});
+
 describe("server-side business/location duplicate protection", () => {
   it("persists canonical business/location keys and checks bounded existing-record queries", () => {
     expect(callableSource).toContain("canonicalLeadBusinessLocationKey(businessName, location)");
