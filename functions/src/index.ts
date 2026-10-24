@@ -383,7 +383,9 @@ export const createOrganisation = onCall(async (request) => {
         transaction.get(savedMembershipRef),
       ]);
       if (!savedOrganisation.exists || savedOrganisation.data()?.ownerUid !== uid
-        || !savedMembership.exists || savedMembership.data()?.uid !== uid || savedMembership.data()?.role !== "owner") {
+        || !savedMembership.exists
+        || !isValidMembershipForOrganisation(savedMembership.data(), uid, savedOrganisation.data()?.ownerUid)
+        || savedMembership.data()?.role !== "owner") {
         throw new HttpsError("failed-precondition", "The organisation created by this request is no longer available to its original owner.");
       }
       return savedResult as { organisationId: string; name: string; role: "owner" };
