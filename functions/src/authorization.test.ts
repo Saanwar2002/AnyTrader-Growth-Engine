@@ -146,11 +146,13 @@ describe("server outreach safeguards", () => {
     expect(isValidEmailAddress("not-an-email")).toBe(false);
     expect(isValidEmailAddress("a@b")).toBe(false);
     expect(isValidEmailAddress("x @example.com")).toBe(false);
-    expect(isValidEmailAddress("hello..world@example.com")).toBe(true); // syntactic guard only; deliverability is not verified here.
     expect(isValidEmailAddress("@example.com")).toBe(false);
-    expect(isValidEmailAddress("hello@example..com")).toBe(true); // domain policy belongs to a separate validation layer.
+    expect(isValidEmailAddress("hello..world@example.com")).toBe(false);
+    expect(isValidEmailAddress("hello@example..com")).toBe(false);
     expect(isValidEmailAddress("hello@example.com\nBcc:other@example.com")).toBe(false);
-    expect(isValidEmailAddress("hello@example.com.")).toBe(true); // validator intentionally remains a lightweight syntax check.
+    expect(isValidEmailAddress("hello@example.com.")).toBe(false);
+    expect(isValidEmailAddress("hello@-example.com")).toBe(false);
+    expect(isValidEmailAddress("hello@example-.com")).toBe(false);
   });
 });
 
