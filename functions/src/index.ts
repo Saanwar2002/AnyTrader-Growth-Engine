@@ -284,7 +284,12 @@ function normaliseLeadFields(data: Record<string, unknown>) {
     if (!hasScheme && path === "" && !parsed.search && !parsed.hash) website = parsed.hostname;
   }
   const email = rawEmail.toLowerCase();
-  return { businessName, category, location, website, email, phone };
+  // Persist indexed canonical identifiers on every lead write path. Email matching
+  // follows this product's case-insensitive policy. Website matching lowercases
+  // only scheme/host (above); URL path casing remains significant.
+  const dedupeEmailKey = email;
+  const dedupeWebsiteKey = website;
+  return { businessName, category, location, website, email, phone, dedupeEmailKey, dedupeWebsiteKey };
 }
 export const listMyOrganisations = onCall(async (request) => {
   const uid = requireUid(request.auth?.uid);
@@ -619,8 +624,8 @@ export const importLeads = onCall(async (request) => {
   const seenWebsites = new Set<string>();
   const seenBusinesses = new Set<string>();
   const prepared = rows.map(({ fields }) => {
-    const emailKey = fields.email.toLowerCase();
-    const websiteKey = fields.website.replace(/\/$/, "");
+    const emailKey = fields.dedupeEmailKey;
+    const websiteKey = fields.dedupeWebsiteKey;
     const businessKey = `${fields.businessName.toLowerCase()}|${fields.location.toLowerCase()}`;
     const duplicateInBatch = Boolean(
       (emailKey && seenEmails.has(emailKey))
@@ -659,13 +664,21 @@ export const importLeads = onCall(async (request) => {
     const campaignSnapshot = await transaction.get(campaignRef);
     if (!campaignSnapshot.exists) throw new HttpsError("not-found", "Campaign was not found in this organisation.");
 
-    // Query only by supplied contact identifiers; never scan an unbounded tenant collection.
+    // Query only supplied identifiers; never scan an unbounded tenant collection.
+    // Canonical-key queries cover records written by this version. Exact-value
+    // fallback preserves compatibility for legacy records until the backfill runs.
     const emails = [...new Set(prepared.filter((row) => row.emailKey && !row.duplicateInBatch).map((row) => row.emailKey))];
     const websites = [...new Set(prepared.filter((row) => row.websiteKey && !row.duplicateInBatch).map((row) => row.websiteKey))];
-    const existingEmailDocs = await Promise.all(emails.map((email) => transaction.get(leadsRef.where("email", "==", email).limit(1))));
-    const existingWebsiteDocs = await Promise.all(websites.map((website) => transaction.get(leadsRef.where("website", "==", website).limit(1))));
-    const existingEmails = new Set(emails.filter((_, index) => !existingEmailDocs[index].empty));
-    const existingWebsites = new Set(websites.filter((_, index) => !existingWebsiteDocs[index].empty));
+    const existingEmailDocs = await Promise.all(emails.map((email) => Promise.all([
+      transaction.get(leadsRef.where("dedupeEmailKey", "==", email).limit(1)),
+      transaction.get(leadsRef.where("email", "==", email).limit(1)),
+    ])));
+    const existingWebsiteDocs = await Promise.all(websites.map((website) => Promise.all([
+      transaction.get(leadsRef.where("dedupeWebsiteKey", "==", website).limit(1)),
+      transaction.get(leadsRef.where("website", "==", website).limit(1)),
+    ])));
+    const existingEmails = new Set(emails.filter((_, index) => existingEmailDocs[index].some((snapshot) => !snapshot.empty)));
+    const existingWebsites = new Set(websites.filter((_, index) => existingWebsiteDocs[index].some((snapshot) => !snapshot.empty)));
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "importLeads", 10);
 
     const newLeads: Array<{ leadId: string; businessName: string }> = [];
