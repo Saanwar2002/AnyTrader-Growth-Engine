@@ -119,7 +119,7 @@ describe("server outreach safeguards", () => {
     expect(canCreateServerOutreachDraft(null)).toBe(false);
   });
 
-  it.each(["https://example.test", "http://example.test/path", "www.example.test", "example.test", ""])(
+  it.each(["https://example.test", "http://example.test/path", "https://example.test:8443/path?source=csv", "www.example.test", "example.test", ""])(
     "accepts ordinary website values: %s",
     (value) => expect(isSafeWebsiteAddress(value)).toBe(true),
   );
