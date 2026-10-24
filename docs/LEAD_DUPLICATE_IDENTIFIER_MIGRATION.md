@@ -2,19 +2,20 @@
 
 ## Current implementation
 
-Lead writes normalize email addresses to lowercase and normalize website scheme/host while preserving URL path casing. They now persist `dedupeEmailKey` and `dedupeWebsiteKey` alongside user-facing contact fields. Manual lead creation, CSV import, and contact edits all use `normaliseLeadFields`, so the keys are maintained by the shared normalization path.
+Lead writes normalize email addresses to lowercase, normalize website scheme/host while preserving URL path casing, and canonicalize the business-name/location pair. They persist `dedupeEmailKey`, `dedupeWebsiteKey`, and `dedupeBusinessLocationKey` alongside user-facing contact fields. Manual lead creation, CSV import, and contact edits all use `normaliseLeadFields`, so the keys are maintained by the shared normalization path.
 
-CSV import uses tenant-scoped, bounded equality queries against canonical keys and also exact-value equality queries against legacy `email` and `website` fields. It does not scan the organisation's entire lead collection. Single-field Firestore indexes are expected to serve these equality queries.
+CSV import uses tenant-scoped, bounded equality queries against canonical email, website, and business/location keys and exact-value fallbacks against legacy contact fields and the business-name/location pair. It does not scan the organisation's entire lead collection. Single-field Firestore indexes are expected to serve canonical-key equality queries; the legacy business-name/location fallback is a bounded compound equality query.
 
 ## Important legacy limitation
 
-The exact-value fallback protects records whose legacy values exactly match normalized incoming values. It cannot reliably find older records whose email casing or URL scheme/host casing differs, and it cannot manufacture canonical keys for old documents. Therefore **duplicate protection across all pre-existing records is not complete until a backfill has run and been verified**.
+The exact-value fallback protects records whose legacy values exactly match normalized incoming values. It cannot reliably find older records whose email casing, URL scheme/host casing, or business-name/location casing/spacing differs, and it cannot manufacture canonical keys for old documents. Therefore **duplicate protection across all pre-existing records is not complete until a backfill has run and been verified**.
 
 Do not describe the new key fields as a complete legacy deduplication solution before that backfill. Imported leads must remain suppressed and pending human review.
 
 ## Canonicalization policy
 
 - Email: trim and lowercase for matching, consistent with the application's current product policy.
+- Business/location: trim each value and lowercase each independently, then serialize the pair as a JSON tuple so delimiter characters cannot alias distinct businesses or locations.
 - Website: accept only the existing safe HTTP(S)/plain-domain forms; normalize scheme and host through URL parsing; remove the root `/` from the stored normalized form; preserve path, query, and fragment casing/content.
 - Do not lowercase a complete URL. Path segments can be case-sensitive.
 - Do not collapse a trailing slash on a non-root path: `/Directory` and `/Directory/` may be different resources.

@@ -447,6 +447,33 @@ try {
   assert.equal(malformedLegacyLead.contactRestrictionVerified, false,
     "malformed legacy lead cannot be treated as contact-verified");
 
+  // The server must reject a same-business/same-location duplicate even when contact identifiers differ.
+  const businessLocationDuplicate = await callOne("importLeads", {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    idempotencyKey: "csv-import-business-location-dup-01",
+    leads: [{
+      businessName: " synthetic imported alpha ltd ",
+      category: "Painters",
+      location: " LEEDS ",
+      email: "different-contact@example.test",
+      website: "https://different-contact.example.test",
+    }],
+  });
+  assert.equal(businessLocationDuplicate.imported, 0,
+    "canonical business/location match skips an existing lead with different contact identifiers");
+  assert.equal(businessLocationDuplicate.duplicatesSkipped, 1,
+    "server reports a business/location duplicate even when email and website differ");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-events.mjs",
+    orgOne.organisationId,
+    "lead.csv_import.completed",
+    "6",
+    "0",
+    "1",
+  ], { stdio: "inherit" });
+  console.log("PASS: server-side import deduplicates existing businesses by canonical business name and location.");
+
   const importedLeads = (await callOne("listLeads", { organisationId: orgOne.organisationId })).leads;
   for (const importedName of ["Synthetic Imported Alpha Ltd", "Synthetic Imported Beta Ltd"]) {
     const imported = importedLeads.find((lead) => lead.businessName === importedName);

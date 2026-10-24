@@ -290,7 +290,8 @@ function normaliseLeadFields(data: Record<string, unknown>) {
   // only scheme/host (above); URL path casing remains significant.
   const dedupeEmailKey = canonicalLeadEmailKey(email);
   const dedupeWebsiteKey = canonicalLeadWebsiteKey(website);
-  return { businessName, category, location, website, email, phone, dedupeEmailKey, dedupeWebsiteKey };
+  const dedupeBusinessLocationKey = canonicalLeadBusinessLocationKey(businessName, location);
+  return { businessName, category, location, website, email, phone, dedupeEmailKey, dedupeWebsiteKey, dedupeBusinessLocationKey };
 }
 export const listMyOrganisations = onCall(async (request) => {
   const uid = requireUid(request.auth?.uid);
@@ -636,7 +637,7 @@ export const importLeads = onCall(async (request) => {
     if (emailKey) seenEmails.add(emailKey);
     if (websiteKey) seenWebsites.add(websiteKey);
     seenBusinesses.add(businessKey);
-    return { fields, emailKey, websiteKey, duplicateInBatch };
+    return { fields, emailKey, websiteKey, businessKey, duplicateInBatch };
   });
 
   return db.runTransaction(async (transaction: Transaction) => {
@@ -678,14 +679,26 @@ export const importLeads = onCall(async (request) => {
       transaction.get(leadsRef.where("dedupeWebsiteKey", "==", website).limit(1)),
       transaction.get(leadsRef.where("website", "==", website).limit(1)),
     ])));
+    const businesses = [...new Map(prepared
+      .filter((row) => !row.duplicateInBatch)
+      .map((row) => [row.businessKey, row] as const)).values()];
+    const existingBusinessDocs = await Promise.all(businesses.map((row) => Promise.all([
+      transaction.get(leadsRef.where("dedupeBusinessLocationKey", "==", row.businessKey).limit(1)),
+      // Exact-value fallback supports legacy records until the canonical-key backfill is verified.
+      transaction.get(leadsRef.where("businessName", "==", row.fields.businessName)
+        .where("location", "==", row.fields.location).limit(1)),
+    ])));
     const existingEmails = new Set(emails.filter((_, index) => existingEmailDocs[index].some((snapshot) => !snapshot.empty)));
     const existingWebsites = new Set(websites.filter((_, index) => existingWebsiteDocs[index].some((snapshot) => !snapshot.empty)));
+    const existingBusinesses = new Set(businesses
+      .filter((row, index) => existingBusinessDocs[index].some((snapshot) => !snapshot.empty))
+      .map((row) => row.businessKey));
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "importLeads", 10);
 
     const newLeads: Array<{ leadId: string; businessName: string }> = [];
     let duplicateCount = 0;
     for (const row of prepared) {
-      if (row.duplicateInBatch || (row.emailKey && existingEmails.has(row.emailKey)) || (row.websiteKey && existingWebsites.has(row.websiteKey))) {
+      if (row.duplicateInBatch || (row.emailKey && existingEmails.has(row.emailKey)) || (row.websiteKey && existingWebsites.has(row.websiteKey)) || existingBusinesses.has(row.businessKey)) {
         duplicateCount += 1;
         continue;
       }
@@ -717,6 +730,7 @@ export const importLeads = onCall(async (request) => {
       newLeads.push({ leadId: leadRef.id, businessName: row.fields.businessName });
       if (row.emailKey) existingEmails.add(row.emailKey);
       if (row.websiteKey) existingWebsites.add(row.websiteKey);
+      existingBusinesses.add(row.businessKey);
     }
 
     const result = {

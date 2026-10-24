@@ -534,3 +534,18 @@ it("binds CSV import idempotency to tenant, actor, and normalized payload", () =
   expect(quotaConsume).toBeGreaterThan(campaignRead);
   expect(leadWrite).toBeGreaterThan(quotaConsume);
 });
+
+
+describe("server-side business/location duplicate protection", () => {
+  it("persists canonical business/location keys and checks bounded existing-record queries", () => {
+    expect(callableSource).toContain("canonicalLeadBusinessLocationKey(businessName, location)");
+    expect(callableSource).toContain("dedupeBusinessLocationKey");
+    const start = callableSource.indexOf("export const importLeads = onCall(");
+    const end = callableSource.indexOf("export const ", start + 1);
+    const body = callableSource.slice(start, end < 0 ? callableSource.length : end);
+    expect(body).toContain('where("dedupeBusinessLocationKey", "==", row.businessKey).limit(1)');
+    expect(body).toContain('where("businessName", "==", row.fields.businessName)');
+    expect(body).toContain('existingBusinesses.has(row.businessKey)');
+    expect(body).toContain("existingBusinesses.add(row.businessKey)");
+  });
+});
