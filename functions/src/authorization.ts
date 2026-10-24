@@ -204,13 +204,20 @@ export function isValidOrganisationPageToken(value: unknown, uid: string): value
 
 export function isValidMembershipRecord(value: unknown, expectedUid: string): boolean {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
-  const record = value as Record<string, unknown>;
-  // Membership identity and role must be stored on the record itself; inherited
-  // properties are not authoritative persisted membership fields.
-  if (!Object.prototype.hasOwnProperty.call(record, "uid")
-    || !Object.prototype.hasOwnProperty.call(record, "role")) return false;
-  const validRole = record.role === "owner" || record.role === "admin" || record.role === "member" || record.role === "viewer";
-  return record.uid === expectedUid && validRole;
+  try {
+    const record = value as Record<string, unknown>;
+    // Membership identity and role must be stored on the record itself; inherited
+    // properties are not authoritative persisted membership fields.
+    if (!Object.prototype.hasOwnProperty.call(record, "uid")
+      || !Object.prototype.hasOwnProperty.call(record, "role")) return false;
+    // Malformed accessors must not turn a legacy membership read into an exception.
+    const uid = record.uid;
+    const role = record.role;
+    const validRole = role === "owner" || role === "admin" || role === "member" || role === "viewer";
+    return uid === expectedUid && validRole;
+  } catch {
+    return false;
+  }
 }
 
 /** Validates membership role integrity against the parent organisation record. */
