@@ -37,11 +37,13 @@ export async function runBoundedLeadIdentifierAudit(
   options: BoundedLeadAuditOptions,
 ): Promise<BoundedLeadAuditResult> {
   if (options.dryRun !== true) throw new Error("Lead identifier audit must run in dry-run mode.");
-  if (!options.tenantId.trim()) throw new Error("A tenant scope is required for lead identifier audit.");
+  if (typeof options.tenantId !== "string" || !options.tenantId.trim()) {
+    throw new Error("A tenant scope is required for lead identifier audit.");
+  }
   if (!Number.isInteger(options.pageSize) || options.pageSize < 1 || options.pageSize > 500) {
     throw new Error("pageSize must be an integer between 1 and 500.");
   }
-  if (!Number.isInteger(options.maxRecords) || options.maxRecords < 1) {
+  if (!Number.isSafeInteger(options.maxRecords) || options.maxRecords < 1) {
     throw new Error("maxRecords must be a positive integer.");
   }
 
