@@ -9,7 +9,7 @@ function readerWithCounts(counts: Partial<Record<OffboardingPreviewCategory, num
   return async (category: OffboardingPreviewCategory, afterId: string | null, limit: number) => {
     const total = counts[category] ?? 0;
     const start = afterId === null ? 0 : Number(afterId.slice(1)) + 1;
-    const ids = Array.from({ length: Math.max(0, Math.min(limit, total - start)) }, (_, i) => `d${start + i}`);
+    const ids = Array.from({ length: Math.max(0, Math.min(limit, total - start)) }, (_, i) => `d${String(start + i).padStart(4, "0")}`);
     return { ids };
   };
 }
