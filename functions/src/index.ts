@@ -648,23 +648,16 @@ export const importLeads = onCall(async (request) => {
   const campaignRef = organisationRef.collection("campaigns").doc(campaignId);
   const leadsRef = organisationRef.collection("leads");
   const idempotencyRef = organisationRef.collection("importIdempotency").doc(idempotencyDocumentId);
-  const seenEmails = new Set<string>();
-  const seenWebsites = new Set<string>();
-  const seenBusinesses = new Set<string>();
-  const prepared = rows.map(({ fields }) => {
-    const emailKey = fields.dedupeEmailKey;
-    const websiteKey = fields.dedupeWebsiteKey;
-    const businessKey = canonicalLeadBusinessLocationKey(fields.businessName, fields.location);
-    const duplicateInBatch = Boolean(
-      (emailKey && seenEmails.has(emailKey))
-      || (websiteKey && seenWebsites.has(websiteKey))
-      || seenBusinesses.has(businessKey),
-    );
-    if (emailKey) seenEmails.add(emailKey);
-    if (websiteKey) seenWebsites.add(websiteKey);
-    seenBusinesses.add(businessKey);
-    return { fields, emailKey, websiteKey, businessKey, duplicateInBatch };
-  });
+  // Duplicate decisions are made in transaction order below, after checking
+  // persisted records. Do not pre-mark rows as duplicates here: an earlier row
+  // may itself be skipped due to a persisted duplicate and therefore must not
+  // reserve its otherwise-new identifiers against later valid rows.
+  const prepared = rows.map(({ fields }) => ({
+    fields,
+    emailKey: fields.dedupeEmailKey,
+    websiteKey: fields.dedupeWebsiteKey,
+    businessKey: canonicalLeadBusinessLocationKey(fields.businessName, fields.location),
+  }));
 
   return db.runTransaction(async (transaction: Transaction) => {
     // A replay returns the committed result without consuming quota or creating new records.
@@ -724,8 +717,8 @@ export const importLeads = onCall(async (request) => {
     // Query only supplied identifiers; never scan an unbounded tenant collection.
     // Canonical-key queries cover records written by this version. Exact-value
     // fallback preserves compatibility for legacy records until the backfill runs.
-    const emails = [...new Set(prepared.filter((row) => row.emailKey && !row.duplicateInBatch).map((row) => row.emailKey))];
-    const websites = [...new Set(prepared.filter((row) => row.websiteKey && !row.duplicateInBatch).map((row) => row.websiteKey))];
+    const emails = [...new Set(prepared.filter((row) => row.emailKey).map((row) => row.emailKey))];
+    const websites = [...new Set(prepared.filter((row) => row.websiteKey).map((row) => row.websiteKey))];
     const existingEmailDocs = await Promise.all(emails.map((email) => Promise.all([
       transaction.get(leadsRef.where("dedupeEmailKey", "==", email).limit(1)),
       transaction.get(leadsRef.where("email", "==", email).limit(1)),
@@ -734,9 +727,7 @@ export const importLeads = onCall(async (request) => {
       transaction.get(leadsRef.where("dedupeWebsiteKey", "==", website).limit(1)),
       transaction.get(leadsRef.where("website", "==", website).limit(1)),
     ])));
-    const businesses = [...new Map(prepared
-      .filter((row) => !row.duplicateInBatch)
-      .map((row) => [row.businessKey, row] as const)).values()];
+    const businesses = [...new Map(prepared.map((row) => [row.businessKey, row] as const)).values()];
     const existingBusinessDocs = await Promise.all(businesses.map((row) => Promise.all([
       transaction.get(leadsRef.where("dedupeBusinessLocationKey", "==", row.businessKey).limit(1)),
       // Exact-value fallback supports legacy records until the canonical-key backfill is verified.
@@ -753,7 +744,7 @@ export const importLeads = onCall(async (request) => {
     const newLeads: Array<{ leadId: string; businessName: string }> = [];
     let duplicateCount = 0;
     for (const row of prepared) {
-      if (row.duplicateInBatch || (row.emailKey && existingEmails.has(row.emailKey)) || (row.websiteKey && existingWebsites.has(row.websiteKey)) || existingBusinesses.has(row.businessKey)) {
+      if ((row.emailKey && existingEmails.has(row.emailKey)) || (row.websiteKey && existingWebsites.has(row.websiteKey)) || existingBusinesses.has(row.businessKey)) {
         duplicateCount += 1;
         continue;
       }
