@@ -33,6 +33,12 @@ describe("callable security contract", () => {
     expect(callableSource.includes("= onCall(async (request) => {")).toBe(false);
   });
 
+  it("rejects callable-specific options that omit App Check", () => {
+    // Most callables share callableOptions; inline options are allowed only when
+    // they explicitly preserve the same App Check requirement.
+    expect(callableSource).not.toMatch(/export const \\w+ = onCall\\(\\s*\\{(?![^}]*enforceAppCheck)/s);
+  });
+
   it("enforces an event-specific audit metadata allow-list and resource mapping", () => {
     expect(callableSource).toContain("const AUDIT_EVENT_RESOURCE_TYPES:");
     expect(callableSource).toContain("const AUDIT_METADATA_KEYS:");
