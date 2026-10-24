@@ -86,7 +86,11 @@ export async function createOffboardingPreview(
           categories.push({ category, status: "complete", exactCount: observedCount, observedCount });
           break;
         }
-        afterId = page.ids[page.ids.length - 1];
+        const lastId = page.ids[page.ids.length - 1];
+        if (afterId !== null && lastId === afterId) {
+          throw new Error("Pagination cursor did not advance.");
+        }
+        afterId = lastId;
       }
     } catch {
       categories.push({ category, status: "unavailable", exactCount: null, observedCount: 0 });
