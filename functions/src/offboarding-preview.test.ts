@@ -47,6 +47,16 @@ describe("non-destructive tenant offboarding preview", () => {
     });
   });
 
+  it("fails closed when a reader repeats a pagination cursor", async () => {
+    const result = await createOffboardingPreview(async (category) => ({
+      ids: category === "members" ? ["same-id"] : [],
+    }), { maxRecordsPerCategory: 2, pageSize: 1 });
+    expect(result.complete).toBe(false);
+    expect(result.categories.find((item) => item.category === "members")).toMatchObject({
+      status: "unavailable", exactCount: null,
+    });
+  });
+
   it("rejects unsafe caller-supplied bounds", async () => {
     await expect(createOffboardingPreview(readerWithCounts({}), { maxRecordsPerCategory: 0 })).rejects.toThrow();
     await expect(createOffboardingPreview(readerWithCounts({}), { pageSize: 101 })).rejects.toThrow();
