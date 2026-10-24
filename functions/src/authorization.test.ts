@@ -132,6 +132,9 @@ describe("server outreach safeguards", () => {
     "https://example.test/path with spaces",
     "https://user:password@example.test/path",
     "https://example.test@attacker.test/path",
+    "https://example.test/path\u0000suffix",
+    "https://example.test/path\nheader",
+    "https:\\\\example.test/path",
   ])("rejects unsafe or ambiguous website values: %s", (value) => {
     expect(isSafeWebsiteAddress(value)).toBe(false);
   });
