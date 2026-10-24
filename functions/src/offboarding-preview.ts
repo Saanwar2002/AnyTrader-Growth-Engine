@@ -73,6 +73,17 @@ export async function createOffboardingPreview(
           throw new Error("Malformed page result.");
         }
         if (page.ids.length > requested) throw new Error("Reader exceeded requested page bound.");
+        // The Firestore adapter orders by document ID. Require strictly
+        // increasing cursors and no duplicates so a faulty reader cannot loop
+        // forever or inflate a count with repeated records.
+        for (let index = 1; index < page.ids.length; index += 1) {
+          if (page.ids[index] <= page.ids[index - 1]) {
+            throw new Error("Page document IDs are not strictly ordered.");
+          }
+        }
+        if (afterId !== null && page.ids.length > 0 && page.ids[0] <= afterId) {
+          throw new Error("Pagination cursor did not advance.");
+        }
         if (page.ids.length > remaining) {
           categories.push({ category, status: "limit_reached", exactCount: null, observedCount: maxRecords });
           break;
