@@ -39,6 +39,7 @@
 - [x] Add cursor pagination for lead, campaign, outreach-draft, and organisation directories.
 - [x] Add idempotency protection for CSV import retries; CI and emulator smoke tests passed on head `76a45ed6c4dc8f580433bc374475773dc1235101`.
 - [x] Add idempotency protection to manual lead, campaign, and organisation creation with stable client retry keys, server-side payload binding, and atomic replay; review other mutations individually before broadening.
+- [x] Add retry-safe idempotency to outreach-draft creation with normalized-payload fingerprinting, suppression/contact-review rechecks on replay, stable client retry keys, and emulator/UI/API coverage; CI run 40042551603 passed on head `f0b9753d257ace3a7ac5cb9a66246f8f73a8df71`.
 - [x] Document proposed audit-event retention and access policy (`docs/AUDIT_EVENT_RETENTION_POLICY.md`).
 - [x] Add a minimal transactional audit event for successful CSV imports; CI passed on head `6b117e14a25dd734bc72dedd5576483da087995a`.
 - [x] Add atomic, PII-minimised audit events for lead contact edits and contact-restriction changes (CI passed on `0c7821a82cb787dea5fa7c9a3fc63a516352a899`).
