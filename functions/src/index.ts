@@ -263,7 +263,7 @@ function normaliseLeadFields(data: Record<string, unknown>) {
   const website = normaliseOptionalText(data.website, 500);
   const email = normaliseOptionalText(data.email, 254);
   const phone = normaliseOptionalText(data.phone, 80);
-  if (!businessName || category === null || location === null || website === null || email === null || phone === null) {
+  if (!businessName || category === null || location === null || rawWebsite === null || rawEmail === null || phone === null) {
     throw new HttpsError("invalid-argument", "Lead fields are missing or exceed their allowed length.");
   }
   if (website && !isSafeWebsiteAddress(website)) {
