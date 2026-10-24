@@ -1154,3 +1154,12 @@ Continue the callable authorization audit and integration-test reliability work;
 - Hardened Firestore timestamp cursor validation so a throwing toMillis property getter fails closed; added a regression test. Commits 2d64b20a4ac55cfc553d89aeac009671ee12a1de and 44b505bd62d61ea77b6c7fc448cd13932ec74cc2.
 - CI run 40083358789 was started for commit 3629028bb884598ca414fa2918a721e3d548390a and was still in progress at last check. The latest timestamp changes have not yet been verified by CI; check the exact current head and its workflow before claiming success.
 - PR #10 remains open, draft, and unmerged. Continue only on development/next-phase. No merge, deployment, live outreach, production Firebase access, secrets, billing, or branch-protection changes.
+
+
+## AutoPilot continuation — timestamp and hostile membership regression tests (2026-10-24)
+
+- Added a membership proxy regression proving that throwing own-property inspection fails closed. Commit d16074ba410dcebe2eb3c346c3e0b619aaef286e.
+- The Firestore timestamp accessor hardening and getter regression are in commits 2d64b20a4ac55cfc553d89aeac009671ee12a1de and 44b505bd62d61ea77b6c7fc448cd13932ec74cc2.
+- Earlier exact-head run 40082659004 was fully green for commit ecf31e2d0a27a3d8f23fc00b19aa071e1c951e4c. Later run 40083358789 passed Functions authorization tests/build and frontend typecheck, unit tests, production build, and dependency audit, but its emulator smoke step was cancelled after another commit arrived. These results do not verify the latest head.
+- Current code head: d16074ba410dcebe2eb3c346c3e0b619aaef286e. CI run 40083462699 is in progress; wait for final results and do not infer success from intermediate green steps.
+- PR #10 remains open, draft, and unmerged. Continue only on development/next-phase. No merge, deployment, live outreach, production Firebase access, secrets, billing, or branch-protection changes.
