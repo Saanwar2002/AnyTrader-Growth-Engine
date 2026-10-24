@@ -145,6 +145,7 @@ describe("callable security contract", () => {
     expect(body).toContain("saved.actorUid !== uid");
     expect(body).toContain("savedOrganisation.data()?.ownerUid !== uid");
     expect(body).toContain("savedMembership.data()?.role !== \"owner\"");
+    expect(body).toContain("isValidMembershipForOrganisation(savedMembership.data(), uid, savedOrganisation.data()?.ownerUid)");
     expect(body.indexOf("saved.actorUid !== uid")).toBeLessThan(body.indexOf("const savedResult = saved.result as Record<string, unknown>;"));
   });
 
