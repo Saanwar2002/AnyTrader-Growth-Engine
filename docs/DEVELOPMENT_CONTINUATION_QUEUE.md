@@ -1134,3 +1134,14 @@ Continue the callable authorization audit and integration-test reliability work;
 - Tightened the server-side email syntax guard to reject whitespace/header injection, malformed dot placement, malformed domain labels, oversized local/domain parts, and invalid top-level labels. Added invalid and valid boundary cases, including plus-addressing and subdomains. Commits: `145e3cf1b5b82e6eccc6fe3124ca1574277479e9`, `f5054a8c0d2273c0d756d1783a33cffcba2e8aa3`, `93455dc415680c05ee6274667084fc1ca0a16c72`.
 - The exact latest head is `93455dc415680c05ee6274667084fc1ca0a16c72`. CI status for this head is not yet returned by GitHub at the time of this update; prior green runs do not validate this change. Check the exact-head workflow before claiming tests pass.
 - PR #10 remains open and draft; no merge or deployment. Synthetic data only; outreach remains draft-only.
+
+
+## AutoPilot continuation — fail-closed legacy record access and validation boundaries (2026-10-24)
+
+- Added defensive handling for throwing property accessors in persisted fixed-window rate-limit state. Malformed state now returns the existing fail-closed invalid-state result rather than throwing; regression coverage checks both quota fields.
+- Added defensive handling for throwing membership uid/role accessors, with tests proving malformed membership records fail closed.
+- Expanded email validation boundary coverage for the maximum accepted 254-character address and a 255-character rejected address.
+- Relevant commits: d5fda1335d31f7d0d3855f828d390ca3c30a5e6c, 7fa862cbeac26ae7190bed216cade9a1b7f9ee8a, 85786627ffd27da8fa3ee1c97a758d68fb0c99fc, 1073150ef95495f43bbdcf4a178b5e706fd1af3c, 310289e739ef31faef2767eebcb87e1f9741c079.
+- CI run 40082371134 on an earlier head passed Functions authorization tests/build and frontend typecheck, unit tests, and production build, but its emulator smoke step was cancelled after a newer push. This does not verify the current head.
+- Exact current code head before this tracking update: 310289e739ef31faef2767eebcb87e1f9741c079; check the newest CI run for final results. Do not infer success while checks are pending or cancelled.
+- PR #10 remains open, draft, and unmerged. All work remains on development/next-phase; no merge, deployment, production Firebase access, secrets, billing, or live outreach changes.
