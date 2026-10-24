@@ -634,6 +634,8 @@ it("keeps offboarding preview owner-only, bounded, tenant-scoped, and non-destru
   expect(body).toContain('membership.role !== "owner"');
   expect(body).toContain('consumeReadRateLimit(organisationId, uid, "previewOrganisationOffboarding", 10)');
   expect(body).toContain("createOffboardingPreview(async (category, afterId, limit)");
+  expect(body).toContain("const finalMembership = await requireMembership(organisationId, uid)");
+  expect(body).toContain("if (finalMembership.role !== \"owner\")");
   expect(body).toContain("OFFBOARDING_PREVIEW_CATEGORIES");
   expect(body).toContain('db.collection("organisations").doc(organisationId)');
   expect(body).toContain(".orderBy(FieldPath.documentId())");
