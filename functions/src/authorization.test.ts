@@ -151,6 +151,10 @@ describe("server outreach safeguards", () => {
     expect(isValidEmailAddress("hello@example.co.uk")).toBe(true);
     expect(isValidEmailAddress("First.Last+tag@sub.example.co.uk")).toBe(true);
     expect(isValidEmailAddress("HELLO@EXAMPLE.COM")).toBe(true);
+    const maximumLengthDomain = "a".repeat(63) + "." + "b".repeat(63) + "." + "c".repeat(61);
+    const overMaximumLengthDomain = "a".repeat(63) + "." + "b".repeat(63) + "." + "c".repeat(62);
+    expect(isValidEmailAddress("x".repeat(64) + "@" + maximumLengthDomain)).toBe(true);
+    expect(isValidEmailAddress("x".repeat(64) + "@" + overMaximumLengthDomain)).toBe(false);
     expect(isValidEmailAddress("a".repeat(64) + "@example.com")).toBe(true);
     expect(isValidEmailAddress("a".repeat(65) + "@example.com")).toBe(false);
     expect(isValidEmailAddress("hello@" + "a".repeat(64) + ".com")).toBe(false);
