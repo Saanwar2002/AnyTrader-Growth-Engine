@@ -1,14 +1,13 @@
-## Latest continuation update — outreach-draft idempotency verified; CI green (2026-10-24)
+## Latest continuation update — draft retry safety and audit metadata checks verified (2026-10-24)
 
-- Latest code/test commit: `f0b9753d257ace3a7ac5cb9a66246f8f73a8df71`.
-- CI run [40042551603](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40042551603) completed successfully on that exact head. Verified: frontend typecheck, unit tests, production build, Firebase emulator integration smoke tests, Functions authorization tests/build, and dependency advisory checks.
-- Outreach draft creation now requires a caller-scoped idempotency key, binds retries to a SHA-256 fingerprint of the normalized payload, validates current lead suppression/contact-review state before replay, and returns the original draft for exact retries. Reuse with changed payload is rejected. Draft creation remains draft-only and never sends messages.
-- UI retains a stable key after an uncertain failure and retries the same content. API/UI tests and emulator smoke coverage exercise retry behaviour, concurrent retries, and one persisted draft.
-- Fixed an emulator-fixture issue uncovered during verification: the 100-record draft-pagination loop had reused one idempotency key for different draft contents. It now uses a unique key per synthetic draft. This was a test-fixture collision, not a production-data issue.
-- Functions dependency remediation remains in place: `functions/package-lock.json` uses `body-parser@2.4.0`, with a CI registry-integrity check before dependency audit.
-- PR #10 remains open, draft, and unmerged. Keep work on `development/next-phase`; do not merge or deploy without explicit approval.
-- Next engineering batch: review remaining sensitive mutation audit coverage and role/lifecycle authorization gaps, adding targeted tests only where they close a documented gap. Keep production Firebase setup deferred, use synthetic data, and keep outreach draft-only.
-- Production remains blocked on the dedicated Firebase project, App Check enforcement/token tests, monitoring/budget alerts, TTL configuration where required, privacy/legal retention review, and operational recovery readiness.
+- Latest code/test commit: `05dfef69c19db738c048212bc97487cb1722b7e7`.
+- CI run [40043306751](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40043306751) completed successfully on that exact head. Both jobs passed: frontend typecheck, unit tests, production build, emulator integration smoke tests, and Firebase Functions authorization tests/build plus dependency audit.
+- Outreach draft creation uses caller-scoped idempotency keys and a normalized-payload SHA-256 fingerprint; exact retries return the original draft, changed payload reuse is rejected, and replay rechecks lead suppression/contact-review state before returning. UI retains the key after uncertain failures; no message is sent automatically.
+- Emulator coverage now explicitly verifies a retry cannot bypass a contact review that becomes pending after a draft was created. The 100-record draft-pagination fixture uses a unique key per draft, avoiding false duplicate-payload conflicts.
+- Audit event emulator assertions now check per-event metadata allowlists and reject unexpected or content-bearing keys, in addition to checking event counts, tenant scope, actor, outcome, schema version, and timestamp.
+- Dependency security remediation remains in place: `functions/package-lock.json` uses `body-parser@2.4.0`, and CI verifies the registry integrity before dependency auditing.
+- PR #10 remains open, draft, and unmerged. All work stays on `development/next-phase`; do not merge or deploy without explicit approval.
+- Next safe batch: continue targeted role/lifecycle tests for malformed legacy records and audit invariants. Production access/retention controls remain blocked on policy review and the dedicated Firebase project. Synthetic data only; outreach remains draft-only.
 ---
 ## Latest continuation update — CSV retry regression fixed; CI green (2026-10-23)
 
