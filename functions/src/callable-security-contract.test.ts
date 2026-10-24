@@ -623,6 +623,13 @@ describe("server-side business/location duplicate protection", () => {
 });
 
 
+it("keeps the offboarding preview protected by App Check even when merged independently", () => {
+  const start = callableSource.indexOf("export const previewOrganisationOffboarding = onCall(");
+  const end = callableSource.indexOf("export const ", start + 1);
+  const body = callableSource.slice(start, end < 0 ? callableSource.length : end);
+  expect(body).toContain('{ enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true" }');
+});
+
 it("keeps offboarding preview owner-only, bounded, tenant-scoped, and non-destructive", () => {
   const start = callableSource.indexOf("export const previewOrganisationOffboarding = onCall(");
   expect(start).toBeGreaterThanOrEqual(0);
