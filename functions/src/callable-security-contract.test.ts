@@ -85,6 +85,19 @@ describe("callable security contract", () => {
     }
   });
 
+  it("stores canonical duplicate identifiers and uses bounded lookups without lowercasing URL paths", () => {
+    expect(callableSource).toContain("const dedupeEmailKey = email;");
+    expect(callableSource).toContain("const dedupeWebsiteKey = website;");
+    expect(callableSource).toContain('leadsRef.where("dedupeEmailKey", "==", email).limit(1)');
+    expect(callableSource).toContain('leadsRef.where("dedupeWebsiteKey", "==", website).limit(1)');
+    expect(callableSource).toContain('leadsRef.where("email", "==", email).limit(1)');
+    expect(callableSource).toContain('leadsRef.where("website", "==", website).limit(1)');
+    expect(callableSource).toContain("URL path casing remains significant.");
+    expect(callableSource).toContain("never scan an unbounded tenant collection");
+    expect(callableSource).toContain("const emailKey = fields.dedupeEmailKey;");
+    expect(callableSource).toContain("const websiteKey = fields.dedupeWebsiteKey;");
+  });
+
   it("keeps emulator unauthenticated coverage aligned with every callable export", () => {
     const smokeSource = readFileSync(
       fileURLToPath(new URL("../../scripts/emulator-smoke-test.mjs", import.meta.url)),
