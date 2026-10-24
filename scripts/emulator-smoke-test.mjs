@@ -2063,6 +2063,13 @@ try {
     organisationId: orgOne.organisationId, draftId: "legacy-missing-sent-flag",
     subject: "Must not infer unsent state", body: "Missing sent flag remains untrusted",
   }), "functions/failed-precondition", "editing a legacy outreach record with missing sent flag");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "outreach_draft.updated",
+    "0",
+    "legacy-missing-sent-flag",
+  ], { stdio: "inherit" });
   const legacyDraftsAfterRejectedEdits = (await callOne("listOutreachDrafts", {
     organisationId: orgOne.organisationId,
   })).drafts;
