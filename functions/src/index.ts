@@ -3,6 +3,7 @@ import { initializeApp } from "firebase-admin/app";
 import { FieldValue, Timestamp, getFirestore, type QueryDocumentSnapshot, type Transaction } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
+import { canonicalLeadEmailKey, canonicalLeadWebsiteKey } from "./lead-identifiers";
 import {
   calculateLeadCompleteness,
   canChangeSuppression,
@@ -287,8 +288,8 @@ function normaliseLeadFields(data: Record<string, unknown>) {
   // Persist indexed canonical identifiers on every lead write path. Email matching
   // follows this product's case-insensitive policy. Website matching lowercases
   // only scheme/host (above); URL path casing remains significant.
-  const dedupeEmailKey = email;
-  const dedupeWebsiteKey = website;
+  const dedupeEmailKey = canonicalLeadEmailKey(email);
+  const dedupeWebsiteKey = canonicalLeadWebsiteKey(website);
   return { businessName, category, location, website, email, phone, dedupeEmailKey, dedupeWebsiteKey };
 }
 export const listMyOrganisations = onCall(async (request) => {
