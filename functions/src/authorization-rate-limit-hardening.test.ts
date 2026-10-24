@@ -4,10 +4,8 @@ import { createRateLimitDocumentId, evaluateRateLimit } from "./authorization";
 describe("rate-limit persistence hardening", () => {
   it("keeps delimiter-containing quota dimensions in distinct buckets", () => {
     // These tuples would collide if identifiers were concatenated with a delimiter.
-    expect(createRateLimitDocumentId("org:a", "user", "read"))
-      not.toBe(createRateLimitDocumentId("org", "a:user", "read"));
-    expect(createRateLimitDocumentId("org", "user:a", "read"))
-      not.toBe(createRateLimitDocumentId("org:a:user", "", "read"));
+    expect(createRateLimitDocumentId("org:a", "user", "read")).not.toBe(createRateLimitDocumentId("org", "a:user", "read"));
+    expect(createRateLimitDocumentId("org", "user:a", "read")).not.toBe(createRateLimitDocumentId("org:a:user", "", "read"));
   });
 
   it.each([
