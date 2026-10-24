@@ -630,6 +630,31 @@ describe("server-side rate-limit evaluation", () => {
     expect(evaluateRateLimit(state, 2000, 3, 60000).invalidState).toBe(true);
     expect(evaluateRateLimit(state, 2000, 3, 60000).allowed).toBe(false);
   });
+
+  it("rejects inherited quota fields while accepting explicit own fields", () => {
+    const inheritedBoth = Object.create({ windowStartedAtMs: 1000, count: 1 }) as Record<string, unknown>;
+    const inheritedCount = Object.assign(Object.create({ count: 1 }), { windowStartedAtMs: 1000 });
+    const inheritedStart = Object.assign(Object.create({ windowStartedAtMs: 1000 }), { count: 1 });
+    const nullPrototype = Object.assign(Object.create(null) as Record<string, unknown>, {
+      windowStartedAtMs: 1000,
+      count: 1,
+    });
+
+    for (const state of [inheritedBoth, inheritedCount, inheritedStart]) {
+      expect(evaluateRateLimit(state, 2000, 3, 60000)).toEqual({
+        allowed: false,
+        invalidState: true,
+        nextState: null,
+        retryAfterMs: 0,
+      });
+    }
+    expect(evaluateRateLimit(nullPrototype, 2000, 3, 60000)).toEqual({
+      allowed: true,
+      invalidState: false,
+      nextState: { windowStartedAtMs: 1000, count: 2 },
+      retryAfterMs: 0,
+    });
+  });
 });
 
 
