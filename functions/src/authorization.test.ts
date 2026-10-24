@@ -754,6 +754,7 @@ describe("Firestore timestamp cursor validation", () => {
     null,
     {},
     { toMillis: 1 },
+    Object.defineProperty({}, "toMillis", { get() { throw new Error("invalid timestamp getter"); } }),
     { toMillis: () => Number.NaN },
     { toMillis: () => Number.POSITIVE_INFINITY },
     { toMillis: () => Number.NEGATIVE_INFINITY },
