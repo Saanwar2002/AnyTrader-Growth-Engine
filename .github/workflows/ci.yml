@@ -89,7 +89,7 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Audit dependency advisories
         run: npm audit --audit-level=high
-      - name: Authorization unit tests
+      - name: Functions unit and source-contract tests
         run: npm test
       - name: Compile Functions
         run: npm run build
