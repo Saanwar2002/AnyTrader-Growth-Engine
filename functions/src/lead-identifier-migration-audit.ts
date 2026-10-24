@@ -49,6 +49,11 @@ export function auditLeadIdentifierRecords(records: readonly LegacyLeadRecord[])
 
   const emailGroups = new Map<string, string[]>();
   const websiteGroups = new Map<string, string[]>();
+  const addRecordToGroup = (groups: Map<string, string[]>, key: string, id: string): void => {
+    const group = groups.get(key);
+    if (group) group.push(id);
+    else groups.set(key, [id]);
+  };
 
   for (const record of records) {
     const id = typeof record.id === "string" ? record.id : "";
@@ -62,7 +67,7 @@ export function auditLeadIdentifierRecords(records: readonly LegacyLeadRecord[])
       } else if (record.dedupeEmailKey !== key) {
         report.staleEmailKeys.push(id);
       }
-      emailGroups.set(key, [...(emailGroups.get(key) ?? []), id]);
+      addRecordToGroup(emailGroups, key, id);
     } else if (typeof record.dedupeEmailKey === "string" && record.dedupeEmailKey) {
       report.staleEmailKeys.push(id);
     }
@@ -79,7 +84,7 @@ export function auditLeadIdentifierRecords(records: readonly LegacyLeadRecord[])
         } else if (record.dedupeWebsiteKey !== key) {
           report.staleWebsiteKeys.push(id);
         }
-        websiteGroups.set(key, [...(websiteGroups.get(key) ?? []), id]);
+        addRecordToGroup(websiteGroups, key, id);
       } catch {
         report.malformedWebsiteRecords.push(id);
       }
