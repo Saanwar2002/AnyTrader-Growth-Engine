@@ -368,6 +368,14 @@ try {
     "CSV import must not duplicate legacy records without canonical keys when the exact legacy field matches");
   assert.equal(legacyFallbackImport.duplicatesSkipped, 2,
     "exact-value legacy email and website fallbacks must both detect duplicates");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-events.mjs",
+    orgOne.organisationId,
+    "lead.csv_import.completed",
+    "4",
+    "0",
+    "2",
+  ], { stdio: "inherit" });
   const importedLeads = (await callOne("listLeads", { organisationId: orgOne.organisationId })).leads;
   for (const importedName of ["Synthetic Imported Alpha Ltd", "Synthetic Imported Beta Ltd"]) {
     const imported = importedLeads.find((lead) => lead.businessName === importedName);

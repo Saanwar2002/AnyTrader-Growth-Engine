@@ -8,10 +8,15 @@ const emulatorHost = process.env.FIRESTORE_EMULATOR_HOST;
 if (projectId !== "demo-growth-engine-test" || !emulatorHost || !/^(127\.0\.0\.1:8080|localhost:8080)$/.test(emulatorHost)) {
   throw new Error("Refusing to inspect security audit events outside the local demo Firestore emulator.");
 }
-const [organisationId, eventType, expectedCountArg] = process.argv.slice(2);
+const [organisationId, eventType, expectedCountArg, expectedImportedCountArg, expectedDuplicatesSkippedArg] = process.argv.slice(2);
 const validId = (value) => typeof value === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(value);
 if (!validId(organisationId) || eventType !== "lead.csv_import.completed" || !/^\d+$/.test(expectedCountArg ?? "")) {
   throw new Error("Usage: node assert-emulator-audit-events.mjs <organisationId> lead.csv_import.completed <expectedCount>");
+}
+if ((expectedImportedCountArg === undefined) !== (expectedDuplicatesSkippedArg === undefined)
+  || (expectedImportedCountArg !== undefined
+    && (!/^\d+$/.test(expectedImportedCountArg) || !/^\d+$/.test(expectedDuplicatesSkippedArg)))) {
+  throw new Error("Optional expected import and duplicate counts must both be non-negative integers.");
 }
 initializeApp({ projectId });
 const db = getFirestore();
@@ -30,5 +35,16 @@ for (const event of snapshot.docs) {
   assert.ok(Number.isSafeInteger(value.metadata?.duplicatesSkipped) && value.metadata.duplicatesSkipped >= 0,
     "audit metadata includes only a bounded duplicate count");
   assert.equal("leads" in value.metadata, false, "audit metadata must not include lead/contact payloads");
+}
+if (expectedImportedCountArg !== undefined) {
+  const expectedImportedCount = Number(expectedImportedCountArg);
+  const expectedDuplicatesSkipped = Number(expectedDuplicatesSkippedArg);
+  const matchingEvents = snapshot.docs.filter((event) => {
+    const metadata = event.data().metadata;
+    return metadata?.importedCount === expectedImportedCount
+      && metadata?.duplicatesSkipped === expectedDuplicatesSkipped;
+  });
+  assert.equal(matchingEvents.length, 1,
+    "exactly one successful CSV-import audit event must record the expected imported/duplicate counts");
 }
 console.log(`AUDIT_EVENTS:${snapshot.size}`);
