@@ -103,3 +103,7 @@ The local demo is not a secure multi-user service. It uses browser localStorage,
 - Keep synthetic fixtures clearly labelled as fictional.
 - Use server-side permission checks for all privileged operations; the initial callable Functions scaffold checks Firebase Auth context and organisation membership.
 - Use a separate Firebase project for Growth Engine; never reuse production AnyTrader credentials or databases.
+
+## Privacy, retention, and offboarding
+
+See [`docs/PRIVACY_DATA_RETENTION_AND_OFFBOARDING.md`](./docs/PRIVACY_DATA_RETENTION_AND_OFFBOARDING.md) for the proposed data inventory, retention decisions, tenant-scoped dry-run-first offboarding workflow, and release acceptance criteria. This is a specification only: destructive offboarding, production TTL, and account deletion are not implemented or authorised.
