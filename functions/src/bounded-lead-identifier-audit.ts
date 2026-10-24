@@ -60,8 +60,11 @@ export async function runBoundedLeadIdentifierAudit(
     });
     pagesRead += 1;
 
-    if (!Array.isArray(page.records)) {
-      throw new Error("Lead audit page adapter returned an invalid records collection.");
+    if (!page || typeof page !== "object" || !Array.isArray(page.records)) {
+      throw new Error("Lead audit page adapter returned an invalid page or records collection.");
+    }
+    if (page.nextCursor !== undefined && page.nextCursor !== null && typeof page.nextCursor !== "string") {
+      throw new Error("Lead audit page adapter returned an invalid continuation cursor.");
     }
     if (page.records.length > Math.min(options.pageSize, remaining)) {
       throw new Error("Lead audit page exceeded the requested page limit.");
