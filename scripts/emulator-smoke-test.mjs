@@ -472,7 +472,46 @@ try {
     "0",
     "1",
   ], { stdio: "inherit" });
-  console.log("PASS: server-side import deduplicates existing businesses by canonical business name and location.");
+
+  // A row skipped for an existing email must not reserve its new website or
+  // business/location identifiers and cause a later, otherwise-valid row to be lost.
+  const skippedRowIdentifierReuse = await callOne("importLeads", {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    idempotencyKey: "csv-import-skipped-row-identifiers-01",
+    leads: [
+      {
+        businessName: "Skipped Existing Email Row",
+        category: "Painters",
+        location: "Bristol",
+        email: "hello@example.test",
+        website: "https://shared-only-by-skipped-row.example.test",
+      },
+      {
+        businessName: "Valid Reuse After Skipped Row",
+        category: "Roofers",
+        location: "Cardiff",
+        email: "valid-after-skip@example.test",
+        website: "https://shared-only-by-skipped-row.example.test",
+      },
+    ],
+  });
+  assert.equal(skippedRowIdentifierReuse.imported, 1,
+    "a valid row is imported when an earlier row with the same website was skipped due to an existing email");
+  assert.equal(skippedRowIdentifierReuse.duplicatesSkipped, 1,
+    "only the row matching an existing contact is skipped");
+  assert.equal((await callOne("listLeads", { organisationId: orgOne.organisationId })).leads
+    .filter((lead) => lead.businessName === "Valid Reuse After Skipped Row").length, 1,
+  "the valid row after the skipped duplicate is persisted exactly once");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-events.mjs",
+    orgOne.organisationId,
+    "lead.csv_import.completed",
+    "7",
+    "1",
+    "1",
+  ], { stdio: "inherit" });
+  console.log("PASS: server-side import deduplicates existing businesses by canonical business name and location and does not reserve identifiers from skipped rows.");
 
   const importedLeads = (await callOne("listLeads", { organisationId: orgOne.organisationId })).leads;
   for (const importedName of ["Synthetic Imported Alpha Ltd", "Synthetic Imported Beta Ltd"]) {
