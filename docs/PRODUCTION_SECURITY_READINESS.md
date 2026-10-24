@@ -23,8 +23,8 @@ The audit found 16 callable exports and no `enforceAppCheck` options in `functio
 
 - [ ] Create the separate Growth Engine Firebase project.
 - [ ] Register each supported app with Firebase App Check and configure the appropriate production provider.
-- [ ] Enforce App Check on every callable after legitimate clients are configured to send valid tokens.
-- [ ] In a production-like environment, verify missing/invalid tokens are rejected and valid tokens work.
+- [ ] Merge and verify the App Check implementation before treating enforcement as part of `main`; draft PR #13 currently proposes enforcement on all 16 callable exports and a required web site key, but remains unmerged.
+- [ ] In the dedicated project, verify missing/invalid tokens are rejected and valid tokens work with the configured provider.
 - [ ] Retain authentication, authorisation, and tenant-isolation checks; App Check does not replace them.
 
 ## Abuse monitoring and cost controls
@@ -62,6 +62,8 @@ Quota documents carry a server-managed `expireAt` timestamp based on the stored 
 - [ ] Never bulk-delete active quota documents to resolve throttling, because deletion can reset a live quota bucket.
 
 ## Privacy, legal, and operational readiness
+
+See [PRIVACY_DATA_RETENTION_AND_OFFBOARDING.md](./PRIVACY_DATA_RETENTION_AND_OFFBOARDING.md) for the source-verified Firestore collection inventory and a dry-run-first offboarding design. It is a specification only: no bulk deletion, account deletion, or production TTL policy is implemented by that document. The schema inventory must be reconciled against any legacy/manual records before real-data offboarding.
 
 - [ ] Define and test retention, deletion, user offboarding, backups, and recovery.
 - [ ] Review provider terms and authorised sourcing methods for each lead source.
