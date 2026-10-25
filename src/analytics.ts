@@ -73,3 +73,23 @@ export function serializeCampaignPerformanceCsv(summaries: CampaignPerformanceSu
   ]);
   return [headers, ...rows].map((row) => row.map(escapeCell).join(",")).join("\r\n") + "\r\n";
 }
+
+
+/** Export server-counted onboarding cohorts with their timestamp scope and legacy-data caveat. */
+export function serializeOnboardingCohortCsv(
+  cohorts: Array<{ month: string; onboardedLeadCount: number }>,
+  attributionNote: string,
+): string {
+  const escapeCell = (value: string | number) => {
+    const text = String(value);
+    return /[",\\r\\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  };
+  const headers = ["Scope", "UTC month", "First onboardings", "Attribution note"];
+  const rows = cohorts.map((cohort) => [
+    "First server-recorded onboarding timestamp",
+    cohort.month,
+    cohort.onboardedLeadCount,
+    attributionNote,
+  ]);
+  return [headers, ...rows].map((row) => row.map(escapeCell).join(",")).join("\\r\\n") + "\\r\\n";
+}
