@@ -97,7 +97,7 @@
 ## Phase 7 — Production hardening and later agency features
 
 - Privacy/export/deletion/retention workflows, monitoring, backups, recovery, incident response, security review.
-- [x] Read-only owner/admin security audit log with tenant-scoped cursor pagination, bounded metadata validation, rate limiting, no extra actor-email lookup, and formula-safe CSV export clearly scoped to loaded pages.
+- [x] Read-only owner/admin security audit log with tenant-scoped cursor pagination, bounded metadata validation, rate limiting, action/identifier filters over loaded pages, no extra actor-email lookup, and formula-safe CSV export clearly scoped to loaded pages.
 - Later: agency workspaces, white-labeling, API access, and enterprise controls.
 
 ## Non-negotiable boundaries
