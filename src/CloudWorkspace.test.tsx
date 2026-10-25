@@ -1714,7 +1714,7 @@ describe("cloud authentication gate", () => {
     expect(screen.getByText("leadStatus: qualified")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Load more audit events" }));
     await waitFor(() => expect(mocks.api.listOrganisationSecurityAuditEvents).toHaveBeenLastCalledWith({ organisationId: "org-1", pageToken: "cursor-2" }));
-    expect(await screen.findByText("organisation member added")).toBeTruthy();
+    expect(await screen.findByRole("row", { name: /organisation member added/ })).toBeTruthy();
     expect(screen.getByText("memberRole: viewer")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Load more audit events" })).toBeNull();
   });
