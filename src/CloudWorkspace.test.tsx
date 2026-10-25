@@ -1479,8 +1479,8 @@ describe("cloud authentication gate", () => {
     });
     mocks.api.listLeads.mockResolvedValue({
       leads: [
-        lead("alpha", "Alpha Provider", 25, ["Business name present"]),
-        lead("zulu", "Zulu Provider", 90, ["Business name present", "Website present"]),
+        lead("alpha", "Alpha Provider", 25, ["Business name provided (+20)"]),
+        lead("zulu", "Zulu Provider", 90, ["Business name provided (+20)", "Website listed (+20)"]),
       ],
       hasMoreLeads: false,
       nextPageToken: null,
