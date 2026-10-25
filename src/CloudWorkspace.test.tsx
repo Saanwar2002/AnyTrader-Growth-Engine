@@ -640,9 +640,9 @@ describe("cloud authentication gate", () => {
     });
     render(<CloudWorkspace />);
     expect(await screen.findByRole("heading", { name: "Acquisition pipeline overview" })).toBeTruthy();
-    expect(screen.getAllByText("Edinburgh painter campaign").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Partial view: more pages are available. Load more campaigns, leads and drafts to improve coverage before comparing campaign results.")).toBeTruthy();
     const table = screen.getByRole("table", { name: "Campaign counts from loaded records only" });
+    expect(table.textContent).toContain("Edinburgh painter campaign");
     expect(table.textContent).toContain("2");
     expect(table.textContent).toContain("1");
     expect(table.textContent).toContain("Qualified");
