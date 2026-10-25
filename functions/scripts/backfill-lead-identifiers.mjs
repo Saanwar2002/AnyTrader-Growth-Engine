@@ -93,7 +93,7 @@ for (const snapshot of records) {
   };
   const staleFields = Object.keys(expected).filter((field) => {
     const existing = data[field];
-    return existing !== undefined && existing !== expected[field];
+    return existing !== undefined && existing !== null && existing !== "" && existing !== expected[field];
   });
   const missingFields = Object.keys(expected).filter((field) => data[field] === undefined || data[field] === null || data[field] === "");
   computed.push({ ref: snapshot.ref, id: snapshot.id, expected, staleFields, missingFields });
