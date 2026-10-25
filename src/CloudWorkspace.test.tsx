@@ -1429,7 +1429,7 @@ describe("cloud authentication gate", () => {
     });
     render(<CloudWorkspace />);
     await screen.findByText("Pending Painter");
-    expect(screen.getByText(/Contact-review counts for loaded leads only.*load more pages/i)).toBeTruthy();
+    expect(screen.getByText(/Quick filters below count loaded leads only.*server-side inventory/i)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Pending review (1)" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Review cleared (1)" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Blocked / do not contact (1)" })).toBeTruthy();
