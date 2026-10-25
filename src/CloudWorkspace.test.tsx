@@ -1467,4 +1467,41 @@ describe("cloud authentication gate", () => {
     expect(screen.getByText(/older records without an explicit status are reported as legacy or unclassified/i)).toBeTruthy();
   });
 
+  it("shows lead completeness scores and sorts loaded leads by score, newest, or business name", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+      nextPageToken: null,
+    });
+    const lead = (id: string, businessName: string, score: number, scoreReasons: string[], createdAt: string) => ({
+      id, campaignId: "campaign-1", businessName, category: "Painters", location: "Leeds",
+      website: "", email: "", phone: "", source: "manual", status: "new", score, scoreReasons,
+      notes: "", doNotContact: true, contactRestrictionVerified: false, contactReviewStatus: "pending",
+      contactReviewRevision: 0, onboardedAt: null, createdAt,
+    });
+    mocks.api.listLeads.mockResolvedValue({
+      leads: [
+        lead("alpha", "Alpha Provider", 25, ["Business name provided (+20)"], "2026-10-24T10:00:00.000Z"),
+        lead("zulu", "Zulu Provider", 90, ["Business name provided (+20)", "Website listed (+20)"], "2026-10-25T10:00:00.000Z"),
+      ],
+      hasMoreLeads: false,
+      nextPageToken: null,
+    });
+    render(<CloudWorkspace />);
+    await screen.findByText("Zulu Provider");
+    const leadRows = () => Array.from(screen.getByRole("table", { name: "Lead directory" }).querySelectorAll("tbody tr"));
+    expect(leadRows()[0].textContent).toContain("Zulu Provider");
+    expect(screen.getByText("90/100")).toBeTruthy();
+    expect(screen.getByText(/Website listed/)).toBeTruthy();
+    expect(screen.getByText(/not a quality, consent, or contactability guarantee/i)).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Sort leads by"), { target: { value: "business" } });
+    expect(leadRows()[0].textContent).toContain("Alpha Provider");
+    fireEvent.change(screen.getByLabelText("Sort leads by"), { target: { value: "newest" } });
+    expect(leadRows()[0].textContent).toContain("Zulu Provider");
+    fireEvent.change(screen.getByLabelText("Sort leads by"), { target: { value: "score" } });
+    expect(leadRows()[0].textContent).toContain("Zulu Provider");
+  });
+
 });
