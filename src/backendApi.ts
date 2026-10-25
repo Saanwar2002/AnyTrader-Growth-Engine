@@ -40,6 +40,16 @@ export interface LeadSourceFunnelSummary { source: string; totalLeadCount: numbe
 export interface LeadSourceFunnelAnalytics { organisationId: string; sourceSummaries: LeadSourceFunnelSummary[]; scope: "all_stored_organisation_leads"; attributionNote: string; }
 export interface OnboardingCohort { month: string; onboardedLeadCount: number; }
 export interface OnboardingCohortAnalytics { organisationId: string; cohorts: OnboardingCohort[]; scope: "first_onboarding_timestamp"; windowMonths: 12; attributionNote: string; }
+export interface LeadCompletenessAnalytics {
+  organisationId: string;
+  totalLeadCount: number;
+  lowCount: number;
+  mediumCount: number;
+  highCount: number;
+  unclassifiedCount: number;
+  scope: "all_stored_leads";
+  note: string;
+}
 export interface OnboardingCohortCoverage {
   organisationId: string;
   totalOnboardedLeadCount: number;
@@ -113,6 +123,7 @@ export function createGrowthEngineApi(call: CallableInvoker) {
     getCampaignFunnelSummary: (payload: { organisationId: string; campaignId: string }) => call<typeof payload, CampaignFunnelAnalyticsSummary>("getCampaignFunnelSummary", payload),
     getLeadSourceFunnelSummary: (payload: { organisationId: string }) => call<typeof payload, LeadSourceFunnelAnalytics>("getLeadSourceFunnelSummary", payload),
     getOnboardingCohortSummary: (payload: { organisationId: string }) => call<typeof payload, OnboardingCohortAnalytics>("getOnboardingCohortSummary", payload),
+    getLeadCompletenessSummary: (payload: { organisationId: string }) => call<typeof payload, LeadCompletenessAnalytics>("getLeadCompletenessSummary", payload),
     getOnboardingCohortCoverage: (payload: { organisationId: string }) => call<typeof payload, OnboardingCohortCoverage>("getOnboardingCohortCoverage", payload),
     getContactReviewQueueSummary: (payload: { organisationId: string }) => call<typeof payload, ContactReviewQueueAnalytics>("getContactReviewQueueSummary", payload),
     getOrganisationPlanUsage: (payload: { organisationId: string }) => call<typeof payload, OrganisationPlanUsageSummary>("getOrganisationPlanUsage", payload),
