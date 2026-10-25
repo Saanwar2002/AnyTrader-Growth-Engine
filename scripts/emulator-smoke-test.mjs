@@ -2941,6 +2941,16 @@ try {
   assert.ok(onboardingCohorts.cohorts.find((cohort) => cohort.month === currentUtcMonth)?.onboardedLeadCount >= 1,
     "the server aggregate includes the newly onboarded lead in the current UTC month");
   assert.match(onboardingCohorts.attributionNote, /legacy leads already onboarded/i);
+  const onboardingCoverage = await callOne("getOnboardingCohortCoverage", { organisationId: orgOne.organisationId });
+  assert.equal(onboardingCoverage.scope, "onboarded_leads_only");
+  assert.equal(onboardingCoverage.totalOnboardedLeadCount,
+    onboardingCoverage.timestampedOnboardedLeadCount + onboardingCoverage.missingOrInvalidOnboardedTimestampCount);
+  assert.ok(onboardingCoverage.totalOnboardedLeadCount >= 1, "coverage preview counts the onboarded lead without returning its record");
+  assert.equal(onboardingCoverage.scanLimit, 1000);
+  assert.match(onboardingCoverage.note, /never assigned an inferred date/i);
+  await expectCallableFailure(callTwo("getOnboardingCohortCoverage", {
+    organisationId: orgOne.organisationId,
+  }), "functions/permission-denied", "onboarding timestamp coverage rejects cross-tenant access");
   const contactReviewInventory = await callOne("getContactReviewQueueSummary", { organisationId: orgOne.organisationId });
   assert.equal(contactReviewInventory.scope, "all_stored_organisation_leads");
   assert.ok(contactReviewInventory.totalLeadCount >= 1, "contact-review inventory includes stored organisation leads");
