@@ -23,6 +23,7 @@
 - [x] Add membership-checked lead listing and tenant-scoped lead creation/contact editing.
 - [x] Display heuristic lead completeness scores and bounded reason text, with loaded-page sorting by score, newest, or business name; explicitly distinguish completeness from quality, consent, and contactability.
 - [x] Add transactional lead status and notes updates with activity events.
+- [x] Add per-lead follow-up date scheduling with real UTC date validation, transactional permission recheck, rate-limited atomic lead/activity/audit updates; scheduling never sends outreach.
 - [x] Add an on-demand, tenant-scoped lead activity timeline limited to the latest 20 events, excluding actor identifiers and contact values; emulator coverage verifies cross-tenant denial.
 - [x] Add transactional do-not-contact controls; members can suppress, but only owners/admins can remove a restriction.
 - [x] Add loaded-page contact-review queue counts and one-click filters for pending, cleared, and blocked leads; clearly disclose when additional lead pages remain.
