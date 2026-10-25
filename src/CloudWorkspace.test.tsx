@@ -1480,7 +1480,7 @@ describe("cloud authentication gate", () => {
     mocks.api.listLeads.mockResolvedValue({
       leads: [
         lead("alpha", "Alpha Provider", 25, ["Business name provided (+20)"]),
-        lead("zulu", "Zulu Provider", 90, ["Business name provided (+20)", "Website listed (+20)"]),
+    expect(screen.getByText(/Website present/)).toBeTruthy();
       ],
       hasMoreLeads: false,
       nextPageToken: null,
