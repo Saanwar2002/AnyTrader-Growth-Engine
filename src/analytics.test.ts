@@ -123,14 +123,14 @@ describe("serializeFullLeadSourceFunnelCsv", () => {
 
   it("neutralises spreadsheet formula prefixes and preserves the note for an empty report", () => {
     const csv = serializeFullLeadSourceFunnelCsv([{
-      source: "=HYPERLINK(""https://bad.example"")",
+      source: '=HYPERLINK("https://bad.example")',
       totalLeadCount: 1,
       qualifiedLeadCount: 0,
       onboardedLeadCount: 0,
       qualifiedRatePercent: 0,
       onboardedRatePercent: 0,
     }], "Source values are self-declared.");
-    expect(csv).toContain("'=HYPERLINK(""https://bad.example"")");
+    expect(csv).toContain(`"'=HYPERLINK(""https://bad.example"")"`);
     const empty = serializeFullLeadSourceFunnelCsv([], "Legacy source attribution may be incomplete.");
     expect(empty).toContain("No source-labelled records,0,0,0,0.0,0.0,Legacy source attribution may be incomplete.");
     expect(empty.endsWith("\r\n")).toBe(true);
