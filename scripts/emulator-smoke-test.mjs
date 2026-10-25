@@ -3010,7 +3010,6 @@ try {
     originalOnboardedAt,
   ], { stdio: "inherit" });
 
-  await signOut(first.auth);
   const bulkStatusPayload = {
     organisationId: orgOne.organisationId,
     leadIds: [leadOne.leadId, invalidContactEditLead.leadId],
@@ -3036,6 +3035,7 @@ try {
     leadIds: [leadOne.leadId, leadOne.leadId],
     idempotencyKey: "bulk-lead-status-duplicate-0001",
   }), "functions/invalid-argument", "bulk status update rejects duplicate lead IDs");
+  await signOut(first.auth);
   await signOut(first.auth);
   const unauthenticatedCallableNames = [
     "previewOrganisationOffboarding",
