@@ -56,6 +56,13 @@ try {
   const orgOnePayload = { name: "Tenant One", idempotencyKey: "organisation-create-idempotency-0001" };
   const orgOne = await callOne("createOrganisation", orgOnePayload);
   assert.equal(orgOne.role, "owner");
+  const offboardingPreview = await callOne("previewOrganisationOffboarding", { organisationId: orgOne.organisationId });
+  assert.equal(offboardingPreview.destructiveActionPerformed, false, "offboarding preview never deletes data");
+  assert.equal(offboardingPreview.complete, true, "synthetic tenant preview completes within the category caps");
+  assert.ok(offboardingPreview.categories.every((item) => item.status === "complete" && Number.isSafeInteger(item.exactCount)),
+    "each preview category has an exact count only when complete");
+  assert.equal(JSON.stringify(offboardingPreview).includes("tenant-one@example.test"), false,
+    "offboarding preview does not expose contact details");
   const orgOneReplay = await callOne("createOrganisation", orgOnePayload);
   assert.deepEqual(orgOneReplay, orgOne, "organisation creation retry returns the original result");
   await expectCallableFailure(callOne("createOrganisation", { ...orgOnePayload, name: "Changed tenant payload" }), "functions/already-exists", "organisation creation rejects key reuse with a different payload");
@@ -1813,6 +1820,7 @@ try {
     drafts: currentQuotaCount("listOutreachDrafts", crossTenantReadUid),
   };
   await expectCallableFailure(callTwo("listLeads", { organisationId: orgOne.organisationId }), "functions/permission-denied", "cross-tenant lead listing denial");
+  await expectCallableFailure(callTwo("previewOrganisationOffboarding", { organisationId: orgOne.organisationId }), "functions/permission-denied", "cross-tenant offboarding preview denial");
   const orgTwo = await callTwo("createOrganisation", { name: "Tenant Two", idempotencyKey: "organisation-create-tenant-two-0001" });
   // A cursor scoped to another tenant must be rejected before its target document is read.
   await expectCallableFailure(callOne("listCampaigns", { organisationId: orgOne.organisationId, pageToken: `organisations/${orgTwo.organisationId}/campaigns/cursor-only` }), "functions/invalid-argument", "campaign cursor from another organisation");
@@ -2621,6 +2629,7 @@ try {
 
   await signOut(first.auth);
   const unauthenticatedCallableNames = [
+    "previewOrganisationOffboarding",
     "listMyOrganisations",
     "createOrganisation",
     "createCampaign",

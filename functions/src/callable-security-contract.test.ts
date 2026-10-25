@@ -646,3 +646,32 @@ describe("server-side business/location duplicate protection", () => {
     expect(body).toContain("existingBusinesses.add(row.businessKey)");
   });
 });
+
+it("keeps the offboarding preview protected by App Check even when merged independently", () => {
+  const start = callableSource.indexOf("export const previewOrganisationOffboarding = onCall(");
+  const end = callableSource.indexOf("export const ", start + 1);
+  const body = callableSource.slice(start, end < 0 ? callableSource.length : end);
+  expect(body).toContain('{ enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true" }');
+});
+
+it("keeps offboarding preview owner-only, bounded, tenant-scoped, and non-destructive", () => {
+  const start = callableSource.indexOf("export const previewOrganisationOffboarding = onCall(");
+  expect(start).toBeGreaterThanOrEqual(0);
+  const nextStart = callableSource.indexOf("export const ", start + 1);
+  const body = callableSource.slice(start, nextStart < 0 ? callableSource.length : nextStart);
+
+  expect(body).toContain("requireUid(request.auth?.uid)");
+  expect(body).toContain("await requireMembership(organisationId, uid)");
+  expect(body).toContain('membership.role !== "owner"');
+  expect(body).toContain('consumeReadRateLimit(organisationId, uid, "previewOrganisationOffboarding", 10)');
+  expect(body).toContain("createOffboardingPreview(async (category, afterId, limit)");
+  expect(body).toContain("const finalMembership = await requireMembership(organisationId, uid)");
+  expect(body).toContain("if (finalMembership.role !== \"owner\")");
+  expect(body).toContain("OFFBOARDING_PREVIEW_CATEGORIES");
+  expect(body).toContain('db.collection("organisations").doc(organisationId)');
+  expect(body).toContain(".orderBy(FieldPath.documentId())");
+  expect(body).toContain(".limit(limit)");
+  expect(body).toContain("destructiveActionPerformed: false");
+  expect(body).not.toContain("batch.delete(");
+  expect(body).not.toContain("transaction.delete(");
+});

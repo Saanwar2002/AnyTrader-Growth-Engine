@@ -112,3 +112,8 @@ Before enabling cloud mode or deploying Firebase resources, complete the [Cloud 
 ## Firebase deployment safety gate
 
 Firebase CLI deployments are blocked unless `GROWTH_ENGINE_FIREBASE_PROJECT_ID` explicitly names the approved Growth Engine project and Firebase CLI supplies a matching `GCLOUD_PROJECT`. The guard rejects missing values, mismatched targets, and `demo-*` emulator project IDs before the Functions predeploy build. Set both values only after creating and reviewing the dedicated Growth Engine Firebase project; never set the expected ID to the production AnyTrader project. This is a guard against accidental target selection, not proof that the project is correctly secured or that App Check has been verified.
+
+
+## Tenant offboarding preview
+
+See [`docs/TENANT_OFFBOARDING_PREVIEW.md`](docs/TENANT_OFFBOARDING_PREVIEW.md) for the owner-only, bounded, non-destructive inventory callable and its explicit limitations. No deletion or production retention policy is enabled.
