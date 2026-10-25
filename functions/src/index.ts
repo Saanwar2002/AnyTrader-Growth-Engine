@@ -2005,7 +2005,7 @@ export const createLead = onCall(callableOptions, async (request) => {
       if (saved.requestHash !== requestHash) {
         throw new HttpsError("already-exists", "This idempotencyKey was already used with a different lead payload.");
       }
-      const expectedReplay = { actorUid: uid, requestHash, organisationId, campaignId, businessName, category, location, website, email, phone };
+      const expectedReplay = { actorUid: uid, requestHash, organisationId, campaignId, ...fields };
       const savedResult = getValidLeadCreationReplayResult(saved, expectedReplay);
       if (!savedResult) {
         throw new HttpsError("failed-precondition", "Saved lead retry state is invalid and requires operator review.");

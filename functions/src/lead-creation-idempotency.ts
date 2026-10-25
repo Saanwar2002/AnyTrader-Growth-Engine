@@ -2,9 +2,11 @@ export interface ExpectedLeadCreationReplay {
   actorUid: string; requestHash: string; organisationId: string; campaignId: string;
   businessName: string; category: string; location: string; website: string; email: string; phone: string;
 }
-export interface ValidLeadCreationReplayResult extends ExpectedLeadCreationReplay {
-  leadId: string; status: "new"; source: "manual"; score: number; scoreReasons: string[];
-  doNotContact: true; contactReviewStatus: "pending"; contactReviewRevision: 0;
+export interface ValidLeadCreationReplayResult {
+  leadId: string; organisationId: string; campaignId: string; businessName: string; category: string;
+  location: string; website: string; email: string; phone: string; status: "new"; source: "manual";
+  score: number; scoreReasons: string[]; doNotContact: true; contactReviewStatus: "pending";
+  contactReviewRevision: 0;
 }
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
