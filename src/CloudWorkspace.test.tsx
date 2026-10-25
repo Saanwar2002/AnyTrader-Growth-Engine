@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
   currentUser: null as unknown,
   api: {
     listMyOrganisations: vi.fn(), createOrganisation: vi.fn(), updateOrganisationSettings: vi.fn(), addOrganisationMember: vi.fn(), createCampaign: vi.fn(), updateCampaignStatus: vi.fn(), updateCampaignDetails: vi.fn(),
-    listCampaigns: vi.fn(), getCampaignFunnelSummary: vi.fn(), getLeadSourceFunnelSummary: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), importLeads: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(),
+    listCampaigns: vi.fn(), getCampaignFunnelSummary: vi.fn(), getLeadSourceFunnelSummary: vi.fn(), getOnboardingCohortSummary: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), importLeads: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(),
     updateLeadNotes: vi.fn(), setLeadSuppression: vi.fn(), createOutreachDraft: vi.fn(), suggestOutreachDraft: vi.fn(), listOutreachDrafts: vi.fn(),
     updateOutreachDraft: vi.fn(), deleteOutreachDraft: vi.fn(),
   },
@@ -52,6 +52,14 @@ beforeEach(() => {
     ],
     scope: "all_stored_organisation_leads",
     attributionNote: "Source values are self-declared; unknown includes missing and unrecognised legacy values.",
+  });
+  mocks.api.getOnboardingCohortSummary.mockResolvedValue({
+    organisationId: "org-1", months: 12,
+    monthlyOnboardings: [{ month: "2026-10", count: 3 }],
+    currentOnboardedLeadCount: 4, timestampedCurrentOnboardedLeadCount: 3,
+    legacyUnattributedCurrentOnboardedLeadCount: 1,
+    scope: "all_stored_organisation_leads",
+    coverageNote: "Legacy leads already marked onboarded without a timestamp remain unattributed; no historical dates are inferred.",
   });
   mocks.api.listLeads.mockResolvedValue({ leads: [], hasMoreLeads: false, nextPageToken: null });
   mocks.api.listOutreachDrafts.mockResolvedValue({ drafts: [] });
@@ -855,6 +863,23 @@ describe("cloud authentication gate", () => {
     });
     render(<CloudWorkspace />);
     expect(await screen.findByText(/First onboarded:/)).toBeTruthy();
+  });
+
+  it("loads monthly onboarding cohorts and discloses missing legacy timestamps", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load onboarding cohorts" }));
+    await waitFor(() => expect(mocks.api.getOnboardingCohortSummary).toHaveBeenCalledWith({
+      organisationId: "org-1", months: 12,
+    }));
+    expect(await screen.findByRole("table", { name: "Server-side onboarding cohorts (last 12 months)" })).toBeTruthy();
+    expect(screen.getByText("2026-10")).toBeTruthy();
+    expect(screen.getByText(/1 without timestamps/)).toBeTruthy();
+    expect(screen.getByText(/no historical dates are inferred/i)).toBeTruthy();
   });
 
 });
