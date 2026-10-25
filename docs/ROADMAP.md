@@ -69,6 +69,7 @@
 
 - [x] Loaded-record campaign funnel summary with qualified, contacted, onboarded counts and clearly labelled loaded-lead conversion rates; partial pagination is disclosed in the UI.
 - [x] Self-declared lead-source performance summary with qualified/onboarded counts and rates; pagination and unverified source-label limitations are explicit.
+- [x] Downloadable campaign performance CSV with a loaded-record-only scope column and escaped text fields.
 - [ ] Onboarding attribution and durable, server-side aggregate analytics across all pages.
 - [x] Owner/admin organisation display-name settings with server-side role checks, transactional rate limiting, and PII-minimised audit events.
 - [ ] Plans and server-side entitlements/quotas.
