@@ -705,6 +705,71 @@ export const listOrganisationMembers = onCall(callableOptions, async (request) =
   };
 });
 
+export const listOrganisationMembers = onCall(callableOptions, async (request) => {
+  const uid = requireUid(request.auth?.uid);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const organisationId = requireOrganisationId(data.organisationId);
+  const pageSize = data.pageSize === undefined ? 50 : data.pageSize;
+  const pageToken = data.pageToken === undefined ? undefined : data.pageToken;
+  if (typeof pageSize !== "number" || !Number.isInteger(pageSize) || pageSize < 1 || pageSize > 100) {
+    throw new HttpsError("invalid-argument", "pageSize must be an integer between 1 and 100.");
+  }
+  if (pageToken !== undefined && (typeof pageToken !== "string" || !/^[A-Za-z0-9_-]{1,512}$/.test(pageToken))) {
+    throw new HttpsError("invalid-argument", "pageToken is invalid.");
+  }
+
+  const membership = await requireMembership(organisationId, uid);
+  if (membership.role !== "owner" && membership.role !== "admin") {
+    throw new HttpsError("permission-denied", "Only organisation owners and admins can view the member roster.");
+  }
+  const organisationRef = db.collection("organisations").doc(organisationId);
+  const rateLimitRef = organisationRef.collection("readRateLimits").doc(createHash("sha256")
+    .update(JSON.stringify([uid, "listOrganisationMembers"])).digest("hex"));
+  const rateLimitNow = Date.now();
+  const rateLimitWindowMs = 60_000;
+  const rateLimitMax = 30;
+  const [organisationSnapshot, rateLimitSnapshot] = await Promise.all([
+    organisationRef.get(),
+    rateLimitRef.get(),
+  ]);
+  if (!organisationSnapshot.exists) throw new HttpsError("not-found", "Organisation was not found.");
+  const rateLimitData = rateLimitSnapshot.data() ?? {};
+  const previousWindow = typeof rateLimitData.windowStartedAtMs === "number" ? rateLimitData.windowStartedAtMs : 0;
+  const previousCount = typeof rateLimitData.count === "number" ? rateLimitData.count : 0;
+  if (rateLimitNow - previousWindow < rateLimitWindowMs && previousCount >= rateLimitMax) {
+    throw new HttpsError("resource-exhausted", "Member roster read limit reached. Please retry shortly.");
+  }
+  await rateLimitRef.set({
+    windowStartedAtMs: rateLimitNow - previousWindow >= rateLimitWindowMs ? rateLimitNow : previousWindow,
+    count: rateLimitNow - previousWindow >= rateLimitWindowMs ? 1 : previousCount + 1,
+    updatedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+
+  let query = organisationRef.collection("members").orderBy("uid", "asc").limit(pageSize + 1);
+  if (pageToken) query = query.startAfter(pageToken);
+  const snapshot = await query.get();
+  const hasMoreMembers = snapshot.docs.length > pageSize;
+  const visibleDocs = snapshot.docs.slice(0, pageSize);
+  return {
+    organisationId,
+    members: visibleDocs.map((document) => {
+      const value = document.data();
+      const memberUid = typeof value.uid === "string" ? value.uid : document.id;
+      const role = value.role;
+      if (!["owner", "admin", "member", "viewer"].includes(role)) {
+        throw new HttpsError("failed-precondition", "A member record has an invalid role and requires operator review.");
+      }
+      return {
+        uid: memberUid,
+        role,
+        createdAt: value.createdAt instanceof Timestamp ? value.createdAt.toDate().toISOString() : null,
+      };
+    }),
+    hasMoreMembers,
+    nextPageToken: hasMoreMembers ? visibleDocs[visibleDocs.length - 1]?.data().uid ?? visibleDocs[visibleDocs.length - 1]?.id ?? null : null,
+  };
+});
+
 export const createCampaign = onCall(callableOptions, async (request) => {
   const uid = requireUid(request.auth?.uid);
   const data = (request.data ?? {}) as Record<string, unknown>;
