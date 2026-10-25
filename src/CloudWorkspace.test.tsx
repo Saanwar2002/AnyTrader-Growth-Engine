@@ -1038,8 +1038,8 @@ describe("cloud authentication gate", () => {
     render(<CloudWorkspace />);
     fireEvent.click(await screen.findByRole("button", { name: "Load member roster" }));
     await waitFor(() => expect(mocks.api.listOrganisationMembers).toHaveBeenCalledWith({ organisationId: "org-1" }));
-    expect(await screen.findByRole("table", { name: "Organisation member roster" })).toBeTruthy();
-    expect(screen.getByText("owner@example.test")).toBeTruthy();
+    const rosterTable = await screen.findByRole("table", { name: "Organisation member roster" });
+    expect(rosterTable.textContent).toContain("owner@example.test");
     expect(screen.getByText("owner", { selector: "td" })).toBeTruthy();
     expect(screen.getByText(/Account ID: owner-uid/)).toBeTruthy();
   });
