@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canCreateOutreachDraft, getContactRestrictionAction, deduplicateLeads, escapeCsvCell, serializeLeadExportCsv, inspectLeadCsvHeaders, normalizeBusinessName, parseLeadCsv, scoreLead, suggestLeadCsvMapping } from "./domain";
+import { canCreateOutreachDraft, getContactRestrictionAction, deduplicateLeads, escapeCsvCell, serializeLeadExportCsv, formatLeadSourceLabel, inspectLeadCsvHeaders, normalizeBusinessName, parseLeadCsv, scoreLead, suggestLeadCsvMapping } from "./domain";
 
 describe("outreach suppression", () => {
   it("offers a clear/review action for suppressed, pending, or contradictory blocked records", () => {
@@ -315,5 +315,14 @@ describe("lead CSV export", () => {
     const csv = serializeLeadExportCsv([{ ...lead, doNotContact: false, contactReviewStatus: undefined, contactRestrictionVerified: false }], {});
     expect(csv).toContain('"review required"');
     expect(csv).toContain('"Unknown campaign"');
+  });
+});
+
+
+describe("lead source labels", () => {
+  it("renders user-declared source attribution clearly without implying verification", () => {
+    expect(formatLeadSourceLabel("linkedin_csv")).toBe("LinkedIn export (user-declared)");
+    expect(formatLeadSourceLabel("google_places_manual")).toBe("Google Maps/Places research (user-declared)");
+    expect(formatLeadSourceLabel("unknown-source")).toBe("unknown-source");
   });
 });
