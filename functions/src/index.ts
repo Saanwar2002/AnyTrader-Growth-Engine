@@ -277,6 +277,39 @@ async function requireTransactionalRole(
   return membership;
 }
 
+/**
+ * Reserve plan usage for a lead mutation. Legacy organisations without the
+ * field remain compatible until reconciliation; present-but-invalid state is
+ * rejected rather than treated as zero. The caller persists the returned
+ * snapshot in the same transaction as the resource writes.
+ */
+async function reserveOrganisationPlanUsage(
+  transaction: Transaction,
+  organisationId: string,
+  metric: "leads",
+  requested: number,
+): Promise<PlanUsageState | null> {
+  const organisationRef = db.collection("organisations").doc(organisationId);
+  const snapshot = await transaction.get(organisationRef);
+  if (!snapshot.exists) throw new HttpsError("not-found", "Organisation was not found.");
+  const organisationData = snapshot.data() ?? {};
+  if (!Object.prototype.hasOwnProperty.call(organisationData, "planUsage")) return null;
+
+  const planResolution = resolvePlanPolicy(organisationData.planId);
+  const usageResolution = resolvePlanUsageState(organisationData.planUsage, new Date());
+  if (!planResolution.ok || !usageResolution.ok || usageResolution.source === "initial") {
+    throw new HttpsError("failed-precondition", "Organisation usage state is invalid and requires reconciliation.");
+  }
+  const reservation = reservePlanUsage(planResolution.plan, usageResolution.state, metric, requested);
+  if (!reservation.allowed) {
+    if (reservation.reason === "limit_exceeded") {
+      throw new HttpsError("resource-exhausted", `Lead limit reached for the ${planResolution.plan.displayName} plan (${reservation.limit}).`);
+    }
+    throw new HttpsError("failed-precondition", "Organisation usage state cannot be safely updated.");
+  }
+  return reservation.state;
+}
+
 function normaliseLeadFields(data: Record<string, unknown>) {
   const businessName = normaliseRequiredText(data.businessName, 160);
   const category = normaliseOptionalText(data.category, 100);
@@ -908,15 +941,28 @@ export const importLeads = onCall(callableOptions, async (request) => {
     const existingBusinesses = new Set(businesses
       .filter((row, index) => existingBusinessDocs[index].some((snapshot) => !snapshot.empty))
       .map((row) => row.businessKey));
-    await consumeTransactionalRateLimit(transaction, organisationId, uid, "importLeads", 10);
-
-    const newLeads: Array<{ leadId: string; businessName: string }> = [];
+    const rowsToImport: typeof prepared = [];
     let duplicateCount = 0;
     for (const row of prepared) {
       if ((row.emailKey && existingEmails.has(row.emailKey)) || (row.websiteKey && existingWebsites.has(row.websiteKey)) || existingBusinesses.has(row.businessKey)) {
         duplicateCount += 1;
         continue;
       }
+      rowsToImport.push(row);
+      if (row.emailKey) existingEmails.add(row.emailKey);
+      if (row.websiteKey) existingWebsites.add(row.websiteKey);
+      existingBusinesses.add(row.businessKey);
+    }
+    const reservedPlanUsageState = rowsToImport.length > 0
+      ? await reserveOrganisationPlanUsage(transaction, organisationId, "leads", rowsToImport.length)
+      : null;
+    await consumeTransactionalRateLimit(transaction, organisationId, uid, "importLeads", 10);
+
+    if (reservedPlanUsageState) {
+      transaction.update(organisationRef, { planUsage: reservedPlanUsageState });
+    }
+    const newLeads: Array<{ leadId: string; businessName: string }> = [];
+    for (const row of rowsToImport) {
       const completeness = calculateLeadCompleteness(row.fields);
       const leadRef = leadsRef.doc();
       const activityRef = organisationRef.collection("leadActivities").doc();
@@ -943,9 +989,6 @@ export const importLeads = onCall(callableOptions, async (request) => {
         createdAt: now,
       });
       newLeads.push({ leadId: leadRef.id, businessName: row.fields.businessName });
-      if (row.emailKey) existingEmails.add(row.emailKey);
-      if (row.websiteKey) existingWebsites.add(row.websiteKey);
-      existingBusinesses.add(row.businessKey);
     }
 
     const result = {
@@ -1074,6 +1117,7 @@ export const createLead = onCall(callableOptions, async (request) => {
     // stale/deleted campaign cannot race past the precondition.
     const campaignSnapshot = await transaction.get(campaignRef);
     if (!campaignSnapshot.exists) throw new HttpsError("not-found", "Campaign was not found in this organisation.");
+    const reservedPlanUsageState = await reserveOrganisationPlanUsage(transaction, organisationId, "leads", 1);
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "createLead", 200);
 
     const lead = organisationRef.collection("leads").doc();
@@ -1092,6 +1136,9 @@ export const createLead = onCall(callableOptions, async (request) => {
       contactReviewStatus: "pending" as const,
       contactReviewRevision: 0 as const,
     };
+    if (reservedPlanUsageState) {
+      transaction.update(organisationRef, { planUsage: reservedPlanUsageState });
+    }
     transaction.create(lead, {
       ...fields, campaignId, status: "new", source: "manual", score: completeness.score,
       scoreReasons: completeness.reasons, notes: "", doNotContact: true,
