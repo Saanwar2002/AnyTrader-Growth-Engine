@@ -964,7 +964,7 @@ describe("cloud authentication gate", () => {
     await waitFor(() => expect(mocks.api.getOrganisationPlanUsage).toHaveBeenCalledWith({ organisationId: "org-1" }));
     expect(await screen.findByRole("table", { name: "Server-maintained plan usage for 2026-10" })).toBeTruthy();
     expect(screen.getByText("Campaigns (lifetime)")).toBeTruthy();
-    expect(screen.getByText("Monthly AI suggestions (UTC month)")).toBeTruthy();
+    expect(screen.getByText("AI suggestions (UTC month)")).toBeTruthy();
     expect(screen.getByText("458")).toBeTruthy();
     expect(screen.getByText("43")).toBeTruthy();
   });
