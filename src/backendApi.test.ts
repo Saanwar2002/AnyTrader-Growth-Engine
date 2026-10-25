@@ -292,3 +292,12 @@ it("requests a read-only plan usage reconciliation inventory for the selected te
   await expect(api.getOrganisationPlanUsageReconciliation({ organisationId: "org-1" })).resolves.toEqual(response);
   expect(calls).toEqual([{ name: "getOrganisationPlanUsageReconciliation", payload: { organisationId: "org-1" } }]);
 });
+
+ 
+it("requests removal of the selected organisation member", async () => {
+  const response = { organisationId: "org-1", targetUid: "member-uid", removed: true };
+  const { invoke, calls } = makeInvoker([response]);
+  const api = createGrowthEngineApi(invoke);
+  await expect(api.removeOrganisationMember({ organisationId: "org-1", targetUid: "member-uid" })).resolves.toEqual(response);
+  expect(calls).toEqual([{ name: "removeOrganisationMember", payload: { organisationId: "org-1", targetUid: "member-uid" } }]);
+});
