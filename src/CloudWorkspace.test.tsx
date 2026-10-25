@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
   api: {
     listMyOrganisations: vi.fn(), createOrganisation: vi.fn(), createCampaign: vi.fn(), updateCampaignStatus: vi.fn(),
     listCampaigns: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), importLeads: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(),
-    updateLeadNotes: vi.fn(), setLeadSuppression: vi.fn(), createOutreachDraft: vi.fn(), listOutreachDrafts: vi.fn(),
+    updateLeadNotes: vi.fn(), setLeadSuppression: vi.fn(), createOutreachDraft: vi.fn(), suggestOutreachDraft: vi.fn(), listOutreachDrafts: vi.fn(),
     updateOutreachDraft: vi.fn(), deleteOutreachDraft: vi.fn(),
   },
 }));
@@ -47,6 +47,7 @@ beforeEach(() => {
   mocks.api.importLeads.mockResolvedValue({ organisationId: "org-1", campaignId: "campaign-1", received: 2, imported: 2, duplicatesSkipped: 0, leads: [{ leadId: "lead-csv-1", businessName: "Northside Painting" }, { leadId: "lead-csv-2", businessName: "City Decorators" }], sent: false, messageSentByThisAction: false });
   mocks.api.setLeadSuppression.mockResolvedValue({ leadId: "lead-1", doNotContact: true });
   mocks.api.createOutreachDraft.mockResolvedValue({ draftId: "draft-new", leadId: "lead-1", status: "draft", sent: false });
+  mocks.api.suggestOutreachDraft.mockResolvedValue({ subject: "Would you like to join our provider network?", body: "May we share details about joining?\\n\\nDRAFT ONLY — NOT SENT.", sent: false });
 });
 
 describe("cloud authentication gate", () => {
@@ -647,6 +648,31 @@ describe("cloud authentication gate", () => {
     expect(table.textContent).toContain("1");
     expect(table.textContent).toContain("Qualified");
     expect(table.textContent).toContain("Drafts needing review");
+  });
+
+
+  it("generates an AI suggestion for an eligible lead and requires review before saving", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
+    mocks.api.listCampaigns.mockResolvedValue({ campaigns: [{ id: "campaign-1", name: "Painter campaign", brand: "AnyTrader", category: "Painters", location: "Edinburgh", goal: "Recruit providers", status: "active", createdAt: null }] });
+    mocks.api.listLeads.mockResolvedValue({ leads: [{
+      id: "lead-1", campaignId: "campaign-1", businessName: "North Star Painters", category: "Painters", location: "Edinburgh",
+      website: "", email: "private@example.test", phone: "+44 131 555 0100", source: "manual", status: "new", score: 40,
+      scoreReasons: [], notes: "private internal note", doNotContact: false, contactRestrictionVerified: true,
+      contactReviewStatus: "cleared", contactReviewRevision: 1, createdAt: null,
+    }] });
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "AI draft suggestion" }));
+    expect(await screen.findByDisplayValue("Would you like to join our provider network?")).toBeTruthy();
+    expect(mocks.api.suggestOutreachDraft).toHaveBeenCalledWith({ organisationId: "org-1", leadId: "lead-1" });
+    expect(screen.getByText(/Check every claim and recipient eligibility/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Save as draft" }));
+    await waitFor(() => expect(mocks.api.createOutreachDraft).toHaveBeenCalledTimes(1));
+    const payload = mocks.api.createOutreachDraft.mock.calls[0][0];
+    expect(payload.subject).toBe("Would you like to join our provider network?");
+    expect(payload.body).toContain("DRAFT ONLY — NOT SENT.");
+    expect(payload.idempotencyKey).toMatch(/^outreach-draft-/);
+    expect(await screen.findByText("AI-assisted draft saved. Nothing was sent.")).toBeTruthy();
   });
 
 });
