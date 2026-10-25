@@ -1062,10 +1062,10 @@ describe("cloud authentication gate", () => {
     render(<CloudWorkspace />);
     fireEvent.click(await screen.findByRole("button", { name: "Load plan usage" }));
     await waitFor(() => expect(mocks.api.getOrganisationPlanUsage).toHaveBeenCalledWith({ organisationId: "org-1" }));
-    expect(await screen.findByLabelText("Quota status for Campaigns (lifetime)").textContent).toBe("Near limit");
-    expect(screen.getByLabelText("Quota status for Leads (lifetime)").textContent).toBe("Limit reached");
-    expect(screen.getByLabelText("Quota status for Organisation members (current counter)").textContent).toBe("Limit reached");
-    expect(screen.getByLabelText("Quota status for AI suggestions (UTC month)").textContent).toBe("Near limit");
+    expect((await screen.findByLabelText("Quota status for Campaigns (lifetime)")).textContent).toBe("Near limit");
+    expect((await screen.findByLabelText("Quota status for Leads (lifetime)")).textContent).toBe("Limit reached");
+    expect((await screen.findByLabelText("Quota status for Organisation members (current counter)")).textContent).toBe("Limit reached");
+    expect((await screen.findByLabelText("Quota status for AI suggestions (UTC month)")).textContent).toBe("Near limit");
   });
 
   it("does not display invented numeric usage for legacy organisations awaiting reconciliation", async () => {
