@@ -9,6 +9,7 @@ const callableSource = readFileSync(
 
 const expectedRateLimitType: Record<string, "read" | "mutation"> = {
   listMyOrganisations: "read",
+  previewOrganisationOffboarding: "read",
   createOrganisation: "mutation",
   createCampaign: "mutation",
   listCampaigns: "read",
