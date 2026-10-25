@@ -24,6 +24,7 @@
 - [x] Display heuristic lead completeness scores and bounded reason text, with loaded-page sorting by score, newest, or business name; explicitly distinguish completeness from quality, consent, and contactability.
 - [x] Add transactional lead status, notes, and UTC-calendar follow-up date updates with tenant-scoped activity events; follow-up scheduling is internal-only and never sends outreach.
 - [x] Add loaded-lead follow-up queue filters for overdue, due today, upcoming, unscheduled, and invalid legacy dates; UTC date-only classification, loaded-count labels, and filtered exports share the same criteria. This is a review aid only and never sends reminders or outreach.
+- [x] Sort the loaded lead directory by follow-up date (earliest first), placing unscheduled and invalid legacy dates after valid dates and using business name as a deterministic tie-breaker; no additional data reads or mutations.
 - [x] Add an on-demand, tenant-scoped lead activity timeline limited to the latest 20 events, excluding actor identifiers and contact values; emulator coverage verifies cross-tenant denial.
 - [x] Add transactional do-not-contact controls; members can suppress, but only owners/admins can remove a restriction.
 - [x] Add loaded-page contact-review queue counts and one-click filters for pending, cleared, and blocked leads; clearly disclose when additional lead pages remain.

@@ -1,11 +1,11 @@
-## AutoPilot run — lead follow-up queue (2026-10-25)
+## AutoPilot run — follow-up date sorting (2026-10-25)
 
-- Added a loaded-record follow-up queue filter for overdue, due today, upcoming, unscheduled, and malformed legacy date values.
-- Date-only values are compared lexically only after strict real-calendar-date validation, using an explicit UTC calendar day; no local timezone conversion can shift a follow-up across days.
-- Queue counts and the directory state that they cover loaded leads only. The matching filter is applied to both loaded-list filtering and the existing bounded all-record CSV export. Invalid legacy dates are kept visible in an explicit unclassified bucket.
-- Added unit tests for UTC boundaries and invalid dates, plus a UI regression covering overdue filtering and clearing filters.
-- No reminder notifications, automated outreach, server mutations, production Firebase configuration, or billing were added.
-- Next: wait for the exact combined-main CI run after PR #110, then verify this branch's typecheck, tests, production build, Functions checks, and emulator smoke tests before review/merge.
+- Added an explicit lead-directory sort mode for follow-up dates, earliest first; overdue dates naturally appear first, then due-today and future dates.
+- Leads without a date sort after valid dates, followed by invalid legacy dates; equal dates use business name as a deterministic tie-breaker.
+- Reuses the strict UTC date classifier already covered by unit tests. The sort is limited to loaded records, does not change filtering/export scope, and performs no backend writes.
+- Added a UI regression asserting the rendered order for overdue, due-today, upcoming and unscheduled leads.
+- No reminders, automated outreach, production Firebase configuration, or billing changes.
+- Next: continue with a narrowly scoped review of tenant-safe audit and idempotency invariants; keep production access and billing blocked pending dedicated Firebase/App Check and privacy/operations review.
 
 ---
 
