@@ -22,6 +22,7 @@ const expectedRateLimitType: Record<string, "read" | "mutation"> = {
   getCampaignFunnelSummary: "read",
   getLeadSourceFunnelSummary: "read",
   getOnboardingCohortSummary: "read",
+  getLeadCompletenessSummary: "read",
   getOnboardingCohortCoverage: "read",
   getContactReviewQueueSummary: "read",
   getOrganisationPlanUsage: "read",
