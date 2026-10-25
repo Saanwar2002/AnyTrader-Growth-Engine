@@ -1199,12 +1199,13 @@ describe("cloud authentication gate", () => {
 
     render(<CloudWorkspace />);
     expect(await screen.findByText("Loaded Example")).toBeTruthy();
-    fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: "Target Provider" } });
+    fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: "Provider" } });
+    fireEvent.change(screen.getByLabelText("Filter by source"), { target: { value: "csv_import" } });
     mocks.api.listLeads.mockResolvedValueOnce({
       leads: [
         {
           id: "target-lead", campaignId: "campaign-1", businessName: "Target Provider",
-          category: "Painters", location: "Leeds", website: "", email: "", phone: "", source: "manual",
+          category: "Painters", location: "Leeds", website: "", email: "", phone: "", source: "csv_import",
           status: "qualified", score: 80, scoreReasons: ["Business name provided (+20)"], notes: "",
           doNotContact: false, contactRestrictionVerified: true, contactReviewStatus: "cleared", contactReviewRevision: 1, createdAt: null,
         },
