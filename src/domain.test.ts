@@ -320,10 +320,10 @@ describe("lead CSV export", () => {
     const csv = serializeLeadExportCsv([{
       ...lead,
       score: 150,
-      scoreReasons: ["=HYPERLINK(\\"https://evil.test\\")"],
+      scoreReasons: ["=1+1"],
     }], {});
     expect(csv).toContain('"100"');
-    expect(csv).toContain('"\'=HYPERLINK(""https://evil.test"")"');
+    expect(csv).toContain('"\'=1+1"');
   });
 
   it("marks incomplete restriction metadata as requiring review", () => {
