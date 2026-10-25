@@ -68,6 +68,7 @@
 ## Phase 6 — Attribution and SaaS controls (in progress)
 
 - [x] Loaded-record campaign funnel summary with qualified, contacted, onboarded counts and clearly labelled loaded-lead conversion rates; partial pagination is disclosed in the UI.
+- [x] Self-declared lead-source performance summary with qualified/onboarded counts and rates; pagination and unverified source-label limitations are explicit.
 - [ ] Onboarding attribution and durable, server-side aggregate analytics across all pages.
 - [ ] Organisation settings, plans, and server-side entitlements/quotas.
 - [ ] Billing only after core workflows and server-side entitlements are tested.

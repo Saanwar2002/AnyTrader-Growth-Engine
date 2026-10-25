@@ -1,3 +1,12 @@
+## AutoPilot run — source attribution analytics (2026-10-25)
+
+- Added a loaded-record summary grouped by user-declared CSV source label, with qualified/onboarded counts and rates.
+- The UI explicitly says labels are not independently verified and that calculations cover only loaded leads. Missing legacy source labels appear as "unknown" rather than being guessed.
+- Added tests for sorting, rates, unknown labels, and empty input. No additional database reads, source scraping, PII collection, or outreach behavior was introduced.
+- Next product focus: durable tenant-scoped aggregate analytics and organisation settings/entitlements. A dedicated Firebase project, live App Check verification, privacy/source permission review, and production controls remain operator prerequisites.
+
+---
+
 ## AutoPilot run — campaign funnel analytics (2026-10-25)
 
 - Added contacted lead counts and qualified/onboarded rates to the campaign performance summary.
