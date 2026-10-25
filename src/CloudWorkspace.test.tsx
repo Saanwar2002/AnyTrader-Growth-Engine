@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
   currentUser: null as unknown,
   api: {
     listMyOrganisations: vi.fn(), createOrganisation: vi.fn(), updateOrganisationSettings: vi.fn(), addOrganisationMember: vi.fn(), createCampaign: vi.fn(), updateCampaignStatus: vi.fn(), updateCampaignDetails: vi.fn(),
-    listCampaigns: vi.fn(), getCampaignFunnelSummary: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), importLeads: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(),
+    listCampaigns: vi.fn(), getCampaignFunnelSummary: vi.fn(), getLeadSourceFunnelSummary: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), importLeads: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(),
     updateLeadNotes: vi.fn(), setLeadSuppression: vi.fn(), createOutreachDraft: vi.fn(), suggestOutreachDraft: vi.fn(), listOutreachDrafts: vi.fn(),
     updateOutreachDraft: vi.fn(), deleteOutreachDraft: vi.fn(),
   },
@@ -43,6 +43,15 @@ beforeEach(() => {
     organisationId: "org-1", campaignId: "campaign-1", totalLeadCount: 120,
     qualifiedLeadCount: 30, contactedLeadCount: 12, onboardedLeadCount: 4,
     qualifiedRatePercent: 25, onboardedRatePercent: 3.3, scope: "all_stored_campaign_leads",
+  });
+  mocks.api.getLeadSourceFunnelSummary.mockResolvedValue({
+    organisationId: "org-1",
+    sourceSummaries: [
+      { source: "linkedin_csv", totalLeadCount: 10, qualifiedLeadCount: 3, onboardedLeadCount: 1, qualifiedRatePercent: 30, onboardedRatePercent: 10 },
+      { source: "unknown", totalLeadCount: 2, qualifiedLeadCount: 0, onboardedLeadCount: 0, qualifiedRatePercent: 0, onboardedRatePercent: 0 },
+    ],
+    scope: "all_stored_organisation_leads",
+    attributionNote: "Source values are self-declared; unknown includes missing and unrecognised legacy values.",
   });
   mocks.api.listLeads.mockResolvedValue({ leads: [], hasMoreLeads: false, nextPageToken: null });
   mocks.api.listOutreachDrafts.mockResolvedValue({ drafts: [] });
@@ -810,6 +819,20 @@ describe("cloud authentication gate", () => {
     expect(await screen.findByText("120 total leads")).toBeTruthy();
     expect(screen.getByText("30 qualified · 12 contacted · 4 onboarded")).toBeTruthy();
     expect(screen.getByText("25.0% qualified · 3.3% onboarded")).toBeTruthy();
+  });
+
+  it("loads complete server-side source attribution counts on demand", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load full source counts" }));
+    await waitFor(() => expect(mocks.api.getLeadSourceFunnelSummary).toHaveBeenCalledWith({ organisationId: "org-1" }));
+    expect(await screen.findByRole("table", { name: "All-record source attribution" })).toBeTruthy();
+    expect(screen.getByText("10", { selector: "td" })).toBeTruthy();
+    expect(screen.getByText(/unknown includes missing and unrecognised legacy values/i)).toBeTruthy();
   });
 
 });

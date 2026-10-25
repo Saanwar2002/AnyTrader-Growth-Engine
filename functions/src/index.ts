@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
-import { FieldPath, FieldValue, Timestamp, getFirestore, type QueryDocumentSnapshot, type Transaction } from "firebase-admin/firestore";
+import { FieldPath, FieldValue, Timestamp, getFirestore, type Query, type QueryDocumentSnapshot, type Transaction } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import { generateAiOutreachDraftSuggestion } from "./ai-outreach-draft";
@@ -961,6 +961,71 @@ export const getCampaignFunnelSummary = onCall(callableOptions, async (request) 
     qualifiedRatePercent: rate(qualifiedLeadCount),
     onboardedRatePercent: rate(onboardedLeadCount),
     scope: "all_stored_campaign_leads" as const,
+  };
+});
+
+/**
+ * Aggregate source attribution across every stored lead without loading lead PII.
+ * Unknown and legacy source values are retained in an explicit "unknown" bucket.
+ */
+export const getLeadSourceFunnelSummary = onCall(callableOptions, async (request) => {
+  const uid = requireUid(request.auth?.uid);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const organisationId = requireOrganisationId(data.organisationId);
+  await requireMembership(organisationId, uid);
+  await consumeReadRateLimit(organisationId, uid, "getLeadSourceFunnelSummary", 10);
+
+  const leadsRef = db.collection("organisations").doc(organisationId).collection("leads");
+  const knownSources = ["manual", "csv_import", "linkedin_csv", "google_places_manual", "other_approved"] as const;
+  const countQuery = async (source?: string, status?: "qualified" | "onboarded"): Promise<number> => {
+    let query: Query = leadsRef;
+    if (source !== undefined) query = query.where("source", "==", source);
+    if (status !== undefined) query = query.where("status", "==", status);
+    const result = await query.count().get();
+    const count = result.data().count;
+    if (!Number.isSafeInteger(count) || count < 0) {
+      throw new HttpsError("failed-precondition", "Source analytics count is invalid and requires operator review.");
+    }
+    return count;
+  };
+
+  const [totalLeadCount, totalQualified, totalOnboarded, ...knownCounts] = await Promise.all([
+    countQuery(),
+    countQuery(undefined, "qualified"),
+    countQuery(undefined, "onboarded"),
+    ...knownSources.flatMap((source) => [
+      countQuery(source),
+      countQuery(source, "qualified"),
+      countQuery(source, "onboarded"),
+    ]),
+  ]);
+  const rows: Array<{ source: string; totalLeadCount: number; qualifiedLeadCount: number; onboardedLeadCount: number }> = knownSources.map((source, index) => ({
+    source,
+    totalLeadCount: knownCounts[index * 3],
+    qualifiedLeadCount: knownCounts[index * 3 + 1],
+    onboardedLeadCount: knownCounts[index * 3 + 2],
+  }));
+  const knownTotal = rows.reduce((sum, row) => sum + row.totalLeadCount, 0);
+  const knownQualified = rows.reduce((sum, row) => sum + row.qualifiedLeadCount, 0);
+  const knownOnboarded = rows.reduce((sum, row) => sum + row.onboardedLeadCount, 0);
+  if (knownTotal > totalLeadCount || knownQualified > totalQualified || knownOnboarded > totalOnboarded) {
+    throw new HttpsError("failed-precondition", "Source attribution aggregates are inconsistent and require operator review.");
+  }
+  rows.push({
+    source: "unknown",
+    totalLeadCount: totalLeadCount - knownTotal,
+    qualifiedLeadCount: totalQualified - knownQualified,
+    onboardedLeadCount: totalOnboarded - knownOnboarded,
+  });
+  return {
+    organisationId,
+    sourceSummaries: rows.map((row) => ({
+      ...row,
+      qualifiedRatePercent: row.totalLeadCount ? Math.round((row.qualifiedLeadCount / row.totalLeadCount) * 1000) / 10 : 0,
+      onboardedRatePercent: row.totalLeadCount ? Math.round((row.onboardedLeadCount / row.totalLeadCount) * 1000) / 10 : 0,
+    })),
+    scope: "all_stored_organisation_leads" as const,
+    attributionNote: "Source values are self-declared; unknown includes missing and unrecognised legacy values.",
   };
 });
 

@@ -16,6 +16,7 @@ const expectedRateLimitType: Record<string, "read" | "mutation"> = {
   createCampaign: "mutation",
   listCampaigns: "read",
   getCampaignFunnelSummary: "read",
+  getLeadSourceFunnelSummary: "read",
   updateCampaignStatus: "mutation",
   updateCampaignDetails: "mutation",
   listLeads: "read",
@@ -96,7 +97,7 @@ describe("callable security contract", () => {
 
   it("enforces App Check on every deployed callable and only bypasses it in the Functions emulator", () => {
     expect(callableSource).toContain('const callableOptions = { enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true" }');
-    expect((callableSource.match(/= onCall\(callableOptions, async \(request\) => \{/g) ?? [])).toHaveLength(20);
+    expect((callableSource.match(/= onCall\(callableOptions, async \(request\) => \{/g) ?? [])).toHaveLength(21);
     expect(callableSource.includes("= onCall(async (request) => {")).toBe(false);
   });
 
@@ -767,5 +768,24 @@ describe("server-side campaign funnel analytics", () => {
     expect(body).toContain("query.count().get()");
     expect(body).toContain('scope: "all_stored_campaign_leads"');
     expect(body).not.toContain(".get()\n    .docs");
+  });
+});
+
+
+describe("server-side source attribution analytics", () => {
+  it("aggregates source counts within the authenticated organisation and preserves unknown legacy attribution", () => {
+    const start = callableSource.indexOf("export const getLeadSourceFunnelSummary = onCall(");
+    const end = callableSource.indexOf("export const ", start + 1);
+    const body = callableSource.slice(start, end < 0 ? callableSource.length : end);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(body).toContain("requireUid(request.auth?.uid)");
+    expect(body).toContain("await requireMembership(organisationId, uid)");
+    expect(body).toContain('consumeReadRateLimit(organisationId, uid, "getLeadSourceFunnelSummary", 10)');
+    expect(body).toContain('db.collection("organisations").doc(organisationId).collection("leads")');
+    expect(body).toContain('const knownSources = ["manual", "csv_import", "linkedin_csv", "google_places_manual", "other_approved"]');
+    expect(body).toContain('source: "unknown"');
+    expect(body).toContain("query.count().get()");
+    expect(body).toContain('scope: "all_stored_organisation_leads"');
+    expect(body).toContain("attributionNote:");
   });
 });

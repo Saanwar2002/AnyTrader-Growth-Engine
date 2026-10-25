@@ -268,6 +268,16 @@ try {
   assert.equal(fullCampaignFunnel.qualifiedLeadCount, campaignLeadRows.filter((lead) => lead.status === "qualified").length);
   assert.equal(fullCampaignFunnel.contactedLeadCount, campaignLeadRows.filter((lead) => lead.status === "contacted").length);
   assert.equal(fullCampaignFunnel.onboardedLeadCount, campaignLeadRows.filter((lead) => lead.status === "onboarded").length);
+  const fullSourceFunnel = await callOne("getLeadSourceFunnelSummary", { organisationId: orgOne.organisationId });
+  assert.equal(fullSourceFunnel.scope, "all_stored_organisation_leads");
+  assert.equal(fullSourceFunnel.sourceSummaries.reduce((sum, row) => sum + row.totalLeadCount, 0), analyticsLeadPage.leads.length,
+    "server source aggregates cover every stored lead, not only the currently rendered campaign");
+  assert.equal(fullSourceFunnel.sourceSummaries.reduce((sum, row) => sum + row.qualifiedLeadCount, 0),
+    analyticsLeadPage.leads.filter((lead) => lead.status === "qualified").length);
+  assert.equal(fullSourceFunnel.sourceSummaries.reduce((sum, row) => sum + row.onboardedLeadCount, 0),
+    analyticsLeadPage.leads.filter((lead) => lead.status === "onboarded").length);
+  assert.ok(fullSourceFunnel.sourceSummaries.some((row) => row.source === "unknown"),
+    "unknown source bucket remains explicit even when empty");
   await expectCallableFailure(callOne("updateLeadNotes", {
     organisationId: orgOne.organisationId,
     leadId: leadOne.leadId,
@@ -1935,6 +1945,9 @@ try {
     organisationId: orgTwo.organisationId,
     campaignId: campaignOne.campaignId,
   }), "functions/permission-denied", "campaign analytics rejects another tenant before revealing aggregate counts");
+  await expectCallableFailure(callOne("getLeadSourceFunnelSummary", {
+    organisationId: orgTwo.organisationId,
+  }), "functions/permission-denied", "source analytics rejects another tenant before revealing aggregate counts");
   await expectCallableFailure(callTwo("updateCampaignDetails", {
     organisationId: orgOne.organisationId, campaignId: campaignOne.campaignId,
     name: "Cross tenant", brand: "Test Brand", category: "Roofing", location: "Leeds, UK", goal: "",
@@ -2821,6 +2834,7 @@ try {
     "createCampaign",
     "listCampaigns",
     "getCampaignFunnelSummary",
+    "getLeadSourceFunnelSummary",
     "updateCampaignStatus",
     "updateCampaignDetails",
     "listLeads",
