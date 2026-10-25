@@ -2665,6 +2665,30 @@ try {
     name: "Metered quota tenant",
     idempotencyKey: "campaign-quota-tenant-0001",
   });
+  const addedMember = await callOne("addOrganisationMember", {
+    organisationId: quotaOrg.organisationId,
+    targetUid: second.auth.currentUser.uid,
+    role: "viewer",
+    idempotencyKey: "member-addition-smoke-test-0001",
+  });
+  assert.equal(addedMember.added, true, "owner can add an existing account as a viewer");
+  assert.equal(addedMember.role, "viewer");
+  const retriedMember = await callOne("addOrganisationMember", {
+    organisationId: quotaOrg.organisationId,
+    targetUid: second.auth.currentUser.uid,
+    role: "viewer",
+    idempotencyKey: "member-addition-smoke-test-0001",
+  });
+  assert.equal(retriedMember.added, true, "same idempotency key returns the original member-addition result");
+  const usageAfterMemberRetry = (await getDoc(doc(first.firestore, "organisations", quotaOrg.organisationId))).data()?.planUsage;
+  assert.equal(usageAfterMemberRetry?.members, 2, "idempotent retry must not charge member usage twice");
+  await expectCallableFailure(callTwo("addOrganisationMember", {
+    organisationId: quotaOrg.organisationId,
+    targetUid: first.auth.currentUser.uid + "-another",
+    role: "member",
+    idempotencyKey: "member-addition-nonadmin-0001",
+  }), "functions/permission-denied", "viewer cannot add organisation members");
+  console.log("PASS: organisation member addition checks role, reserves usage, and is idempotent.");
   for (let index = 1; index <= 10; index += 1) {
     await callOne("createCampaign", {
       organisationId: quotaOrg.organisationId,
@@ -2694,6 +2718,7 @@ try {
     "listMyOrganisations",
     "createOrganisation",
     "updateOrganisationSettings",
+    "addOrganisationMember",
     "createCampaign",
     "listCampaigns",
     "updateCampaignStatus",
