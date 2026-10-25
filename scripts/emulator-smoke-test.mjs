@@ -2837,21 +2837,26 @@ try {
     leadId: onboardingAttributionLead.leadId,
     status: "onboarded",
   });
-  const firstOnboardedLeadPage = await callOne("listLeads", { organisationId: orgOne.organisationId });
-  const firstOnboardedLead = firstOnboardedLeadPage.leads.find((lead) => lead.id === onboardingAttributionLead.leadId);
-  assert.equal(firstOnboardedLead?.status, "onboarded");
-  assert.equal(typeof firstOnboardedLead?.onboardedAt, "string", "first transition to onboarded records a server timestamp");
-  assert.ok(Number.isFinite(Date.parse(firstOnboardedLead.onboardedAt)), "onboarding timestamp is serialised as a valid ISO date");
-  const originalOnboardedAt = firstOnboardedLead.onboardedAt;
+  const onboardingTimestampOutput = execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-onboarding-attribution.mjs",
+    orgOne.organisationId,
+    onboardingAttributionLead.leadId,
+    "onboarded",
+  ], { encoding: "utf8" }).trim();
+  const originalOnboardedAt = JSON.parse(onboardingTimestampOutput).onboardedAt;
+  assert.ok(Number.isFinite(Date.parse(originalOnboardedAt)), "first transition to onboarded records a valid server timestamp");
   await callOne("updateLeadStatus", {
     organisationId: orgOne.organisationId,
     leadId: onboardingAttributionLead.leadId,
     status: "rejected",
   });
-  const laterStatusLeadPage = await callOne("listLeads", { organisationId: orgOne.organisationId });
-  const laterStatusLead = laterStatusLeadPage.leads.find((lead) => lead.id === onboardingAttributionLead.leadId);
-  assert.equal(laterStatusLead?.status, "rejected");
-  assert.equal(laterStatusLead?.onboardedAt, originalOnboardedAt, "later lifecycle changes preserve the first onboarding timestamp");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-onboarding-attribution.mjs",
+    orgOne.organisationId,
+    onboardingAttributionLead.leadId,
+    "rejected",
+    originalOnboardedAt,
+  ], { stdio: "inherit" });
 
   await signOut(first.auth);
   const unauthenticatedCallableNames = [
