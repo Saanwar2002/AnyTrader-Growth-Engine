@@ -194,3 +194,24 @@ it("requests complete server-side lead source attribution for the selected organ
     payload: { organisationId: "org-1" },
   });
 });
+
+
+it("requests bounded onboarding cohort analytics for the selected organisation", async () => {
+  const response = {
+    organisationId: "org-1",
+    months: 3 as const,
+    monthlyOnboardings: [{ month: "2026-08", count: 1 }, { month: "2026-09", count: 0 }, { month: "2026-10", count: 2 }],
+    currentOnboardedLeadCount: 3,
+    timestampedCurrentOnboardedLeadCount: 2,
+    legacyUnattributedCurrentOnboardedLeadCount: 1,
+    scope: "all_stored_organisation_leads" as const,
+    coverageNote: "No historical dates are inferred.",
+  };
+  const { invoke, calls } = makeInvoker([response]);
+  const api = createGrowthEngineApi(invoke);
+  await expect(api.getOnboardingCohortSummary({ organisationId: "org-1", months: 3 })).resolves.toEqual(response);
+  expect(calls[0]).toEqual({
+    name: "getOnboardingCohortSummary",
+    payload: { organisationId: "org-1", months: 3 },
+  });
+});
