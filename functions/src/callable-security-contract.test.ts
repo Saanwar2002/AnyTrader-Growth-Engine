@@ -506,6 +506,16 @@ describe("callable security contract", () => {
     expect(body).not.toContain("return savedResult as { organisationId: string; name: string; role: \"owner\" }");
   });
 
+  it("validates lead creation replay response shape and persisted score before returning it", () => {
+    const start = callableSource.indexOf("export const createLead = onCall(");
+    const end = callableSource.indexOf("export const ", start + 1);
+    const body = callableSource.slice(start, end < 0 ? callableSource.length : end);
+    expect(body).toContain("getValidLeadCreationReplayResult(saved, expectedReplay)");
+    expect(body).toContain("isPersistedLeadCreationReplayAvailable(replayLeadSnapshot.data(), expectedReplay, savedResult)");
+    expect(body).toContain("return savedResult;");
+    expect(body).not.toContain("return savedResult as {");
+  });
+
   it("keeps every expected callable authenticated and rate-limited", () => {
     const declarations = [...callableSource.matchAll(/export const (\w+) = onCall\(/g)];
     expect(declarations.map((match) => match[1]).sort()).toEqual(
@@ -766,18 +776,17 @@ describe("manual lead creation idempotency replay integrity", () => {
     const savedValidation = body.indexOf("Saved lead retry state is invalid");
     const leadRead = body.indexOf("transaction.get(replayLeadRef)");
     const campaignRead = body.indexOf("transaction.get(campaignRef)", replayCheck);
-    const replayReturn = body.indexOf("return savedResult as {", replayCheck);
+    const replayReturn = body.indexOf("return savedResult;", replayCheck);
 
     expect(replayCheck).toBeGreaterThanOrEqual(0);
-    expect(body).toContain("saved.actorUid !== uid");
-    expect(body).toContain("isValidDocumentId(savedLeadId)");
+    expect(body).toContain("getValidLeadCreationReplayResult(saved, expectedReplay)");
+    expect(body).toContain("isPersistedLeadCreationReplayAvailable(replayLeadSnapshot.data(), expectedReplay, savedResult)");
     expect(body).toContain("Saved lead retry state no longer matches its authoritative records");
     expect(savedValidation).toBeGreaterThan(replayCheck);
     expect(leadRead).toBeGreaterThan(savedValidation);
     expect(campaignRead).toBeGreaterThan(replayCheck);
     expect(replayReturn).toBeGreaterThan(leadRead);
-    expect(body).toContain('replayLead.createdBy !== uid');
-    expect(body).toContain('replayLead.campaignId !== campaignId');
+    expect(body).not.toContain("return savedResult as {");
   });
 });
 
