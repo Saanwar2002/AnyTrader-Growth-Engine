@@ -1447,7 +1447,8 @@ describe("cloud authentication gate", () => {
       id, campaignId: "campaign-1", businessName, category: "Painters", location: "Leeds",
       website: "", email: "", phone: "", source: "manual", status: "new", score, scoreReasons,
       notes: "", doNotContact: true, contactRestrictionVerified: false, contactReviewStatus: "pending",
-      contactReviewRevision: 0, onboardedAt: null, createdAt: null,
+      contactReviewRevision: 0, onboardedAt: null,
+      createdAt: id === "zulu" ? "2026-10-25T10:00:00.000Z" : "2026-10-24T10:00:00.000Z",
     });
     mocks.api.listLeads.mockResolvedValue({
       leads: [
