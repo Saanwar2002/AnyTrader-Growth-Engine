@@ -1,3 +1,11 @@
+## AutoPilot run — workspace settings test race (2026-10-25)
+
+- Fixed a race in the workspace rename UI test: wait for the selected organisation to finish loading before editing the controlled form.
+- This addresses the post-merge main CI failure where the save button remained disabled and the settings API mock was never called; production behavior was not changed.
+- Next: rerun exact-head CI and confirm both jobs pass before proceeding with the next feature.
+
+---
+
 ## AutoPilot run — exact security audit metadata shape (2026-10-25)
 
 - Tightened the audit metadata contract so each event must contain the complete event-specific key set, not just a subset of allowed keys.
