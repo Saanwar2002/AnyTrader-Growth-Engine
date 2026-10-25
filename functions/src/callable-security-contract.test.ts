@@ -67,7 +67,8 @@ describe("callable security contract", () => {
     expect(callable).toContain('collection("leadActivities")');
     expect(callable).toContain('.where("leadId", "==", leadId)');
     expect(callable).toContain('.orderBy("createdAt", "desc")');
-    expect(callable).toContain(".limit(20)");
+    expect(callable).toContain(".limit(21)");
+    expect(callable).toContain("snapshot.docs.slice(0, 20)");
     expect(callable).not.toContain("actorUid:");
     expect(callable).not.toContain("email:");
     expect(callable).not.toContain("phone:");
