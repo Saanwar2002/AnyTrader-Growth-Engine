@@ -94,6 +94,8 @@ export default function CloudWorkspace() {
   const [loadingSecurityAudit, setLoadingSecurityAudit] = useState(false);
   const [securityAuditEventTypeFilter, setSecurityAuditEventTypeFilter] = useState("all");
   const [securityAuditSearch, setSecurityAuditSearch] = useState("");
+  const [securityAuditFromDate, setSecurityAuditFromDate] = useState("");
+  const [securityAuditToDate, setSecurityAuditToDate] = useState("");
   // Preserve the exact organisation request key after an uncertain response.
   const [organisationIdempotencyKey, setOrganisationIdempotencyKey] = useState("");
   const [campaignName, setCampaignName] = useState("");
@@ -148,11 +150,13 @@ export default function CloudWorkspace() {
     const query = securityAuditSearch.trim().toLowerCase();
     return events.filter((event) => {
       if (securityAuditEventTypeFilter !== "all" && event.eventType !== securityAuditEventTypeFilter) return false;
+      if (securityAuditFromDate && (!event.createdAt || event.createdAt.slice(0, 10) < securityAuditFromDate)) return false;
+      if (securityAuditToDate && (!event.createdAt || event.createdAt.slice(0, 10) > securityAuditToDate)) return false;
       if (!query) return true;
       return [event.eventType, event.actorUid, event.resourceType, event.resourceId, (JSON.stringify(event.metadata) ?? "")]
         .some((value) => value.toLowerCase().includes(query));
     });
-  }, [securityAuditPage, organisationId, securityAuditEventTypeFilter, securityAuditSearch]);
+  }, [securityAuditPage, organisationId, securityAuditEventTypeFilter, securityAuditSearch, securityAuditFromDate, securityAuditToDate]);
   const canClearContactRestriction = selectedOrganisationRole === "owner" || selectedOrganisationRole === "admin";
 
   useEffect(() => {
@@ -1180,7 +1184,7 @@ DRAFT ONLY — NOT SENT.`,
         </div>
         {securityAuditPage?.organisationId === organisationId && <>
           <p className="cloud-muted">{filteredSecurityAuditEvents.length} matching event(s) from {securityAuditPage.events.length} loaded. {securityAuditPage.hasMoreEvents ? "More events are available." : "Latest available events loaded."}</p>
-          <div className="cloud-inline-form"><label className="cloud-field">Filter by action<select value={securityAuditEventTypeFilter} onChange={(event) => setSecurityAuditEventTypeFilter(event.target.value)}><option value="all">All actions</option>{[...new Set(securityAuditPage.events.map((event) => event.eventType))].sort().map((eventType) => <option key={eventType} value={eventType}>{eventType.replace(/[._]/g, " ")}</option>)}</select></label><label className="cloud-field">Search loaded audit events<input type="search" maxLength={160} value={securityAuditSearch} onChange={(event) => setSecurityAuditSearch(event.target.value)} placeholder="Actor ID, resource ID, action or detail" /></label><button className="cloud-secondary" type="button" disabled={securityAuditEventTypeFilter === "all" && !securityAuditSearch} onClick={() => { setSecurityAuditEventTypeFilter("all"); setSecurityAuditSearch(""); }}>Clear audit filters</button></div>
+          <div className="cloud-inline-form"><label className="cloud-field">Filter by action<select value={securityAuditEventTypeFilter} onChange={(event) => setSecurityAuditEventTypeFilter(event.target.value)}><option value="all">All actions</option>{[...new Set(securityAuditPage.events.map((event) => event.eventType))].sort().map((eventType) => <option key={eventType} value={eventType}>{eventType.replace(/[._]/g, " ")}</option>)}</select></label><label className="cloud-field">Search loaded audit events<input type="search" maxLength={160} value={securityAuditSearch} onChange={(event) => setSecurityAuditSearch(event.target.value)} placeholder="Actor ID, resource ID, action or detail" /></label><label className="cloud-field">From date (UTC)<input type="date" value={securityAuditFromDate} onChange={(event) => setSecurityAuditFromDate(event.target.value)} /></label><label className="cloud-field">To date (UTC)<input type="date" value={securityAuditToDate} onChange={(event) => setSecurityAuditToDate(event.target.value)} /></label><button className="cloud-secondary" type="button" disabled={securityAuditEventTypeFilter === "all" && !securityAuditSearch && !securityAuditFromDate && !securityAuditToDate} onClick={() => { setSecurityAuditEventTypeFilter("all"); setSecurityAuditSearch(""); setSecurityAuditFromDate(""); setSecurityAuditToDate(""); }}>Clear audit filters</button></div>
           {filteredSecurityAuditEvents.length ? <div className="cloud-table-wrap"><table className="cloud-table"><caption>Organisation security audit events</caption><thead><tr><th>When</th><th>Action</th><th>Actor ID</th><th>Resource</th><th>Details</th></tr></thead><tbody>{filteredSecurityAuditEvents.map((event) => <tr key={event.id}><td>{event.createdAt ? new Date(event.createdAt).toLocaleString("en-GB") : "Date unavailable"}</td><td>{event.eventType.replace(/[._]/g, " ")}</td><td><code>{event.actorUid}</code></td><td>{event.resourceType} <code>{event.resourceId}</code></td><td>{Object.keys(event.metadata).length ? Object.entries(event.metadata).map(([key, value]) => `${key}: ${String(value)}`).join(" · ") : "No additional details"}</td></tr>)}</tbody></table></div> : <p className="cloud-empty">{securityAuditPage.events.length ? "No loaded audit events match these filters." : "No security audit events are available for this organisation."}</p>}
           {securityAuditPage.hasMoreEvents && securityAuditPage.nextPageToken && <button className="cloud-secondary" type="button" disabled={loadingSecurityAudit} onClick={() => void loadSecurityAuditEvents(securityAuditPage.nextPageToken ?? undefined)}>{loadingSecurityAudit ? "Loading audit events…" : "Load more audit events"}</button>}
         </>}
