@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
   currentUser: null as unknown,
   api: {
     listMyOrganisations: vi.fn(), createOrganisation: vi.fn(), updateOrganisationSettings: vi.fn(), previewOrganisationOffboarding: vi.fn(), addOrganisationMember: vi.fn(), removeOrganisationMember: vi.fn(), updateOrganisationMemberRole: vi.fn(), listOrganisationMembers: vi.fn(), listOrganisationSecurityAuditEvents: vi.fn(), createCampaign: vi.fn(), updateCampaignStatus: vi.fn(), updateCampaignDetails: vi.fn(),
-    listCampaigns: vi.fn(), getCampaignFunnelSummary: vi.fn(), getLeadSourceFunnelSummary: vi.fn(), getOnboardingCohortSummary: vi.fn(), getOnboardingCohortCoverage: vi.fn(), getContactReviewQueueSummary: vi.fn(), getLeadCompletenessSummary: vi.fn(), getOpenLeadAgingSummary: vi.fn(), getLeadActivityTimeline: vi.fn(), getOrganisationPlanUsage: vi.fn(), getOrganisationPlanUsageReconciliation: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), importLeads: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(), bulkUpdateLeadStatus: vi.fn(),
+    listCampaigns: vi.fn(), getCampaignFunnelSummary: vi.fn(), getLeadSourceFunnelSummary: vi.fn(), getOnboardingCohortSummary: vi.fn(), getOnboardingCohortCoverage: vi.fn(), getContactReviewQueueSummary: vi.fn(), getLeadCompletenessSummary: vi.fn(), getFullCampaignReadinessSummary: vi.fn(), getOpenLeadAgingSummary: vi.fn(), getLeadActivityTimeline: vi.fn(), getOrganisationPlanUsage: vi.fn(), getOrganisationPlanUsageReconciliation: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), importLeads: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(), bulkUpdateLeadStatus: vi.fn(),
     updateLeadNotes: vi.fn(), updateLeadFollowUpDate: vi.fn(), setLeadSuppression: vi.fn(), createOutreachDraft: vi.fn(), suggestOutreachDraft: vi.fn(), listOutreachDrafts: vi.fn(),
     updateOutreachDraft: vi.fn(), deleteOutreachDraft: vi.fn(),
   },
@@ -2021,5 +2021,42 @@ describe("cloud authentication gate", () => {
     expect(await screen.findByText("Lead follow-up date saved.")).toBeTruthy();
     expect(await screen.findByText("Follow-up due 2026-11-04")).toBeTruthy();
   });
+
+  it("loads server-counted campaign readiness and discloses the bounded campaign scope", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    mocks.api.getFullCampaignReadinessSummary.mockResolvedValue({
+      organisationId: "org-1",
+      campaigns: [{
+        campaignId: "campaign-1",
+        campaignName: "Painter pilot",
+        campaignStatus: "active",
+        status: "review_required",
+        totalLeadCount: 12,
+        pendingOrBlockedLeadCount: 2,
+        suppressedLeadCount: 1,
+        legacyReviewStatusLeadCount: 3,
+        draftsAwaitingReview: 4,
+        sourceAttributionMissingCount: 2,
+        missingConfigurationFields: [],
+      }],
+      hasMoreCampaigns: true,
+      campaignLimit: 20,
+      scope: "server_counted_campaign_readiness",
+      note: "Lead and draft counts are server-side for each returned campaign. At most 20 campaigns are included; if more exist, every row is marked incomplete. Missing or empty source labels are counted, but source labels remain self-declared and unverified. Pending, blocked, suppressed, and legacy/unclassified contact-review records require human review. This report never authorises or sends outreach.",
+    });
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load server readiness" }));
+    await waitFor(() => expect(mocks.api.getFullCampaignReadinessSummary).toHaveBeenCalledWith({ organisationId: "org-1" }));
+    expect(await screen.findByRole("table", { name: "Server-counted campaign readiness" })).toBeTruthy();
+    expect(screen.getByText("Painter pilot")).toBeTruthy();
+    expect(screen.getByText("review required")).toBeTruthy();
+    expect(screen.getByText(/first 20 campaigns; rows are marked incomplete/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Export full readiness CSV" })).toBeTruthy();
+  });
+
 
 });
