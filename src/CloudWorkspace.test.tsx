@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
   currentUser: null as unknown,
   api: {
     listMyOrganisations: vi.fn(), createOrganisation: vi.fn(), updateOrganisationSettings: vi.fn(), previewOrganisationOffboarding: vi.fn(), addOrganisationMember: vi.fn(), createCampaign: vi.fn(), updateCampaignStatus: vi.fn(), updateCampaignDetails: vi.fn(),
-    listCampaigns: vi.fn(), getCampaignFunnelSummary: vi.fn(), getLeadSourceFunnelSummary: vi.fn(), getOnboardingCohortSummary: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), importLeads: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(),
+    listCampaigns: vi.fn(), getCampaignFunnelSummary: vi.fn(), getLeadSourceFunnelSummary: vi.fn(), getOnboardingCohortSummary: vi.fn(), getOrganisationPlanUsage: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), importLeads: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(),
     updateLeadNotes: vi.fn(), setLeadSuppression: vi.fn(), createOutreachDraft: vi.fn(), suggestOutreachDraft: vi.fn(), listOutreachDrafts: vi.fn(),
     updateOutreachDraft: vi.fn(), deleteOutreachDraft: vi.fn(),
   },
@@ -52,6 +52,15 @@ beforeEach(() => {
     organisationId: "org-1", campaignId: "campaign-1", totalLeadCount: 120,
     qualifiedLeadCount: 30, contactedLeadCount: 12, onboardedLeadCount: 4,
     qualifiedRatePercent: 25, onboardedRatePercent: 3.3, scope: "all_stored_campaign_leads",
+  });
+  mocks.api.getOrganisationPlanUsage.mockResolvedValue({
+    organisationId: "org-1",
+    status: "authoritative",
+    plan: { id: "pilot", displayName: "Pilot", limits: { campaigns: 10, leads: 500, members: 5, monthlyAiSuggestions: 50 } },
+    usage: { campaigns: 2, leads: 42, members: 3, monthlyAiSuggestions: 7 },
+    remaining: { campaigns: 8, leads: 458, members: 2, monthlyAiSuggestions: 43 },
+    aiUsagePeriod: "2026-10",
+    message: "Usage is server-maintained. Monthly AI suggestions reset by UTC calendar month; other counters are lifetime totals.",
   });
   mocks.api.getOnboardingCohortSummary.mockResolvedValue({
     organisationId: "org-1",
