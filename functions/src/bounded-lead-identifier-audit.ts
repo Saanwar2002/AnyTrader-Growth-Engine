@@ -27,6 +27,10 @@ export interface BoundedLeadAuditResult {
   report: LeadIdentifierAuditReport;
   pagesRead: number;
   truncated: boolean;
+  /** A truncated scan must never be treated as a complete inventory. */
+  scanCompleteness: "complete" | "truncated";
+  /** This helper never authorizes a backfill; complete scans still require human review. */
+  backfillDecision: "blocked-incomplete-scan" | "blocked-pending-operator-review";
 }
 
 /**
@@ -102,9 +106,15 @@ export async function runBoundedLeadIdentifierAudit(
     cursor = nextCursor;
   }
 
+  const truncated = records.length >= options.maxRecords && hasMore;
+
   return {
     report: auditLeadIdentifierRecords(records),
     pagesRead,
-    truncated: records.length >= options.maxRecords && hasMore,
+    truncated,
+    scanCompleteness: truncated ? "truncated" : "complete",
+    // Deliberately fail closed: this read-only coordinator has no migration
+    // approval, collision resolution, or write capability.
+    backfillDecision: truncated ? "blocked-incomplete-scan" : "blocked-pending-operator-review",
   };
 }

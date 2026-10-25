@@ -15,6 +15,8 @@ describe("bounded read-only lead identifier audit coordinator", () => {
     expect(fetchPage).toHaveBeenNthCalledWith(2, { tenantId: "tenant-1", pageSize: 10, cursor: "next" });
     expect(result.pagesRead).toBe(2);
     expect(result.truncated).toBe(false);
+    expect(result.scanCompleteness).toBe("complete");
+    expect(result.backfillDecision).toBe("blocked-pending-operator-review");
     expect(result.report.scannedRecords).toBe(2);
   });
 
@@ -31,6 +33,8 @@ describe("bounded read-only lead identifier audit coordinator", () => {
     expect(fetchPage).toHaveBeenCalledWith({ tenantId: "tenant-1", pageSize: 2 });
     expect(result.report.scannedRecords).toBe(2);
     expect(result.truncated).toBe(true);
+    expect(result.scanCompleteness).toBe("truncated");
+    expect(result.backfillDecision).toBe("blocked-incomplete-scan");
   });
 
   it("rejects missing tenant scope and invalid limits before reading", async () => {
