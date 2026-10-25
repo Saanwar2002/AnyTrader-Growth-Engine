@@ -12,6 +12,7 @@ const expectedRateLimitType: Record<string, "read" | "mutation"> = {
   previewOrganisationOffboarding: "read",
   createOrganisation: "mutation",
   updateOrganisationSettings: "mutation",
+  addOrganisationMember: "mutation",
   createCampaign: "mutation",
   listCampaigns: "read",
   updateCampaignStatus: "mutation",
@@ -31,6 +32,22 @@ const expectedRateLimitType: Record<string, "read" | "mutation"> = {
 };
 
 describe("callable security contract", () => {
+  it("authorises member additions and reserves member quota in the same transaction", () => {
+    const start = callableSource.indexOf("export const addOrganisationMember =");
+    const end = callableSource.indexOf("export const createCampaign =", start);
+    const callable = callableSource.slice(start, end);
+    expect(callable).toContain('requireTransactionalRole(transaction, organisationId, uid, "campaign")');
+    expect(callable).toContain('reserveOrganisationPlanUsage(transaction, organisationId, "members", 1)');
+    expect(callable).toContain('consumeTransactionalRateLimit(transaction, organisationId, uid, "addOrganisationMember", 30)');
+    expect(callable).toContain("transaction.update(organisationRef, { planUsage: reservedPlanUsageState })");
+    expect(callable.indexOf("transaction.update(organisationRef, { planUsage: reservedPlanUsageState })"))
+      .toBeLessThan(callable.indexOf("transaction.create(targetMembershipRef"));
+    expect(callable).toContain('role !== "member" && role !== "viewer"');
+    expect(callable).toContain("memberAdditionIdempotency");
+    expect(callable).toContain("getUserByEmail(targetEmail)");
+    expect(callable).toContain('writeSecurityAuditEvent(transaction, organisationId, uid, "organisation.member_added"');
+  });
+
   it("reserves campaign quota atomically for organisations with authoritative usage state", () => {
     const campaignStart = callableSource.indexOf("export const createCampaign =");
     const campaignEnd = callableSource.indexOf("export const listCampaigns =", campaignStart);
@@ -78,7 +95,7 @@ describe("callable security contract", () => {
 
   it("enforces App Check on every deployed callable and only bypasses it in the Functions emulator", () => {
     expect(callableSource).toContain('const callableOptions = { enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true" }');
-    expect((callableSource.match(/= onCall\(callableOptions, async \(request\) => \{/g) ?? [])).toHaveLength(18);
+    expect((callableSource.match(/= onCall\(callableOptions, async \(request\) => \{/g) ?? [])).toHaveLength(19);
     expect(callableSource.includes("= onCall(async (request) => {")).toBe(false);
   });
 
@@ -141,10 +158,11 @@ describe("callable security contract", () => {
 
     const auditCalls = [...callableSource.matchAll(/writeSecurityAuditEvent\(transaction,\s*[^,]+,\s*[^,]+,\s*"([^"]+)",\s*"([^"]+)"/g)];
     const callPairs = new Set(auditCalls.map((match) => `${match[1]}|${match[2]}`));
-    expect(auditCalls.length).toBe(14);
+    expect(auditCalls.length).toBe(15);
     for (const [eventType, resourceType] of [
       ["organisation.created", "organisation"],
       ["organisation.settings_updated", "organisation"],
+      ["organisation.member_added", "organisation"],
       ["lead.csv_import.completed", "campaign"],
       ["lead.contact_updated", "lead"],
       ["lead.contact_restriction_changed", "lead"],

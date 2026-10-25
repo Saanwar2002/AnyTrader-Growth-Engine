@@ -2665,6 +2665,39 @@ try {
     name: "Metered quota tenant",
     idempotencyKey: "campaign-quota-tenant-0001",
   });
+  await expectCallableFailure(callOne("addOrganisationMember", {
+    organisationId: quotaOrg.organisationId,
+    targetEmail: "missing-synthetic-account@example.test",
+    role: "member",
+    idempotencyKey: "member-addition-missing-user-0001",
+  }), "functions/not-found", "member addition rejects nonexistent accounts");
+  const addedMember = await callOne("addOrganisationMember", {
+    organisationId: quotaOrg.organisationId,
+    targetEmail: "tenant-two@example.test",
+    role: "viewer",
+    idempotencyKey: "member-addition-smoke-test-0001",
+  });
+  assert.equal(addedMember.added, true, "owner can add an existing account as a viewer");
+  assert.equal(addedMember.role, "viewer");
+  const retriedMember = await callOne("addOrganisationMember", {
+    organisationId: quotaOrg.organisationId,
+    targetEmail: "tenant-two@example.test",
+    role: "viewer",
+    idempotencyKey: "member-addition-smoke-test-0001",
+  });
+  assert.equal(retriedMember.added, true, "same idempotency key returns the original member-addition result");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-member-usage.mjs",
+    quotaOrg.organisationId,
+    "2",
+  ], { stdio: "inherit" });
+  await expectCallableFailure(callTwo("addOrganisationMember", {
+    organisationId: quotaOrg.organisationId,
+    targetEmail: "tenant-one@example.test",
+    role: "member",
+    idempotencyKey: "member-addition-nonadmin-0001",
+  }), "functions/permission-denied", "viewer cannot add organisation members");
+  console.log("PASS: organisation member addition checks role, reserves usage, and is idempotent.");
   for (let index = 1; index <= 10; index += 1) {
     await callOne("createCampaign", {
       organisationId: quotaOrg.organisationId,
@@ -2694,6 +2727,7 @@ try {
     "listMyOrganisations",
     "createOrganisation",
     "updateOrganisationSettings",
+    "addOrganisationMember",
     "createCampaign",
     "listCampaigns",
     "updateCampaignStatus",
