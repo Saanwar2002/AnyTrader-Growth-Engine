@@ -1,3 +1,13 @@
+## AutoPilot run — exact security audit metadata shape (2026-10-25)
+
+- Tightened the audit metadata contract so each event must contain the complete event-specific key set, not just a subset of allowed keys.
+- This fails closed for persisted audit events with missing required flags as well as extra/unexpected metadata fields, while preserving existing enum and numeric-bound validation.
+- Added pure tests for complete keys, missing keys, unexpected PII-shaped fields, malformed containers, and empty metadata contracts; updated callable source-contract coverage.
+- No schema migration or production write was performed. Existing malformed audit records, if any, will remain visible as an operator-review error rather than being silently normalized.
+- Next: continue auditing tenant-safe replay/transaction invariants and keep billing/deployment disabled.
+
+---
+
 ## AutoPilot run — bulk lead status replay validation (2026-10-25)
 
 - Hardened replay handling for bulk lead status updates. The saved response must match the requested organisation and status, use non-negative integer counts, and contain only unique changed lead IDs from the original request.

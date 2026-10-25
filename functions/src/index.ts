@@ -7,6 +7,7 @@ import { defineSecret } from "firebase-functions/params";
 import { generateAiOutreachDraftSuggestion } from "./ai-outreach-draft";
 import { getValidOutreachDraftReplayResult, isPersistedOutreachDraftAvailable } from "./outreach-draft-idempotency";
 import { getValidBulkLeadStatusReplayResult } from "./bulk-lead-status-idempotency";
+import { hasExactAuditMetadataKeys } from "./audit-metadata-shape";
 import * as logger from "firebase-functions/logger";
 import { canonicalLeadBusinessLocationKey, canonicalLeadEmailKey, canonicalLeadWebsiteKey } from "./lead-identifiers";
 import { createOffboardingPreview, OFFBOARDING_PREVIEW_CATEGORIES } from "./offboarding-preview";
@@ -144,7 +145,7 @@ const AUDIT_METADATA_KEYS: Record<SecurityAuditEventType, readonly (keyof Securi
 
 function isBoundedAuditMetadata(eventType: SecurityAuditEventType, metadata: SecurityAuditEventMetadata): boolean {
   const allowedKeys = AUDIT_METADATA_KEYS[eventType];
-  if (Object.keys(metadata).some((key) => !allowedKeys.includes(key as keyof SecurityAuditEventMetadata))) return false;
+  if (!hasExactAuditMetadataKeys(metadata, allowedKeys)) return false;
   if (("importedCount" in metadata && (!Number.isSafeInteger(metadata.importedCount) || metadata.importedCount! < 0 || metadata.importedCount! > 5000))
     || ("duplicatesSkipped" in metadata && (!Number.isSafeInteger(metadata.duplicatesSkipped) || metadata.duplicatesSkipped! < 0 || metadata.duplicatesSkipped! > 5000))
     || ("contactReviewRevision" in metadata && (!Number.isSafeInteger(metadata.contactReviewRevision) || metadata.contactReviewRevision! < 0))
