@@ -178,7 +178,8 @@ describe("callable security contract", () => {
     expect(callableSource).toContain('"lead.contact_updated": ["contactChannelsChanged", "contactReviewRevision", "contactReviewStatus", "doNotContact"]');
     expect(callableSource).toContain('"lead.contact_restriction_changed": ["doNotContact", "contactReviewRevision", "contactReviewStatus"]');
     expect(callableSource).toContain("function isBoundedAuditMetadata(");
-    expect(callableSource).toContain("Object.keys(metadata).some((key) => !allowedKeys.includes");
+    expect(callableSource).toContain("hasExactAuditMetadataKeys(metadata, allowedKeys)");
+    expect(callableSource).toContain('import { hasExactAuditMetadataKeys } from "./audit-metadata-shape"');
     expect(callableSource).toContain("Number.isSafeInteger(metadata.importedCount)");
     expect(callableSource).toContain('throw new Error("Invalid security audit event resource or metadata contract.")');
     expect(callableSource).toContain('["new", "reviewing", "qualified", "contacted", "onboarded", "rejected"]');
