@@ -229,6 +229,38 @@ it("requests server-side monthly onboarding cohorts for the selected organisatio
 });
 
 
+it("requests authoritative organisation plan usage without accepting client-supplied counters", async () => {
+  const response = {
+    organisationId: "org-1",
+    status: "authoritative" as const,
+    plan: { id: "pilot" as const, displayName: "Pilot", limits: { campaigns: 10, leads: 500, members: 5, monthlyAiSuggestions: 50 } },
+    usage: { campaigns: 2, leads: 42, members: 3, monthlyAiSuggestions: 7 },
+    remaining: { campaigns: 8, leads: 458, members: 2, monthlyAiSuggestions: 43 },
+    aiUsagePeriod: "2026-10",
+    message: "Usage is server-maintained.",
+  };
+  const { invoke, calls } = makeInvoker([response]);
+  const api = createGrowthEngineApi(invoke);
+  await expect(api.getOrganisationPlanUsage({ organisationId: "org-1" })).resolves.toEqual(response);
+  expect(calls).toEqual([{ name: "getOrganisationPlanUsage", payload: { organisationId: "org-1" } }]);
+});
+
+it("preserves the legacy reconciliation-required plan usage state", async () => {
+  const response = {
+    organisationId: "org-legacy",
+    status: "reconciliation_required" as const,
+    plan: { id: "pilot" as const, displayName: "Pilot", limits: { campaigns: 10, leads: 500, members: 5, monthlyAiSuggestions: 50 } },
+    usage: null,
+    remaining: null,
+    aiUsagePeriod: null,
+    message: "Reconcile existing resources before displaying numeric usage.",
+  };
+  const { invoke } = makeInvoker([response]);
+  const api = createGrowthEngineApi(invoke);
+  await expect(api.getOrganisationPlanUsage({ organisationId: "org-legacy" })).resolves.toEqual(response);
+});
+
+
 it("requests the bounded organisation member roster for the selected tenant", async () => {
   const response = {
     organisationId: "org-1",
