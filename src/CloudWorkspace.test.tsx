@@ -878,6 +878,28 @@ describe("cloud authentication gate", () => {
     expect(screen.getByText(/unknown includes missing and unrecognised legacy values/i)).toBeTruthy();
   });
 
+  it("exports full server-counted source aggregates only after loading the selected organisation", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    const createObjectURL = vi.fn(() => "blob:source-report");
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+    render(<CloudWorkspace />);
+    const exportButton = await screen.findByRole("button", { name: "Export full source report (CSV)" }) as HTMLButtonElement;
+    expect(exportButton.disabled).toBe(true);
+    fireEvent.click(await screen.findByRole("button", { name: "Load full source counts" }));
+    await waitFor(() => expect(exportButton.disabled).toBe(false));
+    fireEvent.click(exportButton);
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:source-report");
+    expect(await screen.findByText(/Exported full stored-lead source counts for 2 source category/i)).toBeTruthy();
+  });
+
   it("shows the first onboarding date for an onboarded lead", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({

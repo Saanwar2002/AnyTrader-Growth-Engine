@@ -121,3 +121,42 @@ export function serializeFullCampaignFunnelCsv(
   ]);
   return [headers, ...rows].map((row) => row.map(escapeCell).join(",")).join("\r\n") + "\r\n";
 }
+
+
+/** Export server-counted source funnel totals across every stored organisation lead. */
+export function serializeFullLeadSourceFunnelCsv(
+  summaries: Array<{
+    source: string;
+    totalLeadCount: number;
+    qualifiedLeadCount: number;
+    onboardedLeadCount: number;
+    qualifiedRatePercent: number;
+    onboardedRatePercent: number;
+  }>,
+  attributionNote: string,
+): string {
+  const escapeCell = (value: string | number) => {
+    const text = String(value);
+    // Source labels are self-declared; neutralise spreadsheet formula prefixes.
+    const firstCharacter = text.charAt(0);
+    const safeText = typeof value === "string"
+      && (["=", "+", "@", "-"].includes(firstCharacter) || firstCharacter === "\t" || firstCharacter === "\r")
+      ? "'" + text
+      : text;
+    return /[",\r\n]/.test(safeText) ? '"' + safeText.replace(/"/g, '""') + '"' : safeText;
+  };
+  const headers = [
+    "Scope", "Source (self-declared)", "All stored leads", "Qualified", "Onboarded",
+    "Qualified rate (%)", "Onboarded rate (%)", "Attribution note",
+  ];
+  const rows = summaries.length
+    ? summaries.map((item) => [
+        "All stored organisation leads", item.source, item.totalLeadCount, item.qualifiedLeadCount,
+        item.onboardedLeadCount, item.qualifiedRatePercent.toFixed(1),
+        item.onboardedRatePercent.toFixed(1), attributionNote,
+      ])
+    : [[
+        "All stored organisation leads", "No source-labelled records", 0, 0, 0, "0.0", "0.0", attributionNote,
+      ]];
+  return [headers, ...rows].map((row) => row.map(escapeCell).join(",")).join("\r\n") + "\r\n";
+}
