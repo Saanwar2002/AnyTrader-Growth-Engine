@@ -886,9 +886,9 @@ describe("cloud authentication gate", () => {
     expect(screen.getByText("10", { selector: "td" })).toBeTruthy();
     const sourceChart = screen.getByRole("group", { name: "All-record lead source funnel chart" });
     expect(sourceChart.querySelectorAll("progress")).toHaveLength(6);
-    expect(screen.getByRole("progressbar", { name: "LinkedIn CSV all stored leads" }).getAttribute("value")).toBe("10");
-    expect(screen.getByRole("progressbar", { name: "LinkedIn CSV qualified leads" }).getAttribute("value")).toBe("3");
-    expect(screen.getByRole("progressbar", { name: "LinkedIn CSV onboarded leads" }).getAttribute("value")).toBe("1");
+    expect(screen.getByRole("progressbar", { name: "LinkedIn export (user-declared) all stored leads" }).getAttribute("value")).toBe("10");
+    expect(screen.getByRole("progressbar", { name: "LinkedIn export (user-declared) qualified leads" }).getAttribute("value")).toBe("3");
+    expect(screen.getByRole("progressbar", { name: "LinkedIn export (user-declared) onboarded leads" }).getAttribute("value")).toBe("1");
     expect(screen.getByText(/unknown includes missing and unrecognised legacy values/i)).toBeTruthy();
   });
 
