@@ -209,4 +209,31 @@ describe("summarizeCampaignReadiness", () => {
     })[0];
     expect(review.status).toBe("review_required");
   });
+  it("exports loaded security audit events with explicit scope and spreadsheet-safe cells", async () => {
+    const { serializeSecurityAuditEventsCsv } = await import("./analytics");
+    const csv = serializeSecurityAuditEventsCsv([{
+      createdAt: "2026-10-25T12:00:00.000Z",
+      eventType: '=HYPERLINK("https://example.test","click")',
+      actorUid: "@SUM(1,1)",
+      resourceType: "lead",
+      resourceId: "-42",
+      outcome: "success",
+      metadata: { leadStatus: "qualified" },
+    }]);
+    expect(csv).toContain("Loaded audit events only");
+    expect(csv).toContain("Event time (UTC)");
+    expect(csv).toContain("'=HYPERLINK");
+    expect(csv).toContain("'@SUM");
+    expect(csv).toContain("'-42");
+    expect(csv).toContain('"{""leadStatus"":""qualified""}"');
+  });
+
+  it("exports an explicit empty-row marker when no audit events are loaded", async () => {
+    const { serializeSecurityAuditEventsCsv } = await import("./analytics");
+    const csv = serializeSecurityAuditEventsCsv([]);
+    expect(csv).toContain("Loaded audit events only");
+    expect(csv).toContain("No audit events loaded");
+    expect(csv.split("\\r\\n")).toHaveLength(3);
+  });
+
 });
