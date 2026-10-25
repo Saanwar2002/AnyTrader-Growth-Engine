@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { createUserWithEmailAndPassword, GoogleAuthProvider, onAuthStateChanged, signInWithEmailAndPassword, signInWithPopup, signOut, type User } from "firebase/auth";
-import { createFirebaseCallableInvoker, createGrowthEngineApi, type CampaignFunnelAnalyticsSummary, type ContactReviewQueueAnalytics, type LeadSourceFunnelAnalytics, type CampaignSummary, type CsvImportSourceLabel, type LeadSummary, type LeadActivityTimeline, type OrganisationSummary, type OffboardingPreviewResult, type OnboardingCohortAnalytics, type OnboardingCohortCoverage, type OrganisationMemberRoster, type OrganisationPlanUsageSummary, type PlanUsageReconciliationSummary, type OutreachDraftSummary, type ServerLeadStatus } from "./backendApi";
+import { createFirebaseCallableInvoker, createGrowthEngineApi, type CampaignFunnelAnalyticsSummary, type ContactReviewQueueAnalytics, type LeadSourceFunnelAnalytics, type CampaignSummary, type CsvImportSourceLabel, type LeadSummary, type LeadActivityTimeline, type OrganisationSummary, type OffboardingPreviewResult, type OnboardingCohortAnalytics, type OnboardingCohortCoverage, type OrganisationMemberRoster, type SecurityAuditEventPage, type OrganisationPlanUsageSummary, type PlanUsageReconciliationSummary, type OutreachDraftSummary, type ServerLeadStatus } from "./backendApi";
 import { firebaseClient } from "./firebaseClient";
 import { findLeadCsvDuplicates, formatLeadSourceLabel, getContactRestrictionAction, parseLeadCsv, serializeLeadExportCsv } from "./domain";
 import { serializeCampaignPerformanceCsv, serializeFullCampaignFunnelCsv, serializeFullLeadSourceFunnelCsv, serializeOnboardingCohortCsv, summarizeCampaignPerformance, summarizeCampaignReadiness, summarizeLeadSourcePerformance } from "./analytics";
@@ -90,6 +90,8 @@ export default function CloudWorkspace() {
   const [memberAdditionIdempotencyKey, setMemberAdditionIdempotencyKey] = useState("");
   const [memberRoster, setMemberRoster] = useState<OrganisationMemberRoster | null>(null);
   const [loadingMemberRoster, setLoadingMemberRoster] = useState(false);
+  const [securityAuditPage, setSecurityAuditPage] = useState<SecurityAuditEventPage | null>(null);
+  const [loadingSecurityAudit, setLoadingSecurityAudit] = useState(false);
   // Preserve the exact organisation request key after an uncertain response.
   const [organisationIdempotencyKey, setOrganisationIdempotencyKey] = useState("");
   const [campaignName, setCampaignName] = useState("");
@@ -366,6 +368,34 @@ export default function CloudWorkspace() {
       setMemberEmail("");
       setMemberRole("member");
     }, memberAdditionIdempotencyKey ? "Member added after retry." : "Member added.");
+  }
+
+  async function loadSecurityAuditEvents(pageToken?: string) {
+    if (!api || !organisationId || (selectedOrganisationRole !== "owner" && selectedOrganisationRole !== "admin") || loadingSecurityAudit) return;
+    const requestedOrganisationId = organisationId;
+    setLoadingSecurityAudit(true);
+    setError("");
+    try {
+      const result = await api.listOrganisationSecurityAuditEvents({ organisationId: requestedOrganisationId, ...(pageToken ? { pageToken } : {}) });
+      if (currentOrganisationIdRef.current === requestedOrganisationId) {
+        if (!pageToken) {
+          setSecurityAuditPage(result);
+        } else {
+          setSecurityAuditPage((current) => {
+            if (!current || current.organisationId !== requestedOrganisationId) return result;
+            const seen = new Set(current.events.map((event) => event.id));
+            return {
+              ...result,
+              events: [...current.events, ...result.events.filter((event) => !seen.has(event.id))],
+            };
+          });
+        }
+      }
+    } catch (reason) {
+      setError(readableError(reason));
+    } finally {
+      setLoadingSecurityAudit(false);
+    }
   }
 
   async function loadOrganisationMembers(pageToken?: string) {
@@ -1047,6 +1077,16 @@ DRAFT ONLY — NOT SENT.`,
                 : `unavailable; ${item.observedCount} records observed before the read failed`}
           </li>)}</ul>
         </div>}
+      </section>}
+      {selectedOrganisation && (selectedOrganisationRole === "owner" || selectedOrganisationRole === "admin") && <section className="cloud-card" aria-labelledby="security-audit-title">
+        <div className="cloud-section-head"><div><p className="cloud-eyebrow">SECURITY &amp; ACCOUNTABILITY</p><h2 id="security-audit-title">Security audit log</h2><p className="cloud-muted">Read-only organisation events. Actor IDs and resource IDs are shown instead of resolving additional personal details; event metadata is limited to the server-approved audit fields.</p></div>
+          <button className="cloud-secondary" type="button" disabled={loadingSecurityAudit} onClick={() => void loadSecurityAuditEvents()}>{loadingSecurityAudit ? "Loading audit log…" : securityAuditPage?.organisationId === organisationId ? "Refresh audit log" : "Load audit log"}</button>
+        </div>
+        {securityAuditPage?.organisationId === organisationId && <>
+          <p className="cloud-muted">{securityAuditPage.events.length} event(s) loaded. {securityAuditPage.hasMoreEvents ? "More events are available." : "Latest available events loaded."}</p>
+          {securityAuditPage.events.length ? <div className="cloud-table-wrap"><table className="cloud-table"><caption>Organisation security audit events</caption><thead><tr><th>When</th><th>Action</th><th>Actor ID</th><th>Resource</th><th>Details</th></tr></thead><tbody>{securityAuditPage.events.map((event) => <tr key={event.id}><td>{event.createdAt ? new Date(event.createdAt).toLocaleString("en-GB") : "Date unavailable"}</td><td>{event.eventType.replace(/[._]/g, " ")}</td><td><code>{event.actorUid}</code></td><td>{event.resourceType} <code>{event.resourceId}</code></td><td>{Object.keys(event.metadata).length ? Object.entries(event.metadata).map(([key, value]) => `${key}: ${String(value)}`).join(" · ") : "No additional details"}</td></tr>)}</tbody></table></div> : <p className="cloud-empty">No security audit events are available for this organisation.</p>}
+          {securityAuditPage.hasMoreEvents && securityAuditPage.nextPageToken && <button className="cloud-secondary" type="button" disabled={loadingSecurityAudit} onClick={() => void loadSecurityAuditEvents(securityAuditPage.nextPageToken ?? undefined)}>{loadingSecurityAudit ? "Loading audit events…" : "Load more audit events"}</button>}
+        </>}
       </section>}
       {selectedOrganisation && (selectedOrganisationRole === "owner" || selectedOrganisationRole === "admin") && <section className="cloud-card" aria-labelledby="member-roster-title">
         <div className="cloud-section-head"><div><p className="cloud-eyebrow">TEAM ACCESS</p><h2 id="member-roster-title">Organisation members</h2><p className="cloud-muted">View current member roles and the email address on each Firebase Auth account. Owners can change roles or remove non-owner members; admins can remove members/viewers only. Removing access does not delete the account.</p></div>
