@@ -394,14 +394,14 @@ describe("CSV duplicate preview", () => {
       stored: null,
       mismatchedMetrics: [],
       currentAiUsagePeriod: "2026-10",
-      notes: ["Stored counters are missing", "=Review before use"],
+      notes: ["=Review before use", "Stored counters are missing"],
     });
     expect(csv).toContain('"\'=Pilot"');
     expect(csv).toContain('"3"');
     expect(csv).toContain('"42"');
     expect(csv).toContain('"Unavailable"');
     expect(csv).toContain('"Review required — historical usage is not inferred"');
-    expect(csv).toContain("\"'=Review before use\"");
+    expect(csv).toContain("\"'=Review before use | Stored counters are missing\"");
     expect(csv).toContain('"Review required"');
     expect(csv.split("\r\n")).toHaveLength(5);
   });
