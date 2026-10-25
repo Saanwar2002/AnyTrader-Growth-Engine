@@ -96,7 +96,7 @@ export async function runBoundedLeadIdentifierAudit(
       if (!page || typeof page !== "object" || Array.isArray(page)) {
         throw new Error("invalid page shape");
       }
-      const envelope = page as Record<string, unknown>;
+      const envelope = page as unknown as Record<string, unknown>;
       const candidateRecords = envelope.records;
       if (!Array.isArray(candidateRecords)) throw new Error("invalid records collection");
       rawRecords = candidateRecords;
