@@ -42,6 +42,7 @@ beforeEach(() => {
   mocks.api.listLeads.mockResolvedValue({ leads: [] });
   mocks.api.listOutreachDrafts.mockResolvedValue({ drafts: [] });
   mocks.api.createOrganisation.mockResolvedValue({ organisationId: "org-new", name: "New Org", role: "owner" });
+  mocks.api.updateOrganisationSettings.mockImplementation(async ({ organisationId, name }) => ({ organisationId, name }));
   mocks.api.createCampaign.mockResolvedValue({ campaignId: "campaign-new", status: "active" });
   mocks.api.createLead.mockResolvedValue({ leadId: "lead-new", status: "new" });
   mocks.api.importLeads.mockResolvedValue({ organisationId: "org-1", campaignId: "campaign-1", received: 2, imported: 2, duplicatesSkipped: 0, leads: [{ leadId: "lead-csv-1", businessName: "Northside Painting" }, { leadId: "lead-csv-2", businessName: "City Decorators" }], sent: false, messageSentByThisAction: false });

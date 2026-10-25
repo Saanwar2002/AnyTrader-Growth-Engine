@@ -1833,9 +1833,9 @@ try {
   const orgTwo = await callTwo("createOrganisation", { name: "Tenant Two", idempotencyKey: "organisation-create-tenant-two-0001" });
   const renamedOrganisation = await callOne("updateOrganisationSettings", { organisationId: orgTwo.organisationId, name: "Tenant Two Workspace" });
   assert.equal(renamedOrganisation.name, "Tenant Two Workspace", "owner can rename an organisation");
-  assert.equal((await callOne("listMyOrganisations")).organisations.find((item) => item.organisationId === orgTwo.organisationId)?.name, "Tenant Two Workspace",
+  assert.equal((await callTwo("listMyOrganisations")).organisations.find((item) => item.organisationId === orgTwo.organisationId)?.name, "Tenant Two Workspace",
     "renamed organisation name persists");
-  await expectCallableFailure(callTwo("updateOrganisationSettings", { organisationId: orgTwo.organisationId, name: "Cross-tenant rename" }),
+  await expectCallableFailure(callOne("updateOrganisationSettings", { organisationId: orgTwo.organisationId, name: "Cross-tenant rename" }),
     "functions/permission-denied", "cross-tenant organisation settings update is denied");
 
   // A cursor scoped to another tenant must be rejected before its target document is read.
