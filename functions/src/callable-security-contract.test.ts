@@ -16,6 +16,7 @@ const expectedRateLimitType: Record<string, "read" | "mutation"> = {
   removeOrganisationMember: "mutation",
   updateOrganisationMemberRole: "mutation",
   listOrganisationMembers: "read",
+  listOrganisationSecurityAuditEvents: "read",
   createCampaign: "mutation",
   listCampaigns: "read",
   getCampaignFunnelSummary: "read",
