@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canCreateOutreachDraft, getContactRestrictionAction, deduplicateLeads, escapeCsvCell, inspectLeadCsvHeaders, normalizeBusinessName, parseLeadCsv, scoreLead, suggestLeadCsvMapping } from "./domain";
+import { canCreateOutreachDraft, getContactRestrictionAction, deduplicateLeads, escapeCsvCell, serializeLeadExportCsv, inspectLeadCsvHeaders, normalizeBusinessName, parseLeadCsv, scoreLead, suggestLeadCsvMapping } from "./domain";
 
 describe("outreach suppression", () => {
   it("offers a clear/review action for suppressed, pending, or contradictory blocked records", () => {
@@ -284,5 +284,36 @@ describe("CSV export safety", () => {
     expect(escapeCsvCell('North "Star", Decorators')).toBe('"North ""Star"", Decorators"');
     expect(escapeCsvCell(42)).toBe('"42"');
     expect(escapeCsvCell("hello@example.com")).toBe('"hello@example.com"');
+  });
+});
+
+
+describe("lead CSV export", () => {
+  const lead = {
+    campaignId: "campaign-1", businessName: "North Star Decorators", category: "Decorators",
+    location: "Edinburgh", website: "https://northstar.example", email: "hello@northstar.example",
+    phone: "+44 131 555 0100", source: "csv", status: "new", doNotContact: true,
+    contactRestrictionVerified: false, contactReviewStatus: "pending" as const,
+  };
+
+  it("exports selected lead fields, campaign names, and contact restrictions without internal notes", () => {
+    const csv = serializeLeadExportCsv([lead], { "campaign-1": "Edinburgh decorators" });
+    expect(csv).toContain('"North Star Decorators"');
+    expect(csv).toContain('"Edinburgh decorators"');
+    expect(csv).toContain('"pending review"');
+    expect(csv).toContain('"hello@northstar.example"');
+    expect(csv).not.toContain("Internal notes");
+    expect(csv.split("\r\n")).toHaveLength(3);
+  });
+
+  it("protects spreadsheet formula injection in lead fields", () => {
+    const csv = serializeLeadExportCsv([{ ...lead, businessName: "  =HYPERLINK(\"https://evil.test\")" }], { "campaign-1": "Campaign" });
+    expect(csv).toContain('"\'  =HYPERLINK(""https://evil.test"")"');
+  });
+
+  it("marks incomplete restriction metadata as requiring review", () => {
+    const csv = serializeLeadExportCsv([{ ...lead, doNotContact: false, contactReviewStatus: undefined, contactRestrictionVerified: false }], {});
+    expect(csv).toContain('"review required"');
+    expect(csv).toContain('"Unknown campaign"');
   });
 });
