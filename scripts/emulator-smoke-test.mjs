@@ -2971,6 +2971,18 @@ try {
   await expectCallableFailure(callTwo("getLeadCompletenessSummary", {
     organisationId: orgOne.organisationId,
   }), "functions/permission-denied", "lead completeness aggregate rejects cross-tenant access");
+  const fullCampaignReadiness = await callOne("getFullCampaignReadinessSummary", { organisationId: orgOne.organisationId });
+  assert.equal(fullCampaignReadiness.scope, "server_counted_campaign_readiness");
+  assert.equal(fullCampaignReadiness.campaignLimit, 20);
+  assert.equal(fullCampaignReadiness.hasMoreCampaigns, false, "synthetic tenant fits within the campaign cap");
+  assert.ok(fullCampaignReadiness.campaigns.some((campaign) => campaign.campaignId === campaignOne.campaignId));
+  const readinessCampaign = fullCampaignReadiness.campaigns.find((campaign) => campaign.campaignId === campaignOne.campaignId);
+  assert.ok(readinessCampaign && readinessCampaign.totalLeadCount >= 1, "readiness counts stored leads per campaign");
+  assert.ok(readinessCampaign && readinessCampaign.pendingOrBlockedLeadCount >= 0 && readinessCampaign.suppressedLeadCount >= 0);
+  assert.match(fullCampaignReadiness.note, /never authorises or sends outreach/i);
+  await expectCallableFailure(callTwo("getFullCampaignReadinessSummary", {
+    organisationId: orgOne.organisationId,
+  }), "functions/permission-denied", "full campaign readiness rejects cross-tenant access");
   const contactReviewInventory = await callOne("getContactReviewQueueSummary", { organisationId: orgOne.organisationId });
   assert.equal(contactReviewInventory.scope, "all_stored_organisation_leads");
   assert.ok(contactReviewInventory.totalLeadCount >= 1, "contact-review inventory includes stored organisation leads");
@@ -3015,6 +3027,7 @@ try {
     "getLeadSourceFunnelSummary",
     "getOnboardingCohortSummary",
     "getLeadCompletenessSummary",
+    "getFullCampaignReadinessSummary",
     "getOnboardingCohortCoverage",
     "getContactReviewQueueSummary",
     "getOrganisationPlanUsage",
