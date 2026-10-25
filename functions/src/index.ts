@@ -2254,6 +2254,9 @@ export const updateLeadStatus = onCall(callableOptions, async (request) => {
     if (!canTransitionLeadStatus(status, lead.doNotContact === true)) {
       throw new HttpsError("failed-precondition", "Lead status is not valid.");
     }
+    // A retry of an already-applied status must not duplicate activity/audit events.
+    // Contact restrictions and campaign existence are still checked above for "contacted".
+    if (status === lead.status) return;
     const now = FieldValue.serverTimestamp();
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "updateLeadStatus", 240);
     const leadUpdate: Record<string, unknown> = { status, updatedAt: now, updatedBy: uid };
