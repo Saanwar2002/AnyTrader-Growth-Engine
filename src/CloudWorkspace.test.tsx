@@ -2064,6 +2064,11 @@ describe("cloud authentication gate", () => {
     expect(screen.queryByText("Unscheduled Painter")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
     expect(await screen.findByText("Showing 4 of 4 loaded leads.")).toBeTruthy();
+    fireEvent.change(screen.getByRole("combobox", { name: "Sort leads by" }), { target: { value: "follow-up" } });
+    const businessRows = screen.getAllByRole("row").map((row) => row.textContent ?? "").filter((row) => row.includes("Painter"));
+    expect(businessRows.map((row) => row.match(/Overdue Painter|Today Painter|Upcoming Painter|Unscheduled Painter/)?.[0])).toEqual([
+      "Overdue Painter", "Today Painter", "Upcoming Painter", "Unscheduled Painter",
+    ]);
   });
 
   it("loads server-counted campaign readiness and discloses the bounded campaign scope", async () => {
