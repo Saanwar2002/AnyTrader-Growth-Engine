@@ -236,4 +236,32 @@ describe("summarizeCampaignReadiness", () => {
     expect(csv.split("\r\n")).toHaveLength(3);
   });
 
+  it("exports campaign readiness with loaded-only scope, blockers and outreach boundary", async () => {
+    const { serializeCampaignReadinessCsv } = await import("./analytics");
+    const csv = serializeCampaignReadinessCsv([{
+      campaignName: '=Roofers, "Leeds"',
+      status: "incomplete",
+      scope: "loaded_records_only",
+      loadedLeadCount: 7,
+      contactRestrictedLeadCount: 2,
+      draftsAwaitingReview: 1,
+      sourceAttributionMissingCount: 3,
+      missingConfigurationFields: ["location", "brand"],
+      hasMoreData: true,
+    }]);
+    expect(csv).toContain("Loaded records only");
+    expect(csv).toContain(`"\'=Roofers, ""Leeds"""`);
+    expect(csv).toContain("Incomplete — more pages available");
+    expect(csv).toContain("location | brand");
+    expect(csv).toContain("Preflight only; manual review required; does not authorise outreach");
+  });
+
+  it("makes an empty campaign readiness export explicit", async () => {
+    const { serializeCampaignReadinessCsv } = await import("./analytics");
+    const csv = serializeCampaignReadinessCsv([]);
+    expect(csv).toContain("No campaigns loaded");
+    expect(csv).toContain("does not authorise outreach");
+    expect(csv.split("\r\n")).toHaveLength(3);
+  });
+
 });
