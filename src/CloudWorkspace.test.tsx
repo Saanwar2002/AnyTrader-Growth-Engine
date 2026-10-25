@@ -1710,7 +1710,7 @@ describe("cloud authentication gate", () => {
     render(<CloudWorkspace />);
     fireEvent.click(await screen.findByRole("button", { name: "Load audit log" }));
     expect(await screen.findByRole("table", { name: "Organisation security audit events" })).toBeTruthy();
-    expect(screen.getByText("lead status changed")).toBeTruthy();
+    expect(screen.getByRole("row", { name: /lead status changed/ })).toBeTruthy();
     expect(screen.getByText("leadStatus: qualified")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Load more audit events" }));
     await waitFor(() => expect(mocks.api.listOrganisationSecurityAuditEvents).toHaveBeenLastCalledWith({ organisationId: "org-1", pageToken: "cursor-2" }));
@@ -1829,19 +1829,19 @@ describe("cloud authentication gate", () => {
     render(<CloudWorkspace />);
     fireEvent.click(await screen.findByRole("button", { name: "Load audit log" }));
     await screen.findByRole("table", { name: "Organisation security audit events" });
-    expect(screen.getByText("lead status changed")).toBeTruthy();
-    expect(screen.getByText("organisation member added")).toBeTruthy();
+    expect(screen.getByRole("row", { name: /lead status changed/ })).toBeTruthy();
+    expect(screen.getByRole("row", { name: /organisation member added/ })).toBeTruthy();
 
     fireEvent.change(screen.getByLabelText("Filter by action"), { target: { value: "organisation.member_added" } });
-    expect(screen.queryByText("lead status changed")).toBeNull();
-    expect(screen.getByText("organisation member added")).toBeTruthy();
+    expect(screen.queryByRole("row", { name: /lead status changed/ })).toBeNull();
+    expect(screen.getByRole("row", { name: /organisation member added/ })).toBeTruthy();
     fireEvent.change(screen.getByLabelText("Search loaded audit events"), { target: { value: "member-2" } });
     expect(screen.getByText(/1 matching event\(s\) from 2 loaded/)).toBeTruthy();
     expect(screen.getByText("memberRole: viewer")).toBeTruthy();
-    expect(screen.queryByText("lead status changed")).toBeNull();
+    expect(screen.queryByRole("row", { name: /lead status changed/ })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Clear audit filters" }));
-    expect(screen.getByText("lead status changed")).toBeTruthy();
-    expect(screen.getByText("organisation member added")).toBeTruthy();
+    expect(screen.getByRole("row", { name: /lead status changed/ })).toBeTruthy();
+    expect(screen.getByRole("row", { name: /organisation member added/ })).toBeTruthy();
   });
 
 });
