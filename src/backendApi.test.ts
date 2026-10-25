@@ -152,3 +152,25 @@ describe("typed backend API boundary", () => {
   });
 
 });
+
+
+  it("requests server-side campaign funnel counts for the selected tenant and campaign", async () => {
+    const response = {
+      organisationId: "org-1",
+      campaignId: "campaign-1",
+      totalLeadCount: 120,
+      qualifiedLeadCount: 30,
+      contactedLeadCount: 12,
+      onboardedLeadCount: 4,
+      qualifiedRatePercent: 25,
+      onboardedRatePercent: 3.3,
+      scope: "all_stored_campaign_leads" as const,
+    };
+    const { invoke, calls } = makeInvoker([response]);
+    const api = createGrowthEngineApi(invoke);
+    await expect(api.getCampaignFunnelSummary({ organisationId: "org-1", campaignId: "campaign-1" })).resolves.toEqual(response);
+    expect(calls[0]).toEqual({
+      name: "getCampaignFunnelSummary",
+      payload: { organisationId: "org-1", campaignId: "campaign-1" },
+    });
+  });
