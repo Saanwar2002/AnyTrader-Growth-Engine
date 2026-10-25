@@ -1050,6 +1050,10 @@ describe("cloud authentication gate", () => {
     expect(coverageTable.textContent).toContain("4");
     expect(coverageTable.textContent).toContain("2");
     expect(coverageTable.textContent).toContain("1000");
+    expect(screen.getByRole("progressbar", { name: "First-onboarding timestamp coverage" }).getAttribute("value")).toBe("2");
+    expect(screen.getByText("50%")).toBeTruthy();
+    expect(screen.getByText(/2 of 4 currently onboarded lead\(s\) have a valid first-onboarding timestamp/)).toBeTruthy();
+    expect(screen.getByText(/Missing timestamps need a reviewed backfill plan/)).toBeTruthy();
     expect(screen.getByText(/Read-only estimate/)).toBeTruthy();
     expect(screen.getByText(/never assigned an inferred date/i)).toBeTruthy();
   });
