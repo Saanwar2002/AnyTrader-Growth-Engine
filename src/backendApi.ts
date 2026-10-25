@@ -13,6 +13,8 @@ export interface OrganisationSummary { organisationId: string; name: string; rol
 export interface CampaignInput { organisationId: string; idempotencyKey: string; name: string; brand: string; category: string; location: string; goal: string; }
 export interface CampaignSummary { id: string; name: string; brand: string; category: string; location: string; goal: string; status: ServerCampaignStatus; createdAt: string | null; }
 export interface CampaignFunnelAnalyticsSummary { organisationId: string; campaignId: string; totalLeadCount: number; qualifiedLeadCount: number; contactedLeadCount: number; onboardedLeadCount: number; qualifiedRatePercent: number; onboardedRatePercent: number; scope: "all_stored_campaign_leads"; }
+export interface LeadSourceFunnelSummary { source: string; totalLeadCount: number; qualifiedLeadCount: number; onboardedLeadCount: number; qualifiedRatePercent: number; onboardedRatePercent: number; }
+export interface LeadSourceFunnelAnalytics { organisationId: string; sourceSummaries: LeadSourceFunnelSummary[]; scope: "all_stored_organisation_leads"; attributionNote: string; }
 export interface LeadFieldsInput { organisationId: string; campaignId: string; businessName: string; category?: string; location?: string; website?: string; email?: string; phone?: string; }
 export interface LeadInput extends LeadFieldsInput { idempotencyKey: string; }
 export interface CsvImportLeadInput { businessName: string; category?: string; location?: string; website?: string; email?: string; phone?: string; }
@@ -32,6 +34,7 @@ export function createGrowthEngineApi(call: CallableInvoker) {
     updateCampaignDetails: (payload: { organisationId: string; campaignId: string; name: string; brand: string; category: string; location: string; goal: string }) => call<typeof payload, { campaignId: string; name: string; brand: string; category: string; location: string; goal: string }>("updateCampaignDetails", payload),
     listCampaigns: (payload: { organisationId: string; pageToken?: string }) => call<typeof payload, { campaigns: CampaignSummary[]; hasMoreCampaigns: boolean; nextPageToken: string | null }>("listCampaigns", payload),
     getCampaignFunnelSummary: (payload: { organisationId: string; campaignId: string }) => call<typeof payload, CampaignFunnelAnalyticsSummary>("getCampaignFunnelSummary", payload),
+    getLeadSourceFunnelSummary: (payload: { organisationId: string }) => call<typeof payload, LeadSourceFunnelAnalytics>("getLeadSourceFunnelSummary", payload),
     listLeads: (payload: { organisationId: string; pageToken?: string }) => call<typeof payload, { leads: LeadSummary[]; hasMoreLeads: boolean; nextPageToken: string | null }>("listLeads", payload),
     createLead: (payload: LeadInput) => call<LeadInput, { leadId: string; status: ServerLeadStatus }>("createLead", payload),
     importLeads: (payload: { organisationId: string; campaignId: string; idempotencyKey: string; sourceLabel?: CsvImportSourceLabel; leads: CsvImportLeadInput[] }) => call<typeof payload, CsvImportResult>("importLeads", payload),
