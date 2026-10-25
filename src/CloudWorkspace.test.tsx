@@ -1469,7 +1469,10 @@ describe("cloud authentication gate", () => {
 
   it("shows lead completeness reasons and sorts the loaded lead list", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
-    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
     const lead = (id: string, businessName: string, score: number, scoreReasons: string[]) => ({
       id, campaignId: "campaign-1", businessName, category: "Painters", location: "Leeds",
       website: "", email: "", phone: "", source: "manual", status: "new", score, scoreReasons,
@@ -1480,7 +1483,7 @@ describe("cloud authentication gate", () => {
     mocks.api.listLeads.mockResolvedValue({
       leads: [
         lead("alpha", "Alpha Provider", 25, ["Business name provided (+20)"]),
-    expect(screen.getByText(/Website present/)).toBeTruthy();
+        lead("zulu", "Zulu Provider", 90, ["Business name provided (+20)", "Website listed (+20)"]),
       ],
       hasMoreLeads: false,
       nextPageToken: null,
