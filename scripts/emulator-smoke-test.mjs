@@ -199,6 +199,11 @@ try {
     email: "hello@example.test",
   };
   const leadOne = await callOne("createLead", manualLeadPayload);
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-lead-identifier-keys.mjs",
+    orgOne.organisationId,
+    leadOne.leadId,
+  ], { stdio: "inherit" });
   const manualLeadReplay = await callOne("createLead", manualLeadPayload);
   assert.deepEqual(manualLeadReplay, leadOne, "manual lead retry returns the original result");
   await expectCallableFailure(callOne("createLead", {
@@ -353,6 +358,11 @@ try {
   const importedSourceCheck = (await callOne("listLeads", { organisationId: orgOne.organisationId }))
     .leads.find((lead) => lead.businessName === "Synthetic Imported Alpha Ltd");
   assert.equal(importedSourceCheck?.source, "linkedin_csv", "import persists the selected user-declared source label");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-lead-identifier-keys.mjs",
+    orgOne.organisationId,
+    importedSourceCheck.id,
+  ], { stdio: "inherit" });
   await expectCallableFailure(callOne("importLeads", {
     organisationId: orgOne.organisationId, campaignId: campaignOne.campaignId,
     idempotencyKey: "csv-import-invalid-source-01", sourceLabel: "unverified_scrape",
@@ -841,6 +851,11 @@ try {
     location: "Manchester",
     email: "new-contact@example.test",
   });
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-lead-identifier-keys.mjs",
+    orgOne.organisationId,
+    leadOne.leadId,
+  ], { stdio: "inherit" });
   assert.equal(changedEmailResponse.doNotContact, true, "contact-channel edit response requires fresh review");
   assert.equal(changedEmailResponse.contactReviewStatus, "pending", "contact-channel edit response returns pending review");
   assert.equal(changedEmailResponse.contactRestrictionVerified, false, "contact-channel edit response marks restriction unverified");
