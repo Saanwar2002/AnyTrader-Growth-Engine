@@ -7,8 +7,8 @@ import { generateAiOutreachDraftSuggestion } from "./ai-outreach-draft";
 import * as logger from "firebase-functions/logger";
 import { canonicalLeadBusinessLocationKey, canonicalLeadEmailKey, canonicalLeadWebsiteKey } from "./lead-identifiers";
 import { createOffboardingPreview, OFFBOARDING_PREVIEW_CATEGORIES } from "./offboarding-preview";
-import { PILOT_PLAN } from "./entitlements";
-import { currentAiUsagePeriod } from "./usage-accounting";
+import { PILOT_PLAN, resolvePlanPolicy } from "./entitlements";
+import { currentAiUsagePeriod, reservePlanUsage, resolvePlanUsageState } from "./usage-accounting";
 import {
   calculateLeadCompleteness,
   canChangeSuppression,
@@ -578,6 +578,34 @@ export const createCampaign = onCall(callableOptions, async (request) => {
         throw new HttpsError("failed-precondition", "The campaign created by this request is no longer available to its original creator.");
       }
       return savedResult as typeof result;
+    }
+
+    // New organisations have authoritative planUsage. Enforce and reserve the
+    // campaign quota in this transaction so concurrent requests cannot overshoot.
+    // Legacy organisations without a usage snapshot remain on the compatibility
+    // path until their existing resources have been reconciled; never assume zero.
+    const organisationSnapshot = await transaction.get(organisationRef);
+    if (!organisationSnapshot.exists) {
+      throw new HttpsError("not-found", "Organisation was not found.");
+    }
+    const organisationData = organisationSnapshot.data() ?? {};
+    if (organisationData.planUsage !== undefined && organisationData.planUsage !== null) {
+      const planResolution = resolvePlanPolicy(organisationData.planId);
+      if (!planResolution.ok) {
+        throw new HttpsError("failed-precondition", "Organisation has an unknown plan and requires operator review.");
+      }
+      const usageResolution = resolvePlanUsageState(organisationData.planUsage, new Date());
+      if (!usageResolution.ok || usageResolution.source === "initial") {
+        throw new HttpsError("failed-precondition", "Organisation usage state is invalid and requires reconciliation.");
+      }
+      const reservation = reservePlanUsage(planResolution.plan, usageResolution.state, "campaigns");
+      if (!reservation.allowed) {
+        if (reservation.reason === "limit_exceeded") {
+          throw new HttpsError("resource-exhausted", `Campaign limit reached for the ${planResolution.plan.displayName} plan (${reservation.limit}).`);
+        }
+        throw new HttpsError("failed-precondition", "Organisation usage state cannot be safely updated.");
+      }
+      transaction.update(organisationRef, { planUsage: reservation.state });
     }
 
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "createCampaign", 150);
