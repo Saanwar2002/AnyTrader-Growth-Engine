@@ -564,9 +564,9 @@ export const addOrganisationMember = onCall(callableOptions, async (request) => 
   await db.runTransaction(async (transaction: Transaction) => {
     await requireTransactionalRole(transaction, organisationId, uid, "campaign");
   });
-  let targetUser;
+  let targetUid: string;
   try {
-    targetUser = await getAuth().getUserByEmail(targetEmail);
+    targetUid = (await getAuth().getUserByEmail(targetEmail)).uid;
   } catch (error) {
     if (typeof error === "object" && error !== null && "code" in error && error.code === "auth/user-not-found") {
       throw new HttpsError("not-found", "The target account does not exist.");
@@ -575,7 +575,6 @@ export const addOrganisationMember = onCall(callableOptions, async (request) => 
     throw new HttpsError("internal", "Could not verify the target account. Please retry.");
   }
 
-  const targetUid = targetUser.uid;
   if (targetUid === uid) {
     throw new HttpsError("invalid-argument", "You are already a member of this organisation.");
   }
