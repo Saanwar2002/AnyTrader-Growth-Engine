@@ -1962,6 +1962,10 @@ try {
   await expectCallableFailure(callTwo("listLeads", { organisationId: orgOne.organisationId }), "functions/permission-denied", "cross-tenant lead listing denial");
   await expectCallableFailure(callTwo("previewOrganisationOffboarding", { organisationId: orgOne.organisationId }), "functions/permission-denied", "cross-tenant offboarding preview denial");
   const orgTwo = await callTwo("createOrganisation", { name: "Tenant Two", idempotencyKey: "organisation-create-tenant-two-0001" });
+  await expectCallableFailure(callTwo("getLeadActivityTimeline", {
+    organisationId: orgOne.organisationId,
+    leadId: leadOne.leadId,
+  }), "functions/permission-denied", "lead activity timeline rejects cross-tenant access");
   await expectCallableFailure(callTwo("getOrganisationPlanUsageReconciliation", { organisationId: orgOne.organisationId }),
     "functions/permission-denied", "plan usage reconciliation rejects users without tenant membership");
 
