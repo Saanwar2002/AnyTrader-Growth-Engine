@@ -15,6 +15,7 @@ export const OFFBOARDING_PREVIEW_CATEGORIES = [
   "campaignCreationIdempotency",
   "importIdempotency",
   "leadCreationIdempotency",
+  "leadBulkStatusIdempotency",
   "outreachDraftCreationIdempotency",
 ] as const;
 
