@@ -38,6 +38,7 @@ const expectedRateLimitType: Record<string, "read" | "mutation"> = {
   updateLeadStatus: "mutation",
   bulkUpdateLeadStatus: "mutation",
   updateLeadNotes: "mutation",
+  updateLeadFollowUpDate: "mutation",
   setLeadSuppression: "mutation",
   suggestOutreachDraft: "read",
   createOutreachDraft: "mutation",
@@ -127,7 +128,7 @@ describe("callable security contract", () => {
 
   it("enforces App Check on every deployed callable and only bypasses it in the Functions emulator", () => {
     expect(callableSource).toContain('const callableOptions = { enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true" }');
-    expect((callableSource.match(/= onCall\(callableOptions, async \(request\) => \{/g) ?? [])).toHaveLength(34);
+    expect((callableSource.match(/= onCall\(callableOptions, async \(request\) => \{/g) ?? [])).toHaveLength(35);
     expect(callableSource.includes("= onCall(async (request) => {")).toBe(false);
   });
 
@@ -190,7 +191,7 @@ describe("callable security contract", () => {
 
     const auditCalls = [...callableSource.matchAll(/writeSecurityAuditEvent\(transaction,\s*[^,]+,\s*[^,]+,\s*"([^"]+)",\s*"([^"]+)"/g)];
     const callPairs = new Set(auditCalls.map((match) => `${match[1]}|${match[2]}`));
-    expect(auditCalls.length).toBe(18);
+    expect(auditCalls.length).toBe(19);
     for (const [eventType, resourceType] of [
       ["organisation.created", "organisation"],
       ["organisation.settings_updated", "organisation"],
@@ -365,6 +366,17 @@ describe("callable security contract", () => {
     expect(callableSource).toContain('| "lead.contact_restriction_changed"');
   });
 
+  it("validates follow-up dates and records tenant-scoped activity and audit events", () => {
+    const start = callableSource.indexOf("export const updateLeadFollowUpDate = onCall(");
+    const end = callableSource.indexOf("export const setLeadSuppression =", start);
+    const callable = callableSource.slice(start, end);
+    expect(callable).toContain('requireTransactionalRole(transaction, organisationId, uid, "lead")');
+    expect(callable).toContain('consumeTransactionalRateLimit(transaction, organisationId, uid, "updateLeadFollowUpDate", 240)');
+    expect(callable).toContain('"lead.follow_up_date_changed"');
+    expect(callable).toContain("followUpDate must be a real UTC calendar date");
+    expect(callable).toContain("transaction.update(leadRef, { followUpDate, updatedAt: now, updatedBy: uid })");
+  });
+
   it("audits sensitive campaign, lead-status, notes, and draft mutations without recording note or draft content", () => {
     const expectations = [
       ["createOrganisation", 'writeSecurityAuditEvent(transaction, organisation.id, uid, "organisation.created", "organisation"'],
@@ -373,6 +385,7 @@ describe("callable security contract", () => {
       ["updateCampaignStatus", 'writeSecurityAuditEvent(transaction, organisationId, uid, "campaign.status_changed", "campaign"'],
       ["updateLeadStatus", 'writeSecurityAuditEvent(transaction, organisationId, uid, "lead.status_changed", "lead"'],
       ["updateLeadNotes", 'writeSecurityAuditEvent(transaction, organisationId, uid, "lead.notes_changed", "lead"'],
+      ["updateLeadFollowUpDate", 'writeSecurityAuditEvent(transaction, organisationId, uid, "lead.follow_up_date_changed", "lead"'],
       ["createOutreachDraft", 'writeSecurityAuditEvent(transaction, organisationId, uid, "outreach_draft.created", "outreachDraft"'],
       ["updateOutreachDraft", 'writeSecurityAuditEvent(transaction, organisationId, uid, "outreach_draft.updated", "outreachDraft"'],
       ["deleteOutreachDraft", 'writeSecurityAuditEvent(transaction, organisationId, uid, "outreach_draft.deleted", "outreachDraft"'],
@@ -404,6 +417,7 @@ describe("callable security contract", () => {
       '"campaign.status_changed"',
       '"lead.status_changed"',
       '"lead.notes_changed"',
+      '"lead.follow_up_date_changed"',
       '"outreach_draft.created"',
       '"outreach_draft.updated"',
       '"outreach_draft.deleted"',
