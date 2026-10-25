@@ -20,6 +20,7 @@ const expectedRateLimitType: Record<string, "read" | "mutation"> = {
   getLeadSourceFunnelSummary: "read",
   getOnboardingCohortSummary: "read",
   getOrganisationPlanUsage: "read",
+  getOrganisationPlanUsageReconciliation: "read",
   updateCampaignStatus: "mutation",
   updateCampaignDetails: "mutation",
   listLeads: "read",
@@ -100,7 +101,7 @@ describe("callable security contract", () => {
 
   it("enforces App Check on every deployed callable and only bypasses it in the Functions emulator", () => {
     expect(callableSource).toContain('const callableOptions = { enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true" }');
-    expect((callableSource.match(/= onCall\(callableOptions, async \(request\) => \{/g) ?? [])).toHaveLength(24);
+    expect((callableSource.match(/= onCall\(callableOptions, async \(request\) => \{/g) ?? [])).toHaveLength(25);
     expect(callableSource.includes("= onCall(async (request) => {")).toBe(false);
   });
 
@@ -864,5 +865,26 @@ describe("organisation member roster", () => {
     expect(body).toContain("getAuth().getUser(document.id)");
     expect(body).toContain("hasMoreMembers: page.docs.length > 20");
     expect(body).toContain('scope: "organisation_member_roster"');
+  });
+});
+
+
+describe("organisation plan usage reconciliation preview", () => {
+  it("restricts reconciliation diagnostics to owners/admins and never writes or invents usage", () => {
+    const start = callableSource.indexOf("export const getOrganisationPlanUsageReconciliation = onCall(");
+    const end = callableSource.indexOf("export const ", start + 1);
+    const body = callableSource.slice(start, end < 0 ? callableSource.length : end);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(body).toContain("await requireMembership(organisationId, uid)");
+    expect(body).toContain("hasCampaignWritePermission(membership.role)");
+    expect(body).toContain('consumeReadRateLimit(organisationId, uid, "getOrganisationPlanUsageReconciliation", 3)');
+    expect(body).toContain('.collection(`organisations/${organisationId}/campaigns`).count().get()');
+    expect(body).toContain('.collection(`organisations/${organisationId}/leads`).count().get()');
+    expect(body).toContain('.collection(`organisations/${organisationId}/members`).count().get()');
+    expect(body).toContain("mismatchedMetrics");
+    expect(body).toContain("Historical AI suggestion usage cannot be inferred from resource counts");
+    expect(body).toContain("destructiveActionPerformed: false as const");
+    expect(body).not.toContain("transaction.set(");
+    expect(body).not.toContain("transaction.update(");
   });
 });

@@ -1148,6 +1148,77 @@ export const getOrganisationPlanUsage = onCall(callableOptions, async (request) 
 });
 
 /**
+ * Compare authoritative plan resource counters with live resource document counts.
+ * This is a read-only diagnostic; it never repairs counters or infers AI usage.
+ */
+export const getOrganisationPlanUsageReconciliation = onCall(callableOptions, async (request) => {
+  const uid = requireUid(request.auth?.uid);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const organisationId = requireOrganisationId(data.organisationId);
+  const membership = await requireMembership(organisationId, uid);
+  if (!hasCampaignWritePermission(membership.role)) {
+    throw new HttpsError("permission-denied", "Only organisation owners and admins can inspect plan usage reconciliation.");
+  }
+  await consumeReadRateLimit(organisationId, uid, "getOrganisationPlanUsageReconciliation", 3);
+
+  const organisationSnapshot = await db.doc(`organisations/${organisationId}`).get();
+  if (!organisationSnapshot.exists) throw new HttpsError("not-found", "Organisation was not found.");
+  const organisationData = organisationSnapshot.data() ?? {};
+  const [campaignResult, leadResult, memberResult] = await Promise.all([
+    db.collection(`organisations/${organisationId}/campaigns`).count().get(),
+    db.collection(`organisations/${organisationId}/leads`).count().get(),
+    db.collection(`organisations/${organisationId}/members`).count().get(),
+  ]);
+  const actual = {
+    campaigns: campaignResult.data().count,
+    leads: leadResult.data().count,
+    members: memberResult.data().count,
+  };
+  if (Object.values(actual).some((count) => !Number.isSafeInteger(count) || count < 0)) {
+    throw new HttpsError("failed-precondition", "Resource inventory count is invalid and requires operator review.");
+  }
+
+  const hasUsage = Object.prototype.hasOwnProperty.call(organisationData, "planUsage");
+  const rawUsage = organisationData.planUsage;
+  const resolvedUsage = hasUsage ? resolvePlanUsageState(rawUsage, new Date()) : null;
+  const usageStateStatus = !hasUsage ? "missing" as const
+    : !resolvedUsage || !resolvedUsage.ok || resolvedUsage.source === "initial" ? "invalid" as const
+      : "present" as const;
+  const storedRecord = usageStateStatus === "present" && rawUsage && typeof rawUsage === "object"
+    ? rawUsage as Record<string, unknown>
+    : null;
+  const stored = storedRecord ? {
+    campaigns: storedRecord.campaigns as number,
+    leads: storedRecord.leads as number,
+    members: storedRecord.members as number,
+    monthlyAiSuggestions: storedRecord.monthlyAiSuggestions as number,
+    aiUsagePeriod: storedRecord.aiUsagePeriod as string,
+  } : null;
+  const mismatchedMetrics = stored
+    ? (["campaigns", "leads", "members"] as const).filter((metric) => stored[metric] !== actual[metric])
+    : [];
+  const notes = usageStateStatus === "missing"
+    ? ["Legacy usage snapshot missing; do not initialise counters to zero without reconciliation."]
+    : usageStateStatus === "invalid"
+      ? ["Stored usage snapshot is malformed; operator review required."]
+      : [
+          "Historical AI suggestion usage cannot be inferred from resource counts; verify the stored monthly counter and period separately.",
+          ...(mismatchedMetrics.length ? ["Stored resource counters differ from current document counts."] : []),
+        ];
+  return {
+    organisationId,
+    status: usageStateStatus,
+    actual,
+    stored,
+    mismatchedMetrics,
+    aiUsageReviewRequired: true as const,
+    currentAiUsagePeriod: currentAiUsagePeriod(new Date()),
+    notes,
+    destructiveActionPerformed: false as const,
+  };
+});
+
+/**
  * Return monthly cohorts based on the immutable first-onboarding timestamp.
  * Legacy leads without a trustworthy onboardedAt timestamp are intentionally
  * excluded rather than assigned an invented historical month.

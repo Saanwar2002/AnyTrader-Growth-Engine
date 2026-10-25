@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
   currentUser: null as unknown,
   api: {
     listMyOrganisations: vi.fn(), createOrganisation: vi.fn(), updateOrganisationSettings: vi.fn(), previewOrganisationOffboarding: vi.fn(), addOrganisationMember: vi.fn(), listOrganisationMembers: vi.fn(), createCampaign: vi.fn(), updateCampaignStatus: vi.fn(), updateCampaignDetails: vi.fn(),
-    listCampaigns: vi.fn(), getCampaignFunnelSummary: vi.fn(), getLeadSourceFunnelSummary: vi.fn(), getOnboardingCohortSummary: vi.fn(), getOrganisationPlanUsage: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), importLeads: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(),
+    listCampaigns: vi.fn(), getCampaignFunnelSummary: vi.fn(), getLeadSourceFunnelSummary: vi.fn(), getOnboardingCohortSummary: vi.fn(), getOrganisationPlanUsage: vi.fn(), getOrganisationPlanUsageReconciliation: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), importLeads: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(),
     updateLeadNotes: vi.fn(), setLeadSuppression: vi.fn(), createOutreachDraft: vi.fn(), suggestOutreachDraft: vi.fn(), listOutreachDrafts: vi.fn(),
     updateOutreachDraft: vi.fn(), deleteOutreachDraft: vi.fn(),
   },
@@ -58,6 +58,17 @@ beforeEach(() => {
     organisationId: "org-1", campaignId: "campaign-1", totalLeadCount: 120,
     qualifiedLeadCount: 30, contactedLeadCount: 12, onboardedLeadCount: 4,
     qualifiedRatePercent: 25, onboardedRatePercent: 3.3, scope: "all_stored_campaign_leads",
+  });
+  mocks.api.getOrganisationPlanUsageReconciliation.mockResolvedValue({
+    organisationId: "org-1",
+    status: "present",
+    actual: { campaigns: 2, leads: 42, members: 3 },
+    stored: { campaigns: 2, leads: 40, members: 3, monthlyAiSuggestions: 7, aiUsagePeriod: "2026-10" },
+    mismatchedMetrics: ["leads"],
+    aiUsageReviewRequired: true,
+    currentAiUsagePeriod: "2026-10",
+    notes: ["Stored resource counters differ from current document counts.", "Historical AI suggestion usage cannot be inferred from resource counts."],
+    destructiveActionPerformed: false,
   });
   mocks.api.getOrganisationPlanUsage.mockResolvedValue({
     organisationId: "org-1",
@@ -1133,6 +1144,23 @@ describe("cloud authentication gate", () => {
     await screen.findByRole("option", { name: /Pilot Workspace.*viewer/ });
     expect(screen.queryByRole("button", { name: "Load member roster" })).toBeNull();
     expect(mocks.api.listOrganisationMembers).not.toHaveBeenCalled();
+  });
+
+  it("shows read-only plan usage reconciliation mismatches and AI review caveat", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load plan usage" }));
+    await screen.findByRole("table", { name: "Server-maintained plan usage for 2026-10" });
+    fireEvent.click(screen.getByRole("button", { name: "Inspect reconciliation" }));
+    await waitFor(() => expect(mocks.api.getOrganisationPlanUsageReconciliation).toHaveBeenCalledWith({ organisationId: "org-1" }));
+    expect(await screen.findByRole("table", { name: "Actual resource counts versus stored plan counters" })).toBeTruthy();
+    expect(screen.getByText("Mismatch")).toBeTruthy();
+    expect(screen.getByText(/Historical AI suggestion usage cannot be inferred/)).toBeTruthy();
+    expect(screen.getByText(/no counters were changed/i)).toBeTruthy();
   });
 
 });
