@@ -789,3 +789,20 @@ describe("server-side source attribution analytics", () => {
     expect(body).toContain("attributionNote:");
   });
 });
+
+
+describe("durable onboarding attribution", () => {
+  it("stamps first onboarding transition once and exposes only the timestamp in lead summaries", () => {
+    const statusStart = callableSource.indexOf("export const updateLeadStatus = onCall(");
+    const statusEnd = callableSource.indexOf("export const ", statusStart + 1);
+    const statusBody = callableSource.slice(statusStart, statusEnd < 0 ? callableSource.length : statusEnd);
+    expect(statusBody).toContain('if (status === "onboarded" && lead.status !== "onboarded" && !isValidFirestoreTimestamp(lead.onboardedAt))');
+    expect(statusBody).toContain("leadUpdate.onboardedAt = now");
+    expect(statusBody).toContain("transaction.update(leadRef, leadUpdate)");
+
+    const listStart = callableSource.indexOf("export const listLeads = onCall(");
+    const listEnd = callableSource.indexOf("export const ", listStart + 1);
+    const listBody = callableSource.slice(listStart, listEnd < 0 ? callableSource.length : listEnd);
+    expect(listBody).toContain("onboardedAt: safeTimestampToIso(lead.onboardedAt)");
+  });
+});
