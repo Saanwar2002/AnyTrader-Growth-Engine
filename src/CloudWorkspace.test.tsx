@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
   authListener: vi.fn(),
   currentUser: null as unknown,
   api: {
-    listMyOrganisations: vi.fn(), createOrganisation: vi.fn(), updateOrganisationSettings: vi.fn(), previewOrganisationOffboarding: vi.fn(), addOrganisationMember: vi.fn(), removeOrganisationMember: vi.fn(), listOrganisationMembers: vi.fn(), createCampaign: vi.fn(), updateCampaignStatus: vi.fn(), updateCampaignDetails: vi.fn(),
+    listMyOrganisations: vi.fn(), createOrganisation: vi.fn(), updateOrganisationSettings: vi.fn(), previewOrganisationOffboarding: vi.fn(), addOrganisationMember: vi.fn(), removeOrganisationMember: vi.fn(), updateOrganisationMemberRole: vi.fn(), listOrganisationMembers: vi.fn(), createCampaign: vi.fn(), updateCampaignStatus: vi.fn(), updateCampaignDetails: vi.fn(),
     listCampaigns: vi.fn(), getCampaignFunnelSummary: vi.fn(), getLeadSourceFunnelSummary: vi.fn(), getOnboardingCohortSummary: vi.fn(), getOrganisationPlanUsage: vi.fn(), getOrganisationPlanUsageReconciliation: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), importLeads: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(),
     updateLeadNotes: vi.fn(), setLeadSuppression: vi.fn(), createOutreachDraft: vi.fn(), suggestOutreachDraft: vi.fn(), listOutreachDrafts: vi.fn(),
     updateOutreachDraft: vi.fn(), deleteOutreachDraft: vi.fn(),
@@ -1230,6 +1230,35 @@ describe("cloud authentication gate", () => {
     expect(await screen.findByText("viewer@example.test")).toBeTruthy();
     expect(screen.getAllByText("member@example.test")).toHaveLength(1);
     expect(screen.queryByRole("button", { name: "Load more members" })).toBeNull();
+  });
+
+ 
+  it("lets only the owner promote a member and updates the displayed role", async () => {
+    mocks.currentUser = { email: "owner@example.test", uid: "owner-uid" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    mocks.api.listOrganisationMembers.mockResolvedValue({
+      organisationId: "org-1",
+      members: [
+        { uid: "owner-uid", email: "owner@example.test", role: "owner", createdAt: null },
+        { uid: "member-uid", email: "member@example.test", role: "member", createdAt: null },
+      ],
+      hasMoreMembers: false,
+      nextPageToken: null,
+      scope: "organisation_member_roster",
+    });
+    mocks.api.updateOrganisationMemberRole.mockResolvedValue({ organisationId: "org-1", targetUid: "member-uid", role: "admin", changed: true });
+    vi.stubGlobal("confirm", vi.fn(() => true));
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load member roster" }));
+    await screen.findByText("member@example.test");
+    fireEvent.change(screen.getByRole("combobox", { name: "Role for member@example.test" }), { target: { value: "admin" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save role" }));
+    await waitFor(() => expect(mocks.api.updateOrganisationMemberRole).toHaveBeenCalledWith({ organisationId: "org-1", targetUid: "member-uid", role: "admin" }));
+    expect(await screen.findByText("Member role updated to admin.")).toBeTruthy();
+    expect(screen.getByText("admin", { selector: "td" })).toBeTruthy();
   });
 
 });
