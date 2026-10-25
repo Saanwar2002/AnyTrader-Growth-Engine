@@ -544,6 +544,62 @@ export const updateOrganisationSettings = onCall(callableOptions, async (request
   return { organisationId, name };
 });
 
+export const listOrganisationMembers = onCall(callableOptions, async (request) => {
+  const uid = requireUid(request.auth?.uid);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const organisationId = requireOrganisationId(data.organisationId);
+  const pageSize = typeof data.pageSize === "number" && Number.isInteger(data.pageSize)
+    ? Math.max(1, Math.min(data.pageSize, 100))
+    : 50;
+  const pageToken = typeof data.pageToken === "string" ? data.pageToken : undefined;
+  if (pageToken && (pageToken.length > 2048 || !/^[A-Za-z0-9_-]+$/.test(pageToken))) {
+    throw new HttpsError("invalid-argument", "pageToken is invalid.");
+  }
+
+  const membership = await requireMembership(organisationId, uid);
+  if (membership.role !== "owner" && membership.role !== "admin") {
+    throw new HttpsError("permission-denied", "Only organisation owners and admins can view the member roster.");
+  }
+  const organisationRef = db.collection("organisations").doc(organisationId);
+  await db.runTransaction(async (transaction: Transaction) => {
+    await requireTransactionalRole(transaction, organisationId, uid, "campaign");
+    await consumeTransactionalRateLimit(transaction, organisationId, uid, "listOrganisationMembers", 60);
+  });
+
+  let query = organisationRef.collection("members")
+    .orderBy("createdAt", "asc")
+    .orderBy(FieldPath.documentId(), "asc")
+    .limit(pageSize + 1);
+  if (pageToken) {
+    let cursor: { createdAt: Timestamp; uid: string };
+    try {
+      cursor = JSON.parse(Buffer.from(pageToken, "base64url").toString("utf8")) as { createdAt: Timestamp; uid: string };
+    } catch {
+      throw new HttpsError("invalid-argument", "pageToken is invalid.");
+    }
+    if (!cursor || typeof cursor.uid !== "string" || !cursor.createdAt || typeof cursor.createdAt !== "object") {
+      throw new HttpsError("invalid-argument", "pageToken is invalid.");
+    }
+    query = query.startAfter(cursor.createdAt, cursor.uid);
+  }
+  const snapshot = await query.get();
+  const hasMore = snapshot.docs.length > pageSize;
+  const docs = hasMore ? snapshot.docs.slice(0, pageSize) : snapshot.docs;
+  const members = docs.map((doc) => {
+    const data = doc.data();
+    return {
+      uid: doc.id,
+      role: data.role,
+      createdAt: data.createdAt?.toDate?.().toISOString?.() ?? null,
+    };
+  });
+  const last = docs.at(-1);
+  const nextPageToken = hasMore && last
+    ? Buffer.from(JSON.stringify({ createdAt: last.get("createdAt")?.toDate?.()?.toISOString?.() ?? null, uid: last.id })).toString("base64url")
+    : null;
+  return { organisationId, members, hasMoreMembers: hasMore, nextPageToken };
+});
+
 export const addOrganisationMember = onCall(callableOptions, async (request) => {
   const uid = requireUid(request.auth?.uid);
   const data = (request.data ?? {}) as Record<string, unknown>;
