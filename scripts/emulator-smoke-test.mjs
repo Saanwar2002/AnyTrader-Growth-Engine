@@ -2971,6 +2971,18 @@ try {
   await expectCallableFailure(callTwo("getLeadCompletenessSummary", {
     organisationId: orgOne.organisationId,
   }), "functions/permission-denied", "lead completeness aggregate rejects cross-tenant access");
+  const openLeadAging = await callOne("getOpenLeadAgingSummary", { organisationId: orgOne.organisationId });
+  assert.equal(openLeadAging.scope, "all_stored_open_leads");
+  assert.ok(openLeadAging.totalOpenLeadCount >= 1, "open-lead aging counts all open leads");
+  assert.equal(openLeadAging.totalOpenLeadCount,
+    openLeadAging.createdWithinSevenDays + openLeadAging.createdEightToThirtyDaysAgo
+      + openLeadAging.createdThirtyOneToNinetyDaysAgo + openLeadAging.createdOverNinetyDaysAgo
+      + openLeadAging.missingOrUnclassifiedCreatedAtCount,
+    "open-lead age bands reconcile to all open leads");
+  assert.match(openLeadAging.note, /not last activity or last status change/i);
+  await expectCallableFailure(callTwo("getOpenLeadAgingSummary", {
+    organisationId: orgOne.organisationId,
+  }), "functions/permission-denied", "open-lead aging aggregate rejects cross-tenant access");
   const contactReviewInventory = await callOne("getContactReviewQueueSummary", { organisationId: orgOne.organisationId });
   assert.equal(contactReviewInventory.scope, "all_stored_organisation_leads");
   assert.ok(contactReviewInventory.totalLeadCount >= 1, "contact-review inventory includes stored organisation leads");
@@ -3015,6 +3027,7 @@ try {
     "getLeadSourceFunnelSummary",
     "getOnboardingCohortSummary",
     "getLeadCompletenessSummary",
+    "getOpenLeadAgingSummary",
     "getOnboardingCohortCoverage",
     "getContactReviewQueueSummary",
     "getOrganisationPlanUsage",
