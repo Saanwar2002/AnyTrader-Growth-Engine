@@ -56,6 +56,12 @@ try {
   const orgOnePayload = { name: "Tenant One", idempotencyKey: "organisation-create-idempotency-0001" };
   const orgOne = await callOne("createOrganisation", orgOnePayload);
   assert.equal(orgOne.role, "owner");
+  const initialPlanUsage = await callOne("getOrganisationPlanUsage", { organisationId: orgOne.organisationId });
+  assert.equal(initialPlanUsage.status, "authoritative");
+  assert.equal(initialPlanUsage.usage.members, 1);
+  assert.equal(initialPlanUsage.usage.campaigns, 0);
+  assert.equal(initialPlanUsage.remaining.monthlyAiSuggestions, 50);
+  assert.equal(initialPlanUsage.plan.displayName, "Pilot");
   const offboardingPreview = await callOne("previewOrganisationOffboarding", { organisationId: orgOne.organisationId });
   assert.equal(offboardingPreview.destructiveActionPerformed, false, "offboarding preview never deletes data");
   assert.equal(offboardingPreview.complete, true, "synthetic tenant preview completes within the category caps");
@@ -1952,6 +1958,9 @@ try {
     organisationId: orgOne.organisationId,
   }), "functions/permission-denied", "cross-tenant member roster access is denied");
 
+  await expectCallableFailure(callTwo("getOrganisationPlanUsage", { organisationId: orgOne.organisationId }),
+    "functions/permission-denied", "plan usage summary rejects users without tenant membership");
+
   await expectCallableFailure(callOne("getCampaignFunnelSummary", {
     organisationId: orgTwo.organisationId,
     campaignId: campaignOne.campaignId,
@@ -2893,6 +2902,7 @@ try {
     "getCampaignFunnelSummary",
     "getLeadSourceFunnelSummary",
     "getOnboardingCohortSummary",
+    "getOrganisationPlanUsage",
     "updateCampaignStatus",
     "updateCampaignDetails",
     "listLeads",
