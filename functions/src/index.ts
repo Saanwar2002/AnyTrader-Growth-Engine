@@ -1826,6 +1826,9 @@ export const importLeads = onCall(callableOptions, async (request) => {
     await requireTransactionalRole(transaction, organisationId, uid, "lead");
     if (idempotencySnapshot.exists) {
       const saved = idempotencySnapshot.data() ?? {};
+      if (saved.requestHash !== requestHash) {
+        throw new HttpsError("already-exists", "This idempotencyKey was already used with a different import payload.");
+      }
       const expectedReplay = { actorUid: uid, requestHash, organisationId, campaignId, received: prepared.length };
       const savedResult = getValidImportReplayResult(saved, expectedReplay);
       if (!savedResult) {
