@@ -414,6 +414,7 @@ describe("callable security contract", () => {
       '"campaign.status_changed"',
       '"lead.status_changed"',
       '"lead.notes_changed"',
+      '"lead.follow_up_date_changed"',
       '"outreach_draft.created"',
       '"outreach_draft.updated"',
       '"outreach_draft.deleted"',
