@@ -12,14 +12,24 @@ describe("summarizeCampaignPerformance", () => {
       ],
       [{ campaignId: "c1", requiresReview: true }, { campaignId: "c1", requiresReview: false }],
     )).toEqual([
-      { campaignId: "c1", campaignName: "Edinburgh painters", loadedLeadCount: 3, qualifiedLeadCount: 1, onboardedLeadCount: 1, restrictedLeadCount: 1, loadedDraftCount: 2, draftsAwaitingReview: 1 },
-      { campaignId: "c2", campaignName: "Glasgow decorators", loadedLeadCount: 1, qualifiedLeadCount: 0, onboardedLeadCount: 0, restrictedLeadCount: 1, loadedDraftCount: 0, draftsAwaitingReview: 0 },
+      { campaignId: "c1", campaignName: "Edinburgh painters", loadedLeadCount: 3, qualifiedLeadCount: 1, contactedLeadCount: 0, onboardedLeadCount: 1, qualifiedRatePercent: 33.3, onboardedRatePercent: 33.3, restrictedLeadCount: 1, loadedDraftCount: 2, draftsAwaitingReview: 1 },
+      { campaignId: "c2", campaignName: "Glasgow decorators", loadedLeadCount: 1, qualifiedLeadCount: 0, contactedLeadCount: 0, onboardedLeadCount: 0, qualifiedRatePercent: 0, onboardedRatePercent: 0, restrictedLeadCount: 1, loadedDraftCount: 0, draftsAwaitingReview: 0 },
     ]);
+  });
+  it("uses loaded leads as the explicit denominator for funnel rates", () => {
+    const [summary] = summarizeCampaignPerformance([{ id: "c1", name: "Pilot" }], [
+      { campaignId: "c1", status: "qualified", doNotContact: true, contactRestrictionVerified: false },
+      { campaignId: "c1", status: "onboarded", doNotContact: false, contactRestrictionVerified: true },
+      { campaignId: "c1", status: "contacted", doNotContact: false, contactRestrictionVerified: true },
+    ], []);
+    expect(summary.contactedLeadCount).toBe(1);
+    expect(summary.qualifiedRatePercent).toBe(33.3);
+    expect(summary.onboardedRatePercent).toBe(33.3);
   });
   it("returns zero counts for campaigns with no loaded records", () => {
     expect(summarizeCampaignPerformance([{ id: "c1", name: "Empty" }], [], [])[0]).toEqual({
-      campaignId: "c1", campaignName: "Empty", loadedLeadCount: 0, qualifiedLeadCount: 0,
-      onboardedLeadCount: 0, restrictedLeadCount: 0, loadedDraftCount: 0, draftsAwaitingReview: 0,
+      campaignId: "c1", campaignName: "Empty", loadedLeadCount: 0, qualifiedLeadCount: 0, contactedLeadCount: 0,
+      onboardedLeadCount: 0, qualifiedRatePercent: 0, onboardedRatePercent: 0, restrictedLeadCount: 0, loadedDraftCount: 0, draftsAwaitingReview: 0,
     });
   });
 });

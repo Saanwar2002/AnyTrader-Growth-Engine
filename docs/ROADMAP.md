@@ -65,10 +65,12 @@
 - Prompt-injection protections, per-organisation usage limits, and human approval.
 - No automated outreach sending in the MVP.
 
-## Phase 6 — Attribution and SaaS controls
+## Phase 6 — Attribution and SaaS controls (in progress)
 
-- Onboarding attribution, aggregate analytics, organisation settings, plans, and quotas.
-- Billing only after core workflows and server-side entitlements are tested.
+- [x] Loaded-record campaign funnel summary with qualified, contacted, onboarded counts and clearly labelled loaded-lead conversion rates; partial pagination is disclosed in the UI.
+- [ ] Onboarding attribution and durable, server-side aggregate analytics across all pages.
+- [ ] Organisation settings, plans, and server-side entitlements/quotas.
+- [ ] Billing only after core workflows and server-side entitlements are tested.
 
 ## Phase 7 — Production hardening and later agency features
 

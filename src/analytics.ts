@@ -6,7 +6,8 @@ export interface CampaignPerformanceLead {
 export interface CampaignPerformanceDraft { campaignId: string; requiresReview: boolean; }
 export interface CampaignPerformanceSummary {
   campaignId: string; campaignName: string; loadedLeadCount: number; qualifiedLeadCount: number;
-  onboardedLeadCount: number; restrictedLeadCount: number; loadedDraftCount: number; draftsAwaitingReview: number;
+  contactedLeadCount: number; onboardedLeadCount: number; qualifiedRatePercent: number; onboardedRatePercent: number;
+  restrictedLeadCount: number; loadedDraftCount: number; draftsAwaitingReview: number;
 }
 /** Summarise only supplied (potentially paginated) records; never imply global completeness. */
 export function summarizeCampaignPerformance(
@@ -18,7 +19,10 @@ export function summarizeCampaignPerformance(
     return {
       campaignId: campaign.id, campaignName: campaign.name, loadedLeadCount: campaignLeads.length,
       qualifiedLeadCount: campaignLeads.filter((lead) => lead.status === "qualified").length,
+      contactedLeadCount: campaignLeads.filter((lead) => lead.status === "contacted").length,
       onboardedLeadCount: campaignLeads.filter((lead) => lead.status === "onboarded").length,
+      qualifiedRatePercent: campaignLeads.length ? Math.round((campaignLeads.filter((lead) => lead.status === "qualified").length / campaignLeads.length) * 1000) / 10 : 0,
+      onboardedRatePercent: campaignLeads.length ? Math.round((campaignLeads.filter((lead) => lead.status === "onboarded").length / campaignLeads.length) * 1000) / 10 : 0,
       restrictedLeadCount: campaignLeads.filter((lead) => lead.doNotContact || !lead.contactRestrictionVerified
         || lead.contactReviewStatus === "pending" || lead.contactReviewStatus === "blocked").length,
       loadedDraftCount: campaignDrafts.length,
