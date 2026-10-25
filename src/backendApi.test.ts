@@ -20,6 +20,15 @@ describe("typed backend API boundary", () => {
     expect(calls).toEqual([{ name: "createOrganisation", payload }]);
   });
 
+  it("passes member addition through the server-authorised callable with an idempotency key", async () => {
+    const response = { organisationId: "org-1", uid: "user-2", role: "viewer" as const, added: true };
+    const { invoke, calls } = makeInvoker([response]);
+    const api = createGrowthEngineApi(invoke);
+    const payload = { organisationId: "org-1", targetUid: "user-2", role: "viewer" as const, idempotencyKey: "member-addition-api-key-0001" };
+    await expect(api.addOrganisationMember(payload)).resolves.toEqual(response);
+    expect(calls).toEqual([{ name: "addOrganisationMember", payload }]);
+  });
+
   it("passes the stable idempotency key for campaign creation", async () => {
     const response = { campaignId: "campaign-1", organisationId: "org-1", status: "active" as const };
     const { invoke, calls } = makeInvoker([response]);
