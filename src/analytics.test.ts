@@ -103,3 +103,36 @@ it("serializes full server-side campaign funnel counts with an explicit all-stor
   expect(csv).toContain("All stored campaign leads,\"Roofers, \"\"North\"\"\",120,30,20,8,25.0,6.7");
   expect(csv.startsWith("Scope,Campaign,All stored leads,Qualified,Contacted,Onboarded,Qualified rate (%),Onboarded rate (%)\r\n")).toBe(true);
 });
+
+
+import { serializeFullLeadSourceFunnelCsv } from "./analytics";
+
+describe("serializeFullLeadSourceFunnelCsv", () => {
+  it("exports all-stored source aggregates, attribution caveat, and escaped self-declared labels", () => {
+    const csv = serializeFullLeadSourceFunnelCsv([{
+      source: 'linkedin, "manual"',
+      totalLeadCount: 10,
+      qualifiedLeadCount: 3,
+      onboardedLeadCount: 1,
+      qualifiedRatePercent: 30,
+      onboardedRatePercent: 10,
+    }], "Self-declared source; unknown values include legacy records.");
+    expect(csv).toContain('"All stored organisation leads","linkedin, ""manual""",10,3,1,30.0,10.0,"Self-declared source; unknown values include legacy records."');
+    expect(csv.startsWith("Scope,Source (self-declared),All stored leads,Qualified,Onboarded,Qualified rate (%),Onboarded rate (%),Attribution note\r\n")).toBe(true);
+  });
+
+  it("neutralises spreadsheet formula prefixes and preserves the note for an empty report", () => {
+    const csv = serializeFullLeadSourceFunnelCsv([{
+      source: "=HYPERLINK(""https://bad.example"")",
+      totalLeadCount: 1,
+      qualifiedLeadCount: 0,
+      onboardedLeadCount: 0,
+      qualifiedRatePercent: 0,
+      onboardedRatePercent: 0,
+    }], "Source values are self-declared.");
+    expect(csv).toContain("'=HYPERLINK(""https://bad.example"")");
+    const empty = serializeFullLeadSourceFunnelCsv([], "Legacy source attribution may be incomplete.");
+    expect(empty).toContain("No source-labelled records,0,0,0,0.0,0.0,Legacy source attribution may be incomplete.");
+    expect(empty.endsWith("\r\n")).toBe(true);
+  });
+});
