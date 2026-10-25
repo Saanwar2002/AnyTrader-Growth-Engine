@@ -299,6 +299,13 @@ try {
     analyticsLeadPage.leads.filter((lead) => lead.status === "onboarded").length);
   assert.ok(fullSourceFunnel.sourceSummaries.some((row) => row.source === "unknown"),
     "unknown source bucket remains explicit even when empty");
+  const followUpDateResult = await callOne("updateLeadFollowUpDate", {
+    organisationId: orgOne.organisationId,
+    leadId: leadOne.leadId,
+    followUpDate: "2026-11-04",
+  });
+  assert.equal(followUpDateResult.leadId, leadOne.leadId);
+  assert.equal(followUpDateResult.followUpDate, "2026-11-04");
   await expectCallableFailure(callOne("updateLeadNotes", {
     organisationId: orgOne.organisationId,
     leadId: leadOne.leadId,
