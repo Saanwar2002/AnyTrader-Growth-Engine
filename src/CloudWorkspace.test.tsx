@@ -1285,7 +1285,7 @@ describe("cloud authentication gate", () => {
     render(<CloudWorkspace />);
     const fullReportButton = await screen.findByRole("button", { name: "Export full campaign report (CSV)" });
     // The action is intentionally disabled until the initial campaign page has loaded.
-    await waitFor(() => expect(fullReportButton).not.toBeDisabled());
+    await waitFor(() => expect(fullReportButton.disabled).toBe(false));
     fireEvent.click(fullReportButton);
     await waitFor(() => expect(mocks.api.getCampaignFunnelSummary).toHaveBeenCalledWith({ organisationId: "org-1", campaignId: "campaign-1" }));
     expect(createObjectURL).toHaveBeenCalledTimes(1);
