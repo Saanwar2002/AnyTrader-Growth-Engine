@@ -174,3 +174,23 @@ describe("typed backend API boundary", () => {
       payload: { organisationId: "org-1", campaignId: "campaign-1" },
     });
   });
+
+
+it("requests complete server-side lead source attribution for the selected organisation", async () => {
+  const response = {
+    organisationId: "org-1",
+    sourceSummaries: [
+      { source: "manual", totalLeadCount: 8, qualifiedLeadCount: 2, onboardedLeadCount: 1, qualifiedRatePercent: 25, onboardedRatePercent: 12.5 },
+      { source: "unknown", totalLeadCount: 2, qualifiedLeadCount: 0, onboardedLeadCount: 0, qualifiedRatePercent: 0, onboardedRatePercent: 0 },
+    ],
+    scope: "all_stored_organisation_leads" as const,
+    attributionNote: "Source values are self-declared.",
+  };
+  const { invoke, calls } = makeInvoker([response]);
+  const api = createGrowthEngineApi(invoke);
+  await expect(api.getLeadSourceFunnelSummary({ organisationId: "org-1" })).resolves.toEqual(response);
+  expect(calls[0]).toEqual({
+    name: "getLeadSourceFunnelSummary",
+    payload: { organisationId: "org-1" },
+  });
+});
