@@ -46,6 +46,26 @@ describe("callable security contract", () => {
     expect(campaignCallable).toContain("Legacy organisations without a usage snapshot remain on the compatibility");
   });
 
+  it("reserves lead quota atomically for manual creation and only newly imported leads", () => {
+    const createStart = callableSource.indexOf("export const createLead =");
+    const createEnd = callableSource.indexOf("export const listLeads =", createStart);
+    const createCallable = callableSource.slice(createStart, createEnd);
+    expect(createCallable).toContain('reserveOrganisationPlanUsage(transaction, organisationId, "leads", 1)');
+    expect(createCallable).toContain("transaction.update(organisationRef, { planUsage: reservedPlanUsageState })");
+    expect(createCallable.indexOf("transaction.update(organisationRef, { planUsage: reservedPlanUsageState })"))
+      .toBeLessThan(createCallable.indexOf("transaction.create(lead,"));
+
+    const importStart = callableSource.indexOf("export const importLeads =");
+    const importEnd = callableSource.indexOf("export const", importStart + 1);
+    const importCallable = callableSource.slice(importStart, importEnd);
+    expect(importCallable).toContain("const rowsToImport: typeof prepared = []");
+    expect(importCallable).toContain('reserveOrganisationPlanUsage(transaction, organisationId, "leads", rowsToImport.length)');
+    expect(importCallable).toContain("transaction.update(organisationRef, { planUsage: reservedPlanUsageState })");
+    expect(importCallable.indexOf("transaction.update(organisationRef, { planUsage: reservedPlanUsageState })"))
+      .toBeLessThan(importCallable.indexOf("transaction.create(leadRef,"));
+    expect(importCallable).toContain("for (const row of rowsToImport)");
+  });
+
   it("enforces App Check on every deployed callable and only bypasses it in the Functions emulator", () => {
     expect(callableSource).toContain('const callableOptions = { enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true" }');
     expect((callableSource.match(/= onCall\(callableOptions, async \(request\) => \{/g) ?? [])).toHaveLength(18);
