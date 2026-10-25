@@ -28,7 +28,7 @@ npm run dev
 
 Open the local URL printed by Vite. With no `.env.local` file, the app runs in local synthetic-data demo mode.
 
-**Cloud mode is scaffolded but not yet configured.** Do not add Firebase values until a dedicated Growth Engine project exists and its Auth/Functions/Firestore setup has been validated in emulators. Email/password and Google sign-in are implemented in the cloud UI, but Google sign-in must be enabled in Firebase Console before it can work. At that point, copy `.env.example` to `.env.local` and use only that dedicated project's public web-app config. Never point this app at production AnyTrader. The cloud UI expects the callable Functions API to be deployed to the same project.
+**Cloud mode is scaffolded but not yet configured.** Do not add Firebase values until a dedicated Growth Engine project exists and its Auth/Functions/Firestore/App Check setup has been validated in emulators. Email/password and Google sign-in are implemented in the cloud UI, but Google sign-in must be enabled in Firebase Console before it can work. At that point, copy `.env.example` to `.env.local` and use only that dedicated project's public web-app config. Never point this app at production AnyTrader. The cloud UI requires App Check configuration and expects the callable Functions API to be deployed to the same project. All deployed callable functions enforce App Check; the only bypass is the local Firebase Functions emulator. Never deploy until the dedicated project, App Check provider, and legitimate client token flow have been verified.
 
 Quality checks:
 
@@ -47,7 +47,7 @@ npm run test:emulators # optional; requires Node.js 22, Java, and emulator downl
 1. Open the dedicated **Growth Engine** Firebase project in Firebase Console; do not use production AnyTrader.
 2. Go to **Authentication → Sign-in method** (or **Sign-in providers**) and enable **Google**. Choose the project support email and save.
 3. In **Authentication → Settings → Authorized domains**, confirm the exact development/hosting domain is listed. Firebase usually adds localhost for local development, but verify it; add only domains you control.
-4. Configure the matching public web-app values in local `.env.local` from `.env.example`. Do not commit that file or use production project values.
+4. Register the web app with Firebase App Check, configure reCAPTCHA v3 for the intended domains, and add its site key as `VITE_FIREBASE_APPCHECK_SITE_KEY`. Configure the matching public web-app values in local `.env.local` from `.env.example`. Do not commit that file or use production project values.
 5. Run the app locally and test both Google sign-in and email/password flows. Also test a cancelled popup, a popup-blocked browser, and a Google account whose email already belongs to an email/password account.
 6. Before using real users/data, complete the emulator-backed tenant-isolation tests and security review. Google authentication proves the user's identity; it does **not** grant organisation access. All workspace permissions must continue to be enforced by server-side membership checks.
 
@@ -95,6 +95,10 @@ The local demo is not a secure multi-user service. It uses browser localStorage,
 6. **Attribution and SaaS controls:** onboarding attribution, plans, quotas, and later billing.
 7. **Production hardening:** privacy/retention workflows, monitoring, backups, recovery, and security review.
 
+## Cloud release readiness
+
+Before enabling cloud mode or deploying Firebase resources, complete the [Cloud Release Readiness Gate](docs/CLOUD_RELEASE_READINESS_GATE.md). A green CI run is necessary but does not prove that a real Firebase project, App Check, privacy controls, or recovery procedures are ready. Keep cloud mode disabled until the dedicated Growth Engine Firebase project is created and verified.
+
 ## Safety and privacy principles
 
 - Do not use unauthorised scraping or bypass access controls.
@@ -103,6 +107,11 @@ The local demo is not a secure multi-user service. It uses browser localStorage,
 - Keep synthetic fixtures clearly labelled as fictional.
 - Use server-side permission checks for all privileged operations; the initial callable Functions scaffold checks Firebase Auth context and organisation membership.
 - Use a separate Firebase project for Growth Engine; never reuse production AnyTrader credentials or databases.
+
+
+## Firebase deployment safety gate
+
+Firebase CLI deployments are blocked unless `GROWTH_ENGINE_FIREBASE_PROJECT_ID` explicitly names the approved Growth Engine project and Firebase CLI supplies a matching `GCLOUD_PROJECT`. The guard rejects missing values, mismatched targets, and `demo-*` emulator project IDs before the Functions predeploy build. Set both values only after creating and reviewing the dedicated Growth Engine Firebase project; never set the expected ID to the production AnyTrader project. This is a guard against accidental target selection, not proof that the project is correctly secured or that App Check has been verified.
 
 
 ## Tenant offboarding preview
