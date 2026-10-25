@@ -136,3 +136,28 @@ describe("serializeFullLeadSourceFunnelCsv", () => {
     expect(empty.endsWith("\r\n")).toBe(true);
   });
 });
+
+
+describe("analytics CSV spreadsheet formula safety", () => {
+  it("neutralises formulas in loaded and full campaign names", () => {
+    const loaded = serializeCampaignPerformanceCsv([{
+      campaignId: "c1", campaignName: "  =HYPERLINK(1)", loadedLeadCount: 1,
+      qualifiedLeadCount: 0, contactedLeadCount: 0, onboardedLeadCount: 0,
+      qualifiedRatePercent: 0, onboardedRatePercent: 0, restrictedLeadCount: 0,
+      loadedDraftCount: 0, draftsAwaitingReview: 0,
+    }]);
+    expect(loaded).toContain("'  =HYPERLINK(1)");
+
+    const full = serializeFullCampaignFunnelCsv([{
+      campaignName: "+SUM(A1:A2)", totalLeadCount: 1, qualifiedLeadCount: 0,
+      contactedLeadCount: 0, onboardedLeadCount: 0, qualifiedRatePercent: 0, onboardedRatePercent: 0,
+    }]);
+    expect(full).toContain("'+SUM(A1:A2)");
+  });
+
+  it("neutralises formula-like attribution notes in cohort exports", async () => {
+    const { serializeOnboardingCohortCsv } = await import("./analytics");
+    const csv = serializeOnboardingCohortCsv([{ month: "2026-10", onboardedLeadCount: 2 }], "@SUM(A1)");
+    expect(csv).toContain("'@SUM(A1)");
+  });
+});

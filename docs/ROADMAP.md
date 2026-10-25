@@ -71,6 +71,7 @@
 - [x] Loaded-record campaign funnel summary with qualified, contacted, onboarded counts and clearly labelled loaded-lead conversion rates; partial pagination is disclosed in the UI.
 - [x] Self-declared lead-source performance summary with qualified/onboarded counts and rates; pagination and unverified source-label limitations are explicit.
 - [x] Full server-counted lead-source funnel CSV export across all stored organisation leads, including the attribution caveat, formula-safe escaping, and an explicit empty-report row.
+- [x] Shared spreadsheet-formula neutralisation across loaded campaign, full campaign, onboarding cohort, and full source analytics CSV exports; comma/quote/newline escaping remains covered by serializer tests.
 - [x] Downloadable campaign performance CSV with a loaded-record-only scope column and escaped text fields.
 - [x] Downloadable full campaign funnel report using server-counted totals across all stored leads, with explicit scope labels, escaped campaign names, and a 20-campaign safety cap.
 - [ ] First-onboarding timestamps and on-demand server-side campaign/source aggregates are implemented for new transitions and all stored leads. A 12-month server-side onboarding cohort report now counts first-onboarding timestamps; legacy records already marked onboarded without a timestamp remain excluded pending a reviewed backfill. Source values remain self-declared.
