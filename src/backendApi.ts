@@ -59,6 +59,17 @@ export interface LeadCompletenessAnalytics {
   scope: "all_stored_leads";
   note: string;
 }
+export interface OpenLeadAgingAnalytics {
+  organisationId: string;
+  totalOpenLeadCount: number;
+  createdWithinSevenDays: number;
+  createdEightToThirtyDaysAgo: number;
+  createdThirtyOneToNinetyDaysAgo: number;
+  createdOverNinetyDaysAgo: number;
+  missingOrUnclassifiedCreatedAtCount: number;
+  scope: "all_stored_open_leads";
+  note: string;
+}
 export interface ContactReviewQueueAnalytics {
   organisationId: string;
   totalLeadCount: number;
@@ -125,6 +136,7 @@ export function createGrowthEngineApi(call: CallableInvoker) {
     getOnboardingCohortSummary: (payload: { organisationId: string }) => call<typeof payload, OnboardingCohortAnalytics>("getOnboardingCohortSummary", payload),
     getOnboardingCohortCoverage: (payload: { organisationId: string }) => call<typeof payload, OnboardingCohortCoverage>("getOnboardingCohortCoverage", payload),
     getLeadCompletenessSummary: (payload: { organisationId: string }) => call<typeof payload, LeadCompletenessAnalytics>("getLeadCompletenessSummary", payload),
+    getOpenLeadAgingSummary: (payload: { organisationId: string }) => call<typeof payload, OpenLeadAgingAnalytics>("getOpenLeadAgingSummary", payload),
     getContactReviewQueueSummary: (payload: { organisationId: string }) => call<typeof payload, ContactReviewQueueAnalytics>("getContactReviewQueueSummary", payload),
     getOrganisationPlanUsage: (payload: { organisationId: string }) => call<typeof payload, OrganisationPlanUsageSummary>("getOrganisationPlanUsage", payload),
     getOrganisationPlanUsageReconciliation: (payload: { organisationId: string }) => call<typeof payload, PlanUsageReconciliationSummary>("getOrganisationPlanUsageReconciliation", payload),
