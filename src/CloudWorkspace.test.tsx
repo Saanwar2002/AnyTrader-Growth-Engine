@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
   currentUser: null as unknown,
   api: {
     listMyOrganisations: vi.fn(), createOrganisation: vi.fn(), updateOrganisationSettings: vi.fn(), previewOrganisationOffboarding: vi.fn(), addOrganisationMember: vi.fn(), removeOrganisationMember: vi.fn(), updateOrganisationMemberRole: vi.fn(), listOrganisationMembers: vi.fn(), createCampaign: vi.fn(), updateCampaignStatus: vi.fn(), updateCampaignDetails: vi.fn(),
-    listCampaigns: vi.fn(), getCampaignFunnelSummary: vi.fn(), getLeadSourceFunnelSummary: vi.fn(), getOnboardingCohortSummary: vi.fn(), getLeadActivityTimeline: vi.fn(), getOrganisationPlanUsage: vi.fn(), getOrganisationPlanUsageReconciliation: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), importLeads: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(),
+    listCampaigns: vi.fn(), getCampaignFunnelSummary: vi.fn(), getLeadSourceFunnelSummary: vi.fn(), getOnboardingCohortSummary: vi.fn(), getContactReviewQueueSummary: vi.fn(), getLeadActivityTimeline: vi.fn(), getOrganisationPlanUsage: vi.fn(), getOrganisationPlanUsageReconciliation: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), importLeads: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(),
     updateLeadNotes: vi.fn(), setLeadSuppression: vi.fn(), createOutreachDraft: vi.fn(), suggestOutreachDraft: vi.fn(), listOutreachDrafts: vi.fn(),
     updateOutreachDraft: vi.fn(), deleteOutreachDraft: vi.fn(),
   },
@@ -1429,7 +1429,7 @@ describe("cloud authentication gate", () => {
     });
     render(<CloudWorkspace />);
     await screen.findByText("Pending Painter");
-    expect(screen.getByText(/Contact-review counts for loaded leads only.*load more pages/i)).toBeTruthy();
+    expect(screen.getByText(/Quick filters below count loaded leads only.*server-side inventory/i)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Pending review (1)" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Review cleared (1)" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Blocked / do not contact (1)" })).toBeTruthy();
@@ -1438,6 +1438,33 @@ describe("cloud authentication gate", () => {
     expect(screen.queryByRole("row", { name: /Cleared Painter/ })).toBeNull();
     expect(screen.queryByRole("row", { name: /Blocked Painter/ })).toBeNull();
     expect(screen.getByRole("button", { name: "Pending review (1)" }).getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("loads full-organisation contact-review counts and labels legacy records as unclassified", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    mocks.api.getContactReviewQueueSummary.mockResolvedValue({
+      organisationId: "org-1",
+      totalLeadCount: 17,
+      pendingCount: 4,
+      clearedCount: 7,
+      blockedCount: 3,
+      legacyOrUnclassifiedCount: 3,
+      scope: "all_stored_organisation_leads",
+      attributionNote: "Counts use the stored contactReviewStatus field. Older records without an explicit status are reported as legacy or unclassified rather than guessed from partial fields.",
+    });
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load all-stored counts" }));
+    await waitFor(() => expect(mocks.api.getContactReviewQueueSummary).toHaveBeenCalledWith({ organisationId: "org-1" }));
+    expect(await screen.findByText("All stored leads: 17")).toBeTruthy();
+    expect(screen.getByText("Explicitly pending: 4")).toBeTruthy();
+    expect(screen.getByText("Review cleared: 7")).toBeTruthy();
+    expect(screen.getByText("Blocked / do not contact: 3")).toBeTruthy();
+    expect(screen.getByText("Legacy or unclassified: 3")).toBeTruthy();
+    expect(screen.getByText(/older records without an explicit status are reported as legacy or unclassified/i)).toBeTruthy();
   });
 
 });

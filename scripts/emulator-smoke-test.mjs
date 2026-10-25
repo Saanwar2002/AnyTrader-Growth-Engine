@@ -2941,6 +2941,17 @@ try {
   assert.ok(onboardingCohorts.cohorts.find((cohort) => cohort.month === currentUtcMonth)?.onboardedLeadCount >= 1,
     "the server aggregate includes the newly onboarded lead in the current UTC month");
   assert.match(onboardingCohorts.attributionNote, /legacy leads already onboarded/i);
+  const contactReviewInventory = await callOne("getContactReviewQueueSummary", { organisationId: orgOne.organisationId });
+  assert.equal(contactReviewInventory.scope, "all_stored_organisation_leads");
+  assert.ok(contactReviewInventory.totalLeadCount >= 1, "contact-review inventory includes stored organisation leads");
+  assert.ok(contactReviewInventory.pendingCount >= 0 && contactReviewInventory.clearedCount >= 0 && contactReviewInventory.blockedCount >= 0);
+  assert.equal(contactReviewInventory.totalLeadCount,
+    contactReviewInventory.pendingCount + contactReviewInventory.clearedCount + contactReviewInventory.blockedCount + contactReviewInventory.legacyOrUnclassifiedCount,
+    "explicit review counts plus legacy/unclassified records reconcile to total stored leads");
+  assert.match(contactReviewInventory.attributionNote, /legacy or unclassified/i);
+  await expectCallableFailure(callTwo("getContactReviewQueueSummary", {
+    organisationId: orgOne.organisationId,
+  }), "functions/permission-denied", "contact-review summary rejects cross-tenant access");
   await expectCallableFailure(callTwo("getOnboardingCohortSummary", {
     organisationId: orgOne.organisationId,
   }), "functions/permission-denied", "onboarding cohort analytics rejects cross-tenant access");
@@ -2972,6 +2983,7 @@ try {
     "getCampaignFunnelSummary",
     "getLeadSourceFunnelSummary",
     "getOnboardingCohortSummary",
+    "getContactReviewQueueSummary",
     "getOrganisationPlanUsage",
     "getOrganisationPlanUsageReconciliation",
     "updateCampaignStatus",

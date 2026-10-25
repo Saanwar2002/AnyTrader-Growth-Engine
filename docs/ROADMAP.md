@@ -25,6 +25,7 @@
 - [x] Add an on-demand, tenant-scoped lead activity timeline limited to the latest 20 events, excluding actor identifiers and contact values; emulator coverage verifies cross-tenant denial.
 - [x] Add transactional do-not-contact controls; members can suppress, but only owners/admins can remove a restriction.
 - [x] Add loaded-page contact-review queue counts and one-click filters for pending, cleared, and blocked leads; clearly disclose when additional lead pages remain.
+- [x] Add an on-demand tenant-scoped server-side inventory of stored contact-review statuses, with a separate legacy/unclassified count rather than inferring status from incomplete legacy fields.
 - [x] Enforce the suppression gate transactionally when creating or editing draft-only outreach.
 - [x] Add draft listing, editing, and deletion; no send endpoint exists.
 - [x] Add deny-by-default Firestore rules, strict server input/role guards, and emulator configuration.
