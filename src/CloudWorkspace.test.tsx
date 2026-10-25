@@ -724,7 +724,7 @@ describe("cloud authentication gate", () => {
     render(<CloudWorkspace />);
     fireEvent.click(await screen.findByRole("button", { name: "Edit details" }));
     fireEvent.change(screen.getAllByLabelText("Campaign name")[1], { target: { value: "Roofing pilot" } });
-    fireEvent.change(screen.getByLabelText("Service category"), { target: { value: "Roofing" } });
+    fireEvent.change(screen.getAllByLabelText("Service category").at(-1)!, { target: { value: "Roofing" } });
     fireEvent.click(screen.getByRole("button", { name: "Save campaign details" }));
     await waitFor(() => expect(mocks.api.updateCampaignDetails).toHaveBeenCalledWith({
       organisationId: "org-1", campaignId: "campaign-1", name: "Roofing pilot", brand: "AnyTrader",
