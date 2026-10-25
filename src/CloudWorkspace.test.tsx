@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
   currentUser: null as unknown,
   api: {
     listMyOrganisations: vi.fn(), createOrganisation: vi.fn(), updateOrganisationSettings: vi.fn(), previewOrganisationOffboarding: vi.fn(), addOrganisationMember: vi.fn(), removeOrganisationMember: vi.fn(), updateOrganisationMemberRole: vi.fn(), listOrganisationMembers: vi.fn(), listOrganisationSecurityAuditEvents: vi.fn(), createCampaign: vi.fn(), updateCampaignStatus: vi.fn(), updateCampaignDetails: vi.fn(),
-    listCampaigns: vi.fn(), getCampaignFunnelSummary: vi.fn(), getLeadSourceFunnelSummary: vi.fn(), getOnboardingCohortSummary: vi.fn(), getOnboardingCohortCoverage: vi.fn(), getContactReviewQueueSummary: vi.fn(), getLeadCompletenessSummary: vi.fn(), getLeadActivityTimeline: vi.fn(), getOrganisationPlanUsage: vi.fn(), getOrganisationPlanUsageReconciliation: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), importLeads: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(),
+    listCampaigns: vi.fn(), getCampaignFunnelSummary: vi.fn(), getLeadSourceFunnelSummary: vi.fn(), getOnboardingCohortSummary: vi.fn(), getOnboardingCohortCoverage: vi.fn(), getContactReviewQueueSummary: vi.fn(), getLeadCompletenessSummary: vi.fn(), getOpenLeadAgingSummary: vi.fn(), getLeadActivityTimeline: vi.fn(), getOrganisationPlanUsage: vi.fn(), getOrganisationPlanUsageReconciliation: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), importLeads: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(),
     updateLeadNotes: vi.fn(), setLeadSuppression: vi.fn(), createOutreachDraft: vi.fn(), suggestOutreachDraft: vi.fn(), listOutreachDrafts: vi.fn(),
     updateOutreachDraft: vi.fn(), deleteOutreachDraft: vi.fn(),
   },
@@ -1925,6 +1925,35 @@ describe("cloud authentication gate", () => {
     expect(createObjectURL).toHaveBeenCalledTimes(1);
     expect(click).toHaveBeenCalledTimes(1);
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:completeness");
+  });
+
+  it("loads all-tenant open lead aging counts and explains timestamp scope", async () => {
+    mocks.currentUser = { uid: "owner-uid", email: "owner@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    mocks.api.getOpenLeadAgingSummary.mockResolvedValue({
+      organisationId: "org-1",
+      totalOpenLeadCount: 9,
+      createdWithinSevenDays: 2,
+      createdEightToThirtyDaysAgo: 3,
+      createdThirtyOneToNinetyDaysAgo: 1,
+      createdOverNinetyDaysAgo: 2,
+      missingOrUnclassifiedCreatedAtCount: 1,
+      scope: "all_stored_open_leads",
+      note: "Includes new, reviewing, qualified, and contacted leads across all stored pages. Age is measured from createdAt, not last activity or last status change. Missing or invalid creation timestamps are unclassified. This report does not authorise contact.",
+    });
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load open lead aging report" }));
+    await waitFor(() => expect(mocks.api.getOpenLeadAgingSummary).toHaveBeenCalledWith({ organisationId: "org-1" }));
+    expect(await screen.findByRole("table", { name: "Open lead aging counts" })).toBeTruthy();
+    expect(screen.getByText("0–7 days")).toBeTruthy();
+    expect(screen.getByText("8–30 days")).toBeTruthy();
+    expect(screen.getByText("31–90 days")).toBeTruthy();
+    expect(screen.getByText("Over 90 days")).toBeTruthy();
+    expect(screen.getByText(/age is measured from createdAt, not last activity or last status change/i)).toBeTruthy();
+    expect(screen.getByText("Total open leads")).toBeTruthy();
   });
 
 });
