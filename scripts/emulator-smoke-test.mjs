@@ -211,6 +211,19 @@ try {
     email: "hello@example.test",
   };
   const leadOne = await callOne("createLead", manualLeadPayload);
+  const leadTimeline = await callOne("getLeadActivityTimeline", {
+    organisationId: orgOne.organisationId,
+    leadId: leadOne.leadId,
+  });
+  assert.equal(leadTimeline.scope, "latest_20_lead_activity_events");
+  assert.equal(leadTimeline.hasMoreHistory, false);
+  assert.ok(leadTimeline.activities.some((event) => event.message === "Lead created: Synthetic Test Painting Ltd"));
+  assert.ok(leadTimeline.activities.every((event) => !("actorUid" in event) && !("email" in event) && !("phone" in event)),
+    "lead timeline excludes actor identifiers and contact values");
+  await expectCallableFailure(callTwo("getLeadActivityTimeline", {
+    organisationId: orgOne.organisationId,
+    leadId: leadOne.leadId,
+  }), "functions/permission-denied", "lead activity timeline rejects cross-tenant access");
   execFileSync(process.execPath, [
     "functions/scripts/assert-emulator-lead-identifier-keys.mjs",
     orgOne.organisationId,
