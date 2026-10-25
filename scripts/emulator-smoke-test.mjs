@@ -2820,6 +2820,7 @@ try {
     "addOrganisationMember",
     "createCampaign",
     "listCampaigns",
+    "getCampaignFunnelSummary",
     "updateCampaignStatus",
     "updateCampaignDetails",
     "listLeads",
