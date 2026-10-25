@@ -1031,6 +1031,67 @@ export const getLeadSourceFunnelSummary = onCall(callableOptions, async (request
 });
 
 /**
+ * Return authoritative plan limits and usage to organisation owners/admins.
+ * Legacy organisations without a usage snapshot are reported as needing
+ * reconciliation; the endpoint never invents zero usage.
+ */
+export const getOrganisationPlanUsage = onCall(callableOptions, async (request) => {
+  const uid = requireUid(request.auth?.uid);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const organisationId = requireOrganisationId(data.organisationId);
+  const membership = await requireMembership(organisationId, uid);
+  if (!hasCampaignWritePermission(membership.role)) {
+    throw new HttpsError("permission-denied", "Only organisation owners and admins can view plan usage.");
+  }
+  await consumeReadRateLimit(organisationId, uid, "getOrganisationPlanUsage", 5);
+
+  const organisationSnapshot = await db.doc(`organisations/${organisationId}`).get();
+  if (!organisationSnapshot.exists) throw new HttpsError("not-found", "Organisation was not found.");
+  const organisationData = organisationSnapshot.data() ?? {};
+  const planResolution = resolvePlanPolicy(organisationData.planId);
+  if (!planResolution.ok) {
+    throw new HttpsError("failed-precondition", "Organisation plan is unknown and requires operator review.");
+  }
+  const plan = planResolution.plan;
+  if (!Object.prototype.hasOwnProperty.call(organisationData, "planUsage")) {
+    return {
+      organisationId,
+      status: "reconciliation_required" as const,
+      plan: { id: plan.id, displayName: plan.displayName, limits: plan.limits },
+      usage: null,
+      remaining: null,
+      aiUsagePeriod: null,
+      message: "Usage counters are not authoritative for this legacy organisation. Reconcile existing resources before enforcing or displaying numeric usage.",
+    };
+  }
+
+  const usageResolution = resolvePlanUsageState(organisationData.planUsage, new Date());
+  if (!usageResolution.ok || usageResolution.source === "initial") {
+    throw new HttpsError("failed-precondition", "Organisation usage state is invalid and requires reconciliation.");
+  }
+  const usage = usageResolution.state;
+  return {
+    organisationId,
+    status: "authoritative" as const,
+    plan: { id: plan.id, displayName: plan.displayName, limits: plan.limits },
+    usage: {
+      campaigns: usage.campaigns,
+      leads: usage.leads,
+      members: usage.members,
+      monthlyAiSuggestions: usage.monthlyAiSuggestions,
+    },
+    remaining: {
+      campaigns: Math.max(0, plan.limits.campaigns - usage.campaigns),
+      leads: Math.max(0, plan.limits.leads - usage.leads),
+      members: Math.max(0, plan.limits.members - usage.members),
+      monthlyAiSuggestions: Math.max(0, plan.limits.monthlyAiSuggestions - usage.monthlyAiSuggestions),
+    },
+    aiUsagePeriod: usage.aiUsagePeriod,
+    message: "Usage is server-maintained. Monthly AI suggestions reset by UTC calendar month; other counters are lifetime totals.",
+  };
+});
+
+/**
  * Return monthly cohorts based on the immutable first-onboarding timestamp.
  * Legacy leads without a trustworthy onboardedAt timestamp are intentionally
  * excluded rather than assigned an invented historical month.
