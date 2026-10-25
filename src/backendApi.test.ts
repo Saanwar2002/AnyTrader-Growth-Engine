@@ -24,7 +24,7 @@ describe("typed backend API boundary", () => {
     const response = { organisationId: "org-1", uid: "user-2", role: "viewer" as const, added: true };
     const { invoke, calls } = makeInvoker([response]);
     const api = createGrowthEngineApi(invoke);
-    const payload = { organisationId: "org-1", targetUid: "user-2", role: "viewer" as const, idempotencyKey: "member-addition-api-key-0001" };
+    const payload = { organisationId: "org-1", targetEmail: "user-2@example.test", role: "viewer" as const, idempotencyKey: "member-addition-api-key-0001" };
     await expect(api.addOrganisationMember(payload)).resolves.toEqual(response);
     expect(calls).toEqual([{ name: "addOrganisationMember", payload }]);
   });
