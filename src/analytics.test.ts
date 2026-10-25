@@ -261,7 +261,7 @@ describe("summarizeCampaignReadiness", () => {
     const csv = serializeCampaignReadinessCsv([]);
     expect(csv).toContain("No campaigns loaded");
     expect(csv).toContain("does not authorise outreach");
-    expect(csv.split("\\r\\n")).toHaveLength(3);
+    expect(csv.split("\r\n")).toHaveLength(3);
   });
 
 });
