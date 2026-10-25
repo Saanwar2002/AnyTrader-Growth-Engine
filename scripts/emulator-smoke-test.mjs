@@ -220,10 +220,6 @@ try {
   assert.ok(leadTimeline.activities.some((event) => event.message === "Lead created: Synthetic Test Painting Ltd"));
   assert.ok(leadTimeline.activities.every((event) => !("actorUid" in event) && !("email" in event) && !("phone" in event)),
     "lead timeline excludes actor identifiers and contact values");
-  await expectCallableFailure(callTwo("getLeadActivityTimeline", {
-    organisationId: orgOne.organisationId,
-    leadId: leadOne.leadId,
-  }), "functions/permission-denied", "lead activity timeline rejects cross-tenant access");
   execFileSync(process.execPath, [
     "functions/scripts/assert-emulator-lead-identifier-keys.mjs",
     orgOne.organisationId,
@@ -1955,6 +1951,10 @@ try {
     console.log(`OK ${name} (tenant two)`);
     return response.data;
   })();
+  await expectCallableFailure(callTwo("getLeadActivityTimeline", {
+    organisationId: orgOne.organisationId,
+    leadId: leadOne.leadId,
+  }), "functions/permission-denied", "lead activity timeline rejects cross-tenant access");
   // An unauthorized tenant read must fail before creating or consuming a quota
   // bucket under the victim organisation ID.
   const crossTenantReadUid = second.auth.currentUser.uid;
