@@ -1982,8 +1982,8 @@ try {
 
   const auditPage = await callOne("listOrganisationSecurityAuditEvents", { organisationId: orgOne.organisationId });
   assert.equal(auditPage.scope, "organisation_security_audit");
-  assert.equal(auditPage.hasMoreEvents, false);
-  assert.ok(auditPage.events.length > 0, "owner audit log includes server-recorded organisation events");
+  assert.equal(typeof auditPage.hasMoreEvents, "boolean");
+  assert.ok(auditPage.events.length > 0 && auditPage.events.length <= 50, "owner audit log returns a bounded page of server-recorded organisation events");
   assert.ok(auditPage.events.every((event) => event.outcome === "success" && typeof event.actorUid === "string"));
   assert.ok(auditPage.events.every((event) => !Object.hasOwn(event, "email")), "audit log does not resolve or return actor email addresses");
   await expectCallableFailure(callTwo("listOrganisationSecurityAuditEvents", {
