@@ -266,6 +266,7 @@ try {
     organisationId: orgOne.organisationId,
     campaignId: campaignOne.campaignId,
     idempotencyKey: "csv-import-idempotency-test-0001",
+    sourceLabel: "linkedin_csv",
     leads: [
       { businessName: "Synthetic Imported Alpha Ltd", category: "Painters", location: "Leeds", email: "import-alpha@example.test", website: "https://alpha.example.test" },
       { businessName: "Synthetic Imported Alpha Duplicate Ltd", category: "Painters", location: "Leeds", email: "different-alpha@example.test", website: "https://alpha.example.test/" },
@@ -321,6 +322,14 @@ try {
   assert.equal(importResult.imported, 2, "CSV import persists unique, valid rows");
   assert.equal(importResult.duplicatesSkipped, 2, "CSV import skips in-batch and existing-record duplicates");
   assert.equal(importResult.sent, false, "CSV import never sends outreach");
+  const importedSourceCheck = (await callOne("listLeads", { organisationId: orgOne.organisationId }))
+    .leads.find((lead) => lead.businessName === "Synthetic Imported Alpha Ltd");
+  assert.equal(importedSourceCheck?.source, "linkedin_csv", "import persists the selected user-declared source label");
+  await expectCallableFailure(callOne("importLeads", {
+    organisationId: orgOne.organisationId, campaignId: campaignOne.campaignId,
+    idempotencyKey: "csv-import-invalid-source-01", sourceLabel: "unverified_scrape",
+    leads: [{ businessName: "Invalid source label row" }],
+  }), "functions/invalid-argument", "CSV import rejects unsupported source labels");
 
   // Case-only email/hostname differences should deduplicate, but URL path case must survive.
   const canonicalImport = await callOne("importLeads", {
