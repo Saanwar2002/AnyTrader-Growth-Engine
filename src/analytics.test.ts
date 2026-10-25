@@ -294,3 +294,55 @@ describe("serializeLeadCompletenessCsv", () => {
     expect(csv).toContain("'=HYPERLINK");
   });
 });
+
+describe("serializeFullCampaignReadinessCsv", () => {
+  it("exports server-counted readiness metrics with an explicit bounded-coverage note", async () => {
+    const { serializeFullCampaignReadinessCsv } = await import("./analytics");
+    const csv = serializeFullCampaignReadinessCsv({
+      campaigns: [{
+        campaignName: "Painter pilot",
+        campaignStatus: "active",
+        status: "review_required",
+        totalLeadCount: 12,
+        pendingOrBlockedLeadCount: 2,
+        suppressedLeadCount: 1,
+        legacyReviewStatusLeadCount: 3,
+        draftsAwaitingReview: 4,
+        sourceAttributionMissingCount: 2,
+        missingConfigurationFields: [],
+      }],
+      hasMoreCampaigns: true,
+      campaignLimit: 20,
+      note: "Source labels remain self-declared and unverified.",
+    });
+    expect(csv).toContain("Server-counted campaign readiness,Painter pilot,active,review_required,12,2,1,3,4,2");
+    expect(csv).toContain("Incomplete — additional campaigns beyond the 20-campaign limit are not included");
+    expect(csv).toContain("Source labels remain self-declared and unverified.");
+  });
+
+  it("neutralises formula-leading campaign names and emits an explicit empty report row", async () => {
+    const { serializeFullCampaignReadinessCsv } = await import("./analytics");
+    const csv = serializeFullCampaignReadinessCsv({
+      campaigns: [{
+        campaignName: "=HYPERLINK(\"https://example.test\",\"open\")",
+        campaignStatus: "active",
+        status: "blocked",
+        totalLeadCount: 0,
+        pendingOrBlockedLeadCount: 0,
+        suppressedLeadCount: 0,
+        legacyReviewStatusLeadCount: 0,
+        draftsAwaitingReview: 0,
+        sourceAttributionMissingCount: 0,
+        missingConfigurationFields: ["brand"],
+      }],
+      hasMoreCampaigns: false,
+      campaignLimit: 20,
+      note: "No outreach is sent.",
+    });
+    expect(csv).toContain("'=HYPERLINK");
+    expect(csv).toContain("Complete within the 20-campaign limit");
+    const empty = serializeFullCampaignReadinessCsv({ campaigns: [], hasMoreCampaigns: false, campaignLimit: 20, note: "No campaigns." });
+    expect(empty).toContain("No campaigns returned");
+    expect(empty.split("\r\n")).toHaveLength(3);
+  });
+});
