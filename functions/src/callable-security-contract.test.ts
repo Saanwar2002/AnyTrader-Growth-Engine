@@ -21,6 +21,7 @@ const expectedRateLimitType: Record<string, "read" | "mutation"> = {
   updateLeadStatus: "mutation",
   updateLeadNotes: "mutation",
   setLeadSuppression: "mutation",
+  suggestOutreachDraft: "read",
   createOutreachDraft: "mutation",
   listOutreachDrafts: "read",
   updateOutreachDraft: "mutation",
