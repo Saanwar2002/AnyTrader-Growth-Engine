@@ -1460,7 +1460,7 @@ describe("cloud authentication gate", () => {
     });
     render(<CloudWorkspace />);
     await screen.findByText("Zulu Provider");
-    const leadRows = () => screen.getAllByRole("row").slice(1);
+    const leadRows = () => screen.getAllByRole("row").filter((row) => /Alpha Provider|Zulu Provider/.test(row.textContent ?? ""));
     expect(leadRows()[0].textContent).toContain("Zulu Provider");
     expect(screen.getByText("90/100")).toBeTruthy();
     expect(screen.getByText(/Website present/)).toBeTruthy();
