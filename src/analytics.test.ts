@@ -61,7 +61,7 @@ describe("serializeCampaignPerformanceCsv", () => {
     ], []);
     const csv = serializeCampaignPerformanceCsv(summaries);
     expect(csv.split("\r\n")[0]).toContain("Scope,Campaign,Loaded leads,Qualified,Contacted,Onboarded");
-    expect(csv).toContain('"Loaded records only","Painters, ""North""",2,1,0,1,50.0,50.0');
+    expect(csv).toContain('Loaded records only,"Painters, ""North""",2,1,0,1,50.0,50.0');
     expect(csv.endsWith("\r\n")).toBe(true);
   });
   it("exports a header-only file when no campaign summaries are loaded", () => {
