@@ -1948,10 +1948,10 @@ describe("cloud authentication gate", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Load open lead aging report" }));
     await waitFor(() => expect(mocks.api.getOpenLeadAgingSummary).toHaveBeenCalledWith({ organisationId: "org-1" }));
     expect(await screen.findByRole("table", { name: "Open lead aging counts" })).toBeTruthy();
-    expect(screen.getByText("0–7 days")).toBeTruthy();
-    expect(screen.getByText("8–30 days")).toBeTruthy();
-    expect(screen.getByText("31–90 days")).toBeTruthy();
-    expect(screen.getByText("Over 90 days")).toBeTruthy();
+    expect(screen.getAllByText("0–7 days")).toHaveLength(2);
+    expect(screen.getAllByText("8–30 days")).toHaveLength(2);
+    expect(screen.getAllByText("31–90 days")).toHaveLength(2);
+    expect(screen.getAllByText("Over 90 days")).toHaveLength(2);
     expect(screen.getByText(/age is measured from createdAt, not last activity or last status change/i)).toBeTruthy();
     expect(screen.getByText("Total open leads")).toBeTruthy();
   });
