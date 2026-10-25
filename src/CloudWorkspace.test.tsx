@@ -1469,10 +1469,7 @@ describe("cloud authentication gate", () => {
 
   it("shows lead completeness reasons and sorts the loaded lead list", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
-    mocks.api.listMyOrganisations.mockResolvedValue({
-      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
-      hasMoreOrganisations: false,
-    });
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
     const lead = (id: string, businessName: string, score: number, scoreReasons: string[]) => ({
       id, campaignId: "campaign-1", businessName, category: "Painters", location: "Leeds",
       website: "", email: "", phone: "", source: "manual", status: "new", score, scoreReasons,
@@ -1482,8 +1479,8 @@ describe("cloud authentication gate", () => {
     });
     mocks.api.listLeads.mockResolvedValue({
       leads: [
-        lead("alpha", "Alpha Provider", 25, ["Business name provided (+20)"]),
-        lead("zulu", "Zulu Provider", 90, ["Business name provided (+20)", "Website listed (+20)"]),
+        lead("alpha", "Alpha Provider", 25, ["Business name present"]),
+        lead("zulu", "Zulu Provider", 90, ["Business name present", "Website present"]),
       ],
       hasMoreLeads: false,
       nextPageToken: null,
@@ -1493,7 +1490,7 @@ describe("cloud authentication gate", () => {
     const leadRows = () => screen.getAllByRole("row").filter((row) => /Alpha Provider|Zulu Provider/.test(row.textContent ?? ""));
     expect(leadRows()[0].textContent).toContain("Zulu Provider");
     expect(screen.getByText("90/100")).toBeTruthy();
-    expect(screen.getByText(/Website listed \(\+20\)/)).toBeTruthy();
+    expect(screen.getByText(/Website present/)).toBeTruthy();
     expect(screen.getAllByText(/not a quality, consent, or contactability guarantee/i)).toHaveLength(2);
     fireEvent.change(screen.getByLabelText("Sort leads by"), { target: { value: "business" } });
     expect(leadRows()[0].textContent).toContain("Alpha Provider");
