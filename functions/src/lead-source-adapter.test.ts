@@ -19,7 +19,7 @@ describe("lead source adapter permission contract", () => {
     const issues = validateLeadSourceManifest(manifest);
     expect(issues.join(" ")).toContain("reviewedAt");
     expect(issues.join(" ")).toContain("reviewer reference");
-    expect(issues.join(" ")).toContain("permitted");
+    expect(issues.join(" ")).toContain("permit");
     expect(() => assertLeadSourceAdapterRunnable(manifest)).toThrow("manifest is invalid");
   });
   it("rejects insecure terms URLs and embedded URL credentials", () => {
@@ -40,7 +40,7 @@ describe("lead source adapter permission contract", () => {
   });
   it("requires the exact reviewed purpose", () => {
     const manifest = { ...approvedManifest(), permittedPurpose: "general_marketing" } as unknown as LeadSourceAdapterManifest;
-    expect(() => assertLeadSourceAdapterRunnable(manifest)).toThrow("permitted");
+    expect(() => assertLeadSourceAdapterRunnable(manifest)).toThrow("permit");
   });
   it("rejects malformed identifiers and display names", () => {
     const issues = validateLeadSourceManifest({ ...approvedManifest(), sourceId: "UPPERCASE ID", displayName: "x" });
