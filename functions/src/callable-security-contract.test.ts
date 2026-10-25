@@ -17,6 +17,7 @@ const expectedRateLimitType: Record<string, "read" | "mutation"> = {
   listCampaigns: "read",
   getCampaignFunnelSummary: "read",
   getLeadSourceFunnelSummary: "read",
+  getOnboardingCohortSummary: "read",
   updateCampaignStatus: "mutation",
   updateCampaignDetails: "mutation",
   listLeads: "read",
@@ -97,7 +98,7 @@ describe("callable security contract", () => {
 
   it("enforces App Check on every deployed callable and only bypasses it in the Functions emulator", () => {
     expect(callableSource).toContain('const callableOptions = { enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true" }');
-    expect((callableSource.match(/= onCall\(callableOptions, async \(request\) => \{/g) ?? [])).toHaveLength(21);
+    expect((callableSource.match(/= onCall\(callableOptions, async \(request\) => \{/g) ?? [])).toHaveLength(22);
     expect(callableSource.includes("= onCall(async (request) => {")).toBe(false);
   });
 
@@ -804,5 +805,24 @@ describe("durable onboarding attribution", () => {
     const listEnd = callableSource.indexOf("export const ", listStart + 1);
     const listBody = callableSource.slice(listStart, listEnd < 0 ? callableSource.length : listEnd);
     expect(listBody).toContain("onboardedAt: safeTimestampToIso(lead.onboardedAt)");
+  });
+});
+
+
+describe("server-side onboarding cohort analytics", () => {
+  it("uses bounded month windows, aggregate counts, tenant membership, and explicit legacy coverage", () => {
+    const start = callableSource.indexOf("export const getOnboardingCohortSummary = onCall(");
+    const end = callableSource.indexOf("export const ", start + 1);
+    const body = callableSource.slice(start, end < 0 ? callableSource.length : end);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(body).toContain("requireUid(request.auth?.uid)");
+    expect(body).toContain("await requireMembership(organisationId, uid)");
+    expect(body).toContain('consumeReadRateLimit(organisationId, uid, "getOnboardingCohortSummary", 5)');
+    expect(body).toContain("![3, 6, 12].includes(months)");
+    expect(body).toContain('where("onboardedAt", ">=", start).where("onboardedAt", "<", end)');
+    expect(body).toContain("query.count().get()");
+    expect(body).toContain('scope: "all_stored_organisation_leads"');
+    expect(body).toContain("legacyUnattributedCurrentOnboardedLeadCount");
+    expect(body).toContain("no historical dates are inferred");
   });
 });
