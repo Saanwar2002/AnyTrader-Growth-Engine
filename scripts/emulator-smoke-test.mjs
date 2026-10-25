@@ -3027,6 +3027,7 @@ try {
     "importLeads",
     "updateLeadContact",
     "updateLeadStatus",
+    "bulkUpdateLeadStatus",
     "updateLeadNotes",
     "setLeadSuppression",
     "suggestOutreachDraft",
