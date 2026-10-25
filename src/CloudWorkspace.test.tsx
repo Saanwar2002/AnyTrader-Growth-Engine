@@ -1802,4 +1802,46 @@ describe("cloud authentication gate", () => {
     expect(screen.getByRole("progressbar", { name: "Roofers Leeds contacted leads (all stored)" }).getAttribute("value")).toBe("12");
     expect(screen.getByRole("progressbar", { name: "Roofers Leeds onboarded leads (all stored)" }).getAttribute("value")).toBe("4");
   });
+
+
+  it("filters loaded security audit events by action and searchable identifiers", async () => {
+    mocks.currentUser = { email: "pilot@example.test", uid: "owner-uid" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    mocks.api.listOrganisationSecurityAuditEvents.mockResolvedValue({
+      organisationId: "org-1",
+      events: [
+        {
+          id: "audit-2", eventType: "lead.status_changed", actorUid: "owner-uid",
+          resourceType: "lead", resourceId: "lead-2", outcome: "success",
+          metadata: { leadStatus: "qualified" }, createdAt: "2026-10-25T12:00:00.000Z",
+        },
+        {
+          id: "audit-1", eventType: "organisation.member_added", actorUid: "owner-uid",
+          resourceType: "organisation", resourceId: "member-2", outcome: "success",
+          metadata: { memberRole: "viewer" }, createdAt: "2026-10-24T12:00:00.000Z",
+        },
+      ],
+      hasMoreEvents: false, nextPageToken: null, scope: "organisation_security_audit",
+    });
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load audit log" }));
+    await screen.findByRole("table", { name: "Organisation security audit events" });
+    expect(screen.getByText("lead status changed")).toBeTruthy();
+    expect(screen.getByText("organisation member added")).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Filter by action"), { target: { value: "organisation.member_added" } });
+    expect(screen.queryByText("lead status changed")).toBeNull();
+    expect(screen.getByText("organisation member added")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Search loaded audit events"), { target: { value: "member-2" } });
+    expect(screen.getByText(/1 matching event\(s\) from 2 loaded/)).toBeTruthy();
+    expect(screen.getByText("memberRole: viewer")).toBeTruthy();
+    expect(screen.queryByText("lead status changed")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Clear audit filters" }));
+    expect(screen.getByText("lead status changed")).toBeTruthy();
+    expect(screen.getByText("organisation member added")).toBeTruthy();
+  });
+
 });
