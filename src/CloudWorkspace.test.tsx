@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
   currentUser: null as unknown,
   api: {
     listMyOrganisations: vi.fn(), createOrganisation: vi.fn(), updateOrganisationSettings: vi.fn(), previewOrganisationOffboarding: vi.fn(), addOrganisationMember: vi.fn(), listOrganisationMembers: vi.fn(), createCampaign: vi.fn(), updateCampaignStatus: vi.fn(), updateCampaignDetails: vi.fn(),
-    listCampaigns: vi.fn(), getCampaignFunnelSummary: vi.fn(), getLeadSourceFunnelSummary: vi.fn(), getOnboardingCohortSummary: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), importLeads: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(),
+    listCampaigns: vi.fn(), getCampaignFunnelSummary: vi.fn(), getLeadSourceFunnelSummary: vi.fn(), getOnboardingCohortSummary: vi.fn(), getOrganisationPlanUsage: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), importLeads: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(),
     updateLeadNotes: vi.fn(), setLeadSuppression: vi.fn(), createOutreachDraft: vi.fn(), suggestOutreachDraft: vi.fn(), listOutreachDrafts: vi.fn(),
     updateOutreachDraft: vi.fn(), deleteOutreachDraft: vi.fn(),
   },
@@ -58,6 +58,15 @@ beforeEach(() => {
     organisationId: "org-1", campaignId: "campaign-1", totalLeadCount: 120,
     qualifiedLeadCount: 30, contactedLeadCount: 12, onboardedLeadCount: 4,
     qualifiedRatePercent: 25, onboardedRatePercent: 3.3, scope: "all_stored_campaign_leads",
+  });
+  mocks.api.getOrganisationPlanUsage.mockResolvedValue({
+    organisationId: "org-1",
+    status: "authoritative",
+    plan: { id: "pilot", displayName: "Pilot", limits: { campaigns: 10, leads: 500, members: 5, monthlyAiSuggestions: 50 } },
+    usage: { campaigns: 2, leads: 42, members: 3, monthlyAiSuggestions: 7 },
+    remaining: { campaigns: 8, leads: 458, members: 2, monthlyAiSuggestions: 43 },
+    aiUsagePeriod: "2026-10",
+    message: "Usage is server-maintained. Monthly AI suggestions reset by UTC calendar month; other counters are lifetime totals.",
   });
   mocks.api.getOnboardingCohortSummary.mockResolvedValue({
     organisationId: "org-1",
@@ -944,6 +953,43 @@ describe("cloud authentication gate", () => {
     expect(screen.getByText(/legacy leads already onboarded before timestamp capture may be excluded/i)).toBeTruthy();
   });
 
+  it("shows server-maintained plan usage and remaining limits to organisation owners", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load plan usage" }));
+    await waitFor(() => expect(mocks.api.getOrganisationPlanUsage).toHaveBeenCalledWith({ organisationId: "org-1" }));
+    expect(await screen.findByRole("table", { name: "Server-maintained plan usage for 2026-10" })).toBeTruthy();
+    expect(screen.getByText("Campaigns (lifetime)")).toBeTruthy();
+    expect(screen.getByText("Monthly AI suggestions (UTC month)")).toBeTruthy();
+    expect(screen.getByText("458")).toBeTruthy();
+    expect(screen.getByText("43")).toBeTruthy();
+  });
+
+  it("does not display invented numeric usage for legacy organisations awaiting reconciliation", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    mocks.api.getOrganisationPlanUsage.mockResolvedValueOnce({
+      organisationId: "org-1",
+      status: "reconciliation_required",
+      plan: { id: "pilot", displayName: "Pilot", limits: { campaigns: 10, leads: 500, members: 5, monthlyAiSuggestions: 50 } },
+      usage: null,
+      remaining: null,
+      aiUsagePeriod: null,
+      message: "Usage counters are not authoritative for this legacy organisation.",
+    });
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load plan usage" }));
+    expect(await screen.findByText(/Usage reconciliation required/)).toBeTruthy();
+    expect(screen.queryByRole("table", { name: /Server-maintained plan usage/ })).toBeNull();
+  });
+
   it("exports the loaded monthly onboarding cohorts with their timestamp caveat", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({
@@ -1059,6 +1105,7 @@ describe("cloud authentication gate", () => {
     render(<CloudWorkspace />);
     await screen.findByRole("option", { name: /Pilot Workspace.*viewer/ });
     expect(screen.queryByRole("button", { name: "Export all stored leads (CSV)" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Load plan usage" })).toBeNull();
   });
 
   it("loads the owner/admin member roster and shows current Auth emails and roles", async () => {
