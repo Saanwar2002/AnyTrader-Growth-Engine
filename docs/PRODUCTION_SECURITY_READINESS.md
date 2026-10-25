@@ -13,7 +13,7 @@ Use only the separate Growth Engine Firebase project and synthetic data until ev
 
 ## Verified development controls
 
-- Firebase Authentication is required for all 16 callable exports.
+- Firebase Authentication is required for all 17 callable exports, including the owner-only `previewOrganisationOffboarding` preview.
 - Server-side organisation membership, role, and tenant checks are enforced.
 - Firestore client rules deny direct client reads and writes.
 - Contact-restriction and outreach-draft checks fail closed for malformed or unverified records.
@@ -38,7 +38,7 @@ These checks support development readiness only; they do not establish productio
 
 ## Abuse monitoring and cost controls
 
-Initial per-user/per-organisation fixed-window limits are implemented for organisation creation and campaign, lead, suppression, and outreach-draft mutations. Paginated list callables also have independent quotas: 120/minute for organisation, campaign, and lead lists; 60/minute for outreach-draft lists. `listMyOrganisations` uses a global per-UID bucket.
+Initial per-user/per-organisation fixed-window limits are implemented for organisation creation and campaign, lead, suppression, and outreach-draft mutations. Paginated list callables also have independent quotas: 120/minute for organisation, campaign, and lead lists; 60/minute for outreach-draft lists. `listMyOrganisations` uses a global per-UID bucket. The owner-only `previewOrganisationOffboarding` callable has its own read quota and performs bounded, non-destructive inventory reads.
 
 - [ ] Calibrate initial limits against expected legitimate traffic before public release.
 - [ ] Configure and test alerts for repeated quota exhaustion and invalid persisted quota state.
