@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
   currentUser: null as unknown,
   api: {
     listMyOrganisations: vi.fn(), createOrganisation: vi.fn(), updateOrganisationSettings: vi.fn(), previewOrganisationOffboarding: vi.fn(), addOrganisationMember: vi.fn(), removeOrganisationMember: vi.fn(), updateOrganisationMemberRole: vi.fn(), listOrganisationMembers: vi.fn(), listOrganisationSecurityAuditEvents: vi.fn(), createCampaign: vi.fn(), updateCampaignStatus: vi.fn(), updateCampaignDetails: vi.fn(),
-    listCampaigns: vi.fn(), getCampaignFunnelSummary: vi.fn(), getLeadSourceFunnelSummary: vi.fn(), getOnboardingCohortSummary: vi.fn(), getOnboardingCohortCoverage: vi.fn(), getContactReviewQueueSummary: vi.fn(), getLeadCompletenessSummary: vi.fn(), getOpenLeadAgingSummary: vi.fn(), getLeadActivityTimeline: vi.fn(), getOrganisationPlanUsage: vi.fn(), getOrganisationPlanUsageReconciliation: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), importLeads: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(), bulkUpdateLeadStatus: vi.fn(),
+    listCampaigns: vi.fn(), getCampaignFunnelSummary: vi.fn(), getLeadSourceFunnelSummary: vi.fn(), getOnboardingCohortSummary: vi.fn(), getOnboardingCohortCoverage: vi.fn(), getContactReviewQueueSummary: vi.fn(), getLeadCompletenessSummary: vi.fn(), getOpenLeadAgingSummary: vi.fn(), getLeadActivityTimeline: vi.fn(), getOrganisationPlanUsage: vi.fn(), getOrganisationPlanUsageReconciliation: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), importLeads: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(), updateLeadFollowUpDate: vi.fn(), bulkUpdateLeadStatus: vi.fn(),
     updateLeadNotes: vi.fn(), setLeadSuppression: vi.fn(), createOutreachDraft: vi.fn(), suggestOutreachDraft: vi.fn(), listOutreachDrafts: vi.fn(),
     updateOutreachDraft: vi.fn(), deleteOutreachDraft: vi.fn(),
   },
@@ -1986,4 +1986,39 @@ describe("cloud authentication gate", () => {
     expect(payload.idempotencyKey).toMatch(/^bulk-lead-status/);
   });
 
+
+  it("saves a tenant-scoped lead follow-up date", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    mocks.api.listCampaigns.mockResolvedValue({ campaigns: [] });
+    let currentFollowUpDate: string | null = null;
+    const followUpLead = () => ({
+      id: "lead-follow-up", campaignId: "campaign-1", businessName: "Follow-up Painter",
+      category: "Painters", location: "Edinburgh", website: "", email: "", phone: "", source: "manual",
+      status: "qualified", score: 30, scoreReasons: [], notes: "", doNotContact: true,
+      contactRestrictionVerified: false, contactReviewStatus: "pending" as const, contactReviewRevision: 0,
+      onboardedAt: null, followUpDate: currentFollowUpDate, createdAt: null,
+    });
+    mocks.api.listLeads.mockImplementation(async () => ({
+      leads: [followUpLead()],
+      hasMoreLeads: false,
+      nextPageToken: null,
+    }));
+    mocks.api.updateLeadFollowUpDate.mockImplementation(async ({ leadId, followUpDate }) => {
+      currentFollowUpDate = followUpDate;
+      return { leadId, followUpDate };
+    });
+    render(<CloudWorkspace />);
+    const dateInput = await screen.findByLabelText("Follow-up date for Follow-up Painter");
+    fireEvent.change(dateInput, { target: { value: "2026-11-04" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save follow-up date" }));
+    await waitFor(() => expect(mocks.api.updateLeadFollowUpDate).toHaveBeenCalledWith({
+      organisationId: "org-1", leadId: "lead-follow-up", followUpDate: "2026-11-04",
+    }));
+    expect(await screen.findByText("Lead follow-up date saved.")).toBeTruthy();
+    expect(await screen.findByText("Follow-up due 2026-11-04")).toBeTruthy();
+  });
 });
