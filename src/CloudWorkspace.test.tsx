@@ -690,6 +690,7 @@ describe("cloud authentication gate", () => {
     }] });
     render(<CloudWorkspace />);
     await screen.findByRole("heading", { name: "Provider acquisition workspace" });
+    await screen.findByLabelText("Notes for Northside Painting");
     const file = new File([
       "businessName,category,location,email,phone\nNorthside Painting,Painters,Manchester,hello@northside.example,01610000001\nFresh Decorators,Decorators,Salford,team@fresh.example,01610000002",
     ], "providers.csv", { type: "text/csv" });
