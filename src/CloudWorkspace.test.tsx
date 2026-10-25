@@ -723,7 +723,7 @@ describe("cloud authentication gate", () => {
     mocks.api.listCampaigns.mockResolvedValue({ campaigns: [{ id: "campaign-1", name: "Painter pilot", brand: "AnyTrader", category: "Painting", location: "Manchester", goal: "Recruit painters", status: "active", createdAt: null }], hasMoreCampaigns: false, nextPageToken: null });
     render(<CloudWorkspace />);
     fireEvent.click(await screen.findByRole("button", { name: "Edit details" }));
-    fireEvent.change(screen.getByLabelText("Campaign name"), { target: { value: "Roofing pilot" } });
+    fireEvent.change(screen.getAllByLabelText("Campaign name")[1], { target: { value: "Roofing pilot" } });
     fireEvent.change(screen.getByLabelText("Service category"), { target: { value: "Roofing" } });
     fireEvent.click(screen.getByRole("button", { name: "Save campaign details" }));
     await waitFor(() => expect(mocks.api.updateCampaignDetails).toHaveBeenCalledWith({
