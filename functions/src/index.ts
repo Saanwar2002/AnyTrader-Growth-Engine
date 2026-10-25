@@ -1424,6 +1424,45 @@ export const getOnboardingCohortSummary = onCall(callableOptions, async (request
  * This callable persists only validated rows and leaves every new contact suppressed
  * until an authorised reviewer explicitly clears the contact restriction.
  */
+export const getContactReviewQueueSummary = onCall(callableOptions, async (request) => {
+  const uid = requireUid(request.auth?.uid);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const organisationId = requireOrganisationId(data.organisationId);
+  await requireMembership(organisationId, uid);
+  await consumeReadRateLimit(organisationId, uid, "getContactReviewQueueSummary", 10);
+
+  const leadsRef = db.collection("organisations").doc(organisationId).collection("leads");
+  const countForStatus = async (status: "pending" | "cleared" | "blocked"): Promise<number> => {
+    const result = await leadsRef.where("contactReviewStatus", "==", status).count().get();
+    const count = result.data().count;
+    if (!Number.isSafeInteger(count) || count < 0) {
+      throw new HttpsError("failed-precondition", "Contact-review aggregate is invalid and requires operator review.");
+    }
+    return count;
+  };
+  const [totalLeadCount, pendingCount, clearedCount, blockedCount] = await Promise.all([
+    leadsRef.count().get().then((result) => result.data().count),
+    countForStatus("pending"),
+    countForStatus("cleared"),
+    countForStatus("blocked"),
+  ]);
+  const explicitTotal = pendingCount + clearedCount + blockedCount;
+  if (![totalLeadCount, pendingCount, clearedCount, blockedCount].every((count) => Number.isSafeInteger(count) && count >= 0)
+    || explicitTotal > totalLeadCount) {
+    throw new HttpsError("failed-precondition", "Contact-review aggregate is inconsistent and requires operator review.");
+  }
+  return {
+    organisationId,
+    totalLeadCount,
+    pendingCount,
+    clearedCount,
+    blockedCount,
+    legacyOrUnclassifiedCount: totalLeadCount - explicitTotal,
+    scope: "all_stored_organisation_leads" as const,
+    attributionNote: "Counts use the stored contactReviewStatus field. Older records without an explicit status are reported as legacy or unclassified rather than guessed from partial fields.",
+  };
+});
+
 export const importLeads = onCall(callableOptions, async (request) => {
   const uid = requireUid(request.auth?.uid);
   const data = (request.data ?? {}) as Record<string, unknown>;
