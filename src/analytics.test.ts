@@ -250,7 +250,7 @@ describe("summarizeCampaignReadiness", () => {
       hasMoreData: true,
     }]);
     expect(csv).toContain("Loaded records only");
-    expect(csv).toContain("'=Roofers, ""Leeds""'");
+    expect(csv).toContain(`"\'=Roofers, ""Leeds"""`);
     expect(csv).toContain('"Incomplete — more pages available"');
     expect(csv).toContain("location | brand");
     expect(csv).toContain("Preflight only; manual review required; does not authorise outreach");
