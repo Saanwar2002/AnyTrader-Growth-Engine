@@ -3076,6 +3076,7 @@ try {
     "updateLeadStatus",
     "bulkUpdateLeadStatus",
     "updateLeadNotes",
+    "updateLeadFollowUpDate",
     "setLeadSuppression",
     "suggestOutreachDraft",
     "createOutreachDraft",
