@@ -1,3 +1,13 @@
+## AutoPilot run — lead creation idempotency replay integrity (2026-10-25)
+
+- Replaced the lead-create replay type assertion and inline partial validator with a pure exact-shape validator bound to the actor, request hash, tenant, campaign and original payload.
+- Before replaying, verify the tenant-scoped lead and campaign still exist and compare persisted creator, original input fields, score, score reasons, source/status and contact-review safety flags with the saved response.
+- Added focused pure tests for malformed/extra/missing/tampered values and persisted score/score-reason tampering; updated callable source-contract coverage.
+- No outreach is sent; this only validates retries of manual lead creation. No deployment or billing changes.
+- Next: run exact-head CI, review failures, then continue feature work.
+
+---
+
 ## AutoPilot run — organisation replay contract correction (2026-10-25)
 
 - Updated the existing callable source-contract test to assert the new exact-shape replay validator instead of the removed inline type-assertion implementation.

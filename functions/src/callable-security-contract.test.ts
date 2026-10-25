@@ -506,6 +506,16 @@ describe("callable security contract", () => {
     expect(body).not.toContain("return savedResult as { organisationId: string; name: string; role: \"owner\" }");
   });
 
+  it("validates lead creation replay response shape and persisted score before returning it", () => {
+    const start = callableSource.indexOf("export const createLead = onCall(");
+    const end = callableSource.indexOf("export const ", start + 1);
+    const body = callableSource.slice(start, end < 0 ? callableSource.length : end);
+    expect(body).toContain("getValidLeadCreationReplayResult(saved, expectedReplay)");
+    expect(body).toContain("isPersistedLeadCreationReplayAvailable(replayLeadSnapshot.data(), expectedReplay, savedResult)");
+    expect(body).toContain("return savedResult;");
+    expect(body).not.toContain("return savedResult as {");
+  });
+
   it("keeps every expected callable authenticated and rate-limited", () => {
     const declarations = [...callableSource.matchAll(/export const (\w+) = onCall\(/g)];
     expect(declarations.map((match) => match[1]).sort()).toEqual(
