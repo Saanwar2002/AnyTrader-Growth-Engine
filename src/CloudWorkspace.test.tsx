@@ -601,7 +601,7 @@ describe("cloud authentication gate", () => {
       { id: "lead-1", campaignId: "campaign-1", businessName: "North Star Painters", category: "Painters", location: "Edinburgh", website: "", email: "hello@northstar.example", phone: "+44 131 555 0100", source: "csv", status: "new", score: 20, scoreReasons: [], notes: "private internal note", doNotContact: true, contactRestrictionVerified: false, contactReviewStatus: "pending", contactReviewRevision: 0, createdAt: null },
       { id: "lead-2", campaignId: "campaign-1", businessName: "Southside Decorators", category: "Decorators", location: "Glasgow", website: "", email: "", phone: "", source: "manual", status: "qualified", score: 20, scoreReasons: [], notes: "", doNotContact: true, contactRestrictionVerified: false, contactReviewStatus: "pending", contactReviewRevision: 0, createdAt: null },
     ] });
-    const createObjectURL = vi.fn(() => "blob:test-export");
+    const createObjectURL = vi.fn((_blob: Blob) => "blob:test-export");
     const revokeObjectURL = vi.fn();
     vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
     const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
