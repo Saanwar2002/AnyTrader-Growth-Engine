@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
   currentUser: null as unknown,
   api: {
     listMyOrganisations: vi.fn(), createOrganisation: vi.fn(), updateOrganisationSettings: vi.fn(), previewOrganisationOffboarding: vi.fn(), addOrganisationMember: vi.fn(), removeOrganisationMember: vi.fn(), updateOrganisationMemberRole: vi.fn(), listOrganisationMembers: vi.fn(), createCampaign: vi.fn(), updateCampaignStatus: vi.fn(), updateCampaignDetails: vi.fn(),
-    listCampaigns: vi.fn(), getCampaignFunnelSummary: vi.fn(), getLeadSourceFunnelSummary: vi.fn(), getOnboardingCohortSummary: vi.fn(), getContactReviewQueueSummary: vi.fn(), getLeadActivityTimeline: vi.fn(), getOrganisationPlanUsage: vi.fn(), getOrganisationPlanUsageReconciliation: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), importLeads: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(),
+    listCampaigns: vi.fn(), getCampaignFunnelSummary: vi.fn(), getLeadSourceFunnelSummary: vi.fn(), getOnboardingCohortSummary: vi.fn(), getOnboardingCohortCoverage: vi.fn(), getContactReviewQueueSummary: vi.fn(), getLeadActivityTimeline: vi.fn(), getOrganisationPlanUsage: vi.fn(), getOrganisationPlanUsageReconciliation: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), importLeads: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(),
     updateLeadNotes: vi.fn(), setLeadSuppression: vi.fn(), createOutreachDraft: vi.fn(), suggestOutreachDraft: vi.fn(), listOutreachDrafts: vi.fn(),
     updateOutreachDraft: vi.fn(), deleteOutreachDraft: vi.fn(),
   },
@@ -1026,6 +1026,43 @@ describe("cloud authentication gate", () => {
     expect(screen.getByText("2025-01")).toBeTruthy();
     expect(screen.getByText("2025-12")).toBeTruthy();
     expect(screen.getByText(/legacy leads already onboarded before timestamp capture may be excluded/i)).toBeTruthy();
+  });
+
+  it("previews missing onboarding timestamps without exposing lead records", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    mocks.api.getOnboardingCohortCoverage.mockResolvedValue({
+      organisationId: "org-1",
+      totalOnboardedLeadCount: 4,
+      timestampedOnboardedLeadCount: 2,
+      missingOrInvalidOnboardedTimestampCount: 2,
+      scanLimit: 1000,
+      scope: "onboarded_leads_only",
+      note: "Read-only estimate. Missing or invalid timestamps are counted but never assigned an inferred date; review records and policy before any backfill.",
+    });
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Preview legacy timestamp coverage" }));
+    await waitFor(() => expect(mocks.api.getOnboardingCohortCoverage).toHaveBeenCalledWith({ organisationId: "org-1" }));
+    expect(await screen.findByRole("table", { name: "Onboarding timestamp coverage" })).toBeTruthy();
+    expect(screen.getByText(/Read-only estimate/)).toBeTruthy();
+    expect(screen.getByText("4")).toBeTruthy();
+    expect(screen.getAllByText("2").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText(/never assigned an inferred date/i)).toBeTruthy();
+  });
+
+  it("does not expose onboarding timestamp coverage preview to viewer roles", async () => {
+    mocks.currentUser = { email: "viewer@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "viewer" }],
+      hasMoreOrganisations: false,
+    });
+    render(<CloudWorkspace />);
+    await screen.findByRole("option", { name: /Pilot Workspace.*viewer/ });
+    expect(screen.queryByRole("button", { name: "Preview legacy timestamp coverage" })).toBeNull();
+    expect(mocks.api.getOnboardingCohortCoverage).not.toHaveBeenCalled();
   });
 
   it("shows server-maintained plan usage and remaining limits to organisation owners", async () => {
