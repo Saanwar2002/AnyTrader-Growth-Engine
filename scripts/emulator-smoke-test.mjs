@@ -3010,6 +3010,32 @@ try {
     originalOnboardedAt,
   ], { stdio: "inherit" });
 
+  const bulkStatusPayload = {
+    organisationId: orgOne.organisationId,
+    leadIds: [leadOne.leadId, invalidContactEditLead.leadId],
+    status: "rejected",
+    idempotencyKey: "bulk-lead-status-smoke-0001",
+  };
+  const bulkStatusResult = await callOne("bulkUpdateLeadStatus", bulkStatusPayload);
+  assert.equal(bulkStatusResult.updatedCount, 2, "bulk status update changes all selected leads");
+  assert.equal(bulkStatusResult.unchangedCount, 0);
+  assert.deepEqual(bulkStatusResult.leadIds, bulkStatusPayload.leadIds);
+  assert.deepEqual(await callOne("bulkUpdateLeadStatus", bulkStatusPayload), bulkStatusResult,
+    "bulk status retry returns the original result without repeating activity or audit writes");
+  await expectCallableFailure(callOne("bulkUpdateLeadStatus", {
+    ...bulkStatusPayload,
+    status: "qualified",
+  }), "functions/already-exists", "bulk status idempotency rejects a changed payload");
+  await expectCallableFailure(callTwo("bulkUpdateLeadStatus", {
+    ...bulkStatusPayload,
+    idempotencyKey: "bulk-lead-status-cross-tenant-0001",
+  }), "functions/permission-denied", "bulk status update rejects cross-tenant access");
+  await expectCallableFailure(callOne("bulkUpdateLeadStatus", {
+    ...bulkStatusPayload,
+    leadIds: [leadOne.leadId, leadOne.leadId],
+    idempotencyKey: "bulk-lead-status-duplicate-0001",
+  }), "functions/invalid-argument", "bulk status update rejects duplicate lead IDs");
+  await signOut(first.auth);
   await signOut(first.auth);
   const unauthenticatedCallableNames = [
     "previewOrganisationOffboarding",
@@ -3040,6 +3066,7 @@ try {
     "importLeads",
     "updateLeadContact",
     "updateLeadStatus",
+    "bulkUpdateLeadStatus",
     "updateLeadNotes",
     "setLeadSuppression",
     "suggestOutreachDraft",

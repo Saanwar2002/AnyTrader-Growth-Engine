@@ -2093,6 +2093,110 @@ export const updateLeadContact = onCall(callableOptions, async (request) => {
   return { leadId, ...fields, score: completeness.score, scoreReasons: completeness.reasons, ...contactRestriction };
 });
 
+export const bulkUpdateLeadStatus = onCall(callableOptions, async (request) => {
+  const uid = requireUid(request.auth?.uid);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const organisationId = requireOrganisationId(data.organisationId);
+  const rawLeadIds = data.leadIds;
+  const status = data.status;
+  const idempotencyKey = data.idempotencyKey;
+  if (!Array.isArray(rawLeadIds) || rawLeadIds.length < 1 || rawLeadIds.length > 25) {
+    throw new HttpsError("invalid-argument", "leadIds must contain between 1 and 25 leads.");
+  }
+  const leadIds = rawLeadIds.map((value) => requireDocumentId(value, "leadId"));
+  if (new Set(leadIds).size !== leadIds.length) {
+    throw new HttpsError("invalid-argument", "leadIds must not contain duplicates.");
+  }
+  const allowedStatuses = new Set(["new", "reviewing", "qualified", "contacted", "onboarded", "rejected"]);
+  if (typeof status !== "string" || !allowedStatuses.has(status)) {
+    throw new HttpsError("invalid-argument", "A valid lead status is required.");
+  }
+  if (typeof idempotencyKey !== "string" || !/^[A-Za-z0-9._:-]{16,128}$/.test(idempotencyKey)) {
+    throw new HttpsError("invalid-argument", "idempotencyKey must be 16-128 safe characters.");
+  }
+  await requireLeadEditor(organisationId, uid);
+  const organisationRef = db.collection("organisations").doc(organisationId);
+  const leadsRef = organisationRef.collection("leads");
+  const idempotencyId = createHash("sha256").update(JSON.stringify([organisationId, uid, idempotencyKey])).digest("hex");
+  const idempotencyRef = organisationRef.collection("leadBulkStatusIdempotency").doc(idempotencyId);
+  const requestHash = createHash("sha256").update(JSON.stringify({ organisationId, leadIds: [...leadIds].sort(), status })).digest("hex");
+
+  return db.runTransaction(async (transaction: Transaction) => {
+    const idempotencySnapshot = await transaction.get(idempotencyRef);
+    await requireTransactionalRole(transaction, organisationId, uid, "lead");
+    if (idempotencySnapshot.exists) {
+      const saved = idempotencySnapshot.data() ?? {};
+      if (saved.requestHash !== requestHash || saved.actorUid !== uid || !saved.result || typeof saved.result !== "object") {
+        throw new HttpsError("already-exists", "This idempotencyKey was already used with a different bulk status request.");
+      }
+      return saved.result as { organisationId: string; status: string; updatedCount: number; unchangedCount: number; leadIds: string[] };
+    }
+
+    const leadRefs = leadIds.map((leadId) => leadsRef.doc(leadId));
+    const snapshots = await Promise.all(leadRefs.map((ref) => transaction.get(ref)));
+    const leads = snapshots.map((snapshot, index) => {
+      if (!snapshot.exists) throw new HttpsError("not-found", "A selected lead was not found in this organisation; no statuses were changed.");
+      return { leadId: leadIds[index], ref: leadRefs[index], data: snapshot.data() ?? {} };
+    });
+    const campaignIds = new Set<string>();
+    if (status === "contacted") {
+      for (const lead of leads) {
+        if (!canMarkLeadContacted(lead.data.doNotContact, lead.data.contactReviewStatus)) {
+          throw new HttpsError("failed-precondition", "A selected lead has an unresolved contact restriction; no statuses were changed.");
+        }
+        campaignIds.add(requireDocumentId(lead.data.campaignId, "lead campaignId"));
+      }
+    }
+    const campaignSnapshots = await Promise.all([...campaignIds].map((campaignId) =>
+      transaction.get(organisationRef.collection("campaigns").doc(campaignId))));
+    if (campaignSnapshots.some((snapshot) => !snapshot.exists)) {
+      throw new HttpsError("failed-precondition", "A selected lead's campaign no longer exists; no statuses were changed.");
+    }
+    for (const lead of leads) {
+      if (!canTransitionLeadStatus(status, lead.data.doNotContact === true)) {
+        throw new HttpsError("failed-precondition", "The selected status is not valid for one or more leads; no statuses were changed.");
+      }
+    }
+
+    await consumeTransactionalRateLimit(transaction, organisationId, uid, "bulkUpdateLeadStatus", 30);
+    const now = FieldValue.serverTimestamp();
+    let updatedCount = 0;
+    const changedLeadIds: string[] = [];
+    for (const lead of leads) {
+      if (lead.data.status === status) continue;
+      const leadUpdate: Record<string, unknown> = { status, updatedAt: now, updatedBy: uid };
+      if (status === "onboarded" && lead.data.status !== "onboarded" && !isValidFirestoreTimestamp(lead.data.onboardedAt)) {
+        leadUpdate.onboardedAt = now;
+      }
+      transaction.update(lead.ref, leadUpdate);
+      const activityRef = organisationRef.collection("leadActivities").doc();
+      transaction.create(activityRef, {
+        leadId: lead.leadId,
+        actorUid: uid,
+        message: `Lead status changed to ${status} (bulk update)`,
+        createdAt: now,
+      });
+      writeSecurityAuditEvent(transaction, organisationId, uid, "lead.status_changed", "lead", lead.leadId, { leadStatus: status });
+      changedLeadIds.push(lead.leadId);
+      updatedCount += 1;
+    }
+    const result = {
+      organisationId,
+      status,
+      updatedCount,
+      unchangedCount: leads.length - updatedCount,
+      leadIds: changedLeadIds,
+    };
+    transaction.create(idempotencyRef, {
+      requestHash,
+      actorUid: uid,
+      result,
+      createdAt: now,
+    });
+    return result;
+  });
+});
+
 export const updateLeadStatus = onCall(callableOptions, async (request) => {
   const uid = requireUid(request.auth?.uid);
   const data = (request.data ?? {}) as Record<string, unknown>;
