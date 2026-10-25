@@ -55,3 +55,21 @@ export function summarizeLeadSourcePerformance(leads: LeadSourcePerformanceLead[
     };
   }).sort((a, b) => b.loadedLeadCount - a.loadedLeadCount || a.source.localeCompare(b.source));
 }
+
+/** Export only the supplied campaign summaries; every row explicitly labels its page-limited scope. */
+export function serializeCampaignPerformanceCsv(summaries: CampaignPerformanceSummary[]): string {
+  const escapeCell = (value: string | number) => {
+    const text = String(value);
+    return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  };
+  const headers = [
+    "Scope", "Campaign", "Loaded leads", "Qualified", "Contacted", "Onboarded",
+    "Qualified rate (%)", "Onboarded rate (%)", "Restricted/review needed", "Loaded drafts", "Drafts needing review",
+  ];
+  const rows = summaries.map((item) => [
+    "Loaded records only", item.campaignName, item.loadedLeadCount, item.qualifiedLeadCount,
+    item.contactedLeadCount, item.onboardedLeadCount, item.qualifiedRatePercent.toFixed(1),
+    item.onboardedRatePercent.toFixed(1), item.restrictedLeadCount, item.loadedDraftCount, item.draftsAwaitingReview,
+  ]);
+  return [headers, ...rows].map((row) => row.map(escapeCell).join(",")).join("\r\n") + "\r\n";
+}

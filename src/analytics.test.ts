@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { summarizeCampaignPerformance, summarizeLeadSourcePerformance } from "./analytics";
+import { serializeCampaignPerformanceCsv, summarizeCampaignPerformance, summarizeLeadSourcePerformance } from "./analytics";
 describe("summarizeCampaignPerformance", () => {
   it("summarises loaded records and conservatively counts restricted leads", () => {
     expect(summarizeCampaignPerformance(
@@ -50,5 +50,23 @@ describe("summarizeLeadSourcePerformance", () => {
   });
   it("returns an empty list for no loaded leads", () => {
     expect(summarizeLeadSourcePerformance([])).toEqual([]);
+  });
+});
+
+describe("serializeCampaignPerformanceCsv", () => {
+  it("exports loaded-only scope, funnel metrics, and correctly escaped campaign names", () => {
+    const summaries = summarizeCampaignPerformance([{ id: "c1", name: 'Painters, "North"' }], [
+      { campaignId: "c1", status: "qualified", doNotContact: true, contactRestrictionVerified: false },
+      { campaignId: "c1", status: "onboarded", doNotContact: false, contactRestrictionVerified: true },
+    ], []);
+    const csv = serializeCampaignPerformanceCsv(summaries);
+    expect(csv.split("\r\n")[0]).toContain("Scope,Campaign,Loaded leads,Qualified,Contacted,Onboarded");
+    expect(csv).toContain('"Loaded records only","Painters, ""North""",2,1,0,1,50.0,50.0');
+    expect(csv.endsWith("\r\n")).toBe(true);
+  });
+  it("exports a header-only file when no campaign summaries are loaded", () => {
+    const csv = serializeCampaignPerformanceCsv([]);
+    expect(csv.split("\r\n")).toHaveLength(2);
+    expect(csv).toContain("Drafts needing review");
   });
 });
