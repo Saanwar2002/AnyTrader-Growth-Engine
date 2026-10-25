@@ -2998,6 +2998,7 @@ try {
     "removeOrganisationMember",
     "updateOrganisationMemberRole",
     "listOrganisationMembers",
+    "listOrganisationSecurityAuditEvents",
     "createCampaign",
     "listCampaigns",
     "getCampaignFunnelSummary",
