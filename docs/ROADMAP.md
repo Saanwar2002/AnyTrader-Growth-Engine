@@ -75,6 +75,7 @@
 - [x] Owner/admin organisation display-name settings with server-side role checks, transactional rate limiting, and PII-minimised audit events.
 - [x] Owner/admin member removal with owner protection, role hierarchy, transactional member-usage decrement when authoritative counters exist, retry-safe missing-member behavior, and PII-minimised audit events.
 - [x] Add tenant-scoped cursor pagination for the owner/admin member roster, with bounded 20-member pages and cross-tenant cursor rejection.
+- [x] Add owner-only role changes for existing non-owner organisation members, with role hierarchy enforcement and PII-minimised audit events.
 - [x] Owner/admin campaign detail editing with transactional tenant-role rechecks and PII-minimised audit events.
 - [ ] Plans and server-side entitlements/quotas. Campaign, lead, member, and monthly AI-suggestion limits are enforced for organisations with authoritative usage counters; the owner/admin usage dashboard now exposes these counters without inventing zeroes for legacy organisations. Review and reconcile legacy usage before extending enforcement. Billing remains disabled.
 - [x] Add a read-only owner/admin reconciliation preview comparing live campaign/lead/member counts to stored plan counters; never auto-repair counters or infer historical AI usage.
