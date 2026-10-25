@@ -359,6 +359,32 @@ export default function CloudWorkspace() {
     }
   }
 
+  async function removeOrganisationMember(targetUid: string, targetRole: string) {
+    if (!api || !organisationId || (selectedOrganisationRole !== "owner" && selectedOrganisationRole !== "admin") || targetUid === user?.uid || targetRole === "owner") return;
+    if (selectedOrganisationRole === "admin" && targetRole !== "member" && targetRole !== "viewer") return;
+    if (!window.confirm("Remove this account from the organisation? This revokes its organisation access but does not delete the Firebase Auth account or its data outside this organisation.")) return;
+    const requestedOrganisationId = organisationId;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const result = await api.removeOrganisationMember({ organisationId: requestedOrganisationId, targetUid });
+      if (currentOrganisationIdRef.current !== requestedOrganisationId) return;
+      if (result.removed) {
+        setMemberRoster((current) => current?.organisationId === requestedOrganisationId
+          ? { ...current, members: current.members.filter((member) => member.uid !== targetUid) }
+          : current);
+        setNotice("Organisation membership removed. The account and its data outside this organisation were not deleted.");
+        await refreshWorkspace(requestedOrganisationId);
+      } else {
+        setNotice("That account is no longer a member of this organisation.");
+        await loadOrganisationMembers();
+      }
+    } catch (reason) {
+      setError(readableError(reason));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function createCampaign(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!api || !organisationId) return;
@@ -800,11 +826,11 @@ DRAFT ONLY — NOT SENT.`,
         </div>}
       </section>}
       {selectedOrganisation && (selectedOrganisationRole === "owner" || selectedOrganisationRole === "admin") && <section className="cloud-card" aria-labelledby="member-roster-title">
-        <div className="cloud-section-head"><div><p className="cloud-eyebrow">TEAM ACCESS</p><h2 id="member-roster-title">Organisation members</h2><p className="cloud-muted">View current member roles and the email address on each Firebase Auth account.</p></div>
+        <div className="cloud-section-head"><div><p className="cloud-eyebrow">TEAM ACCESS</p><h2 id="member-roster-title">Organisation members</h2><p className="cloud-muted">View current member roles and the email address on each Firebase Auth account. Owners can remove non-owner members; admins can remove members/viewers. Removing access does not delete the account.</p></div>
           <button className="cloud-secondary" type="button" disabled={loadingMemberRoster} onClick={() => void loadOrganisationMembers()}>{loadingMemberRoster ? "Loading members…" : memberRoster?.organisationId === organisationId ? "Refresh member roster" : "Load member roster"}</button>
         </div>
         {memberRoster?.organisationId === organisationId && <><p className="cloud-muted">{memberRoster.members.length} member(s) returned. {memberRoster.hasMoreMembers ? "More members exist beyond the 20-record preview." : "Roster complete."}</p>
-          <div className="cloud-table-wrap"><table className="cloud-table"><caption>Organisation member roster</caption><thead><tr><th>Account email</th><th>Role</th><th>Joined</th></tr></thead><tbody>{memberRoster.members.map((member) => <tr key={member.uid}><td>{member.email ?? "Email unavailable"}<small>Account ID: {member.uid}</small></td><td>{member.role}</td><td>{member.createdAt ? new Date(member.createdAt).toLocaleDateString("en-GB") : "Date unavailable"}</td></tr>)}</tbody></table></div>
+          <div className="cloud-table-wrap"><table className="cloud-table"><caption>Organisation member roster</caption><thead><tr><th>Account email</th><th>Role</th><th>Joined</th><th>Actions</th></tr></thead><tbody>{memberRoster.members.map((member) => <tr key={member.uid}><td>{member.email ?? "Email unavailable"}<small>Account ID: {member.uid}</small></td><td>{member.role}</td><td>{member.createdAt ? new Date(member.createdAt).toLocaleDateString("en-GB") : "Date unavailable"}</td><td>{member.role !== "owner" && member.uid !== user?.uid && (selectedOrganisationRole === "owner" || (selectedOrganisationRole === "admin" && (member.role === "member" || member.role === "viewer"))) ? <button className="cloud-secondary" type="button" disabled={busy} onClick={() => void removeOrganisationMember(member.uid, member.role)}>Remove access</button> : <span className="cloud-muted">—</span>}</td></tr>)}</tbody></table></div>
         </>}
       </section>}
       <form className="cloud-inline-form" onSubmit={(event) => void createOrganisation(event)}><label className="cloud-field">{organisations.length ? "Create another organisation" : "Organisation name"}<input required disabled={Boolean(organisationIdempotencyKey)} maxLength={100} value={organisationName} onChange={(event) => setOrganisationName(event.target.value)} placeholder="e.g. AnyTrader pilot" /></label>{organisationIdempotencyKey && <p className="cloud-muted" role="status">A save attempt is pending. Retry without changing the name so the same request key is reused and duplicate organisations are avoided.</p>}<button className="cloud-primary" disabled={busy || !organisationName.trim()}>{busy ? "Saving…" : organisationIdempotencyKey ? "Retry save (same request)" : "Create organisation"}</button></form></section>

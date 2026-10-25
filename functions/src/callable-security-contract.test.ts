@@ -13,6 +13,7 @@ const expectedRateLimitType: Record<string, "read" | "mutation"> = {
   createOrganisation: "mutation",
   updateOrganisationSettings: "mutation",
   addOrganisationMember: "mutation",
+  removeOrganisationMember: "mutation",
   listOrganisationMembers: "read",
   createCampaign: "mutation",
   listCampaigns: "read",
@@ -101,7 +102,7 @@ describe("callable security contract", () => {
 
   it("enforces App Check on every deployed callable and only bypasses it in the Functions emulator", () => {
     expect(callableSource).toContain('const callableOptions = { enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true" }');
-    expect((callableSource.match(/= onCall\(callableOptions, async \(request\) => \{/g) ?? [])).toHaveLength(25);
+    expect((callableSource.match(/= onCall\(callableOptions, async \(request\) => \{/g) ?? [])).toHaveLength(26);
     expect(callableSource.includes("= onCall(async (request) => {")).toBe(false);
   });
 
@@ -164,11 +165,12 @@ describe("callable security contract", () => {
 
     const auditCalls = [...callableSource.matchAll(/writeSecurityAuditEvent\(transaction,\s*[^,]+,\s*[^,]+,\s*"([^"]+)",\s*"([^"]+)"/g)];
     const callPairs = new Set(auditCalls.map((match) => `${match[1]}|${match[2]}`));
-    expect(auditCalls.length).toBe(15);
+    expect(auditCalls.length).toBe(16);
     for (const [eventType, resourceType] of [
       ["organisation.created", "organisation"],
       ["organisation.settings_updated", "organisation"],
       ["organisation.member_added", "organisation"],
+      ["organisation.member_removed", "organisation"],
       ["lead.csv_import.completed", "campaign"],
       ["lead.contact_updated", "lead"],
       ["lead.contact_restriction_changed", "lead"],
@@ -887,4 +889,23 @@ describe("organisation plan usage reconciliation preview", () => {
     expect(body).not.toContain("transaction.set(");
     expect(body).not.toContain("transaction.update(");
   });
+ 
+describe("organisation member removal", () => {
+  it("protects the owner, enforces role hierarchy, updates usage atomically, and audits removal", () => {
+    const start = callableSource.indexOf("export const removeOrganisationMember = onCall(");
+    const end = callableSource.indexOf("export const ", start + 1);
+    const body = callableSource.slice(start, end < 0 ? callableSource.length : end);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(body).toContain("requireTransactionalRole(transaction, organisationId, uid, \"campaign\")");
+    expect(body).toContain('callerMembership.role !== "owner" && callerMembership.role !== "admin"');
+    expect(body).toContain("The organisation owner cannot be removed.");
+    expect(body).toContain("Admins may remove members and viewers, but only the owner may remove admins.");
+    expect(body).toContain("resolvePlanUsageState(organisationData.planUsage, new Date())");
+    expect(body).toContain('transaction.update(organisationRef, {');
+    expect(body).toContain('"organisation.member_removed"');
+    expect(body).toContain("transaction.delete(targetMembershipRef)");
+    expect(body).not.toContain("getAuth().deleteUser");
+  });
+});
+
 });

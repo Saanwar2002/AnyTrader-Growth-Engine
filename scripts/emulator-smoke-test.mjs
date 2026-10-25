@@ -2829,6 +2829,26 @@ try {
     role: "member",
     idempotencyKey: "member-addition-nonadmin-0001",
   }), "functions/permission-denied", "viewer cannot add organisation members");
+  await expectCallableFailure(callOne("removeOrganisationMember", {
+    organisationId: quotaOrg.organisationId,
+    targetUid: first.auth.currentUser.uid,
+  }), "functions/failed-precondition", "organisation owner cannot remove their own membership");
+  const removedMember = await callOne("removeOrganisationMember", {
+    organisationId: quotaOrg.organisationId,
+    targetUid: addedMember.uid,
+  });
+  assert.equal(removedMember.removed, true, "owner can remove a non-owner member");
+  const repeatedRemoval = await callOne("removeOrganisationMember", {
+    organisationId: quotaOrg.organisationId,
+    targetUid: addedMember.uid,
+  });
+  assert.equal(repeatedRemoval.removed, false, "repeated member removal is safely idempotent");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-member-usage.mjs",
+    quotaOrg.organisationId,
+    "1",
+  ], { stdio: "inherit" });
+  console.log("PASS: organisation member removal protects the owner, is retry-safe, and decrements authoritative usage atomically.");
   console.log("PASS: organisation member addition checks role, reserves usage, and is idempotent.");
   for (let index = 1; index <= 10; index += 1) {
     await callOne("createCampaign", {
@@ -2905,6 +2925,7 @@ try {
     "createOrganisation",
     "updateOrganisationSettings",
     "addOrganisationMember",
+    "removeOrganisationMember",
     "listOrganisationMembers",
     "createCampaign",
     "listCampaigns",
