@@ -306,3 +306,5 @@ export function serializeCampaignReadinessCsv(
     : [["Loaded records only", "No campaigns loaded", "No readiness result", 0, 0, 0, 0, "Unavailable", "Incomplete", "Preflight only; does not authorise outreach"]];
   return [headers, ...rows].map((row) => row.map(escapeCell).join(",")).join("\r\n") + "\r\n";
 }
+
+/** Export server-counted campaign readiness without exposing individual lead records. */
