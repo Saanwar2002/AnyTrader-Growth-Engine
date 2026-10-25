@@ -273,3 +273,22 @@ it("requests the bounded organisation member roster for the selected tenant", as
   await expect(api.listOrganisationMembers({ organisationId: "org-1" })).resolves.toEqual(response);
   expect(calls).toEqual([{ name: "listOrganisationMembers", payload: { organisationId: "org-1" } }]);
 });
+
+
+it("requests a read-only plan usage reconciliation inventory for the selected tenant", async () => {
+  const response = {
+    organisationId: "org-1",
+    status: "present" as const,
+    actual: { campaigns: 2, leads: 42, members: 3 },
+    stored: { campaigns: 2, leads: 40, members: 3, monthlyAiSuggestions: 7, aiUsagePeriod: "2026-10" },
+    mismatchedMetrics: ["leads"] as Array<"campaigns" | "leads" | "members">,
+    aiUsageReviewRequired: true as const,
+    currentAiUsagePeriod: "2026-10",
+    notes: ["Stored resource counters differ from current document counts."],
+    destructiveActionPerformed: false as const,
+  };
+  const { invoke, calls } = makeInvoker([response]);
+  const api = createGrowthEngineApi(invoke);
+  await expect(api.getOrganisationPlanUsageReconciliation({ organisationId: "org-1" })).resolves.toEqual(response);
+  expect(calls).toEqual([{ name: "getOrganisationPlanUsageReconciliation", payload: { organisationId: "org-1" } }]);
+});
