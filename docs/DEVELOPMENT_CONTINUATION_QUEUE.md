@@ -1,3 +1,14 @@
+## AutoPilot run — campaign creation idempotency replay integrity (2026-10-25)
+
+- Replaced the campaign create replay type assertion with a pure validator that requires the exact saved response keys and validates actor, request fingerprint, tenant ID, original payload, status, and campaign document ID.
+- Before replaying, the transaction re-checks that the tenant-scoped campaign still exists and retains the original creator and creation payload.
+- Current campaign lifecycle status is intentionally not part of replay validation: a later pause/completion should not invalidate a retry of the original creation request.
+- Added pure tests for wrong actor/hash, malformed records, extra/missing/tampered fields, invalid IDs, persisted ownership and payload mismatch, plus callable source-contract coverage.
+- No new endpoint, automated outreach, production deployment, or billing changes.
+- Next: verify exact-head CI and continue reviewing other idempotency paths.
+
+---
+
 ## AutoPilot run — workspace settings test race (2026-10-25)
 
 - Fixed a race in the workspace rename UI test: wait for the selected organisation to finish loading before editing the controlled form.

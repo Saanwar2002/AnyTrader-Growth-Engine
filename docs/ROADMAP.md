@@ -107,6 +107,7 @@
 - Privacy/export/deletion/retention workflows, monitoring, backups, recovery, incident response, security review.
 - [x] Read-only owner/admin security audit log with tenant-scoped cursor pagination, bounded metadata validation, rate limiting, action/identifier and inclusive UTC date-range filters over loaded pages, no extra actor-email lookup, and formula-safe CSV export clearly scoped to loaded pages.
 - [x] Require the exact event-specific security-audit metadata key set when writing and reading persisted events; reject missing required flags as well as unexpected keys and malformed containers.
+- [x] Harden campaign-creation idempotency replay records: require the exact saved response shape, original actor/request fingerprint and payload, then re-check persisted tenant-contained campaign ownership and immutable creation fields.
 - Later: agency workspaces, white-labeling, API access, and enterprise controls.
 
 ## Non-negotiable boundaries
