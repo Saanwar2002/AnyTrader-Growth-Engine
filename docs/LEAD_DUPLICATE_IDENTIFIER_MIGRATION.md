@@ -42,3 +42,15 @@ Do not describe the new key fields as a complete legacy deduplication solution b
 ## Regression coverage
 
 The callable security contract test asserts that all write paths share normalization, canonical key lookups remain bounded, legacy exact-value fallbacks remain present, and URL path casing is explicitly preserved. Add behavioral emulator tests for mixed-case legacy records and URL edge cases when the migration/backfill harness is introduced.
+
+
+## Scan readiness contract
+
+The bounded coordinator returns explicit `scanCompleteness` and `backfillDecision` fields in addition to the legacy `truncated` flag:
+
+- `scanCompleteness: "truncated"` means the record budget was reached while a continuation cursor remained. The report is partial and cannot be used as a complete inventory.
+- `scanCompleteness: "complete"` means the adapter reached the end within the configured budget; it does **not** mean the records are safe to backfill.
+- `backfillDecision` remains blocked for both outcomes. Truncated scans return `blocked-incomplete-scan`; complete scans return `blocked-pending-operator-review`.
+- The coordinator deliberately has no mechanism to approve, mutate, or backfill records. Collision groups, malformed records, tenant scope, source permissions, and the post-backfill verification plan still require review before any future write-enabled migration is designed.
+
+This is a code-level guardrail, not production migration approval. No live database adapter or backfill is included.
