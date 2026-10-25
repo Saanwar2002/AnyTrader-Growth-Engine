@@ -1928,7 +1928,7 @@ describe("cloud authentication gate", () => {
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:completeness");
   });
 
-  it("saves and clears a tenant-scoped lead follow-up date", async () => {
+  it("saves a tenant-scoped lead follow-up date", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({
       organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
