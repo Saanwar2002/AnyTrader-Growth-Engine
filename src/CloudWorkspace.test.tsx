@@ -1408,4 +1408,36 @@ describe("cloud authentication gate", () => {
     expect(screen.getByRole("row", { name: /Blocked Painter/ })).toBeTruthy();
   });
 
+  it("shows loaded contact-review counts and quick-filters the pending queue", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
+    const lead = (id: string, businessName: string, review: "pending" | "cleared" | "blocked") => ({
+      id, campaignId: "campaign-1", businessName, category: "Painters", location: "Leeds",
+      website: "", email: "", phone: "", source: "manual", status: "new", score: 40,
+      scoreReasons: [], notes: "", doNotContact: review !== "cleared",
+      contactRestrictionVerified: review === "cleared", contactReviewStatus: review,
+      contactReviewRevision: 0, onboardedAt: null, createdAt: null,
+    });
+    mocks.api.listLeads.mockResolvedValue({
+      leads: [
+        lead("pending-1", "Pending Painter", "pending"),
+        lead("cleared-1", "Cleared Painter", "cleared"),
+        lead("blocked-1", "Blocked Painter", "blocked"),
+      ],
+      hasMoreLeads: true,
+      nextPageToken: "lead-next-page",
+    });
+    render(<CloudWorkspace />);
+    await screen.findByText("Pending Painter");
+    expect(screen.getByText(/Contact-review counts for loaded leads only.*load more pages/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Pending review (1)" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Review cleared (1)" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Blocked / do not contact (1)" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Pending review (1)" }));
+    expect(screen.getByRole("row", { name: /Pending Painter/ })).toBeTruthy();
+    expect(screen.queryByRole("row", { name: /Cleared Painter/ })).toBeNull();
+    expect(screen.queryByRole("row", { name: /Blocked Painter/ })).toBeNull();
+    expect(screen.getByRole("button", { name: "Pending review (1)" }).getAttribute("aria-pressed")).toBe("true");
+  });
+
 });
