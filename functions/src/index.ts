@@ -650,6 +650,89 @@ export const addOrganisationMember = onCall(callableOptions, async (request) => 
   });
 });
 
+export const listOrganisationSecurityAuditEvents = onCall(callableOptions, async (request) => {
+  const uid = requireUid(request.auth?.uid);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const organisationId = requireOrganisationId(data.organisationId);
+  const rawPageToken = data.pageToken;
+  if (rawPageToken !== undefined && rawPageToken !== null && rawPageToken !== ""
+    && (typeof rawPageToken !== "string" || rawPageToken.length > 4096)) {
+    throw new HttpsError("invalid-argument", "Security audit page token is invalid.");
+  }
+
+  let cursorId: string | undefined;
+  if (typeof rawPageToken === "string" && rawPageToken.length > 0) {
+    try {
+      const decoded = JSON.parse(Buffer.from(rawPageToken, "base64url").toString("utf8")) as Record<string, unknown>;
+      if (decoded.scope !== "organisation_security_audit" || decoded.organisationId !== organisationId
+        || !isValidDocumentId(decoded.lastEventId)) throw new Error("Invalid security audit cursor");
+      cursorId = decoded.lastEventId;
+    } catch {
+      throw new HttpsError("invalid-argument", "Security audit page token is invalid for this organisation.");
+    }
+  }
+
+  const requireAuditViewer = async () => {
+    const membership = await requireMembership(organisationId, uid);
+    if (membership.role !== "owner" && membership.role !== "admin") {
+      throw new HttpsError("permission-denied", "Only organisation owners and admins can view security audit events.");
+    }
+  };
+  await requireAuditViewer();
+  await consumeReadRateLimit(organisationId, uid, "listOrganisationSecurityAuditEvents", 10);
+
+  const auditCollection = db.collection("organisations").doc(organisationId).collection("securityAuditEvents");
+  let query = auditCollection.orderBy("createdAt", "desc").orderBy(FieldPath.documentId(), "desc");
+  if (cursorId) {
+    const cursor = await auditCollection.doc(cursorId).get();
+    if (!cursor.exists || !cursor.get("createdAt") || typeof cursor.get("createdAt").toMillis !== "function") {
+      throw new HttpsError("invalid-argument", "Security audit page token no longer identifies a valid event.");
+    }
+    query = query.startAfter(cursor);
+  }
+  const page = await query.limit(51).get();
+  const eventDocuments = page.docs.slice(0, 50);
+  const events = eventDocuments.map((document) => {
+    const event = document.data() ?? {};
+    const eventType = event.eventType;
+    const resourceType = event.resourceType;
+    const metadata = event.metadata;
+    if (event.organisationId !== organisationId
+      || typeof event.actorUid !== "string" || !isValidDocumentId(event.actorUid)
+      || typeof event.resourceId !== "string" || !isValidDocumentId(event.resourceId)
+      || typeof eventType !== "string" || !Object.prototype.hasOwnProperty.call(AUDIT_EVENT_RESOURCE_TYPES, eventType)
+      || typeof resourceType !== "string"
+      || AUDIT_EVENT_RESOURCE_TYPES[eventType as SecurityAuditEventType] !== resourceType
+      || event.outcome !== "success"
+      || !metadata || typeof metadata !== "object" || Array.isArray(metadata)
+      || !isBoundedAuditMetadata(eventType as SecurityAuditEventType, metadata as SecurityAuditEventMetadata)
+      || !event.createdAt || typeof event.createdAt.toDate !== "function") {
+      throw new HttpsError("failed-precondition", "A security audit event is invalid and requires operator review.");
+    }
+    return {
+      id: document.id,
+      eventType,
+      actorUid: event.actorUid,
+      resourceType,
+      resourceId: event.resourceId,
+      outcome: "success" as const,
+      metadata: metadata as SecurityAuditEventMetadata,
+      createdAt: safeTimestampToIso(event.createdAt),
+    };
+  });
+
+  await requireAuditViewer();
+  return {
+    organisationId,
+    events,
+    hasMoreEvents: page.docs.length > 50,
+    nextPageToken: page.docs.length > 50 && eventDocuments.length
+      ? Buffer.from(JSON.stringify({ scope: "organisation_security_audit", organisationId, lastEventId: eventDocuments[eventDocuments.length - 1].id }), "utf8").toString("base64url")
+      : null,
+    scope: "organisation_security_audit" as const,
+  };
+});
+
 export const listOrganisationMembers = onCall(callableOptions, async (request) => {
   const uid = requireUid(request.auth?.uid);
   const data = (request.data ?? {}) as Record<string, unknown>;

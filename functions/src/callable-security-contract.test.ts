@@ -16,6 +16,7 @@ const expectedRateLimitType: Record<string, "read" | "mutation"> = {
   removeOrganisationMember: "mutation",
   updateOrganisationMemberRole: "mutation",
   listOrganisationMembers: "read",
+  listOrganisationSecurityAuditEvents: "read",
   createCampaign: "mutation",
   listCampaigns: "read",
   getCampaignFunnelSummary: "read",
@@ -123,7 +124,7 @@ describe("callable security contract", () => {
 
   it("enforces App Check on every deployed callable and only bypasses it in the Functions emulator", () => {
     expect(callableSource).toContain('const callableOptions = { enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true" }');
-    expect((callableSource.match(/= onCall\(callableOptions, async \(request\) => \{/g) ?? [])).toHaveLength(30);
+    expect((callableSource.match(/= onCall\(callableOptions, async \(request\) => \{/g) ?? [])).toHaveLength(31);
     expect(callableSource.includes("= onCall(async (request) => {")).toBe(false);
   });
 
@@ -971,4 +972,22 @@ describe("organisation member role management", () => {
   });
 });
 
+});
+
+
+describe("organisation security audit log", () => {
+  it("limits audit log reads to owners and admins with bounded tenant-scoped pagination", () => {
+    const start = callableSource.indexOf("export const listOrganisationSecurityAuditEvents = onCall(");
+    const end = callableSource.indexOf("export const ", start + 1);
+    const body = callableSource.slice(start, end < 0 ? callableSource.length : end);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(body).toContain('membership.role !== "owner" && membership.role !== "admin"');
+    expect(body).toContain('consumeReadRateLimit(organisationId, uid, "listOrganisationSecurityAuditEvents", 10)');
+    expect(body).toContain('decoded.scope !== "organisation_security_audit" || decoded.organisationId !== organisationId');
+    expect(body).toContain("query.limit(51)");
+    expect(body).toContain("await requireAuditViewer();");
+    expect(body).toContain("isBoundedAuditMetadata(eventType as SecurityAuditEventType");
+    expect(body).not.toContain("getAuth().getUser");
+    expect(body).not.toContain("email:");
+  });
 });

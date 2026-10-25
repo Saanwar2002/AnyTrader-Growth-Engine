@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
   authListener: vi.fn(),
   currentUser: null as unknown,
   api: {
-    listMyOrganisations: vi.fn(), createOrganisation: vi.fn(), updateOrganisationSettings: vi.fn(), previewOrganisationOffboarding: vi.fn(), addOrganisationMember: vi.fn(), removeOrganisationMember: vi.fn(), updateOrganisationMemberRole: vi.fn(), listOrganisationMembers: vi.fn(), createCampaign: vi.fn(), updateCampaignStatus: vi.fn(), updateCampaignDetails: vi.fn(),
+    listMyOrganisations: vi.fn(), createOrganisation: vi.fn(), updateOrganisationSettings: vi.fn(), previewOrganisationOffboarding: vi.fn(), addOrganisationMember: vi.fn(), removeOrganisationMember: vi.fn(), updateOrganisationMemberRole: vi.fn(), listOrganisationMembers: vi.fn(), listOrganisationSecurityAuditEvents: vi.fn(), createCampaign: vi.fn(), updateCampaignStatus: vi.fn(), updateCampaignDetails: vi.fn(),
     listCampaigns: vi.fn(), getCampaignFunnelSummary: vi.fn(), getLeadSourceFunnelSummary: vi.fn(), getOnboardingCohortSummary: vi.fn(), getOnboardingCohortCoverage: vi.fn(), getContactReviewQueueSummary: vi.fn(), getLeadActivityTimeline: vi.fn(), getOrganisationPlanUsage: vi.fn(), getOrganisationPlanUsageReconciliation: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), importLeads: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(),
     updateLeadNotes: vi.fn(), setLeadSuppression: vi.fn(), createOutreachDraft: vi.fn(), suggestOutreachDraft: vi.fn(), listOutreachDrafts: vi.fn(),
     updateOutreachDraft: vi.fn(), deleteOutreachDraft: vi.fn(),
@@ -44,6 +44,13 @@ beforeEach(() => {
     hasMoreMembers: false,
     nextPageToken: null,
     scope: "organisation_member_roster",
+  });
+  mocks.api.listOrganisationSecurityAuditEvents.mockResolvedValue({
+    organisationId: "org-1",
+    events: [],
+    hasMoreEvents: false,
+    nextPageToken: null,
+    scope: "organisation_security_audit",
   });
   mocks.api.previewOrganisationOffboarding.mockResolvedValue({
     complete: true,
@@ -1672,6 +1679,56 @@ describe("cloud authentication gate", () => {
     expect((screen.getByLabelText("Filter by source") as HTMLSelectElement).value).toBe("all");
     expect(screen.getByText("Alpha Provider")).toBeTruthy();
     expect(screen.getByText("Zulu Provider")).toBeTruthy();
+  });
+
+  it("loads a paginated, read-only security audit log for organisation owners", async () => {
+    mocks.currentUser = { email: "pilot@example.test", uid: "owner-uid" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    mocks.api.listOrganisationSecurityAuditEvents
+      .mockResolvedValueOnce({
+        organisationId: "org-1",
+        events: [{
+          id: "audit-2", eventType: "lead.status_changed", actorUid: "owner-uid",
+          resourceType: "lead", resourceId: "lead-2", outcome: "success",
+          metadata: { leadStatus: "qualified" }, createdAt: "2026-10-25T12:00:00.000Z",
+        }],
+        hasMoreEvents: true, nextPageToken: "cursor-2", scope: "organisation_security_audit",
+      })
+      .mockResolvedValueOnce({
+        organisationId: "org-1",
+        events: [{
+          id: "audit-1", eventType: "organisation.member_added", actorUid: "owner-uid",
+          resourceType: "organisation", resourceId: "member-2", outcome: "success",
+          metadata: { memberRole: "viewer" }, createdAt: "2026-10-24T12:00:00.000Z",
+        }],
+        hasMoreEvents: false, nextPageToken: null, scope: "organisation_security_audit",
+      });
+
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load audit log" }));
+    expect(await screen.findByRole("table", { name: "Organisation security audit events" })).toBeTruthy();
+    expect(screen.getByText("lead status changed")).toBeTruthy();
+    expect(screen.getByText("leadStatus: qualified")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Load more audit events" }));
+    await waitFor(() => expect(mocks.api.listOrganisationSecurityAuditEvents).toHaveBeenLastCalledWith({ organisationId: "org-1", pageToken: "cursor-2" }));
+    expect(await screen.findByText("organisation member added")).toBeTruthy();
+    expect(screen.getByText("memberRole: viewer")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Load more audit events" })).toBeNull();
+  });
+
+  it("does not expose the security audit log controls to viewer roles", async () => {
+    mocks.currentUser = { email: "viewer@example.test", uid: "viewer-uid" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "viewer" }],
+      hasMoreOrganisations: false,
+    });
+    render(<CloudWorkspace />);
+    await screen.findByRole("option", { name: /Pilot Workspace.*viewer/ });
+    expect(screen.queryByRole("button", { name: "Load audit log" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Security audit log" })).toBeNull();
   });
 
 });

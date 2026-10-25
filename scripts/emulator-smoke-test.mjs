@@ -1980,6 +1980,16 @@ try {
     organisationId: orgOne.organisationId,
   }), "functions/permission-denied", "cross-tenant member roster access is denied");
 
+  const auditPage = await callOne("listOrganisationSecurityAuditEvents", { organisationId: orgOne.organisationId });
+  assert.equal(auditPage.scope, "organisation_security_audit");
+  assert.equal(typeof auditPage.hasMoreEvents, "boolean");
+  assert.ok(auditPage.events.length > 0 && auditPage.events.length <= 50, "owner audit log returns a bounded page of server-recorded organisation events");
+  assert.ok(auditPage.events.every((event) => event.outcome === "success" && typeof event.actorUid === "string"));
+  assert.ok(auditPage.events.every((event) => !Object.hasOwn(event, "email")), "audit log does not resolve or return actor email addresses");
+  await expectCallableFailure(callTwo("listOrganisationSecurityAuditEvents", {
+    organisationId: orgOne.organisationId,
+  }), "functions/permission-denied", "cross-tenant security audit log access is denied");
+
   await expectCallableFailure(callTwo("getOrganisationPlanUsage", { organisationId: orgOne.organisationId }),
     "functions/permission-denied", "plan usage summary rejects users without tenant membership");
 
@@ -2988,6 +2998,7 @@ try {
     "removeOrganisationMember",
     "updateOrganisationMemberRole",
     "listOrganisationMembers",
+    "listOrganisationSecurityAuditEvents",
     "createCampaign",
     "listCampaigns",
     "getCampaignFunnelSummary",

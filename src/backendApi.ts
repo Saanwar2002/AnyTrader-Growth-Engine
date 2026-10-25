@@ -12,6 +12,24 @@ export interface CallableInvoker {
 export interface OrganisationSummary { organisationId: string; name: string; role: OrganisationRole; }
 export interface OrganisationMemberSummary { uid: string; email: string | null; role: OrganisationRole; createdAt: string | null; }
 export interface OrganisationMemberRoster { organisationId: string; members: OrganisationMemberSummary[]; hasMoreMembers: boolean; nextPageToken: string | null; scope: "organisation_member_roster"; }
+export type SecurityAuditMetadata = Record<string, string | number | boolean>;
+export interface SecurityAuditEventSummary {
+  id: string;
+  eventType: string;
+  actorUid: string;
+  resourceType: "organisation" | "campaign" | "lead" | "outreachDraft";
+  resourceId: string;
+  outcome: "success";
+  metadata: SecurityAuditMetadata;
+  createdAt: string | null;
+}
+export interface SecurityAuditEventPage {
+  organisationId: string;
+  events: SecurityAuditEventSummary[];
+  hasMoreEvents: boolean;
+  nextPageToken: string | null;
+  scope: "organisation_security_audit";
+}
 export type OffboardingPreviewCategory = "members" | "campaigns" | "leads" | "leadActivities" | "outreachDrafts" | "securityAuditEvents" | "campaignCreationIdempotency" | "importIdempotency" | "leadCreationIdempotency" | "outreachDraftCreationIdempotency";
 export interface OffboardingPreviewCategoryResult { category: OffboardingPreviewCategory; status: "complete" | "limit_reached" | "unavailable"; exactCount: number | null; observedCount: number; }
 export interface OffboardingPreviewResult { complete: boolean; destructiveActionPerformed: false; maxRecordsPerCategory: number; categories: OffboardingPreviewCategoryResult[]; }
@@ -85,6 +103,7 @@ export function createGrowthEngineApi(call: CallableInvoker) {
     previewOrganisationOffboarding: (payload: { organisationId: string }) => call<typeof payload, OffboardingPreviewResult>("previewOrganisationOffboarding", payload),
     addOrganisationMember: (payload: { organisationId: string; targetEmail: string; role?: "member" | "viewer"; idempotencyKey: string }) => call<typeof payload, { organisationId: string; uid: string; role: OrganisationRole; added: boolean }>("addOrganisationMember", payload),
     listOrganisationMembers: (payload: { organisationId: string; pageToken?: string }) => call<typeof payload, OrganisationMemberRoster>("listOrganisationMembers", payload),
+    listOrganisationSecurityAuditEvents: (payload: { organisationId: string; pageToken?: string }) => call<typeof payload, SecurityAuditEventPage>("listOrganisationSecurityAuditEvents", payload),
     removeOrganisationMember: (payload: { organisationId: string; targetUid: string }) => call<typeof payload, { organisationId: string; targetUid: string; removed: boolean }>("removeOrganisationMember", payload),
     updateOrganisationMemberRole: (payload: { organisationId: string; targetUid: string; role: "admin" | "member" | "viewer" }) => call<typeof payload, { organisationId: string; targetUid: string; role: "admin" | "member" | "viewer"; changed: boolean }>("updateOrganisationMemberRole", payload),
     createCampaign: (payload: CampaignInput) => call<CampaignInput, { campaignId: string; status: ServerCampaignStatus }>("createCampaign", payload),
