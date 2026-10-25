@@ -94,3 +94,74 @@ export function assertLeadSourceAdapterRunnable(manifest: LeadSourceAdapterManif
   if (issues.length) throw new Error(`Lead source adapter manifest is invalid: ${issues.join(" ")}`);
   if (manifest.reviewStatus !== "approved") throw new Error("Lead source adapter is blocked until its terms and permitted use are approved.");
 }
+
+const FIELD_MAX_LENGTHS: Record<LeadSourceField, number> = {
+  businessName: 200,
+  category: 120,
+  location: 200,
+  website: 320,
+  email: 320,
+  phone: 80,
+};
+
+/**
+ * Validate provider output and attach provenance before it can enter a future
+ * import workflow. This is pure and does not persist records or contact anyone.
+ */
+export function attributeLeadSourceCandidates(
+  manifest: LeadSourceAdapterManifest,
+  candidates: unknown,
+  collectedAt: string,
+): AttributedLeadSourceCandidate[] {
+  assertLeadSourceAdapterRunnable(manifest);
+  if (!isIsoDate(collectedAt)) throw new Error("collectedAt must be a valid ISO-8601 timestamp.");
+  if (!Array.isArray(candidates)) throw new Error("Lead source output must be an array.");
+  if (candidates.length > manifest.maxRecordsPerRun) {
+    throw new Error("Lead source output exceeded its configured per-run record limit.");
+  }
+
+  return candidates.map((candidate: unknown) => {
+    if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
+      throw new Error("Lead source output contains a malformed candidate.");
+    }
+    const record = candidate as Record<string, unknown>;
+    const allowedKeys = new Set<string>([...manifest.allowedFields, "sourceRecordId"]);
+    if (Object.keys(record).some((key) => !allowedKeys.has(key))) {
+      throw new Error("Lead source output contains a field outside its manifest allowlist.");
+    }
+    for (const field of manifest.allowedFields) {
+      if (field === "businessName") continue;
+      const value = record[field];
+      if (value !== undefined && (typeof value !== "string" || value.length > FIELD_MAX_LENGTHS[field])) {
+        throw new Error(`Lead source output contains an invalid ${field} value.`);
+      }
+    }
+    if (typeof record.businessName !== "string" || !record.businessName.trim()
+      || record.businessName.length > FIELD_MAX_LENGTHS.businessName) {
+      throw new Error("Lead source output requires a valid businessName.");
+    }
+    if (record.sourceRecordId !== undefined
+      && (typeof record.sourceRecordId !== "string" || !record.sourceRecordId.trim() || record.sourceRecordId.length > 200)) {
+      throw new Error("Lead source output contains an invalid sourceRecordId.");
+    }
+
+    const normalized: LeadSourceCandidate = { businessName: record.businessName.trim() };
+    for (const field of manifest.allowedFields) {
+      if (field === "businessName") continue;
+      const value = record[field];
+      if (typeof value === "string" && value.trim()) normalized[field] = value.trim();
+    }
+    if (typeof record.sourceRecordId === "string") normalized.sourceRecordId = record.sourceRecordId.trim();
+
+    return {
+      candidate: normalized,
+      provenance: {
+        sourceId: manifest.sourceId,
+        sourceName: manifest.displayName,
+        termsUrl: manifest.termsUrl,
+        collectedAt,
+        ...(normalized.sourceRecordId ? { sourceRecordId: normalized.sourceRecordId } : {}),
+      },
+    };
+  });
+}

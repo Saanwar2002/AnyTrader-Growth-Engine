@@ -27,3 +27,8 @@ The contract defines provenance fields (source ID/name, terms URL, collection ti
 - Provider API clients and persisted provenance: not implemented.
 - Real-source permission review: not performed.
 - Live data access, production configuration, outreach sending: not enabled.
+
+
+## Candidate output validation
+
+The adapter contract also exposes a pure `attributeLeadSourceCandidates` boundary. It requires an approved manifest, checks the collection timestamp, enforces the configured maximum record count, rejects malformed candidates and fields outside the reviewed allowlist, applies field-length bounds, trims accepted strings, and attaches source provenance. This function is not a provider client and does not write to the database; import, deduplication, suppression, and human review remain separate gates.
