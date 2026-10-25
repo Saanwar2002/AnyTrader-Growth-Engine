@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canCreateOutreachDraft, getContactRestrictionAction, deduplicateLeads, escapeCsvCell, serializeLeadExportCsv, formatLeadSourceLabel, findLeadCsvDuplicates, inspectLeadCsvHeaders, normalizeBusinessName, parseLeadCsv, scoreLead, suggestLeadCsvMapping } from "./domain";
+import { canCreateOutreachDraft, getContactRestrictionAction, deduplicateLeads, escapeCsvCell, serializeLeadExportCsv, serializePlanUsageReconciliationCsv, formatLeadSourceLabel, findLeadCsvDuplicates, inspectLeadCsvHeaders, normalizeBusinessName, parseLeadCsv, scoreLead, suggestLeadCsvMapping } from "./domain";
 
 describe("outreach suppression", () => {
   it("offers a clear/review action for suppressed, pending, or contradictory blocked records", () => {
@@ -379,4 +379,55 @@ describe("CSV duplicate preview", () => {
       { campaignId: "c2", businessName: "Same website", website: "https://example.test/casepath" },
     ])).toEqual([]);
   });
+  it("exports quota reconciliation without inventing legacy or AI usage and protects formula cells", () => {
+    const csv = serializePlanUsageReconciliationCsv({
+      organisationId: "org-1",
+      status: "reconciliation_required",
+      plan: { displayName: "=Pilot", limits: { campaigns: 10, leads: 500, members: 5, monthlyAiSuggestions: 100 } },
+      usage: null,
+      remaining: null,
+      aiUsagePeriod: null,
+      message: "Reconciliation required",
+    }, {
+      status: "missing",
+      actual: { campaigns: 3, leads: 42, members: 2 },
+      stored: null,
+      mismatchedMetrics: [],
+      currentAiUsagePeriod: "2026-10",
+      notes: ["Stored counters are missing", "=Review before use"],
+    });
+    expect(csv).toContain('"\'=Pilot"');
+    expect(csv).toContain('"3"');
+    expect(csv).toContain('"42"');
+    expect(csv).toContain('"Unavailable"');
+    expect(csv).toContain('"Review required — historical usage is not inferred"');
+    expect(csv).toContain('"'=Review before use"');
+    expect(csv).toContain('"Review required"');
+    expect(csv.split("\\r\\n")).toHaveLength(5);
+  });
+
+  it("labels authoritative quota mismatches while retaining the stored values", () => {
+    const csv = serializePlanUsageReconciliationCsv({
+      organisationId: "org-2",
+      status: "authoritative",
+      plan: { displayName: "Pilot", limits: { campaigns: 10, leads: 500, members: 5, monthlyAiSuggestions: 100 } },
+      usage: { campaigns: 3, leads: 42, members: 2, monthlyAiSuggestions: 7 },
+      remaining: { campaigns: 7, leads: 458, members: 3, monthlyAiSuggestions: 93 },
+      aiUsagePeriod: "2026-10",
+      message: "Authoritative counters available",
+    }, {
+      status: "present",
+      actual: { campaigns: 4, leads: 42, members: 2 },
+      stored: { campaigns: 3, leads: 42, members: 2, monthlyAiSuggestions: 7, aiUsagePeriod: "2026-10" },
+      mismatchedMetrics: ["campaigns"],
+      currentAiUsagePeriod: "2026-10",
+      notes: ["Campaign count differs"],
+    });
+    expect(csv).toContain('"Mismatch"');
+    expect(csv).toContain('"3"');
+    expect(csv).toContain('"4"');
+    expect(csv).toContain('"Monthly AI suggestions"');
+    expect(csv).toContain('"2026-10"');
+  });
+
 });
