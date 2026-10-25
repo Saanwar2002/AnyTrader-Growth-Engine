@@ -11,6 +11,7 @@ import { hasExactAuditMetadataKeys } from "./audit-metadata-shape";
 import { getValidCampaignCreationReplayResult, isPersistedCampaignCreationReplayAvailable } from "./campaign-creation-idempotency";
 import { getValidOrganisationCreationReplayResult } from "./organisation-creation-idempotency";
 import { getValidLeadCreationReplayResult, isPersistedLeadCreationReplayAvailable } from "./lead-creation-idempotency";
+import { getValidImportReplayResult, isPersistedImportedLeadReplayAvailable } from "./import-idempotency";
 import * as logger from "firebase-functions/logger";
 import { canonicalLeadBusinessLocationKey, canonicalLeadEmailKey, canonicalLeadWebsiteKey } from "./lead-identifiers";
 import { createOffboardingPreview, OFFBOARDING_PREVIEW_CATEGORIES } from "./offboarding-preview";
@@ -1825,48 +1826,28 @@ export const importLeads = onCall(callableOptions, async (request) => {
     await requireTransactionalRole(transaction, organisationId, uid, "lead");
     if (idempotencySnapshot.exists) {
       const saved = idempotencySnapshot.data() ?? {};
-      if (saved.requestHash !== requestHash || !saved.result || typeof saved.result !== "object") {
+      if (saved.requestHash !== requestHash) {
         throw new HttpsError("already-exists", "This idempotencyKey was already used with a different import payload.");
       }
-      const savedResult = saved.result as Record<string, unknown>;
-      const savedLeads = savedResult.leads;
-      const validSavedLeads = Array.isArray(savedLeads)
-        && savedLeads.every((lead) => lead !== null
-          && typeof lead === "object"
-          && !Array.isArray(lead)
-          && isValidDocumentId((lead as Record<string, unknown>).leadId)
-          && typeof (lead as Record<string, unknown>).businessName === "string"
-          && ((lead as Record<string, unknown>).businessName as string).length > 0);
-      if (saved.actorUid !== uid
-        || savedResult.organisationId !== organisationId
-        || savedResult.campaignId !== campaignId
-        || savedResult.received !== prepared.length
-        || !Number.isSafeInteger(savedResult.imported)
-        || (savedResult.imported as number) < 0
-        || !Number.isSafeInteger(savedResult.duplicatesSkipped)
-        || (savedResult.duplicatesSkipped as number) < 0
-        || (savedResult.imported as number) + (savedResult.duplicatesSkipped as number) !== prepared.length
-        || !validSavedLeads
-        || !Array.isArray(savedLeads)
-        || savedLeads.length !== savedResult.imported
-        || savedResult.sent !== false
-        || savedResult.messageSentByThisAction !== false) {
+      const expectedReplay = { actorUid: uid, requestHash, organisationId, campaignId, received: prepared.length };
+      const savedResult = getValidImportReplayResult(saved, expectedReplay);
+      if (!savedResult) {
         throw new HttpsError("failed-precondition", "Saved import retry state is invalid and requires operator review.");
       }
       const replayCampaignSnapshot = await transaction.get(campaignRef);
       if (!replayCampaignSnapshot.exists) {
         throw new HttpsError("failed-precondition", "The campaign for this import retry is no longer available.");
       }
-      return savedResult as {
-        organisationId: string;
-        campaignId: string;
-        received: number;
-        imported: number;
-        duplicatesSkipped: number;
-        leads: Array<{ leadId: string; businessName: string }>;
-        sent: false;
-        messageSentByThisAction: false;
-      };
+      const replayLeadSnapshots = await Promise.all(savedResult.leads.map((lead) =>
+        transaction.get(leadsRef.doc(lead.leadId))));
+      const allPersistedLeadsMatch = replayLeadSnapshots.every((snapshot, index) =>
+        snapshot.exists && isPersistedImportedLeadReplayAvailable(snapshot.data(), {
+          actorUid: uid, campaignId, businessName: savedResult.leads[index].businessName, sourceLabel,
+        }));
+      if (!allPersistedLeadsMatch) {
+        throw new HttpsError("failed-precondition", "Saved import retry state no longer matches its authoritative lead records.");
+      }
+      return savedResult;
     }
 
     const campaignSnapshot = await transaction.get(campaignRef);
