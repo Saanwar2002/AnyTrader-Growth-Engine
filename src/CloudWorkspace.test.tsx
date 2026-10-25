@@ -925,6 +925,10 @@ describe("cloud authentication gate", () => {
       nextPageToken: "lead-page-2",
     });
     mocks.api.listOutreachDrafts.mockResolvedValue({ drafts: [], hasMoreDrafts: false, nextPageToken: null });
+    const createObjectURL = vi.fn((_blob: Blob) => "blob:readiness-report");
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
     render(<CloudWorkspace />);
     fireEvent.click(await screen.findByRole("button", { name: "Show readiness preflight" }));
     const table = await screen.findByRole("table", { name: "Campaign readiness preflight" });
@@ -933,6 +937,22 @@ describe("cloud authentication gate", () => {
     expect(table.textContent).toContain("Incomplete — more pages available");
     expect(screen.getByText(/not approval to contact prospects/i)).toBeTruthy();
     expect(screen.queryByRole("button", { name: /send outreach/i })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Export readiness preflight (CSV)" }));
+    await waitFor(() => expect(createObjectURL).toHaveBeenCalledTimes(1));
+    const exportedBlob = createObjectURL.mock.calls[0][0] as Blob;
+    const csv = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result ?? ""));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsText(exportedBlob);
+    });
+    expect(csv).toContain("Loaded records only");
+    expect(csv).toContain("Roofers Leeds");
+    expect(csv).toContain("Incomplete — more pages available");
+    expect(csv).toContain("does not authorise outreach");
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:readiness-report");
+    expect(await screen.findByText(/This report does not authorise outreach/)).toBeTruthy();
   });
 
   it("exports full server-counted source aggregates only after loading the selected organisation", async () => {
