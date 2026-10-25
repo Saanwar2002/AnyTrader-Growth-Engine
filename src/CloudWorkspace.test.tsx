@@ -1283,7 +1283,7 @@ describe("cloud authentication gate", () => {
     vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
     const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
     render(<CloudWorkspace />);
-    const fullReportButton = await screen.findByRole("button", { name: "Export full campaign report (CSV)" });
+    const fullReportButton = await screen.findByRole("button", { name: "Export full campaign report (CSV)" }) as HTMLButtonElement;
     // The action is intentionally disabled until the initial campaign page has loaded.
     await waitFor(() => expect(fullReportButton.disabled).toBe(false));
     fireEvent.click(fullReportButton);
