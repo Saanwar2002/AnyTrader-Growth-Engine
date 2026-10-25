@@ -266,6 +266,7 @@ it("requests the bounded organisation member roster for the selected tenant", as
     organisationId: "org-1",
     members: [{ uid: "member-uid", email: "member@example.test", role: "member" as const, createdAt: "2026-01-01T00:00:00.000Z" }],
     hasMoreMembers: false,
+    nextPageToken: null,
     scope: "organisation_member_roster" as const,
   };
   const { invoke, calls } = makeInvoker([response]);
@@ -300,4 +301,19 @@ it("requests removal of the selected organisation member", async () => {
   const api = createGrowthEngineApi(invoke);
   await expect(api.removeOrganisationMember({ organisationId: "org-1", targetUid: "member-uid" })).resolves.toEqual(response);
   expect(calls).toEqual([{ name: "removeOrganisationMember", payload: { organisationId: "org-1", targetUid: "member-uid" } }]);
+});
+
+ 
+it("forwards a member roster continuation cursor", async () => {
+  const response = {
+    organisationId: "org-1",
+    members: [],
+    hasMoreMembers: false,
+    nextPageToken: null,
+    scope: "organisation_member_roster" as const,
+  };
+  const { invoke, calls } = makeInvoker([response]);
+  const api = createGrowthEngineApi(invoke);
+  await expect(api.listOrganisationMembers({ organisationId: "org-1", pageToken: "cursor-page-2" })).resolves.toEqual(response);
+  expect(calls).toEqual([{ name: "listOrganisationMembers", payload: { organisationId: "org-1", pageToken: "cursor-page-2" } }]);
 });
