@@ -1377,4 +1377,35 @@ describe("cloud authentication gate", () => {
     expect(screen.queryByText("Lead status changed to qualified")).toBeNull();
   });
 
+  it("filters the loaded lead list by contact-review state and clears the filter", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
+    const lead = (id: string, businessName: string, review: "pending" | "cleared" | "blocked") => ({
+      id, campaignId: "campaign-1", businessName, category: "Painters", location: "Leeds",
+      website: "", email: "", phone: "", source: "manual", status: "new", score: 40,
+      scoreReasons: [], notes: "", doNotContact: review !== "cleared",
+      contactRestrictionVerified: review === "cleared", contactReviewStatus: review,
+      contactReviewRevision: 0, onboardedAt: null, createdAt: null,
+    });
+    mocks.api.listLeads.mockResolvedValue({
+      leads: [
+        lead("pending-1", "Pending Painter", "pending"),
+        lead("cleared-1", "Cleared Painter", "cleared"),
+        lead("blocked-1", "Blocked Painter", "blocked"),
+      ],
+      hasMoreLeads: false,
+      nextPageToken: null,
+    });
+    render(<CloudWorkspace />);
+    await screen.findByText("Pending Painter");
+    expect(screen.getByRole("row", { name: /Cleared Painter/ })).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Filter by contact review"), { target: { value: "pending" } });
+    expect(screen.getByRole("row", { name: /Pending Painter/ })).toBeTruthy();
+    expect(screen.queryByRole("row", { name: /Cleared Painter/ })).toBeNull();
+    expect(screen.queryByRole("row", { name: /Blocked Painter/ })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(screen.getByRole("row", { name: /Cleared Painter/ })).toBeTruthy();
+    expect(screen.getByRole("row", { name: /Blocked Painter/ })).toBeTruthy();
+  });
+
 });
