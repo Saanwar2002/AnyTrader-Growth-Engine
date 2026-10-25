@@ -82,7 +82,7 @@ export function serializeOnboardingCohortCsv(
 ): string {
   const escapeCell = (value: string | number) => {
     const text = String(value);
-    return /[",\\r\\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+    return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
   };
   const headers = ["Scope", "UTC month", "First onboardings", "Attribution note"];
   const rows = cohorts.map((cohort) => [
@@ -91,5 +91,5 @@ export function serializeOnboardingCohortCsv(
     cohort.onboardedLeadCount,
     attributionNote,
   ]);
-  return [headers, ...rows].map((row) => row.map(escapeCell).join(",")).join("\\r\\n") + "\\r\\n";
+  return [headers, ...rows].map((row) => row.map(escapeCell).join(",")).join("\r\n") + "\r\n";
 }
