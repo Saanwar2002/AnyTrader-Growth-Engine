@@ -359,6 +359,36 @@ try {
     leads: [{ businessName: "Invalid source label row" }],
   }), "functions/invalid-argument", "CSV import rejects unsupported source labels");
 
+  // Backfill a synthetic legacy record only inside the local demo emulator.
+  const legacyLeadId = "legacy-identifier-backfill-smoke";
+  execFileSync(process.execPath, [
+    "functions/scripts/seed-emulator-legacy-lead.mjs",
+    orgOne.organisationId,
+    legacyLeadId,
+  ], { stdio: "inherit" });
+  execFileSync(process.execPath, [
+    "functions/scripts/backfill-lead-identifiers.mjs",
+    "--organisation-id", orgOne.organisationId,
+    "--page-size", "25",
+    "--max-records", "5000",
+    "--apply",
+    "--confirm-apply",
+  ], { stdio: "inherit" });
+  const legacyDuplicateResult = await callOne("importLeads", {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    idempotencyKey: "legacy-key-backfill-import-0001",
+    leads: [{
+      businessName: "Different Legacy Duplicate Candidate",
+      category: "Painters",
+      location: "Leeds",
+      email: "legacy.contact@example.test",
+      website: "https://legacy.example.test/Directory",
+    }],
+  });
+  assert.equal(legacyDuplicateResult.imported, 0, "backfilled mixed-case legacy email/website identifiers are found by indexed duplicate lookups");
+  assert.equal(legacyDuplicateResult.duplicatesSkipped, 1, "legacy canonical duplicate is skipped after backfill");
+
   // Case-only email/hostname differences should deduplicate, but URL path case must survive.
   const canonicalImport = await callOne("importLeads", {
     organisationId: orgOne.organisationId,
