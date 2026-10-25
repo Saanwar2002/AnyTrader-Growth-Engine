@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { summarizeCampaignPerformance } from "./analytics";
+import { summarizeCampaignPerformance, summarizeLeadSourcePerformance } from "./analytics";
 describe("summarizeCampaignPerformance", () => {
   it("summarises loaded records and conservatively counts restricted leads", () => {
     expect(summarizeCampaignPerformance(
@@ -31,5 +31,24 @@ describe("summarizeCampaignPerformance", () => {
       campaignId: "c1", campaignName: "Empty", loadedLeadCount: 0, qualifiedLeadCount: 0, contactedLeadCount: 0,
       onboardedLeadCount: 0, qualifiedRatePercent: 0, onboardedRatePercent: 0, restrictedLeadCount: 0, loadedDraftCount: 0, draftsAwaitingReview: 0,
     });
+  });
+});
+
+describe("summarizeLeadSourcePerformance", () => {
+  it("reports source-level funnel counts and rates using loaded records only", () => {
+    expect(summarizeLeadSourcePerformance([
+      { source: "linkedin_csv", status: "qualified" },
+      { source: "linkedin_csv", status: "new" },
+      { source: "google_places_manual", status: "onboarded" },
+      { source: "google_places_manual", status: "contacted" },
+      { source: "", status: "new" },
+    ])).toEqual([
+      { source: "google_places_manual", loadedLeadCount: 2, qualifiedLeadCount: 0, onboardedLeadCount: 1, qualifiedRatePercent: 0, onboardedRatePercent: 50 },
+      { source: "linkedin_csv", loadedLeadCount: 2, qualifiedLeadCount: 1, onboardedLeadCount: 0, qualifiedRatePercent: 50, onboardedRatePercent: 0 },
+      { source: "unknown", loadedLeadCount: 1, qualifiedLeadCount: 0, onboardedLeadCount: 0, qualifiedRatePercent: 0, onboardedRatePercent: 0 },
+    ]);
+  });
+  it("returns an empty list for no loaded leads", () => {
+    expect(summarizeLeadSourcePerformance([])).toEqual([]);
   });
 });

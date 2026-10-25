@@ -30,3 +30,28 @@ export function summarizeCampaignPerformance(
     };
   });
 }
+
+export interface LeadSourcePerformanceLead { source: string; status: string; }
+export interface LeadSourcePerformanceSummary {
+  source: string; loadedLeadCount: number; qualifiedLeadCount: number; onboardedLeadCount: number;
+  qualifiedRatePercent: number; onboardedRatePercent: number;
+}
+/** Group only supplied loaded records. Source values are user-declared attribution, not verified compliance evidence. */
+export function summarizeLeadSourcePerformance(leads: LeadSourcePerformanceLead[]): LeadSourcePerformanceSummary[] {
+  const grouped = new Map<string, LeadSourcePerformanceLead[]>();
+  for (const lead of leads) {
+    const source = typeof lead.source === "string" && lead.source.trim() ? lead.source.trim() : "unknown";
+    const current = grouped.get(source) ?? [];
+    current.push(lead);
+    grouped.set(source, current);
+  }
+  return [...grouped.entries()].map(([source, rows]) => {
+    const qualifiedLeadCount = rows.filter((lead) => lead.status === "qualified").length;
+    const onboardedLeadCount = rows.filter((lead) => lead.status === "onboarded").length;
+    return {
+      source, loadedLeadCount: rows.length, qualifiedLeadCount, onboardedLeadCount,
+      qualifiedRatePercent: Math.round((qualifiedLeadCount / rows.length) * 1000) / 10,
+      onboardedRatePercent: Math.round((onboardedLeadCount / rows.length) * 1000) / 10,
+    };
+  }).sort((a, b) => b.loadedLeadCount - a.loadedLeadCount || a.source.localeCompare(b.source));
+}
