@@ -1107,12 +1107,13 @@ export const getLeadActivityTimeline = onCall(callableOptions, async (request) =
   const snapshot = await organisationRef.collection("leadActivities")
     .where("leadId", "==", leadId)
     .orderBy("createdAt", "desc")
-    .limit(20)
+    .limit(21)
     .get();
+  const latestActivities = snapshot.docs.slice(0, 20);
   return {
     organisationId,
     leadId,
-    activities: snapshot.docs.map((document) => {
+    activities: latestActivities.map((document) => {
       const activity = document.data() ?? {};
       return {
         id: document.id,
@@ -1121,7 +1122,7 @@ export const getLeadActivityTimeline = onCall(callableOptions, async (request) =
       };
     }),
     scope: "latest_20_lead_activity_events" as const,
-    hasMoreHistory: snapshot.size === 20,
+    hasMoreHistory: snapshot.size > 20,
   };
 });
 
