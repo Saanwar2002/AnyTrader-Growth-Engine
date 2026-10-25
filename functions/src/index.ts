@@ -60,6 +60,7 @@ function safePersistedStringArray(value: unknown, maxItems: number, maxLength: n
 
 type SecurityAuditEventType =
   | "organisation.created"
+  | "organisation.settings_updated"
   | "lead.csv_import.completed"
   | "lead.contact_updated"
   | "lead.contact_restriction_changed"
@@ -82,11 +83,13 @@ type SecurityAuditEventMetadata = {
   campaignStatus?: "active" | "paused" | "completed";
   leadStatus?: string;
   notesCleared?: boolean;
+  nameChanged?: boolean;
   draftAction?: "created" | "updated" | "deleted";
 };
 
 const AUDIT_EVENT_RESOURCE_TYPES: Record<SecurityAuditEventType, "organisation" | "campaign" | "lead" | "outreachDraft"> = {
   "organisation.created": "organisation",
+  "organisation.settings_updated": "organisation",
   "lead.csv_import.completed": "campaign",
   "lead.contact_updated": "lead",
   "lead.contact_restriction_changed": "lead",
@@ -102,6 +105,7 @@ const AUDIT_EVENT_RESOURCE_TYPES: Record<SecurityAuditEventType, "organisation" 
 
 const AUDIT_METADATA_KEYS: Record<SecurityAuditEventType, readonly (keyof SecurityAuditEventMetadata)[]> = {
   "organisation.created": [],
+  "organisation.settings_updated": ["nameChanged"],
   "lead.csv_import.completed": ["importedCount", "duplicatesSkipped"],
   "lead.contact_updated": ["contactChannelsChanged", "contactReviewRevision", "contactReviewStatus", "doNotContact"],
   "lead.contact_restriction_changed": ["doNotContact", "contactReviewRevision", "contactReviewStatus"],
@@ -123,7 +127,8 @@ function isBoundedAuditMetadata(eventType: SecurityAuditEventType, metadata: Sec
     || ("contactReviewRevision" in metadata && (!Number.isSafeInteger(metadata.contactReviewRevision) || metadata.contactReviewRevision! < 0))
     || ("contactChannelsChanged" in metadata && typeof metadata.contactChannelsChanged !== "boolean")
     || ("doNotContact" in metadata && typeof metadata.doNotContact !== "boolean")
-    || ("notesCleared" in metadata && typeof metadata.notesCleared !== "boolean")) return false;
+    || ("notesCleared" in metadata && typeof metadata.notesCleared !== "boolean")
+    || ("nameChanged" in metadata && typeof metadata.nameChanged !== "boolean")) return false;
   if ("campaignStatus" in metadata && !["active", "paused", "completed"].includes(metadata.campaignStatus ?? "")) return false;
   if ("leadStatus" in metadata && !["new", "reviewing", "qualified", "contacted", "onboarded", "rejected"].includes(metadata.leadStatus ?? "")) return false;
   if ("contactReviewStatus" in metadata && !["pending", "cleared", "blocked"].includes(metadata.contactReviewStatus ?? "")) return false;
@@ -455,6 +460,26 @@ export const createOrganisation = onCall(callableOptions, async (request) => {
     writeSecurityAuditEvent(transaction, organisation.id, uid, "organisation.created", "organisation", organisation.id, {});
     return result;
   });
+});
+
+export const updateOrganisationSettings = onCall(callableOptions, async (request) => {
+  const uid = requireUid(request.auth?.uid);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const organisationId = requireOrganisationId(data.organisationId);
+  const name = normaliseRequiredText(data.name, 100);
+  if (!name) throw new HttpsError("invalid-argument", "Organisation name must be 1–100 characters.");
+  const organisationRef = db.collection("organisations").doc(organisationId);
+  await db.runTransaction(async (transaction: Transaction) => {
+    await requireTransactionalRole(transaction, organisationId, uid, "campaign");
+    const organisationSnapshot = await transaction.get(organisationRef);
+    if (!organisationSnapshot.exists) throw new HttpsError("not-found", "Organisation was not found.");
+    const currentName = normaliseRequiredText(organisationSnapshot.data()?.name, 100);
+    if (currentName === name) return;
+    await consumeTransactionalRateLimit(transaction, organisationId, uid, "updateOrganisationSettings", 10);
+    transaction.update(organisationRef, { name, updatedAt: FieldValue.serverTimestamp(), updatedBy: uid });
+    writeSecurityAuditEvent(transaction, organisationId, uid, "organisation.settings_updated", "organisation", organisationId, { nameChanged: true });
+  });
+  return { organisationId, name };
 });
 
 export const createCampaign = onCall(callableOptions, async (request) => {

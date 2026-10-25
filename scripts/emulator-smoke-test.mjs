@@ -1831,6 +1831,13 @@ try {
   await expectCallableFailure(callTwo("listLeads", { organisationId: orgOne.organisationId }), "functions/permission-denied", "cross-tenant lead listing denial");
   await expectCallableFailure(callTwo("previewOrganisationOffboarding", { organisationId: orgOne.organisationId }), "functions/permission-denied", "cross-tenant offboarding preview denial");
   const orgTwo = await callTwo("createOrganisation", { name: "Tenant Two", idempotencyKey: "organisation-create-tenant-two-0001" });
+  const renamedOrganisation = await callTwo("updateOrganisationSettings", { organisationId: orgTwo.organisationId, name: "Tenant Two Workspace" });
+  assert.equal(renamedOrganisation.name, "Tenant Two Workspace", "owner can rename an organisation");
+  assert.equal((await callTwo("listMyOrganisations")).organisations.find((item) => item.organisationId === orgTwo.organisationId)?.name, "Tenant Two Workspace",
+    "renamed organisation name persists");
+  await expectCallableFailure(callOne("updateOrganisationSettings", { organisationId: orgTwo.organisationId, name: "Cross-tenant rename" }),
+    "functions/permission-denied", "cross-tenant organisation settings update is denied");
+
   // A cursor scoped to another tenant must be rejected before its target document is read.
   await expectCallableFailure(callOne("listCampaigns", { organisationId: orgOne.organisationId, pageToken: `organisations/${orgTwo.organisationId}/campaigns/cursor-only` }), "functions/invalid-argument", "campaign cursor from another organisation");
   await expectCallableFailure(callOne("listLeads", { organisationId: orgOne.organisationId, pageToken: `organisations/${orgTwo.organisationId}/leads/cursor-only` }), "functions/invalid-argument", "lead cursor from another organisation");
@@ -2641,6 +2648,7 @@ try {
     "previewOrganisationOffboarding",
     "listMyOrganisations",
     "createOrganisation",
+    "updateOrganisationSettings",
     "createCampaign",
     "listCampaigns",
     "updateCampaignStatus",
