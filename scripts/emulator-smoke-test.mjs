@@ -359,6 +359,51 @@ try {
     leads: [{ businessName: "Invalid source label row" }],
   }), "functions/invalid-argument", "CSV import rejects unsupported source labels");
 
+  // Backfill a synthetic legacy record only inside the local demo emulator.
+  const legacyLeadId = "legacy-identifier-backfill-smoke";
+  execFileSync(process.execPath, [
+    "functions/scripts/seed-emulator-legacy-lead.mjs",
+    orgOne.organisationId,
+    legacyLeadId,
+  ], { stdio: "inherit" });
+  execFileSync(process.execPath, [
+    "functions/scripts/backfill-lead-identifiers.mjs",
+    "--organisation-id", orgOne.organisationId,
+    "--page-size", "25",
+    "--max-records", "5000",
+    "--apply",
+    "--confirm-apply",
+  ], { stdio: "inherit" });
+  const legacyDuplicateResult = await callOne("importLeads", {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    idempotencyKey: "legacy-key-backfill-import-0001",
+    leads: [
+      {
+        businessName: "Different Legacy Duplicate Candidate",
+        category: "Painters",
+        location: "Leeds",
+        email: "legacy.contact@example.test",
+        website: "https://legacy.example.test/Directory",
+      },
+      {
+        businessName: "Existing Email Duplicate Candidate",
+        category: "Painters",
+        location: "Manchester",
+        email: "hello@example.test",
+      },
+      {
+        businessName: " synthetic imported alpha ltd ",
+        category: "Painters",
+        location: " LEEDS ",
+        email: "new-contact@example.test",
+        website: "https://new-contact.example.test",
+      },
+    ],
+  });
+  assert.equal(legacyDuplicateResult.imported, 0, "backfilled mixed-case legacy email/website identifiers are found by indexed duplicate lookups");
+  assert.equal(legacyDuplicateResult.duplicatesSkipped, 3, "all three canonical legacy/existing duplicates are skipped after backfill");
+
   // Case-only email/hostname differences should deduplicate, but URL path case must survive.
   const canonicalImport = await callOne("importLeads", {
     organisationId: orgOne.organisationId,
@@ -417,7 +462,7 @@ try {
     "functions/scripts/assert-emulator-audit-events.mjs",
     orgOne.organisationId,
     "lead.csv_import.completed",
-    "4",
+    "5",
     "0",
     "2",
   ], { stdio: "inherit" });
@@ -431,7 +476,7 @@ try {
     "functions/scripts/assert-emulator-audit-events.mjs",
     orgOne.organisationId,
     "lead.csv_import.completed",
-    "4",
+    "5",
     "0",
     "2",
   ], { stdio: "inherit" });
@@ -464,7 +509,7 @@ try {
     "functions/scripts/assert-emulator-audit-events.mjs",
     orgOne.organisationId,
     "lead.csv_import.completed",
-    "5",
+    "6",
     "1",
     "0",
     "2",
@@ -476,7 +521,7 @@ try {
     "functions/scripts/assert-emulator-audit-events.mjs",
     orgOne.organisationId,
     "lead.csv_import.completed",
-    "5",
+    "6",
     "1",
     "0",
     "2",
@@ -512,7 +557,7 @@ try {
     "functions/scripts/assert-emulator-audit-events.mjs",
     orgOne.organisationId,
     "lead.csv_import.completed",
-    "6",
+    "7",
     "0",
     "1",
   ], { stdio: "inherit" });
@@ -551,7 +596,7 @@ try {
     "functions/scripts/assert-emulator-audit-events.mjs",
     orgOne.organisationId,
     "lead.csv_import.completed",
-    "7",
+    "8",
     "1",
     "1",
   ], { stdio: "inherit" });

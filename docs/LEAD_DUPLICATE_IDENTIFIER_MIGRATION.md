@@ -53,4 +53,24 @@ The bounded coordinator returns explicit `scanCompleteness` and `backfillDecisio
 - `backfillDecision` remains blocked for both outcomes. Truncated scans return `blocked-incomplete-scan`; complete scans return `blocked-pending-operator-review`.
 - The coordinator deliberately has no mechanism to approve, mutate, or backfill records. Collision groups, malformed records, tenant scope, source permissions, and the post-backfill verification plan still require review before any future write-enabled migration is designed.
 
-This is a code-level guardrail, not production migration approval. No live database adapter or backfill is included.
+This is a code-level guardrail, not production migration approval. No live database adapter or production backfill is included; the rehearsal below is emulator-only.
+
+
+## Emulator-only backfill harness
+
+`functions/scripts/backfill-lead-identifiers.mjs` implements the first write-capable rehearsal of the backfill sequence, but it is deliberately **local-emulator-only**. It refuses to start unless the project is `demo-growth-engine-test` and `FIRESTORE_EMULATOR_HOST` is localhost/127.0.0.1 on port 8080. It cannot be used to mutate a cloud project.
+
+Run from the repository root after building Functions and starting the local Auth/Functions/Firestore emulators:
+
+```bash
+npm --prefix functions run build
+node functions/scripts/backfill-lead-identifiers.mjs --organisation-id <organisationId> --page-size 100 --max-records 5000
+```
+
+The default is read-only. To rehearse writes against emulator data, add both `--apply --confirm-apply`. The tool pages through one organisation's leads ordered by document ID, caps page size at 200 and the scan at 20,000 records, and reports only record IDs and SHA-256 fingerprints—not raw emails or websites. It updates only the three canonical key fields; it never merges/deletes leads, changes suppression state, sends outreach, or changes quotas.
+
+Apply mode fails closed when the scan reaches its record budget, any malformed source identity is found, or any canonical email, website, or business/location collision exists. Resolve the report and rerun a complete dry run before rehearsing apply. A scan that reaches the exact record budget is conservatively marked truncated; increase the budget and rerun rather than assuming it was complete.
+
+`functions/scripts/seed-emulator-legacy-lead.mjs` creates a synthetic mixed-case legacy record for the emulator smoke suite. CI seeds it, runs the backfill harness, and verifies a subsequent import skips it through canonical indexed lookups.
+
+**This is not a production migration tool.** Legacy cloud records remain only partially covered until a separately reviewed, project-specific migration adapter is approved, run with least-privilege credentials, and verified against a complete pre/post audit. No live database migration or production rollout is authorized by this harness.
