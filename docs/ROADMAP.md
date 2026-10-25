@@ -78,6 +78,7 @@
 - [x] Shared spreadsheet-formula neutralisation across loaded campaign, full campaign, onboarding cohort, and full source analytics CSV exports; comma/quote/newline escaping remains covered by serializer tests.
 - [x] Downloadable campaign performance CSV with a loaded-record-only scope column and escaped text fields.
 - [x] Include bounded completeness scores and formula-safe score explanations in both filtered-loaded and full-tenant lead CSV exports so prioritisation can continue in spreadsheets; internal notes remain excluded.
+- [x] Add an owner/admin-only full-pagination CSV export that applies current search, status, campaign, source, contact-review, and completeness filters to all stored leads; fail closed at the 1,000-record bound rather than downloading partial results.
 - [x] Downloadable full campaign funnel report using server-counted totals across all stored leads, with explicit scope labels, escaped campaign names, and a 20-campaign safety cap.
 - [x] Filter loaded leads by completeness score band (low 0–39, medium 40–69, high 70–100), combine with existing search/status/campaign/contact-review filters, and reset the band with Clear filters; this remains a completeness heuristic, not a quality or contactability guarantee.
 - [x] Filter loaded leads by their declared source, using human-readable labels and the existing search/status/campaign/contact-review/completeness filters; source attribution remains user-declared and unverified.
