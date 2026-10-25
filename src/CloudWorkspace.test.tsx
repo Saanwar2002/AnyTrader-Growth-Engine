@@ -1025,6 +1025,10 @@ describe("cloud authentication gate", () => {
     expect(await screen.findByRole("table", { name: /First-onboarding cohorts by UTC calendar month/ })).toBeTruthy();
     expect(screen.getByText("2025-01")).toBeTruthy();
     expect(screen.getByText("2025-12")).toBeTruthy();
+    const cohortChart = screen.getByRole("group", { name: "Monthly first-onboarding counts chart" });
+    expect(cohortChart.querySelectorAll("progress")).toHaveLength(12);
+    expect(screen.getByRole("progressbar", { name: "2025-01 first onboardings" }).getAttribute("value")).toBe("0");
+    expect(screen.getByRole("progressbar", { name: "2025-12 first onboardings" }).getAttribute("value")).toBe("11");
     expect(screen.getByText(/legacy leads already onboarded before timestamp capture may be excluded/i)).toBeTruthy();
   });
 
