@@ -903,6 +903,7 @@ export const listLeads = onCall(callableOptions, async (request) => {
         contactRestrictionVerified: lead.doNotContact === false && (lead.contactReviewStatus === undefined || lead.contactReviewStatus === "cleared"),
         contactReviewStatus: normaliseContactReviewStatus(lead.doNotContact, lead.contactReviewStatus),
         contactReviewRevision: typeof lead.contactReviewRevision === "number" && Number.isSafeInteger(lead.contactReviewRevision) && lead.contactReviewRevision >= 0 ? lead.contactReviewRevision : 0,
+        onboardedAt: safeTimestampToIso(lead.onboardedAt),
         createdAt: safeTimestampToIso(lead.createdAt),
       };
     }),
@@ -1483,7 +1484,14 @@ export const updateLeadStatus = onCall(callableOptions, async (request) => {
     }
     const now = FieldValue.serverTimestamp();
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "updateLeadStatus", 240);
-    transaction.update(leadRef, { status, updatedAt: now, updatedBy: uid });
+    const leadUpdate: Record<string, unknown> = { status, updatedAt: now, updatedBy: uid };
+    // Capture first onboarding time once; never overwrite it on later status changes.
+    // Legacy records already marked onboarded without this field remain null rather
+    // than receiving a misleading timestamp for a historical event.
+    if (status === "onboarded" && lead.status !== "onboarded" && !isValidFirestoreTimestamp(lead.onboardedAt)) {
+      leadUpdate.onboardedAt = now;
+    }
+    transaction.update(leadRef, leadUpdate);
     transaction.create(activity, { leadId, actorUid: uid, message: `Lead status changed to ${status}`, createdAt: now });
     writeSecurityAuditEvent(transaction, organisationId, uid, "lead.status_changed", "lead", leadId, { leadStatus: status });
   });
