@@ -12,6 +12,7 @@ const expectedRateLimitType: Record<string, "read" | "mutation"> = {
   previewOrganisationOffboarding: "read",
   createOrganisation: "mutation",
   updateOrganisationSettings: "mutation",
+  addOrganisationMember: "mutation",
   createCampaign: "mutation",
   listCampaigns: "read",
   updateCampaignStatus: "mutation",
@@ -31,6 +32,21 @@ const expectedRateLimitType: Record<string, "read" | "mutation"> = {
 };
 
 describe("callable security contract", () => {
+  it("authorises member additions and reserves member quota in the same transaction", () => {
+    const start = callableSource.indexOf("export const addOrganisationMember =");
+    const end = callableSource.indexOf("export const createCampaign =", start);
+    const callable = callableSource.slice(start, end);
+    expect(callable).toContain('requireTransactionalRole(transaction, organisationId, uid, "campaign")');
+    expect(callable).toContain('reserveOrganisationPlanUsage(transaction, organisationId, "members", 1)');
+    expect(callable).toContain('consumeTransactionalRateLimit(transaction, organisationId, uid, "addOrganisationMember", 30)');
+    expect(callable).toContain("transaction.update(organisationRef, { planUsage: reservedPlanUsageState })");
+    expect(callable.indexOf("transaction.update(organisationRef, { planUsage: reservedPlanUsageState })"))
+      .toBeLessThan(callable.indexOf("transaction.create(targetMembershipRef"));
+    expect(callable).toContain('role !== "member" && role !== "viewer"');
+    expect(callable).toContain("memberAdditionIdempotency");
+    expect(callable).toContain('writeSecurityAuditEvent(transaction, organisationId, uid, "organisation.member_added"');
+  });
+
   it("reserves campaign quota atomically for organisations with authoritative usage state", () => {
     const campaignStart = callableSource.indexOf("export const createCampaign =");
     const campaignEnd = callableSource.indexOf("export const listCampaigns =", campaignStart);
