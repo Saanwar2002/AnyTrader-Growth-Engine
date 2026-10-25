@@ -387,6 +387,69 @@ export function escapeCsvCell(value: string | number): string {
 }
 
 
+export interface PlanUsageCsvSummary {
+  organisationId: string;
+  status: "authoritative" | "reconciliation_required";
+  plan: { displayName: string; limits: { campaigns: number; leads: number; members: number; monthlyAiSuggestions: number } };
+  usage: { campaigns: number; leads: number; members: number; monthlyAiSuggestions: number } | null;
+  remaining: { campaigns: number; leads: number; members: number; monthlyAiSuggestions: number } | null;
+  aiUsagePeriod: string | null;
+  message: string;
+}
+
+export interface PlanUsageReconciliationCsvSummary {
+  status: "missing" | "invalid" | "present";
+  actual: { campaigns: number; leads: number; members: number };
+  stored: ({ campaigns: number; leads: number; members: number; monthlyAiSuggestions: number; aiUsagePeriod: string }) | null;
+  mismatchedMetrics: Array<"campaigns" | "leads" | "members">;
+  currentAiUsagePeriod: string | null;
+  notes: string[];
+}
+
+/**
+ * Export read-only quota reconciliation without inventing legacy usage or AI history.
+ * Every cell is formula-safe; AI usage is always labelled review-required because
+ * historical monthly counts cannot be reconstructed from current resource totals.
+ */
+export function serializePlanUsageReconciliationCsv(
+  plan: PlanUsageCsvSummary,
+  reconciliation: PlanUsageReconciliationCsvSummary,
+): string {
+  const headers = [
+    "Organisation ID", "Plan", "Plan usage status", "Metric", "Actual count",
+    "Stored count", "Limit", "Remaining", "Reconciliation status", "AI usage period", "Notes",
+  ];
+  const csvCell = (value: string | number | null): string => escapeCsvCell(value === null ? "Unavailable" : value);
+  const rows: Array<Array<string | number | null>> = [];
+  const metrics = [
+    { key: "campaigns" as const, label: "Campaigns (lifetime)" },
+    { key: "leads" as const, label: "Leads (lifetime)" },
+    { key: "members" as const, label: "Members (current)" },
+  ];
+  for (const metric of metrics) {
+    const status = reconciliation.status !== "present"
+      ? "Review required"
+      : reconciliation.mismatchedMetrics.includes(metric.key) ? "Mismatch" : "Match";
+    rows.push([
+      plan.organisationId, plan.plan.displayName, plan.status, metric.label,
+      reconciliation.actual[metric.key], reconciliation.stored?.[metric.key] ?? null,
+      plan.plan.limits[metric.key], plan.remaining?.[metric.key] ?? null,
+      status, reconciliation.currentAiUsagePeriod,
+      reconciliation.notes.join(" | ") || plan.message,
+    ]);
+  }
+  rows.push([
+    plan.organisationId, plan.plan.displayName, plan.status, "Monthly AI suggestions",
+    "Review required — historical usage is not inferred",
+    reconciliation.stored?.monthlyAiSuggestions ?? null,
+    plan.plan.limits.monthlyAiSuggestions,
+    plan.remaining?.monthlyAiSuggestions ?? null,
+    "Review required", reconciliation.stored?.aiUsagePeriod ?? reconciliation.currentAiUsagePeriod,
+    "Historical AI usage requires separate review; no usage was reconstructed. " + (reconciliation.notes.join(" | ") || plan.message),
+  ]);
+  return [headers, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
+}
+
 export interface LeadExportRecord {
   campaignId: string;
   businessName: string;

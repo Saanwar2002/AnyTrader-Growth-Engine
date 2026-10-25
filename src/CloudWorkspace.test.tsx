@@ -1380,6 +1380,29 @@ describe("cloud authentication gate", () => {
   });
 
  
+  it("exports read-only quota reconciliation after both summaries load", async () => {
+    mocks.currentUser = { email: "owner@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    const createObjectURL = vi.fn((_blob: Blob) => "blob:quota-reconciliation");
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load plan usage" }));
+    await screen.findByRole("table", { name: "Server-maintained plan usage for 2026-10" });
+    fireEvent.click(screen.getByRole("button", { name: "Inspect reconciliation" }));
+    await screen.findByRole("table", { name: "Actual resource counts versus stored plan counters" });
+    fireEvent.click(screen.getByRole("button", { name: "Export quota reconciliation (CSV)" }));
+    await waitFor(() => expect(createObjectURL).toHaveBeenCalledTimes(1));
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:quota-reconciliation");
+    expect(await screen.findByText(/historical AI usage remains review-required/i)).toBeTruthy();
+  });
+
   it("lets an owner remove a non-owner member after confirmation", async () => {
     mocks.currentUser = { email: "owner@example.test", uid: "owner-uid" };
     mocks.api.listMyOrganisations.mockResolvedValue({

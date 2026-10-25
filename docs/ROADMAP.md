@@ -91,6 +91,7 @@
 - [x] Owner/admin campaign detail editing with transactional tenant-role rechecks and PII-minimised audit events.
 - [ ] Plans and server-side entitlements/quotas. Campaign, lead, member, and monthly AI-suggestion limits are enforced for organisations with authoritative usage counters; the owner/admin usage dashboard now exposes these counters without inventing zeroes for legacy organisations. Review and reconcile legacy usage before extending enforcement. Billing remains disabled.
 - [x] Add a read-only owner/admin reconciliation preview comparing live campaign/lead/member counts to stored plan counters; never auto-repair counters or infer historical AI usage.
+- [x] Downloadable owner/admin quota reconciliation CSV showing actual versus stored resource counts, limits, remaining usage, mismatches, and missing legacy values; historical AI usage remains explicitly review-required and formula-safe.
 - [x] Show owner/admin quota utilization states (within limit, near limit at 20% remaining or less, and limit reached) beside authoritative usage counters; keep legacy organisations in reconciliation-required state without invented numbers.
 - [ ] Billing only after core workflows and server-side entitlements are tested.
 
