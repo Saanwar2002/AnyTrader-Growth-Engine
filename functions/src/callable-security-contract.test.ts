@@ -973,3 +973,21 @@ describe("organisation member role management", () => {
 });
 
 });
+
+
+describe("organisation security audit log", () => {
+  it("limits audit log reads to owners and admins with bounded tenant-scoped pagination", () => {
+    const start = callableSource.indexOf("export const listOrganisationSecurityAuditEvents = onCall(");
+    const end = callableSource.indexOf("export const ", start + 1);
+    const body = callableSource.slice(start, end < 0 ? callableSource.length : end);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(body).toContain('membership.role !== "owner" && membership.role !== "admin"');
+    expect(body).toContain('consumeReadRateLimit(organisationId, uid, "listOrganisationSecurityAuditEvents", 10)');
+    expect(body).toContain('decoded.scope !== "organisation_security_audit" || decoded.organisationId !== organisationId');
+    expect(body).toContain("query.limit(51)");
+    expect(body).toContain("await requireAuditViewer();");
+    expect(body).toContain("isBoundedAuditMetadata(eventType as SecurityAuditEventType");
+    expect(body).not.toContain("getAuth().getUser");
+    expect(body).not.toContain("email:");
+  });
+});
