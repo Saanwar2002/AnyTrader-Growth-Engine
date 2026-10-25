@@ -13,7 +13,8 @@ const orgIndex = process.argv.indexOf("--org");
 const requestedOrgId = orgIndex >= 0 ? process.argv[orgIndex + 1] : undefined;
 const jsonOutput = args.has("--json");
 const allowProductionRead = args.has("--allow-production-read");
-const projectId = process.env.GCLOUD_PROJECT ?? process.env.FIREBASE_PROJECT ?? "demo-growth-engine-test";
+const configuredProjectId = process.env.GCLOUD_PROJECT ?? process.env.FIREBASE_PROJECT;
+const projectId = configuredProjectId ?? "demo-growth-engine-test";
 const emulatorHost = process.env.FIRESTORE_EMULATOR_HOST;
 const isLocalDemoEmulator = projectId === "demo-growth-engine-test"
   && !!emulatorHost
@@ -22,15 +23,14 @@ const isLocalDemoEmulator = projectId === "demo-growth-engine-test"
 if (args.has("--org") && !/^[A-Za-z0-9_-]{1,128}$/.test(requestedOrgId ?? "")) {
   throw new Error("Usage: node report-plan-usage-reconciliation.mjs [--org <organisationId>] [--json] [--allow-production-read]");
 }
+if (allowProductionRead && (!configuredProjectId || configuredProjectId === "demo-growth-engine-test") && !isLocalDemoEmulator) {
+  throw new Error("Set GCLOUD_PROJECT or FIREBASE_PROJECT to the exact intended project before enabling production reads.");
+}
 if (!isLocalDemoEmulator && !allowProductionRead) {
   throw new Error(
     "Refusing to inspect non-emulator Firestore. Use the demo emulator, or explicitly pass --allow-production-read for a read-only production audit.",
   );
 }
-if (allowProductionRead && isLocalDemoEmulator) {
-  // Explicit opt-in is harmless on the emulator, but this branch is intentionally quiet.
-}
-
 if (getApps().length === 0) initializeApp({ projectId });
 const db = getFirestore();
 
@@ -85,7 +85,7 @@ async function inspectOrganisation(snapshot) {
         }
       : null,
     mismatchedMetrics: mismatches,
-    aiUsageReviewRequired: status !== "present" || mismatches.length > 0,
+    aiUsageReviewRequired: true,
     notes: status === "missing"
       ? ["Legacy usage snapshot missing; do not initialise counters to zero without reconciliation."]
       : status === "invalid"
