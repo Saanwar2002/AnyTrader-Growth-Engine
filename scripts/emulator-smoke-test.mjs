@@ -2680,8 +2680,11 @@ try {
     idempotencyKey: "member-addition-smoke-test-0001",
   });
   assert.equal(retriedMember.added, true, "same idempotency key returns the original member-addition result");
-  const usageAfterMemberRetry = (await getDoc(doc(first.firestore, "organisations", quotaOrg.organisationId))).data()?.planUsage;
-  assert.equal(usageAfterMemberRetry?.members, 2, "idempotent retry must not charge member usage twice");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-member-usage.mjs",
+    quotaOrg.organisationId,
+    "2",
+  ], { stdio: "inherit" });
   await expectCallableFailure(callTwo("addOrganisationMember", {
     organisationId: quotaOrg.organisationId,
     targetUid: first.auth.currentUser.uid + "-another",
