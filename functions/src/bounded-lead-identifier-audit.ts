@@ -89,31 +89,45 @@ export async function runBoundedLeadIdentifierAudit(
     });
     pagesRead += 1;
 
-    if (!page || typeof page !== "object" || !Array.isArray(page.records)) {
+    let rawRecords: unknown[];
+    let rawNextCursor: unknown;
+    let recordCount: number;
+    try {
+      if (!page || typeof page !== "object" || Array.isArray(page)) {
+        throw new Error("invalid page shape");
+      }
+      const envelope = page as Record<string, unknown>;
+      const candidateRecords = envelope.records;
+      if (!Array.isArray(candidateRecords)) throw new Error("invalid records collection");
+      rawRecords = candidateRecords;
+      recordCount = candidateRecords.length;
+      rawNextCursor = envelope.nextCursor;
+    } catch {
       throw new Error("Lead audit page adapter returned an invalid page or records collection.");
     }
-    if (page.nextCursor !== undefined && page.nextCursor !== null && typeof page.nextCursor !== "string") {
+    if (rawNextCursor !== undefined && rawNextCursor !== null && typeof rawNextCursor !== "string") {
       throw new Error("Lead audit page adapter returned an invalid continuation cursor.");
     }
-    if (page.records.length > Math.min(options.pageSize, remaining)) {
+    if (recordCount > Math.min(options.pageSize, remaining)) {
       throw new Error("Lead audit page exceeded the requested page limit.");
     }
 
     let pageRecords: LegacyLeadRecord[];
     try {
-      // Index-based copying also rejects sparse arrays instead of passing holes
-      // to the analyzer as undefined records.
+      // Snapshot envelope fields once and copy records by index. This rejects
+      // sparse arrays and prevents hostile getters from changing values between
+      // validation and analysis.
       pageRecords = [];
-      for (let index = 0; index < page.records.length; index += 1) {
-        pageRecords.push(snapshotAuditRecord(page.records[index]));
+      for (let index = 0; index < recordCount; index += 1) {
+        pageRecords.push(snapshotAuditRecord(rawRecords[index]));
       }
     } catch {
       throw new Error("Lead audit page adapter returned a malformed record.");
     }
     records.push(...pageRecords);
 
-    const nextCursor = page.nextCursor || undefined;
-    if (page.records.length === 0 && nextCursor) {
+    const nextCursor = typeof rawNextCursor === "string" && rawNextCursor ? rawNextCursor : undefined;
+    if (recordCount === 0 && nextCursor) {
       throw new Error("Lead audit pagination returned an empty page with a continuation cursor.");
     }
     hasMore = Boolean(nextCursor);

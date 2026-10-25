@@ -132,6 +132,36 @@ describe("bounded read-only lead identifier audit coordinator", () => {
     expect(result.report.missingEmailKeys).toEqual(["lead-b"]);
   });
 
+  it("snapshots page envelope accessors once and rejects throwing page getters", async () => {
+    const throwingRecords = Object.defineProperty({}, "records", {
+      get() {
+        throw new Error("adapter detail must not escape");
+      },
+    });
+    await expect(runBoundedLeadIdentifierAudit({
+      tenantId: "tenant-1", pageSize: 10, maxRecords: 5, dryRun: true,
+      fetchPage: vi.fn().mockResolvedValue(throwingRecords),
+    })).rejects.toThrow("invalid page or records collection");
+
+    let cursorReads = 0;
+    const changingCursor = {
+      records: [{ id: "lead-a" }],
+      get nextCursor() {
+        cursorReads += 1;
+        if (cursorReads > 1) throw new Error("cursor changed between reads");
+        return undefined;
+      },
+    };
+    const result = await runBoundedLeadIdentifierAudit({
+      tenantId: "tenant-1", pageSize: 10, maxRecords: 5, dryRun: true,
+      fetchPage: vi.fn().mockResolvedValue(changingCursor),
+    });
+
+    expect(cursorReads).toBe(1);
+    expect(result.report.scannedRecords).toBe(1);
+    expect(result.pagesRead).toBe(1);
+  });
+
   it("rejects adapters that violate the requested page size", async () => {
     const fetchPage = vi.fn().mockResolvedValue({
       records: [{ id: "a" }, { id: "b" }],
