@@ -23,6 +23,9 @@ const isLocalDemoEmulator = projectId === "demo-growth-engine-test"
 if (args.has("--org") && !/^[A-Za-z0-9_-]{1,128}$/.test(requestedOrgId ?? "")) {
   throw new Error("Usage: node report-plan-usage-reconciliation.mjs [--org <organisationId>] [--json] [--allow-production-read]");
 }
+if (emulatorHost && !isLocalDemoEmulator) {
+  throw new Error("Refusing an unexpected Firestore emulator host; only localhost:8080 for the demo project is permitted.");
+}
 if (allowProductionRead && (!configuredProjectId || configuredProjectId === "demo-growth-engine-test") && !isLocalDemoEmulator) {
   throw new Error("Set GCLOUD_PROJECT or FIREBASE_PROJECT to the exact intended project before enabling production reads.");
 }
