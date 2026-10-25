@@ -2125,7 +2125,7 @@ export const bulkUpdateLeadStatus = onCall(callableOptions, async (request) => {
         message: `Lead status changed to ${status} (bulk update)`,
         createdAt: now,
       });
-      writeSecurityAuditEvent(transaction, organisationId, uid, "lead.status_changed", "lead", lead.leadId, { leadStatus: status, bulkUpdate: true });
+      writeSecurityAuditEvent(transaction, organisationId, uid, "lead.status_changed", "lead", lead.leadId, { leadStatus: status });
       changedLeadIds.push(lead.leadId);
       updatedCount += 1;
     }
