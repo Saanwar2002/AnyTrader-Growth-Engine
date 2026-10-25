@@ -2667,13 +2667,13 @@ try {
   });
   await expectCallableFailure(callOne("addOrganisationMember", {
     organisationId: quotaOrg.organisationId,
-    targetUid: "missing-synthetic-account-0001",
+    targetEmail: "missing-synthetic-account@example.test",
     role: "member",
     idempotencyKey: "member-addition-missing-user-0001",
   }), "functions/not-found", "member addition rejects nonexistent accounts");
   const addedMember = await callOne("addOrganisationMember", {
     organisationId: quotaOrg.organisationId,
-    targetUid: second.auth.currentUser.uid,
+    targetEmail: "tenant-two@example.test",
     role: "viewer",
     idempotencyKey: "member-addition-smoke-test-0001",
   });
@@ -2693,7 +2693,7 @@ try {
   ], { stdio: "inherit" });
   await expectCallableFailure(callTwo("addOrganisationMember", {
     organisationId: quotaOrg.organisationId,
-    targetUid: first.auth.currentUser.uid + "-another",
+    targetEmail: "tenant-one@example.test",
     role: "member",
     idempotencyKey: "member-addition-nonadmin-0001",
   }), "functions/permission-denied", "viewer cannot add organisation members");
