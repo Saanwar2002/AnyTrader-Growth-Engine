@@ -44,6 +44,49 @@ describe("transaction-ready usage reservation decision", () => {
     expect(state.campaigns).toBe(9);
   });
 
+  it("enforces the monthly AI suggestion limit at the exact boundary", () => {
+    const atLimit = { ...state, monthlyAiSuggestions: 50 };
+    expect(reservePlanUsage(PILOT_PLAN, atLimit, "monthlyAiSuggestions")).toEqual({
+      allowed: false,
+      reason: "limit_exceeded",
+      metric: "monthlyAiSuggestions",
+      requested: 1,
+      used: 50,
+      limit: 50,
+    });
+    expect(reservePlanUsage(PILOT_PLAN, state, "monthlyAiSuggestions")).toMatchObject({
+      allowed: true,
+      remaining: 0,
+      state: { monthlyAiSuggestions: 50 },
+    });
+  });
+
+  it("allows a new month's first AI suggestion after resetting only the monthly counter", () => {
+    const previous = {
+      schemaVersion: 1 as const,
+      campaigns: 10,
+      leads: 500,
+      members: 5,
+      monthlyAiSuggestions: 50,
+      aiUsagePeriod: "2026-09",
+    };
+    const resolution = resolvePlanUsageState(previous, now);
+    expect(resolution.ok).toBe(true);
+    if (!resolution.ok) throw new Error("Expected a valid previous usage snapshot");
+    expect(resolution.state).toMatchObject({
+      campaigns: 10,
+      leads: 500,
+      members: 5,
+      monthlyAiSuggestions: 0,
+      aiUsagePeriod: "2026-10",
+    });
+    expect(reservePlanUsage(PILOT_PLAN, resolution.state, "monthlyAiSuggestions")).toMatchObject({
+      allowed: true,
+      remaining: 49,
+      state: { monthlyAiSuggestions: 1, aiUsagePeriod: "2026-10" },
+    });
+  });
+
   it("rejects over-limit reservations without increasing usage", () => {
     expect(reservePlanUsage(PILOT_PLAN, state, "leads", 2)).toEqual({
       allowed: false, reason: "limit_exceeded", metric: "leads", requested: 2, used: 499, limit: 500,
