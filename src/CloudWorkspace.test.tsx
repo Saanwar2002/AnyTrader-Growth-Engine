@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
   currentUser: null as unknown,
   api: {
     listMyOrganisations: vi.fn(), createOrganisation: vi.fn(), updateOrganisationSettings: vi.fn(), previewOrganisationOffboarding: vi.fn(), addOrganisationMember: vi.fn(), removeOrganisationMember: vi.fn(), updateOrganisationMemberRole: vi.fn(), listOrganisationMembers: vi.fn(), listOrganisationSecurityAuditEvents: vi.fn(), createCampaign: vi.fn(), updateCampaignStatus: vi.fn(), updateCampaignDetails: vi.fn(),
-    listCampaigns: vi.fn(), getCampaignFunnelSummary: vi.fn(), getLeadSourceFunnelSummary: vi.fn(), getOnboardingCohortSummary: vi.fn(), getOnboardingCohortCoverage: vi.fn(), getContactReviewQueueSummary: vi.fn(), getLeadCompletenessSummary: vi.fn(), getLeadActivityTimeline: vi.fn(), getOrganisationPlanUsage: vi.fn(), getOrganisationPlanUsageReconciliation: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), importLeads: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(),
+    listCampaigns: vi.fn(), getCampaignFunnelSummary: vi.fn(), getLeadSourceFunnelSummary: vi.fn(), getOnboardingCohortSummary: vi.fn(), getOnboardingCohortCoverage: vi.fn(), getContactReviewQueueSummary: vi.fn(), getLeadCompletenessSummary: vi.fn(), getLeadActivityTimeline: vi.fn(), getOrganisationPlanUsage: vi.fn(), getOrganisationPlanUsageReconciliation: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), importLeads: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(), bulkUpdateLeadStatus: vi.fn(),
     updateLeadNotes: vi.fn(), setLeadSuppression: vi.fn(), createOutreachDraft: vi.fn(), suggestOutreachDraft: vi.fn(), listOutreachDrafts: vi.fn(),
     updateOutreachDraft: vi.fn(), deleteOutreachDraft: vi.fn(),
   },
@@ -1925,6 +1925,36 @@ describe("cloud authentication gate", () => {
     expect(createObjectURL).toHaveBeenCalledTimes(1);
     expect(click).toHaveBeenCalledTimes(1);
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:completeness");
+  });
+
+  it("updates multiple selected leads with one idempotent request", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    mocks.api.listLeads.mockResolvedValue({
+      leads: [
+        { id: "bulk-1", campaignId: "campaign-1", businessName: "Bulk Painter A", category: "Painters", location: "Leeds", website: "", email: "", phone: "", source: "manual", status: "new", score: 40, scoreReasons: [], notes: "", doNotContact: true, contactReviewVerified: false, contactReviewStatus: "pending", createdAt: null },
+        { id: "bulk-2", campaignId: "campaign-1", businessName: "Bulk Painter B", category: "Painters", location: "York", website: "", email: "", phone: "", source: "manual", status: "new", score: 55, scoreReasons: [], notes: "", doNotContact: true, contactReviewVerified: false, contactReviewStatus: "pending", createdAt: null },
+      ],
+      hasMoreLeads: false,
+      nextPageToken: null,
+    });
+    mocks.api.bulkUpdateLeadStatus.mockResolvedValue({
+      organisationId: "org-1", status: "qualified", updatedCount: 2, unchangedCount: 0, leadIds: ["bulk-1", "bulk-2"],
+    });
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("checkbox", { name: "Select Bulk Painter A for bulk status update" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Select Bulk Painter B for bulk status update" }));
+    expect(screen.getByText("2/25 selected. Bulk updates are all-or-nothing; selecting “contacted” is blocked if any selected lead has an unresolved contact restriction.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Update 2 selected lead(s)" }));
+    await waitFor(() => expect(mocks.api.bulkUpdateLeadStatus).toHaveBeenCalledTimes(1));
+    const payload = mocks.api.bulkUpdateLeadStatus.mock.calls[0][0];
+    expect(payload.organisationId).toBe("org-1");
+    expect(payload.leadIds).toEqual(["bulk-1", "bulk-2"]);
+    expect(payload.status).toBe("qualified");
+    expect(payload.idempotencyKey).toMatch(/^bulk-lead-status/);
   });
 
 });
