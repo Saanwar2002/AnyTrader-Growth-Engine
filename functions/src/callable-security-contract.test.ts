@@ -776,18 +776,17 @@ describe("manual lead creation idempotency replay integrity", () => {
     const savedValidation = body.indexOf("Saved lead retry state is invalid");
     const leadRead = body.indexOf("transaction.get(replayLeadRef)");
     const campaignRead = body.indexOf("transaction.get(campaignRef)", replayCheck);
-    const replayReturn = body.indexOf("return savedResult as {", replayCheck);
+    const replayReturn = body.indexOf("return savedResult;", replayCheck);
 
     expect(replayCheck).toBeGreaterThanOrEqual(0);
-    expect(body).toContain("saved.actorUid !== uid");
-    expect(body).toContain("isValidDocumentId(savedLeadId)");
+    expect(body).toContain("getValidLeadCreationReplayResult(saved, expectedReplay)");
+    expect(body).toContain("isPersistedLeadCreationReplayAvailable(replayLeadSnapshot.data(), expectedReplay, savedResult)");
     expect(body).toContain("Saved lead retry state no longer matches its authoritative records");
     expect(savedValidation).toBeGreaterThan(replayCheck);
     expect(leadRead).toBeGreaterThan(savedValidation);
     expect(campaignRead).toBeGreaterThan(replayCheck);
     expect(replayReturn).toBeGreaterThan(leadRead);
-    expect(body).toContain('replayLead.createdBy !== uid');
-    expect(body).toContain('replayLead.campaignId !== campaignId');
+    expect(body).not.toContain("return savedResult as {");
   });
 });
 
