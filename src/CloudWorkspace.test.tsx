@@ -790,4 +790,26 @@ describe("cloud authentication gate", () => {
     expect(screen.queryByRole("button", { name: "Complete" })).toBeNull();
   });
 
+  it("loads full server-side campaign funnel counts on demand", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    mocks.api.listCampaigns.mockResolvedValue({
+      campaigns: [{ id: "campaign-1", name: "Painter pilot", brand: "AnyTrader", category: "Painters", location: "Manchester", goal: "Recruit providers", status: "active", createdAt: null }],
+      hasMoreCampaigns: false,
+      nextPageToken: null,
+    });
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load full counts" }));
+    await waitFor(() => expect(mocks.api.getCampaignFunnelSummary).toHaveBeenCalledWith({
+      organisationId: "org-1",
+      campaignId: "campaign-1",
+    }));
+    expect(await screen.findByText("120 total leads")).toBeTruthy();
+    expect(screen.getByText("30 qualified · 12 contacted · 4 onboarded")).toBeTruthy();
+    expect(screen.getByText("25.0% qualified · 3.3% onboarded")).toBeTruthy();
+  });
+
 });
