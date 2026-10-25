@@ -67,3 +67,13 @@
 .cloud-cohort-chart-row progress{display:block;width:100%;height:10px;accent-color:#5279b8}
 .cloud-cohort-chart-row strong{text-align:right;color:#26354b;font-size:11px}
 @media(max-width:560px){.cloud-cohort-chart-row{grid-template-columns:4.5rem minmax(0,1fr) 1.5rem;gap:7px}}
+
+.cloud-source-chart{display:grid;gap:10px;margin:14px 0 20px;padding:14px;border:1px solid #e5eaf2;border-radius:10px;background:#fbfcfe}
+.cloud-source-chart-head,.cloud-source-chart-row{display:grid;grid-template-columns:8rem repeat(3,minmax(0,1fr));align-items:center;gap:12px}
+.cloud-source-chart-head{color:#74829a;font-size:9px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
+.cloud-source-chart-row{font-size:11px;color:#66758b;font-variant-numeric:tabular-nums}
+.cloud-source-chart-row>strong{color:#26354b}
+.cloud-source-chart-row>div{display:grid;gap:4px}
+.cloud-source-chart-row small{text-align:right}
+.cloud-source-chart-row progress{display:block;width:100%;height:9px;accent-color:#5279b8}
+@media(max-width:650px){.cloud-source-chart-head,.cloud-source-chart-row{grid-template-columns:6rem repeat(3,minmax(0,1fr));gap:7px}.cloud-source-chart{padding:9px}}
