@@ -45,6 +45,7 @@ beforeEach(() => {
   mocks.api.updateOrganisationSettings.mockImplementation(async ({ organisationId, name }) => ({ organisationId, name }));
   mocks.api.updateCampaignDetails.mockImplementation(async ({ campaignId, name, brand, category, location, goal }) => ({ campaignId, name, brand, category, location, goal }));
   mocks.api.createCampaign.mockResolvedValue({ campaignId: "campaign-new", status: "active" });
+  mocks.api.updateCampaignStatus.mockImplementation(async ({ campaignId, status }) => ({ campaignId, status }));
   mocks.api.updateCampaignDetails.mockImplementation(async (payload) => payload);
   mocks.api.createLead.mockResolvedValue({ leadId: "lead-new", status: "new" });
   mocks.api.importLeads.mockResolvedValue({ organisationId: "org-1", campaignId: "campaign-1", received: 2, imported: 2, duplicatesSkipped: 0, leads: [{ leadId: "lead-csv-1", businessName: "Northside Painting" }, { leadId: "lead-csv-2", businessName: "City Decorators" }], sent: false, messageSentByThisAction: false });
@@ -732,6 +733,30 @@ describe("cloud authentication gate", () => {
       category: "Roofing", location: "Manchester", goal: "Recruit painters",
     }));
     expect(await screen.findByText("Campaign details saved.")).toBeTruthy();
+  });
+
+
+  it("lets an organisation owner pause and reactivate campaigns through the server API", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
+    mocks.api.listCampaigns.mockResolvedValue({ campaigns: [{ id: "campaign-1", name: "Roofing pilot", brand: "AnyTrader", category: "Roofing", location: "Leeds, UK", goal: "Recruit roofers", status: "active", createdAt: null }], hasMoreCampaigns: false, nextPageToken: null });
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Pause" }));
+    await waitFor(() => expect(mocks.api.updateCampaignStatus).toHaveBeenCalledWith({ organisationId: "org-1", campaignId: "campaign-1", status: "paused" }));
+    expect(await screen.findByText("Campaign paused.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Activate" }));
+    await waitFor(() => expect(mocks.api.updateCampaignStatus).toHaveBeenLastCalledWith({ organisationId: "org-1", campaignId: "campaign-1", status: "active" }));
+    expect(await screen.findByText("Campaign activated.")).toBeTruthy();
+  });
+
+  it("does not show campaign lifecycle controls to a non-admin member", async () => {
+    mocks.currentUser = { email: "member@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "member" }] });
+    mocks.api.listCampaigns.mockResolvedValue({ campaigns: [{ id: "campaign-1", name: "Roofing pilot", brand: "AnyTrader", category: "Roofing", location: "Leeds, UK", goal: "Recruit roofers", status: "active", createdAt: null }], hasMoreCampaigns: false, nextPageToken: null });
+    render(<CloudWorkspace />);
+    expect(await screen.findByText("Roofing pilot")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Pause" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Complete" })).toBeNull();
   });
 
 });
