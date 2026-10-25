@@ -1,3 +1,12 @@
+function escapeAnalyticsCsvCell(value: string | number): string {
+  let text = String(value);
+  const first = text.trimStart().charAt(0);
+  if (["=", "+", "-", "@"].includes(first) || text.startsWith("\t") || text.startsWith("\r") || text.startsWith("\n")) {
+    text = "'" + text;
+  }
+  return /[",\r\n]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
+}
+
 export interface CampaignPerformanceCampaign { id: string; name: string; }
 export interface CampaignPerformanceLead {
   campaignId: string; status: string; doNotContact: boolean; contactRestrictionVerified: boolean;
@@ -58,10 +67,7 @@ export function summarizeLeadSourcePerformance(leads: LeadSourcePerformanceLead[
 
 /** Export only the supplied campaign summaries; every row explicitly labels its page-limited scope. */
 export function serializeCampaignPerformanceCsv(summaries: CampaignPerformanceSummary[]): string {
-  const escapeCell = (value: string | number) => {
-    const text = String(value);
-    return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-  };
+  const escapeCell = escapeAnalyticsCsvCell;
   const headers = [
     "Scope", "Campaign", "Loaded leads", "Qualified", "Contacted", "Onboarded",
     "Qualified rate (%)", "Onboarded rate (%)", "Restricted/review needed", "Loaded drafts", "Drafts needing review",
@@ -80,10 +86,7 @@ export function serializeOnboardingCohortCsv(
   cohorts: Array<{ month: string; onboardedLeadCount: number }>,
   attributionNote: string,
 ): string {
-  const escapeCell = (value: string | number) => {
-    const text = String(value);
-    return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-  };
+  const escapeCell = escapeAnalyticsCsvCell;
   const headers = ["Scope", "UTC month", "First onboardings", "Attribution note"];
   const rows = cohorts.map((cohort) => [
     "First server-recorded onboarding timestamp",
@@ -106,10 +109,7 @@ export function serializeFullCampaignFunnelCsv(
     onboardedRatePercent: number;
   }>,
 ): string {
-  const escapeCell = (value: string | number) => {
-    const text = String(value);
-    return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-  };
+  const escapeCell = escapeAnalyticsCsvCell;
   const headers = [
     "Scope", "Campaign", "All stored leads", "Qualified", "Contacted", "Onboarded",
     "Qualified rate (%)", "Onboarded rate (%)",
@@ -135,16 +135,7 @@ export function serializeFullLeadSourceFunnelCsv(
   }>,
   attributionNote: string,
 ): string {
-  const escapeCell = (value: string | number) => {
-    const text = String(value);
-    // Source labels are self-declared; neutralise spreadsheet formula prefixes.
-    const firstCharacter = text.charAt(0);
-    const safeText = typeof value === "string"
-      && (["=", "+", "@", "-"].includes(firstCharacter) || firstCharacter === "\t" || firstCharacter === "\r")
-      ? "'" + text
-      : text;
-    return /[",\r\n]/.test(safeText) ? '"' + safeText.replace(/"/g, '""') + '"' : safeText;
-  };
+  const escapeCell = escapeAnalyticsCsvCell;
   const headers = [
     "Scope", "Source (self-declared)", "All stored leads", "Qualified", "Onboarded",
     "Qualified rate (%)", "Onboarded rate (%)", "Attribution note",
