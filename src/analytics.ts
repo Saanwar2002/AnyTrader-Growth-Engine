@@ -93,3 +93,31 @@ export function serializeOnboardingCohortCsv(
   ]);
   return [headers, ...rows].map((row) => row.map(escapeCell).join(",")).join("\r\n") + "\r\n";
 }
+
+/** Export server-side funnel totals across all stored leads, not just loaded UI pages. */
+export function serializeFullCampaignFunnelCsv(
+  summaries: Array<{
+    campaignName: string;
+    totalLeadCount: number;
+    qualifiedLeadCount: number;
+    contactedLeadCount: number;
+    onboardedLeadCount: number;
+    qualifiedRatePercent: number;
+    onboardedRatePercent: number;
+  }>,
+): string {
+  const escapeCell = (value: string | number) => {
+    const text = String(value);
+    return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  };
+  const headers = [
+    "Scope", "Campaign", "All stored leads", "Qualified", "Contacted", "Onboarded",
+    "Qualified rate (%)", "Onboarded rate (%)",
+  ];
+  const rows = summaries.map((item) => [
+    "All stored campaign leads", item.campaignName, item.totalLeadCount, item.qualifiedLeadCount,
+    item.contactedLeadCount, item.onboardedLeadCount, item.qualifiedRatePercent.toFixed(1),
+    item.onboardedRatePercent.toFixed(1),
+  ]);
+  return [headers, ...rows].map((row) => row.map(escapeCell).join(",")).join("\r\n") + "\r\n";
+}

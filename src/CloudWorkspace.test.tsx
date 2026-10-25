@@ -1261,4 +1261,37 @@ describe("cloud authentication gate", () => {
     expect(screen.getByText("admin", { selector: "td" })).toBeTruthy();
   });
 
+ 
+  it("exports server-counted funnel totals for all stored campaign leads", async () => {
+    mocks.currentUser = { email: "pilot@example.test", uid: "owner-uid" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    mocks.api.listCampaigns.mockResolvedValue({
+      campaigns: [{ id: "campaign-1", name: 'Roofers, "North"', brand: "AnyTrader", category: "Roofers", location: "Leeds", goal: "Pilot", status: "active", createdAt: null }],
+      hasMoreCampaigns: false,
+      nextPageToken: null,
+    });
+    mocks.api.getCampaignFunnelSummary.mockResolvedValue({
+      organisationId: "org-1", campaignId: "campaign-1", totalLeadCount: 120,
+      qualifiedLeadCount: 30, contactedLeadCount: 20, onboardedLeadCount: 8,
+      qualifiedRatePercent: 25, onboardedRatePercent: 6.7, scope: "all_stored_campaign_leads",
+    });
+    const createObjectURL = vi.fn(() => "blob:campaign-report");
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+    render(<CloudWorkspace />);
+    const fullReportButton = await screen.findByRole("button", { name: "Export full campaign report (CSV)" }) as HTMLButtonElement;
+    // The action is intentionally disabled until the initial campaign page has loaded.
+    await waitFor(() => expect(fullReportButton.disabled).toBe(false));
+    fireEvent.click(fullReportButton);
+    await waitFor(() => expect(mocks.api.getCampaignFunnelSummary).toHaveBeenCalledWith({ organisationId: "org-1", campaignId: "campaign-1" }));
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:campaign-report");
+    expect(await screen.findByText(/full stored-lead funnel counts for 1 campaign/)).toBeTruthy();
+  });
+
 });

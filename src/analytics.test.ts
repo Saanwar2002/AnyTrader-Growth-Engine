@@ -92,3 +92,14 @@ describe("serializeOnboardingCohortCsv", () => {
     expect(csv).toContain("Attribution note");
   });
 });
+
+import { serializeFullCampaignFunnelCsv } from "./analytics";
+
+it("serializes full server-side campaign funnel counts with an explicit all-stored scope and escaped names", () => {
+  const csv = serializeFullCampaignFunnelCsv([{
+    campaignName: 'Roofers, "North"', totalLeadCount: 120, qualifiedLeadCount: 30,
+    contactedLeadCount: 20, onboardedLeadCount: 8, qualifiedRatePercent: 25, onboardedRatePercent: 6.7,
+  }]);
+  expect(csv).toContain("All stored campaign leads,\"Roofers, \"\"North\"\"\",120,30,20,8,25.0,6.7");
+  expect(csv.startsWith("Scope,Campaign,All stored leads,Qualified,Contacted,Onboarded,Qualified rate (%),Onboarded rate (%)\r\n")).toBe(true);
+});

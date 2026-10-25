@@ -71,6 +71,7 @@
 - [x] Loaded-record campaign funnel summary with qualified, contacted, onboarded counts and clearly labelled loaded-lead conversion rates; partial pagination is disclosed in the UI.
 - [x] Self-declared lead-source performance summary with qualified/onboarded counts and rates; pagination and unverified source-label limitations are explicit.
 - [x] Downloadable campaign performance CSV with a loaded-record-only scope column and escaped text fields.
+- [x] Downloadable full campaign funnel report using server-counted totals across all stored leads, with explicit scope labels, escaped campaign names, and a 20-campaign safety cap.
 - [ ] First-onboarding timestamps and on-demand server-side campaign/source aggregates are implemented for new transitions and all stored leads. A 12-month server-side onboarding cohort report now counts first-onboarding timestamps; legacy records already marked onboarded without a timestamp remain excluded pending a reviewed backfill. Source values remain self-declared.
 - [x] Owner/admin organisation display-name settings with server-side role checks, transactional rate limiting, and PII-minimised audit events.
 - [x] Owner/admin member removal with owner protection, role hierarchy, transactional member-usage decrement when authoritative counters exist, retry-safe missing-member behavior, and PII-minimised audit events.
