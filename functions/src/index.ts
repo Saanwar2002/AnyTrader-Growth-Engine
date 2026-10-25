@@ -66,6 +66,7 @@ type SecurityAuditEventType =
   | "organisation.settings_updated"
   | "organisation.member_added"
   | "organisation.member_removed"
+  | "organisation.member_role_updated"
   | "lead.csv_import.completed"
   | "lead.contact_updated"
   | "lead.contact_restriction_changed"
@@ -92,7 +93,7 @@ type SecurityAuditEventMetadata = {
   notesCleared?: boolean;
   nameChanged?: boolean;
   draftAction?: "created" | "updated" | "deleted";
-  memberRole?: "member" | "viewer";
+  memberRole?: "admin" | "member" | "viewer";
 };
 
 const AUDIT_EVENT_RESOURCE_TYPES: Record<SecurityAuditEventType, "organisation" | "campaign" | "lead" | "outreachDraft"> = {
@@ -100,6 +101,7 @@ const AUDIT_EVENT_RESOURCE_TYPES: Record<SecurityAuditEventType, "organisation" 
   "organisation.settings_updated": "organisation",
   "organisation.member_added": "organisation",
   "organisation.member_removed": "organisation",
+  "organisation.member_role_updated": "organisation",
   "lead.csv_import.completed": "campaign",
   "lead.contact_updated": "lead",
   "lead.contact_restriction_changed": "lead",
@@ -119,6 +121,7 @@ const AUDIT_METADATA_KEYS: Record<SecurityAuditEventType, readonly (keyof Securi
   "organisation.settings_updated": ["nameChanged"],
   "organisation.member_added": ["memberRole"],
   "organisation.member_removed": [],
+  "organisation.member_role_updated": ["memberRole"],
   "lead.csv_import.completed": ["importedCount", "duplicatesSkipped"],
   "lead.contact_updated": ["contactChannelsChanged", "contactReviewRevision", "contactReviewStatus", "doNotContact"],
   "lead.contact_restriction_changed": ["doNotContact", "contactReviewRevision", "contactReviewStatus"],
@@ -148,7 +151,7 @@ function isBoundedAuditMetadata(eventType: SecurityAuditEventType, metadata: Sec
   if ("leadStatus" in metadata && !["new", "reviewing", "qualified", "contacted", "onboarded", "rejected"].includes(metadata.leadStatus ?? "")) return false;
   if ("contactReviewStatus" in metadata && !["pending", "cleared", "blocked"].includes(metadata.contactReviewStatus ?? "")) return false;
   if ("draftAction" in metadata && !["created", "updated", "deleted"].includes(metadata.draftAction ?? "")) return false;
-  if ("memberRole" in metadata && !["member", "viewer"].includes(metadata.memberRole ?? "")) return false;
+  if ("memberRole" in metadata && !["admin", "member", "viewer"].includes(metadata.memberRole ?? "")) return false;
   return true;
 }
 
@@ -772,6 +775,46 @@ export const removeOrganisationMember = onCall(callableOptions, async (request) 
     transaction.delete(targetMembershipRef);
     writeSecurityAuditEvent(transaction, organisationId, uid, "organisation.member_removed", "organisation", targetUid, {});
     return { organisationId, targetUid, removed: true as const };
+  });
+});
+
+export const updateOrganisationMemberRole = onCall(callableOptions, async (request) => {
+  const uid = requireUid(request.auth?.uid);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const organisationId = requireOrganisationId(data.organisationId);
+  const targetUid = typeof data.targetUid === "string" ? data.targetUid.trim() : "";
+  const role = data.role;
+  if (!isValidDocumentId(targetUid)) throw new HttpsError("invalid-argument", "A valid targetUid is required.");
+  if (role !== "admin" && role !== "member" && role !== "viewer") {
+    throw new HttpsError("invalid-argument", "New member role must be admin, member, or viewer; owner role cannot be assigned.");
+  }
+  const organisationRef = db.collection("organisations").doc(organisationId);
+  const targetMembershipRef = organisationRef.collection("members").doc(targetUid);
+  return db.runTransaction(async (transaction: Transaction) => {
+    const callerMembership = await requireTransactionalRole(transaction, organisationId, uid, "campaign");
+    if (callerMembership.role !== "owner") {
+      throw new HttpsError("permission-denied", "Only the organisation owner can change member roles.");
+    }
+    const [organisationSnapshot, targetSnapshot] = await Promise.all([
+      transaction.get(organisationRef),
+      transaction.get(targetMembershipRef),
+    ]);
+    if (!organisationSnapshot.exists) throw new HttpsError("not-found", "Organisation was not found.");
+    const ownerUid = organisationSnapshot.data()?.ownerUid;
+    if (typeof ownerUid !== "string" || !ownerUid) {
+      throw new HttpsError("failed-precondition", "Organisation owner identity is invalid and requires operator review.");
+    }
+    if (targetUid === ownerUid) throw new HttpsError("failed-precondition", "The organisation owner's role cannot be changed.");
+    if (!targetSnapshot.exists) throw new HttpsError("not-found", "Organisation member was not found.");
+    const target = targetSnapshot.data() ?? {};
+    if (!isValidMembershipForOrganisation(target, targetUid, ownerUid)) {
+      throw new HttpsError("failed-precondition", "The target membership is invalid and requires operator review.");
+    }
+    if (target.role === role) return { organisationId, targetUid, role, changed: false as const };
+    await consumeTransactionalRateLimit(transaction, organisationId, uid, "updateOrganisationMemberRole", 30);
+    transaction.update(targetMembershipRef, { role, updatedAt: FieldValue.serverTimestamp(), updatedBy: uid });
+    writeSecurityAuditEvent(transaction, organisationId, uid, "organisation.member_role_updated", "organisation", targetUid, { memberRole: role });
+    return { organisationId, targetUid, role, changed: true as const };
   });
 });
 
