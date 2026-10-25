@@ -2,6 +2,17 @@ import { describe, expect, it } from "vitest";
 import { auditLeadIdentifierRecords } from "./lead-identifier-migration-audit";
 
 describe("read-only lead identifier migration audit", () => {
+  it("rejects malformed input records and duplicate IDs before analyzing", () => {
+    expect(() => auditLeadIdentifierRecords(null as unknown as never)).toThrow("requires an array");
+    expect(() => auditLeadIdentifierRecords([null] as unknown as never)).toThrow("malformed record");
+    expect(() => auditLeadIdentifierRecords([{}] as unknown as never)).toThrow("non-empty string ID");
+    expect(() => auditLeadIdentifierRecords([{ id: " " }] as unknown as never)).toThrow("non-empty string ID");
+    expect(() => auditLeadIdentifierRecords([
+      { id: "same", email: "first@example.test" },
+      { id: "same", email: "second@example.test" },
+    ])).toThrow("duplicate record ID");
+  });
+
   it("reports missing and stale keys without including raw contact data", () => {
     const report = auditLeadIdentifierRecords([
       { id: "lead-a", email: " Sales@Example.com ", website: "https://Example.com/" },
