@@ -62,6 +62,12 @@ try {
   assert.equal(initialPlanUsage.usage.campaigns, 0);
   assert.equal(initialPlanUsage.remaining.monthlyAiSuggestions, 50);
   assert.equal(initialPlanUsage.plan.displayName, "Pilot");
+  const planUsageReconciliation = await callOne("getOrganisationPlanUsageReconciliation", { organisationId: orgOne.organisationId });
+  assert.equal(planUsageReconciliation.status, "present");
+  assert.deepEqual(planUsageReconciliation.actual, { campaigns: 0, leads: 0, members: 1 });
+  assert.deepEqual(planUsageReconciliation.mismatchedMetrics, []);
+  assert.equal(planUsageReconciliation.aiUsageReviewRequired, true);
+  assert.equal(planUsageReconciliation.destructiveActionPerformed, false);
   const offboardingPreview = await callOne("previewOrganisationOffboarding", { organisationId: orgOne.organisationId });
   assert.equal(offboardingPreview.destructiveActionPerformed, false, "offboarding preview never deletes data");
   assert.equal(offboardingPreview.complete, true, "synthetic tenant preview completes within the category caps");
@@ -1947,6 +1953,9 @@ try {
   await expectCallableFailure(callTwo("listLeads", { organisationId: orgOne.organisationId }), "functions/permission-denied", "cross-tenant lead listing denial");
   await expectCallableFailure(callTwo("previewOrganisationOffboarding", { organisationId: orgOne.organisationId }), "functions/permission-denied", "cross-tenant offboarding preview denial");
   const orgTwo = await callTwo("createOrganisation", { name: "Tenant Two", idempotencyKey: "organisation-create-tenant-two-0001" });
+  await expectCallableFailure(callTwo("getOrganisationPlanUsageReconciliation", { organisationId: orgOne.organisationId }),
+    "functions/permission-denied", "plan usage reconciliation rejects users without tenant membership");
+
   const memberRoster = await callOne("listOrganisationMembers", { organisationId: orgOne.organisationId });
   assert.equal(memberRoster.scope, "organisation_member_roster");
   assert.equal(memberRoster.hasMoreMembers, false);
@@ -2903,6 +2912,7 @@ try {
     "getLeadSourceFunnelSummary",
     "getOnboardingCohortSummary",
     "getOrganisationPlanUsage",
+    "getOrganisationPlanUsageReconciliation",
     "updateCampaignStatus",
     "updateCampaignDetails",
     "listLeads",
