@@ -53,7 +53,7 @@ The bounded coordinator returns explicit `scanCompleteness` and `backfillDecisio
 - `backfillDecision` remains blocked for both outcomes. Truncated scans return `blocked-incomplete-scan`; complete scans return `blocked-pending-operator-review`.
 - The coordinator deliberately has no mechanism to approve, mutate, or backfill records. Collision groups, malformed records, tenant scope, source permissions, and the post-backfill verification plan still require review before any future write-enabled migration is designed.
 
-This is a code-level guardrail, not production migration approval. No live database adapter or backfill is included.
+This is a code-level guardrail, not production migration approval. No live database adapter or production backfill is included; the rehearsal below is emulator-only.
 
 
 ## Emulator-only backfill harness
