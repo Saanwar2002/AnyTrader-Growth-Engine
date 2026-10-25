@@ -309,13 +309,10 @@ describe("callable security contract", () => {
     const nextStart = callableSource.indexOf("export const ", start + 1);
     const body = callableSource.slice(start, nextStart < 0 ? callableSource.length : nextStart);
 
-    expect(body).toContain("const savedResult = saved.result as Record<string, unknown>;");
-    expect(body).toContain('saved.actorUid !== uid');
-    expect(body).toContain('collection("campaigns").doc(savedResult.campaignId)');
-    expect(body).toContain("await transaction.get(savedCampaignRef)");
-    expect(body).toContain("savedCampaign.createdBy !== uid");
+    expect(body).toContain("getValidCampaignCreationReplayResult(saved, expectedReplay)");
+    expect(body).toContain("isPersistedCampaignCreationReplayAvailable(savedCampaignSnapshot.data(), expectedReplay)");
     expect(body).toContain('new HttpsError("failed-precondition", "The campaign created by this request is no longer available to its original creator.")');
-    expect(body.indexOf("await transaction.get(savedCampaignRef)")).toBeLessThan(body.indexOf("return savedResult as typeof result;"));
+    expect(body.indexOf("await transaction.get(savedCampaignRef)")).toBeLessThan(body.indexOf("return savedResult;"));
   });
 
   it("validates saved CSV import retry ownership, result totals, suppression flags, and campaign existence", () => {
