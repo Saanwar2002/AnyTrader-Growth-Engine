@@ -1,3 +1,12 @@
+## AutoPilot run — campaign funnel analytics (2026-10-25)
+
+- Added contacted lead counts and qualified/onboarded rates to the campaign performance summary.
+- Rates use only currently loaded leads as their denominator, are rounded to one decimal place, and are labelled as loaded-lead rates in the table. Existing partial-pagination warning remains visible, so these metrics are not represented as full-database conversion analytics.
+- Added unit coverage for the rates and empty campaigns. No new database reads, PII collection, billing, or outreach behavior was introduced.
+- Next feature focus: organisation settings and durable attribution/aggregate analytics, while retaining explicit partial-data semantics and tenant-scoped server-side access. The dedicated Firebase project and live App Check verification remain operator prerequisites.
+
+---
+
 ## AutoPilot run — direct audit input validation merged (2026-10-25)
 
 - PR #21, [Validate inputs at lead identifier audit boundary](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/pull/21), was merged after exact-head CI run [40177935742](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40177935742) passed both Functions and frontend/emulator jobs.
