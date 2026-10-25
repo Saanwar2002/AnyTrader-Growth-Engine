@@ -216,3 +216,35 @@ export function serializeFullLeadSourceFunnelCsv(
       ]];
   return [headers, ...rows].map((row) => row.map(escapeCell).join(",")).join("\r\n") + "\r\n";
 }
+
+
+/** Export only audit events already loaded in the UI; callers must not imply full-history coverage. */
+export function serializeSecurityAuditEventsCsv(
+  events: Array<{
+    createdAt: string | null;
+    eventType: string;
+    actorUid: string;
+    resourceType: string;
+    resourceId: string;
+    outcome: string;
+    metadata: Record<string, string | number | boolean>;
+  }>,
+): string {
+  const escapeCell = escapeAnalyticsCsvCell;
+  const headers = [
+    "Scope", "Event time (UTC)", "Action", "Actor ID", "Resource type", "Resource ID", "Outcome", "Approved metadata",
+  ];
+  const rows = events.length
+    ? events.map((event) => [
+        "Loaded audit events only",
+        event.createdAt ?? "",
+        event.eventType,
+        event.actorUid,
+        event.resourceType,
+        event.resourceId,
+        event.outcome,
+        JSON.stringify(event.metadata),
+      ])
+    : [["Loaded audit events only", "", "No audit events loaded", "", "", "", "", ""]];
+  return [headers, ...rows].map((row) => row.map(escapeCell).join(",")).join("\r\n") + "\r\n";
+}
