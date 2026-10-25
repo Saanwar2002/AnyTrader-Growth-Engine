@@ -947,6 +947,43 @@ describe("cloud authentication gate", () => {
     expect(screen.getByText(/legacy leads already onboarded before timestamp capture may be excluded/i)).toBeTruthy();
   });
 
+  it("shows server-maintained plan usage and remaining limits to organisation owners", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load plan usage" }));
+    await waitFor(() => expect(mocks.api.getOrganisationPlanUsage).toHaveBeenCalledWith({ organisationId: "org-1" }));
+    expect(await screen.findByRole("table", { name: "Server-maintained plan usage for 2026-10" })).toBeTruthy();
+    expect(screen.getByText("Campaigns (lifetime)")).toBeTruthy();
+    expect(screen.getByText("Monthly AI suggestions (UTC month)")).toBeTruthy();
+    expect(screen.getByText("458")).toBeTruthy();
+    expect(screen.getByText("43")).toBeTruthy();
+  });
+
+  it("does not display invented numeric usage for legacy organisations awaiting reconciliation", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    mocks.api.getOrganisationPlanUsage.mockResolvedValueOnce({
+      organisationId: "org-1",
+      status: "reconciliation_required",
+      plan: { id: "pilot", displayName: "Pilot", limits: { campaigns: 10, leads: 500, members: 5, monthlyAiSuggestions: 50 } },
+      usage: null,
+      remaining: null,
+      aiUsagePeriod: null,
+      message: "Usage counters are not authoritative for this legacy organisation.",
+    });
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load plan usage" }));
+    expect(await screen.findByText(/Usage reconciliation required/)).toBeTruthy();
+    expect(screen.queryByRole("table", { name: /Server-maintained plan usage/ })).toBeNull();
+  });
+
   it("exports the loaded monthly onboarding cohorts with their timestamp caveat", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({
