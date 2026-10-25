@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
   authListener: vi.fn(),
   currentUser: null as unknown,
   api: {
-    listMyOrganisations: vi.fn(), createOrganisation: vi.fn(), updateOrganisationSettings: vi.fn(), previewOrganisationOffboarding: vi.fn(), addOrganisationMember: vi.fn(), listOrganisationMembers: vi.fn(), createCampaign: vi.fn(), updateCampaignStatus: vi.fn(), updateCampaignDetails: vi.fn(),
+    listMyOrganisations: vi.fn(), createOrganisation: vi.fn(), updateOrganisationSettings: vi.fn(), previewOrganisationOffboarding: vi.fn(), addOrganisationMember: vi.fn(), removeOrganisationMember: vi.fn(), listOrganisationMembers: vi.fn(), createCampaign: vi.fn(), updateCampaignStatus: vi.fn(), updateCampaignDetails: vi.fn(),
     listCampaigns: vi.fn(), getCampaignFunnelSummary: vi.fn(), getLeadSourceFunnelSummary: vi.fn(), getOnboardingCohortSummary: vi.fn(), getOrganisationPlanUsage: vi.fn(), getOrganisationPlanUsageReconciliation: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), importLeads: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(),
     updateLeadNotes: vi.fn(), setLeadSuppression: vi.fn(), createOutreachDraft: vi.fn(), suggestOutreachDraft: vi.fn(), listOutreachDrafts: vi.fn(),
     updateOutreachDraft: vi.fn(), deleteOutreachDraft: vi.fn(),
@@ -1161,6 +1161,35 @@ describe("cloud authentication gate", () => {
     expect(screen.getByText("Mismatch")).toBeTruthy();
     expect(screen.getByText(/Historical AI suggestion usage cannot be inferred/)).toBeTruthy();
     expect(screen.getByText(/no counters were changed/i)).toBeTruthy();
+  });
+
+ 
+  it("lets an owner remove a non-owner member after confirmation", async () => {
+    mocks.currentUser = { email: "owner@example.test", uid: "owner-uid" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    mocks.api.listOrganisationMembers.mockResolvedValue({
+      organisationId: "org-1",
+      members: [
+        { uid: "owner-uid", email: "owner@example.test", role: "owner", createdAt: null },
+        { uid: "member-uid", email: "member@example.test", role: "member", createdAt: null },
+      ],
+      hasMoreMembers: false,
+      scope: "organisation_member_roster",
+    });
+    mocks.api.removeOrganisationMember.mockResolvedValue({ organisationId: "org-1", targetUid: "member-uid", removed: true });
+    const confirm = vi.fn(() => true);
+    vi.stubGlobal("confirm", confirm);
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load member roster" }));
+    await screen.findByText("member@example.test");
+    fireEvent.click(screen.getByRole("button", { name: "Remove access" }));
+    await waitFor(() => expect(mocks.api.removeOrganisationMember).toHaveBeenCalledWith({ organisationId: "org-1", targetUid: "member-uid" }));
+    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText(/membership removed/i)).toBeTruthy();
+    expect(screen.queryByText(/Account ID: member-uid/)).toBeNull();
   });
 
 });
