@@ -137,9 +137,13 @@ export function serializeFullLeadSourceFunnelCsv(
 ): string {
   const escapeCell = (value: string | number) => {
     const text = String(value);
-    // Prevent spreadsheet formula execution from untrusted self-declared source labels or notes.
-    const safeText = typeof value === "string" && /^[=+@\\-\\t\\r]/.test(text) ? `'${text}` : text;
-    return /[",\\r\\n]/.test(safeText) ? `"${safeText.replace(/"/g, '""')}"` : safeText;
+    // Source labels are self-declared; neutralise spreadsheet formula prefixes.
+    const firstCharacter = text.charAt(0);
+    const safeText = typeof value === "string"
+      && (["=", "+", "@", "-"].includes(firstCharacter) || firstCharacter === "\t" || firstCharacter === "\r")
+      ? "'" + text
+      : text;
+    return /[",\r\n]/.test(safeText) ? '"' + safeText.replace(/"/g, '""') + '"' : safeText;
   };
   const headers = [
     "Scope", "Source (self-declared)", "All stored leads", "Qualified", "Onboarded",
@@ -154,5 +158,5 @@ export function serializeFullLeadSourceFunnelCsv(
     : [[
         "All stored organisation leads", "No source-labelled records", 0, 0, 0, "0.0", "0.0", attributionNote,
       ]];
-  return [headers, ...rows].map((row) => row.map(escapeCell).join(",")).join("\\r\\n") + "\\r\\n";
+  return [headers, ...rows].map((row) => row.map(escapeCell).join(",")).join("\r\n") + "\r\n";
 }
