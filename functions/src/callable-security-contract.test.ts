@@ -321,15 +321,10 @@ describe("callable security contract", () => {
     const nextStart = callableSource.indexOf("export const ", start + 1);
     const body = callableSource.slice(start, nextStart < 0 ? callableSource.length : nextStart);
 
-    expect(body).toContain("saved.actorUid !== uid");
-    expect(body).toContain("savedResult.organisationId !== organisationId");
-    expect(body).toContain("savedResult.campaignId !== campaignId");
-    expect(body).toContain("savedResult.received !== prepared.length");
-    expect(body).toContain("(savedResult.imported as number) + (savedResult.duplicatesSkipped as number) !== prepared.length");
-    expect(body).toContain("savedLeads.length !== savedResult.imported");
-    expect(body).toContain("savedResult.sent !== false");
-    expect(body).toContain("savedResult.messageSentByThisAction !== false");
+    expect(body).toContain("getValidImportReplayResult(saved, expectedReplay)");
+    expect(body).toContain("isPersistedImportedLeadReplayAvailable(snapshot.data(),");
     expect(body).toContain("await transaction.get(campaignRef)");
+    expect(body).toContain("Saved import retry state no longer matches its authoritative lead records");
     expect(body).toContain('new HttpsError("failed-precondition", "Saved import retry state is invalid and requires operator review.")');
   });
 

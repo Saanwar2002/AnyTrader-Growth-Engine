@@ -1,3 +1,13 @@
+## AutoPilot run — CSV import idempotency replay integrity (2026-10-25)
+
+- Replaced the CSV import replay's loose object cast and inline partial validation with an exact-shape pure validator.
+- Enforces safe unique lead IDs, exact per-lead response keys, consistent received/imported/duplicate totals, and explicit no-send flags.
+- Before returning a retry result, re-check the tenant-scoped campaign and every returned lead's creator, campaign, business name, source, status and default contact-suppression/review state.
+- Added focused pure tests and updated the callable source-contract test. No outreach, deployment, billing change, or data migration.
+- Next: exact-head CI; merge only after both CI jobs pass and review is clean.
+
+---
+
 ## AutoPilot run — lead creation idempotency replay integrity (2026-10-25)
 
 - Replaced the lead-create replay type assertion and inline partial validator with a pure exact-shape validator bound to the actor, request hash, tenant, campaign and original payload.
