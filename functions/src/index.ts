@@ -653,56 +653,48 @@ export const listOrganisationMembers = onCall(callableOptions, async (request) =
   const uid = requireUid(request.auth?.uid);
   const data = (request.data ?? {}) as Record<string, unknown>;
   const organisationId = requireOrganisationId(data.organisationId);
-  const pageSize = data.pageSize === undefined ? 50 : data.pageSize;
-  const pageToken = data.pageToken === undefined ? undefined : data.pageToken;
-  if (typeof pageSize !== "number" || !Number.isInteger(pageSize) || pageSize < 1 || pageSize > 100) {
-    throw new HttpsError("invalid-argument", "pageSize must be an integer between 1 and 100.");
-  }
-  if (pageToken !== undefined && (typeof pageToken !== "string" || pageToken.length > 512
-    || pageToken.split("/").length !== 4 || pageToken.split("/")[0] !== "organisations"
-    || pageToken.split("/")[1] !== organisationId || pageToken.split("/")[2] !== "members"
-    || !isValidDocumentId(pageToken.split("/")[3]))) {
-    throw new HttpsError("invalid-argument", "Member page token is invalid for this organisation.");
-  }
-
-  const membership = await requireMembership(organisationId, uid);
-  if (membership.role !== "owner" && membership.role !== "admin") {
+  const callerMembership = await requireMembership(organisationId, uid);
+  if (callerMembership.role !== "owner" && callerMembership.role !== "admin") {
     throw new HttpsError("permission-denied", "Only organisation owners and admins can view the member roster.");
   }
-  await consumeReadRateLimit(organisationId, uid, "listOrganisationMembers", 30);
+  await consumeReadRateLimit(organisationId, uid, "listOrganisationMembers", 10);
 
   const organisationRef = db.collection("organisations").doc(organisationId);
   const organisationSnapshot = await organisationRef.get();
   if (!organisationSnapshot.exists) throw new HttpsError("not-found", "Organisation was not found.");
   const ownerUid = organisationSnapshot.data()?.ownerUid;
-  let cursorSnapshot: QueryDocumentSnapshot | undefined;
-  if (pageToken) {
-    const cursor = await db.doc(pageToken).get();
-    if (!cursor.exists || cursor.ref.parent.path !== `organisations/${organisationId}/members`) {
-      throw new HttpsError("invalid-argument", "Member page token is no longer valid.");
+  const page = await organisationRef.collection("members")
+    .orderBy(FieldPath.documentId(), "asc")
+    .limit(21)
+    .get();
+  const visibleMembers = page.docs.slice(0, 20);
+  const members = await Promise.all(visibleMembers.map(async (document) => {
+    const member = document.data();
+    if (!isValidMembershipForOrganisation(member, document.id, ownerUid)) {
+      throw new HttpsError("failed-precondition", "A member record is invalid and requires operator review.");
     }
-    cursorSnapshot = cursor as QueryDocumentSnapshot;
-  }
-  const query = organisationRef.collection("members").orderBy(FieldPath.documentId(), "asc");
-  const snapshot = await (cursorSnapshot ? query.startAfter(cursorSnapshot) : query).limit(pageSize + 1).get();
-  const hasMoreMembers = snapshot.docs.length > pageSize;
-  const visibleDocs = snapshot.docs.slice(0, pageSize);
+    let email: string | null = null;
+    try {
+      const account = await getAuth().getUser(document.id);
+      email = typeof account.email === "string" ? account.email : null;
+    } catch (error) {
+      const code = typeof error === "object" && error !== null && "code" in error ? error.code : undefined;
+      if (code !== "auth/user-not-found") {
+        logger.error("Could not resolve organisation member email", { organisationId, reason: "auth_lookup_failed" });
+      }
+    }
+    return {
+      uid: document.id,
+      email,
+      role: member.role as "owner" | "admin" | "member" | "viewer",
+      createdAt: isValidFirestoreTimestamp(member.createdAt) ? member.createdAt.toDate().toISOString() : null,
+    };
+  }));
   return {
     organisationId,
-    members: visibleDocs.map((document) => {
-      const value = document.data();
-      const memberUid = typeof value.uid === "string" ? value.uid : document.id;
-      if (!isValidMembershipForOrganisation(value, memberUid, ownerUid)) {
-        throw new HttpsError("failed-precondition", "A member record is invalid and requires operator review.");
-      }
-      return {
-        uid: memberUid,
-        role: value.role,
-        createdAt: isValidFirestoreTimestamp(value.createdAt) ? value.createdAt.toDate().toISOString() : null,
-      };
-    }),
-    hasMoreMembers,
-    nextPageToken: hasMoreMembers ? visibleDocs[visibleDocs.length - 1]?.ref.path ?? null : null,
+    members,
+    hasMoreMembers: page.docs.length > 20,
+    scope: "organisation_member_roster" as const,
   };
 });
 
