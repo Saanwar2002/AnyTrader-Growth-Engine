@@ -2853,6 +2853,9 @@ try {
   assert.ok(onboardingCohorts.cohorts.find((cohort) => cohort.month === currentUtcMonth)?.onboardedLeadCount >= 1,
     "the server aggregate includes the newly onboarded lead in the current UTC month");
   assert.match(onboardingCohorts.attributionNote, /legacy leads already onboarded/i);
+  await expectCallableFailure(callTwo("getOnboardingCohortSummary", {
+    organisationId: orgOne.organisationId,
+  }), "functions/permission-denied", "onboarding cohort analytics rejects cross-tenant access");
   await callOne("updateLeadStatus", {
     organisationId: orgOne.organisationId,
     leadId: onboardingAttributionLead.leadId,
