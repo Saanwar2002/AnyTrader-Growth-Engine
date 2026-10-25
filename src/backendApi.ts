@@ -32,6 +32,17 @@ export interface OrganisationPlanUsageSummary {
   aiUsagePeriod: string | null;
   message: string;
 }
+export interface PlanUsageReconciliationSummary {
+  organisationId: string;
+  status: "missing" | "invalid" | "present";
+  actual: Pick<PlanUsageCounters, "campaigns" | "leads" | "members">;
+  stored: (PlanUsageCounters & { aiUsagePeriod: string }) | null;
+  mismatchedMetrics: Array<"campaigns" | "leads" | "members">;
+  aiUsageReviewRequired: true;
+  currentAiUsagePeriod: string | null;
+  notes: string[];
+  destructiveActionPerformed: false;
+}
 export interface LeadFieldsInput { organisationId: string; campaignId: string; businessName: string; category?: string; location?: string; website?: string; email?: string; phone?: string; }
 export interface LeadInput extends LeadFieldsInput { idempotencyKey: string; }
 export interface CsvImportLeadInput { businessName: string; category?: string; location?: string; website?: string; email?: string; phone?: string; }
@@ -56,6 +67,7 @@ export function createGrowthEngineApi(call: CallableInvoker) {
     getLeadSourceFunnelSummary: (payload: { organisationId: string }) => call<typeof payload, LeadSourceFunnelAnalytics>("getLeadSourceFunnelSummary", payload),
     getOnboardingCohortSummary: (payload: { organisationId: string }) => call<typeof payload, OnboardingCohortAnalytics>("getOnboardingCohortSummary", payload),
     getOrganisationPlanUsage: (payload: { organisationId: string }) => call<typeof payload, OrganisationPlanUsageSummary>("getOrganisationPlanUsage", payload),
+    getOrganisationPlanUsageReconciliation: (payload: { organisationId: string }) => call<typeof payload, PlanUsageReconciliationSummary>("getOrganisationPlanUsageReconciliation", payload),
     listLeads: (payload: { organisationId: string; pageToken?: string }) => call<typeof payload, { leads: LeadSummary[]; hasMoreLeads: boolean; nextPageToken: string | null }>("listLeads", payload),
     createLead: (payload: LeadInput) => call<LeadInput, { leadId: string; status: ServerLeadStatus }>("createLead", payload),
     importLeads: (payload: { organisationId: string; campaignId: string; idempotencyKey: string; sourceLabel?: CsvImportSourceLabel; leads: CsvImportLeadInput[] }) => call<typeof payload, CsvImportResult>("importLeads", payload),
