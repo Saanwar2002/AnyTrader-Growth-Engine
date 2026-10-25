@@ -2642,6 +2642,7 @@ try {
     "updateLeadStatus",
     "updateLeadNotes",
     "setLeadSuppression",
+    "suggestOutreachDraft",
     "createOutreachDraft",
     "listOutreachDrafts",
     "updateOutreachDraft",
