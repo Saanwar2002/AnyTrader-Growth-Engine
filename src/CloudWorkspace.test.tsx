@@ -1503,7 +1503,7 @@ describe("cloud authentication gate", () => {
     expect(screen.getByText(/Showing 1 of 2/)).toBeTruthy();
 
     fireEvent.change(screen.getByLabelText("Filter by completeness"), { target: { value: "medium" } });
-    expect(screen.getByText(/No leads match the current filters/i)).toBeTruthy();
+    expect(screen.getByText(/No leads match these filters/i)).toBeTruthy();
 
     fireEvent.change(screen.getByLabelText("Filter by completeness"), { target: { value: "low" } });
     expect(screen.getByText("Alpha Provider")).toBeTruthy();
