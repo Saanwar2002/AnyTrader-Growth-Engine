@@ -44,6 +44,7 @@ describe("callable security contract", () => {
       .toBeLessThan(callable.indexOf("transaction.create(targetMembershipRef"));
     expect(callable).toContain('role !== "member" && role !== "viewer"');
     expect(callable).toContain("memberAdditionIdempotency");
+    expect(callable).toContain("getUserByEmail(targetEmail)");
     expect(callable).toContain('writeSecurityAuditEvent(transaction, organisationId, uid, "organisation.member_added"');
   });
 
