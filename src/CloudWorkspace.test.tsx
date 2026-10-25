@@ -1891,7 +1891,7 @@ describe("cloud authentication gate", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Load completeness report" }));
     await waitFor(() => expect(mocks.api.getLeadCompletenessSummary).toHaveBeenCalledWith({ organisationId: "org-1" }));
     expect(await screen.findByRole("table", { name: "All stored lead completeness bands" })).toBeTruthy();
-    expect(screen.getByText("Low (0–39)")).toBeTruthy();
+    expect(screen.getAllByText("Low (0–39)").length).toBeGreaterThan(0);
     expect(screen.getByText(/not a quality, consent, or contactability guarantee/i)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Export completeness CSV" }));
     expect(createObjectURL).toHaveBeenCalledTimes(1);
