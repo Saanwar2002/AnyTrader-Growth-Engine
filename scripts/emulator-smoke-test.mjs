@@ -3014,6 +3014,7 @@ try {
     "getCampaignFunnelSummary",
     "getLeadSourceFunnelSummary",
     "getOnboardingCohortSummary",
+    "getLeadCompletenessSummary",
     "getOnboardingCohortCoverage",
     "getContactReviewQueueSummary",
     "getOrganisationPlanUsage",
