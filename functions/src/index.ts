@@ -658,7 +658,10 @@ export const listOrganisationMembers = onCall(callableOptions, async (request) =
   if (typeof pageSize !== "number" || !Number.isInteger(pageSize) || pageSize < 1 || pageSize > 100) {
     throw new HttpsError("invalid-argument", "pageSize must be an integer between 1 and 100.");
   }
-  if (pageToken !== undefined && !isValidOrganisationCollectionPageToken(pageToken, organisationId, "members")) {
+  if (pageToken !== undefined && (typeof pageToken !== "string" || pageToken.length > 512
+    || pageToken.split("/").length !== 4 || pageToken.split("/")[0] !== "organisations"
+    || pageToken.split("/")[1] !== organisationId || pageToken.split("/")[2] !== "members"
+    || !isValidDocumentId(pageToken.split("/")[3]))) {
     throw new HttpsError("invalid-argument", "Member page token is invalid for this organisation.");
   }
 
@@ -669,6 +672,9 @@ export const listOrganisationMembers = onCall(callableOptions, async (request) =
   await consumeReadRateLimit(organisationId, uid, "listOrganisationMembers", 30);
 
   const organisationRef = db.collection("organisations").doc(organisationId);
+  const organisationSnapshot = await organisationRef.get();
+  if (!organisationSnapshot.exists) throw new HttpsError("not-found", "Organisation was not found.");
+  const ownerUid = organisationSnapshot.data()?.ownerUid;
   let cursorSnapshot: QueryDocumentSnapshot | undefined;
   if (pageToken) {
     const cursor = await db.doc(pageToken).get();
@@ -686,8 +692,7 @@ export const listOrganisationMembers = onCall(callableOptions, async (request) =
     members: visibleDocs.map((document) => {
       const value = document.data();
       const memberUid = typeof value.uid === "string" ? value.uid : document.id;
-      if (!isValidMembershipForOrganisation(value, memberUid, undefined)
-        || !["owner", "admin", "member", "viewer"].includes(value.role)) {
+      if (!isValidMembershipForOrganisation(value, memberUid, ownerUid)) {
         throw new HttpsError("failed-precondition", "A member record is invalid and requires operator review.");
       }
       return {
