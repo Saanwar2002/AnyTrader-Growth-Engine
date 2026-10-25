@@ -28,7 +28,7 @@ export function currentAiUsagePeriod(now: Date): string | null {
 }
 
 function isValidCounter(value: unknown): value is number {
-  return Number.isSafeInteger(value) && (value as number) >= 0;
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
 }
 
 /** Missing state is explicitly marked as initial; callers must reconcile legacy data before enforcing it. */
