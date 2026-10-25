@@ -248,3 +248,40 @@ export function serializeSecurityAuditEventsCsv(
     : [["Loaded audit events only", "", "No audit events loaded", "", "", "", "", ""]];
   return [headers, ...rows].map((row) => row.map(escapeCell).join(",")).join("\r\n") + "\r\n";
 }
+
+
+/** Export the conservative readiness preflight for loaded records only; it never authorises outreach. */
+export function serializeCampaignReadinessCsv(
+  summaries: Array<{
+    campaignName: string;
+    status: string;
+    scope: "loaded_records_only";
+    loadedLeadCount: number;
+    contactRestrictedLeadCount: number;
+    draftsAwaitingReview: number;
+    sourceAttributionMissingCount: number;
+    missingConfigurationFields: string[];
+    hasMoreData: boolean;
+  }>,
+): string {
+  const escapeCell = escapeAnalyticsCsvCell;
+  const headers = [
+    "Scope", "Campaign", "Readiness status", "Loaded leads", "Contact restrictions / review",
+    "Drafts needing review", "Missing source labels", "Missing setup fields", "Coverage", "Action boundary",
+  ];
+  const rows = summaries.length
+    ? summaries.map((item) => [
+        "Loaded records only",
+        item.campaignName,
+        item.status === "ready_for_manual_review" ? "Ready for manual review" : item.status.replace(/_/g, " "),
+        item.loadedLeadCount,
+        item.contactRestrictedLeadCount,
+        item.draftsAwaitingReview,
+        item.sourceAttributionMissingCount,
+        item.missingConfigurationFields.length ? item.missingConfigurationFields.join(" | ") : "None",
+        item.hasMoreData ? "Incomplete — more pages available" : "Complete for loaded records",
+        "Preflight only; manual review required; does not authorise outreach",
+      ])
+    : [["Loaded records only", "No campaigns loaded", "No readiness result", 0, 0, 0, 0, "Unavailable", "Incomplete", "Preflight only; does not authorise outreach"]];
+  return [headers, ...rows].map((row) => row.map(escapeCell).join(",")).join("\r\n") + "\r\n";
+}
