@@ -789,6 +789,9 @@ describe("cloud authentication gate", () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
     render(<CloudWorkspace />);
+    // Wait for the asynchronous organisation load before editing the controlled form,
+    // otherwise a late initial-load state update can overwrite the user's test input.
+    await screen.findByRole("option", { name: "Pilot Workspace · owner" });
     const nameInput = await screen.findByLabelText("Organisation display name");
     fireEvent.change(nameInput, { target: { value: "Renamed Workspace" } });
     fireEvent.click(screen.getByRole("button", { name: "Save workspace settings" }));
