@@ -134,6 +134,7 @@ const AUDIT_METADATA_KEYS: Record<SecurityAuditEventType, readonly (keyof Securi
   "campaign.details_updated": ["campaignDetailsChanged"],
   "lead.status_changed": ["leadStatus"],
   "lead.notes_changed": ["notesCleared"],
+  "lead.follow_up_date_changed": ["followUpDateSet"],
   "outreach_draft.created": ["draftAction"],
   "outreach_draft.updated": ["draftAction"],
   "outreach_draft.deleted": ["draftAction"],
