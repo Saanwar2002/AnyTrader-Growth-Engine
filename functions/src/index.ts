@@ -1086,6 +1086,45 @@ export const listLeads = onCall(callableOptions, async (request) => {
   };
 });
 
+
+/**
+ * Return a bounded, privacy-minimised timeline for one tenant-owned lead.
+ * Actor identifiers and contact values are intentionally not returned.
+ */
+export const getLeadActivityTimeline = onCall(callableOptions, async (request) => {
+  const uid = requireUid(request.auth?.uid);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const organisationId = requireOrganisationId(data.organisationId);
+  const leadId = requireDocumentId(data.leadId, "leadId");
+  await requireMembership(organisationId, uid);
+  await consumeReadRateLimit(organisationId, uid, "getLeadActivityTimeline", 30);
+
+  const organisationRef = db.collection("organisations").doc(organisationId);
+  const leadRef = organisationRef.collection("leads").doc(leadId);
+  const leadSnapshot = await leadRef.get();
+  if (!leadSnapshot.exists) throw new HttpsError("not-found", "Lead was not found in this organisation.");
+
+  const snapshot = await organisationRef.collection("leadActivities")
+    .where("leadId", "==", leadId)
+    .orderBy("createdAt", "desc")
+    .limit(20)
+    .get();
+  return {
+    organisationId,
+    leadId,
+    activities: snapshot.docs.map((document) => {
+      const activity = document.data() ?? {};
+      return {
+        id: document.id,
+        message: safePersistedText(activity.message, 240),
+        createdAt: safeTimestampToIso(activity.createdAt),
+      };
+    }),
+    scope: "latest_20_lead_activity_events" as const,
+    hasMoreHistory: snapshot.size === 20,
+  };
+});
+
 /**
  * Return privacy-minimised campaign funnel counts across all stored lead pages.
  * Firestore aggregation queries avoid loading an unbounded lead collection into
