@@ -162,6 +162,28 @@ export function serializeOnboardingCohortCsv(
   return [headers, ...rows].map((row) => row.map(escapeCell).join(",")).join("\r\n") + "\r\n";
 }
 
+/** Export server-counted completeness bands without including individual lead records. */
+export function serializeLeadCompletenessCsv(summary: {
+  totalLeadCount: number;
+  lowCount: number;
+  mediumCount: number;
+  highCount: number;
+  unclassifiedCount: number;
+  note: string;
+}): string {
+  const escapeCell = escapeAnalyticsCsvCell;
+  const headers = ["Scope", "Completeness band", "Lead count", "Interpretation"];
+  const scope = "All stored organisation leads";
+  const rows = [
+    [scope, "Low (0–39)", summary.lowCount, summary.note],
+    [scope, "Medium (40–69)", summary.mediumCount, summary.note],
+    [scope, "High (70–100)", summary.highCount, summary.note],
+    [scope, "Unclassified", summary.unclassifiedCount, summary.note],
+    [scope, "Total", summary.totalLeadCount, summary.note],
+  ];
+  return [headers, ...rows].map((row) => row.map(escapeCell).join(",")).join("\r\n") + "\r\n";
+}
+
 /** Export server-side funnel totals across all stored leads, not just loaded UI pages. */
 export function serializeFullCampaignFunnelCsv(
   summaries: Array<{
