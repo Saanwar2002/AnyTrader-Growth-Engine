@@ -2824,6 +2824,40 @@ try {
   console.log("PASS: metered organisations may create ten Pilot campaigns and the eleventh is rejected.");
   console.log("PASS: exhausted and malformed transactional quota states reject mutations without changing protected data.");
 
+  const onboardingAttributionLead = await callOne("createLead", {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    idempotencyKey: "onboarding-attribution-smoke-0001",
+    businessName: "Synthetic Onboarding Attribution Ltd",
+    category: "Painters",
+    location: "Manchester",
+  });
+  await callOne("updateLeadStatus", {
+    organisationId: orgOne.organisationId,
+    leadId: onboardingAttributionLead.leadId,
+    status: "onboarded",
+  });
+  const onboardingTimestampOutput = execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-onboarding-attribution.mjs",
+    orgOne.organisationId,
+    onboardingAttributionLead.leadId,
+    "onboarded",
+  ], { encoding: "utf8" }).trim();
+  const originalOnboardedAt = JSON.parse(onboardingTimestampOutput).onboardedAt;
+  assert.ok(Number.isFinite(Date.parse(originalOnboardedAt)), "first transition to onboarded records a valid server timestamp");
+  await callOne("updateLeadStatus", {
+    organisationId: orgOne.organisationId,
+    leadId: onboardingAttributionLead.leadId,
+    status: "rejected",
+  });
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-onboarding-attribution.mjs",
+    orgOne.organisationId,
+    onboardingAttributionLead.leadId,
+    "rejected",
+    originalOnboardedAt,
+  ], { stdio: "inherit" });
+
   await signOut(first.auth);
   const unauthenticatedCallableNames = [
     "previewOrganisationOffboarding",

@@ -835,4 +835,26 @@ describe("cloud authentication gate", () => {
     expect(screen.getByText(/unknown includes missing and unrecognised legacy values/i)).toBeTruthy();
   });
 
+  it("shows the first onboarding date for an onboarded lead", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    mocks.api.listCampaigns.mockResolvedValue({ campaigns: [], hasMoreCampaigns: false, nextPageToken: null });
+    mocks.api.listLeads.mockResolvedValue({
+      leads: [{
+        id: "lead-onboarded", campaignId: "campaign-1", businessName: "Onboarded Provider",
+        category: "Painters", location: "Leeds", website: "", email: "", phone: "", source: "manual",
+        status: "onboarded", score: 20, scoreReasons: [], notes: "", doNotContact: false,
+        contactRestrictionVerified: true, contactReviewStatus: "cleared", contactReviewRevision: 1,
+        onboardedAt: "2026-01-05T00:00:00.000Z", createdAt: "2026-01-01T00:00:00.000Z",
+      }],
+      hasMoreLeads: false,
+      nextPageToken: null,
+    });
+    render(<CloudWorkspace />);
+    expect(await screen.findByText(/First onboarded:/)).toBeTruthy();
+  });
+
 });
