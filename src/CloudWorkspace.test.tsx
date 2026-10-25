@@ -938,4 +938,84 @@ describe("cloud authentication gate", () => {
     expect(screen.getByText(/legacy leads already onboarded before timestamp capture may be excluded/i)).toBeTruthy();
   });
 
+  it("exports every stored lead across pages for owners even when UI filters hide records", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    mocks.api.listLeads.mockResolvedValue({
+      leads: [{
+        id: "loaded-lead", campaignId: "campaign-1", businessName: "Loaded Example",
+        category: "Painters", location: "Leeds", website: "", email: "", phone: "", source: "manual",
+        status: "new", score: 20, scoreReasons: [], notes: "", doNotContact: true,
+        contactRestrictionVerified: false, contactReviewStatus: "pending", contactReviewRevision: 0, createdAt: null,
+      }],
+      hasMoreLeads: false,
+      nextPageToken: null,
+    });
+    mocks.api.listCampaigns.mockResolvedValue({
+      campaigns: [{ id: "campaign-1", name: "Full export campaign", brand: "AnyTrader", category: "Painters", location: "Leeds", goal: "Pilot", status: "active", createdAt: null }],
+      hasMoreCampaigns: false,
+      nextPageToken: null,
+    });
+    const createObjectURL = vi.fn((_blob: Blob) => "blob:full-export");
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+
+    render(<CloudWorkspace />);
+    expect(await screen.findByText("Loaded Example")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: "no matching lead" } });
+    mocks.api.listLeads
+      .mockResolvedValueOnce({
+        leads: [{
+          id: "lead-1", campaignId: "campaign-1", businessName: "First Provider",
+          category: "Painters", location: "Leeds", website: "", email: "first@example.test", phone: "", source: "manual",
+          status: "qualified", score: 20, scoreReasons: [], notes: "", doNotContact: false,
+          contactRestrictionVerified: true, contactReviewStatus: "cleared", contactReviewRevision: 1, createdAt: null,
+        }],
+        hasMoreLeads: true,
+        nextPageToken: "lead-cursor-1",
+      })
+      .mockResolvedValueOnce({
+        leads: [{
+          id: "lead-2", campaignId: "campaign-1", businessName: "Second Provider",
+          category: "Roofers", location: "Glasgow", website: "", email: "second@example.test", phone: "", source: "csv_import",
+          status: "onboarded", score: 20, scoreReasons: [], notes: "", doNotContact: false,
+          contactRestrictionVerified: true, contactReviewStatus: "cleared", contactReviewRevision: 1, createdAt: null,
+        }],
+        hasMoreLeads: false,
+        nextPageToken: null,
+      });
+    mocks.api.listCampaigns.mockResolvedValueOnce({
+      campaigns: [{ id: "campaign-1", name: "Full export campaign", brand: "AnyTrader", category: "Painters", location: "Leeds", goal: "Pilot", status: "active", createdAt: null }],
+      hasMoreCampaigns: false,
+      nextPageToken: null,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Export all stored leads (CSV)" }));
+    await waitFor(() => expect(createObjectURL).toHaveBeenCalledTimes(1));
+    const exportedBlob = createObjectURL.mock.calls[0][0] as Blob;
+    const csv = await exportedBlob.text();
+    expect(csv).toContain("First Provider");
+    expect(csv).toContain("Second Provider");
+    expect(csv).toContain("Full export campaign");
+    expect(csv).not.toContain("Loaded Example");
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:full-export");
+    expect(await screen.findByText(/Exported all 2 stored lead\(s\).*Current filters were not applied/)).toBeTruthy();
+  });
+
+  it("does not show full lead export to viewer roles", async () => {
+    mocks.currentUser = { email: "viewer@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "viewer" }],
+      hasMoreOrganisations: false,
+    });
+    render(<CloudWorkspace />);
+    await screen.findByRole("option", { name: /Pilot Workspace.*viewer/ });
+    expect(screen.queryByRole("button", { name: "Export all stored leads (CSV)" })).toBeNull();
+  });
+
 });
