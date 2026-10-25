@@ -194,3 +194,21 @@ it("requests complete server-side lead source attribution for the selected organ
     payload: { organisationId: "org-1" },
   });
 });
+
+
+it("requests a read-only organisation offboarding inventory for the selected tenant", async () => {
+  const response = {
+    complete: false,
+    destructiveActionPerformed: false as const,
+    maxRecordsPerCategory: 1000,
+    categories: [
+      { category: "leads" as const, status: "limit_reached" as const, exactCount: null, observedCount: 1000 },
+      { category: "securityAuditEvents" as const, status: "unavailable" as const, exactCount: null, observedCount: 2 },
+    ],
+  };
+  const { invoke, calls } = makeInvoker([response]);
+  const api = createGrowthEngineApi(invoke);
+  await expect(api.previewOrganisationOffboarding({ organisationId: "org-1" })).resolves.toEqual(response);
+  expect(calls).toEqual([{ name: "previewOrganisationOffboarding", payload: { organisationId: "org-1" } }]);
+  expect(response.destructiveActionPerformed).toBe(false);
+});

@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
   authListener: vi.fn(),
   currentUser: null as unknown,
   api: {
-    listMyOrganisations: vi.fn(), createOrganisation: vi.fn(), updateOrganisationSettings: vi.fn(), addOrganisationMember: vi.fn(), createCampaign: vi.fn(), updateCampaignStatus: vi.fn(), updateCampaignDetails: vi.fn(),
+    listMyOrganisations: vi.fn(), createOrganisation: vi.fn(), updateOrganisationSettings: vi.fn(), previewOrganisationOffboarding: vi.fn(), addOrganisationMember: vi.fn(), createCampaign: vi.fn(), updateCampaignStatus: vi.fn(), updateCampaignDetails: vi.fn(),
     listCampaigns: vi.fn(), getCampaignFunnelSummary: vi.fn(), getLeadSourceFunnelSummary: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), importLeads: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(),
     updateLeadNotes: vi.fn(), setLeadSuppression: vi.fn(), createOutreachDraft: vi.fn(), suggestOutreachDraft: vi.fn(), listOutreachDrafts: vi.fn(),
     updateOutreachDraft: vi.fn(), deleteOutreachDraft: vi.fn(),
@@ -38,6 +38,15 @@ beforeEach(() => {
   mocks.currentUser = null;
   mocks.signIn.mockResolvedValue({}); mocks.googleSignIn.mockResolvedValue({}); mocks.register.mockResolvedValue({});
   mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [] });
+  mocks.api.previewOrganisationOffboarding.mockResolvedValue({
+    complete: true,
+    destructiveActionPerformed: false,
+    maxRecordsPerCategory: 1000,
+    categories: [
+      { category: "leads", status: "complete", exactCount: 12, observedCount: 12 },
+      { category: "securityAuditEvents", status: "complete", exactCount: 4, observedCount: 4 },
+    ],
+  });
   mocks.api.listCampaigns.mockResolvedValue({ campaigns: [], hasMoreCampaigns: false, nextPageToken: null });
   mocks.api.getCampaignFunnelSummary.mockResolvedValue({
     organisationId: "org-1", campaignId: "campaign-1", totalLeadCount: 120,
@@ -855,6 +864,56 @@ describe("cloud authentication gate", () => {
     });
     render(<CloudWorkspace />);
     expect(await screen.findByText(/First onboarded:/)).toBeTruthy();
+  });
+
+  it("lets only the owner run a read-only offboarding preview and displays category counts", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Preview organisation data" }));
+    await waitFor(() => expect(mocks.api.previewOrganisationOffboarding).toHaveBeenCalledWith({ organisationId: "org-1" }));
+    expect(await screen.findByText("Inventory completed for all listed categories")).toBeTruthy();
+    expect(screen.getByText("leads", { selector: "strong" })).toBeTruthy();
+    expect(screen.getByText(/12 records/)).toBeTruthy();
+    expect(screen.getByText("No destructive action performed: confirmed.")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /delete|remove|close account/i })).toBeNull();
+  });
+
+  it("does not expose the owner-only offboarding preview to admins", async () => {
+    mocks.currentUser = { email: "admin@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "admin" }],
+      hasMoreOrganisations: false,
+    });
+    render(<CloudWorkspace />);
+    await screen.findByRole("option", { name: /Pilot Workspace.*admin/ });
+    expect(screen.queryByRole("button", { name: "Preview organisation data" })).toBeNull();
+    expect(mocks.api.previewOrganisationOffboarding).not.toHaveBeenCalled();
+  });
+
+  it("labels a capped or failed offboarding preview as incomplete instead of inventing exact counts", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    mocks.api.previewOrganisationOffboarding.mockResolvedValue({
+      complete: false,
+      destructiveActionPerformed: false,
+      maxRecordsPerCategory: 1000,
+      categories: [
+        { category: "leads", status: "limit_reached", exactCount: null, observedCount: 1000 },
+        { category: "securityAuditEvents", status: "unavailable", exactCount: null, observedCount: 3 },
+      ],
+    });
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Preview organisation data" }));
+    expect(await screen.findByText("Inventory incomplete — review required")).toBeTruthy();
+    expect(screen.getByText(/at least 1000 records \(category cap reached\)/)).toBeTruthy();
+    expect(screen.getByText(/unavailable; 3 records observed before the read failed/)).toBeTruthy();
   });
 
 });

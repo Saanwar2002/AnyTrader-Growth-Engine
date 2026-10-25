@@ -10,6 +10,9 @@ export interface CallableInvoker {
 }
 
 export interface OrganisationSummary { organisationId: string; name: string; role: OrganisationRole; }
+export type OffboardingPreviewCategory = "members" | "campaigns" | "leads" | "leadActivities" | "outreachDrafts" | "securityAuditEvents" | "campaignCreationIdempotency" | "importIdempotency" | "leadCreationIdempotency" | "outreachDraftCreationIdempotency";
+export interface OffboardingPreviewCategoryResult { category: OffboardingPreviewCategory; status: "complete" | "limit_reached" | "unavailable"; exactCount: number | null; observedCount: number; }
+export interface OffboardingPreviewResult { complete: boolean; destructiveActionPerformed: false; maxRecordsPerCategory: number; categories: OffboardingPreviewCategoryResult[]; }
 export interface CampaignInput { organisationId: string; idempotencyKey: string; name: string; brand: string; category: string; location: string; goal: string; }
 export interface CampaignSummary { id: string; name: string; brand: string; category: string; location: string; goal: string; status: ServerCampaignStatus; createdAt: string | null; }
 export interface CampaignFunnelAnalyticsSummary { organisationId: string; campaignId: string; totalLeadCount: number; qualifiedLeadCount: number; contactedLeadCount: number; onboardedLeadCount: number; qualifiedRatePercent: number; onboardedRatePercent: number; scope: "all_stored_campaign_leads"; }
@@ -28,6 +31,7 @@ export function createGrowthEngineApi(call: CallableInvoker) {
     listMyOrganisations: (pageToken?: string) => call<{ pageToken?: string }, { organisations: OrganisationSummary[]; hasMoreOrganisations: boolean; nextPageToken: string | null }>("listMyOrganisations", pageToken ? { pageToken } : {}),
     createOrganisation: (payload: { name: string; idempotencyKey: string }) => call<typeof payload, OrganisationSummary>("createOrganisation", payload),
     updateOrganisationSettings: (payload: { organisationId: string; name: string }) => call<typeof payload, { organisationId: string; name: string }>("updateOrganisationSettings", payload),
+    previewOrganisationOffboarding: (payload: { organisationId: string }) => call<typeof payload, OffboardingPreviewResult>("previewOrganisationOffboarding", payload),
     addOrganisationMember: (payload: { organisationId: string; targetEmail: string; role?: "member" | "viewer"; idempotencyKey: string }) => call<typeof payload, { organisationId: string; uid: string; role: OrganisationRole; added: boolean }>("addOrganisationMember", payload),
     createCampaign: (payload: CampaignInput) => call<CampaignInput, { campaignId: string; status: ServerCampaignStatus }>("createCampaign", payload),
     updateCampaignStatus: (payload: { organisationId: string; campaignId: string; status: ServerCampaignStatus }) => call<typeof payload, { campaignId: string; status: ServerCampaignStatus }>("updateCampaignStatus", payload),
