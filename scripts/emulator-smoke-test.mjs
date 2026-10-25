@@ -297,6 +297,13 @@ try {
     "lead.csv_import.completed",
     "1",
   ], { stdio: "inherit" });
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-rate-limit-count.mjs",
+    orgOne.organisationId,
+    first.auth.currentUser.uid,
+    "importLeads",
+    "1",
+  ], { stdio: "inherit" });
   await expectCallableFailure(callOne("importLeads", {
     ...importPayload,
     leads: [{ businessName: "Different payload under reused key", category: "Painters", location: "Leeds" }],
@@ -329,6 +336,13 @@ try {
     "functions/scripts/assert-emulator-audit-events.mjs",
     orgOne.organisationId,
     "lead.csv_import.completed",
+    "2",
+  ], { stdio: "inherit" });
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-rate-limit-count.mjs",
+    orgOne.organisationId,
+    first.auth.currentUser.uid,
+    "importLeads",
     "2",
   ], { stdio: "inherit" });
 
