@@ -259,3 +259,17 @@ it("preserves the legacy reconciliation-required plan usage state", async () => 
   const api = createGrowthEngineApi(invoke);
   await expect(api.getOrganisationPlanUsage({ organisationId: "org-legacy" })).resolves.toEqual(response);
 });
+
+
+it("requests the bounded organisation member roster for the selected tenant", async () => {
+  const response = {
+    organisationId: "org-1",
+    members: [{ uid: "member-uid", email: "member@example.test", role: "member" as const, createdAt: "2026-01-01T00:00:00.000Z" }],
+    hasMoreMembers: false,
+    scope: "organisation_member_roster" as const,
+  };
+  const { invoke, calls } = makeInvoker([response]);
+  const api = createGrowthEngineApi(invoke);
+  await expect(api.listOrganisationMembers({ organisationId: "org-1" })).resolves.toEqual(response);
+  expect(calls).toEqual([{ name: "listOrganisationMembers", payload: { organisationId: "org-1" } }]);
+});
