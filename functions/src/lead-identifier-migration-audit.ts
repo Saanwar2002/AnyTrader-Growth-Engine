@@ -36,6 +36,28 @@ export interface LeadIdentifierAuditReport {
  * page through the collection with an explicit limit before invoking it.
  */
 export function auditLeadIdentifierRecords(records: readonly LegacyLeadRecord[]): LeadIdentifierAuditReport {
+  // Keep the pure analyzer defensive even when called outside the bounded
+  // pagination coordinator. Firestore adapters and test fixtures are runtime
+  // boundaries, so malformed records must fail closed rather than produce a
+  // misleading report or crash partway through analysis.
+  if (!Array.isArray(records)) {
+    throw new Error("Lead identifier audit requires an array of records.");
+  }
+  const seenIds = new Set<string>();
+  for (const record of records as readonly unknown[]) {
+    if (!record || typeof record !== "object" || Array.isArray(record)) {
+      throw new Error("Lead identifier audit received a malformed record.");
+    }
+    const id = (record as { id?: unknown }).id;
+    if (typeof id !== "string" || !id.trim()) {
+      throw new Error("Lead identifier audit record must have a non-empty string ID.");
+    }
+    if (seenIds.has(id)) {
+      throw new Error("Lead identifier audit received a duplicate record ID.");
+    }
+    seenIds.add(id);
+  }
+
   const report: LeadIdentifierAuditReport = {
     scannedRecords: records.length,
     missingEmailKeys: [],
