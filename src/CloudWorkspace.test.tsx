@@ -43,6 +43,7 @@ beforeEach(() => {
   mocks.api.listOutreachDrafts.mockResolvedValue({ drafts: [] });
   mocks.api.createOrganisation.mockResolvedValue({ organisationId: "org-new", name: "New Org", role: "owner" });
   mocks.api.updateOrganisationSettings.mockImplementation(async ({ organisationId, name }) => ({ organisationId, name }));
+  mocks.api.updateCampaignDetails.mockImplementation(async ({ campaignId, name, brand, category, location, goal }) => ({ campaignId, name, brand, category, location, goal }));
   mocks.api.createCampaign.mockResolvedValue({ campaignId: "campaign-new", status: "active" });
   mocks.api.updateCampaignDetails.mockImplementation(async (payload) => payload);
   mocks.api.createLead.mockResolvedValue({ leadId: "lead-new", status: "new" });
