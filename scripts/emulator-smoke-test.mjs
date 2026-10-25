@@ -2988,6 +2988,38 @@ try {
   await expectCallableFailure(callTwo("getOpenLeadAgingSummary", {
     organisationId: orgOne.organisationId,
   }), "functions/permission-denied", "open-lead aging aggregate rejects cross-tenant access");
+  const fullCampaignReadiness = await callOne("getFullCampaignReadinessSummary", { organisationId: orgOne.organisationId });
+  assert.equal(fullCampaignReadiness.scope, "server_counted_campaign_readiness");
+  assert.equal(fullCampaignReadiness.campaignLimit, 20);
+  assert.ok(fullCampaignReadiness.campaigns.length <= fullCampaignReadiness.campaignLimit);
+  assert.ok(!fullCampaignReadiness.hasMoreCampaigns || fullCampaignReadiness.campaigns.length === fullCampaignReadiness.campaignLimit,
+    "when additional campaigns exist, the result must explicitly hit the configured cap");
+  assert.ok(fullCampaignReadiness.campaigns.length > 0, "readiness report returns campaigns from the organisation");
+  assert.ok(fullCampaignReadiness.campaigns.every((campaign) =>
+    Number.isSafeInteger(campaign.totalLeadCount) && campaign.totalLeadCount >= 0
+      && Number.isSafeInteger(campaign.pendingOrBlockedLeadCount)
+      && campaign.pendingOrBlockedLeadCount >= 0 && campaign.pendingOrBlockedLeadCount <= campaign.totalLeadCount
+      && Number.isSafeInteger(campaign.suppressedLeadCount)
+      && campaign.suppressedLeadCount >= 0 && campaign.suppressedLeadCount <= campaign.totalLeadCount
+      && Number.isSafeInteger(campaign.sourceAttributionMissingCount)
+      && campaign.sourceAttributionMissingCount >= 0 && campaign.sourceAttributionMissingCount <= campaign.totalLeadCount),
+  "per-campaign readiness aggregates are non-negative and internally consistent");
+  assert.match(fullCampaignReadiness.note, /never authorises or sends outreach/i);
+  await expectCallableFailure(callTwo("getFullCampaignReadinessSummary", {
+    organisationId: orgOne.organisationId,
+  }), "functions/permission-denied", "full campaign readiness rejects cross-tenant access");
+  const openLeadAging = await callOne("getOpenLeadAgingSummary", { organisationId: orgOne.organisationId });
+  assert.equal(openLeadAging.scope, "all_stored_open_leads");
+  assert.ok(openLeadAging.totalOpenLeadCount >= 1, "open-lead aging counts all open leads");
+  assert.equal(openLeadAging.totalOpenLeadCount,
+    openLeadAging.createdWithinSevenDays + openLeadAging.createdEightToThirtyDaysAgo
+      + openLeadAging.createdThirtyOneToNinetyDaysAgo + openLeadAging.createdOverNinetyDaysAgo
+      + openLeadAging.missingOrUnclassifiedCreatedAtCount,
+    "open-lead age bands reconcile to all open leads");
+  assert.match(openLeadAging.note, /not last activity or last status change/i);
+  await expectCallableFailure(callTwo("getOpenLeadAgingSummary", {
+    organisationId: orgOne.organisationId,
+  }), "functions/permission-denied", "open-lead aging aggregate rejects cross-tenant access");
   const contactReviewInventory = await callOne("getContactReviewQueueSummary", { organisationId: orgOne.organisationId });
   assert.equal(contactReviewInventory.scope, "all_stored_organisation_leads");
   assert.ok(contactReviewInventory.totalLeadCount >= 1, "contact-review inventory includes stored organisation leads");
@@ -3058,6 +3090,7 @@ try {
     "getLeadSourceFunnelSummary",
     "getOnboardingCohortSummary",
     "getLeadCompletenessSummary",
+    "getFullCampaignReadinessSummary",
     "getOpenLeadAgingSummary",
     "getOnboardingCohortCoverage",
     "getContactReviewQueueSummary",
