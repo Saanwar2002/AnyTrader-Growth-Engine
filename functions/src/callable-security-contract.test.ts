@@ -153,6 +153,16 @@ describe("callable security contract", () => {
     );
   });
 
+  it("validates outreach-draft idempotency replay actor, payload, and persisted ownership", () => {
+    const start = callableSource.indexOf("export const createOutreachDraft =");
+    const end = callableSource.indexOf("export const suggestOutreachDraft =", start);
+    const callable = callableSource.slice(start, end);
+    expect(callable).toContain("getValidOutreachDraftReplayResult(saved, expectedReplay)");
+    expect(callable).toContain("isPersistedOutreachDraftAvailable(savedDraftSnapshot.data(), expectedReplay)");
+    expect(callable).toContain('saved.requestHash !== requestHash');
+    expect(callable).toContain('new HttpsError("failed-precondition"');
+  });
+
   it("enforces an event-specific audit metadata allow-list and resource mapping", () => {
     expect(callableSource).toContain("const AUDIT_EVENT_RESOURCE_TYPES:");
     expect(callableSource).toContain("const AUDIT_METADATA_KEYS:");

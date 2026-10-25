@@ -53,6 +53,7 @@
 - [x] Add a minimal transactional audit event for successful CSV imports; CI passed on head `6b117e14a25dd734bc72dedd5576483da087995a`.
 - [x] Add atomic, PII-minimised audit events for lead contact edits and contact-restriction changes (CI passed on `0c7821a82cb787dea5fa7c9a3fc63a516352a899`).
 - [x] Extend transactional audit coverage to campaign creation/status changes, lead status/notes/follow-up-date changes, and outreach-draft create/update/delete without logging note text, contact data, or draft content.
+- [x] Harden outreach-draft idempotency replay validation: require actor/request fingerprint and immutable response payload to match, and re-check that the original tenant-scoped draft still exists, belongs to the actor, and remains unsent.
 - [x] Add bounded all-or-nothing bulk lead status updates for up to 25 selected records, with tenant/role rechecks, contact-restriction gates, stable idempotency, per-lead activity/audit events, and offboarding inventory coverage.
 - [x] Add a transactional, PII-minimised audit event for manual lead creation (CI passed on head `04b39a1de61cf9c04f7219ad83e08f324eb23f79`).
 - [x] Add an atomic, metadata-minimised audit event when an organisation and its initial owner membership are created (verified by CI on `c2e31b169e81ccd9fda1fd1cad0189b09669ba1c`; frontend/emulator and Functions jobs passed).

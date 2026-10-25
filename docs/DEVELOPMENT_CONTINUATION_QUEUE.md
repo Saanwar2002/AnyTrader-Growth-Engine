@@ -1,3 +1,14 @@
+## AutoPilot run — outreach-draft idempotency replay integrity (2026-10-25)
+
+- Tightened replay validation for draft creation so saved retry state must match the original actor, canonical request hash, lead/campaign identity, subject/body, and immutable draft response state.
+- Replays now fail closed if the persisted draft is missing, belongs to a different actor/lead/campaign, or is not explicitly unsent.
+- The validation deliberately does not require the persisted draft's current subject/body to match the original request, because a legitimate later edit must not invalidate a retry of the original creation request.
+- Added pure unit coverage for wrong actors, malformed records, altered payload/result fields, invalid IDs, missing/mismatched persisted draft identity, and sent/missing sent flags; added a source-contract regression for the callable integration.
+- No new endpoint, external model invocation, automated outreach, deployment, or billing change.
+- Next: review any remaining idempotency/audit invariants and require exact-head CI before merging.
+
+---
+
 ## AutoPilot run — follow-up date sorting (2026-10-25)
 
 - Added an explicit lead-directory sort mode for follow-up dates, earliest first; overdue dates naturally appear first, then due-today and future dates.
