@@ -189,7 +189,7 @@ describe("callable security contract", () => {
 
     const auditCalls = [...callableSource.matchAll(/writeSecurityAuditEvent\(transaction,\s*[^,]+,\s*[^,]+,\s*"([^"]+)",\s*"([^"]+)"/g)];
     const callPairs = new Set(auditCalls.map((match) => `${match[1]}|${match[2]}`));
-    expect(auditCalls.length).toBe(17);
+    expect(auditCalls.length).toBe(18);
     for (const [eventType, resourceType] of [
       ["organisation.created", "organisation"],
       ["organisation.settings_updated", "organisation"],
