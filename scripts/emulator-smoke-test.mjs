@@ -146,6 +146,14 @@ try {
     status: "paused",
   });
   assert.equal(pausedCampaign.status, "paused", "campaign status update returns the new state");
+  const editedCampaign = await callOne("updateCampaignDetails", {
+    organisationId: orgOne.organisationId, campaignId: campaignOne.campaignId,
+    name: "Updated Test Campaign", brand: "Test Brand", category: "Roofing", location: "Leeds, UK", goal: "Recruit roofers",
+  });
+  assert.equal(editedCampaign.name, "Updated Test Campaign", "campaign detail update returns updated name");
+  const campaignAfterEdit = await callOne("listCampaigns", { organisationId: orgOne.organisationId });
+  assert.equal(campaignAfterEdit.campaigns.find((campaign) => campaign.id === campaignOne.campaignId)?.name, "Updated Test Campaign",
+    "campaign details persist after update");
   const campaignAfterPause = await callOne("listCampaigns", { organisationId: orgOne.organisationId });
   assert.equal(campaignAfterPause.campaigns.find((campaign) => campaign.id === campaignOne.campaignId)?.status, "paused",
     "campaign status update is persisted");
@@ -1831,6 +1839,11 @@ try {
   await expectCallableFailure(callTwo("listLeads", { organisationId: orgOne.organisationId }), "functions/permission-denied", "cross-tenant lead listing denial");
   await expectCallableFailure(callTwo("previewOrganisationOffboarding", { organisationId: orgOne.organisationId }), "functions/permission-denied", "cross-tenant offboarding preview denial");
   const orgTwo = await callTwo("createOrganisation", { name: "Tenant Two", idempotencyKey: "organisation-create-tenant-two-0001" });
+  await expectCallableFailure(callTwo("updateCampaignDetails", {
+    organisationId: orgOne.organisationId, campaignId: campaignOne.campaignId,
+    name: "Cross tenant", brand: "Test Brand", category: "Roofing", location: "Leeds, UK", goal: "",
+  }), "functions/permission-denied", "cross-tenant campaign detail update is denied");
+
   const renamedOrganisation = await callTwo("updateOrganisationSettings", { organisationId: orgTwo.organisationId, name: "Tenant Two Workspace" });
   assert.equal(renamedOrganisation.name, "Tenant Two Workspace", "owner can rename an organisation");
   assert.equal((await callTwo("listMyOrganisations")).organisations.find((item) => item.organisationId === orgTwo.organisationId)?.name, "Tenant Two Workspace",
@@ -2652,6 +2665,7 @@ try {
     "createCampaign",
     "listCampaigns",
     "updateCampaignStatus",
+    "updateCampaignDetails",
     "listLeads",
     "createLead",
     "importLeads",

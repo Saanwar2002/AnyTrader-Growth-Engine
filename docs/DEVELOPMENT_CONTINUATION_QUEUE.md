@@ -1,9 +1,16 @@
 ## AutoPilot run — campaign performance CSV export (2026-10-25)
 
-- Added a downloadable CSV export for campaign performance summaries currently loaded in the cloud workspace.
-- Each row carries a "Loaded records only" scope label; the filename and success notice also make page-limited scope explicit. Text fields are CSV-escaped.
-- Added tests for escaping, rates, scope labelling, and the empty-summary header-only file.
-- Next feature priority remains durable server-side aggregate analytics and plan/entitlement scaffolding. No billing or production rollout is included.
+- Added a downloadable CSV export for campaign performance summaries currently loaded in the cloud workspace. Each row carries a "Loaded records only" scope label; the filename and success notice also make page-limited scope explicit.
+- Added CSV escaping and unit coverage for quoted campaign names and empty reports.
+
+---
+
+## AutoPilot run — campaign detail editing (2026-10-25)
+
+- Added an owner/admin-only callable to update campaign name, brand, category, location and goal, with bounded input validation, transaction-time tenant/role checks, rate limiting and a content-free audit event.
+- Added a cloud workspace edit form, security-contract inventory, emulator persistence/cross-tenant tests, and UI regression coverage.
+- Unchanged details are no-ops; campaign status remains managed by the existing status workflow.
+- Next feature priority: plan/entitlement scaffolding and durable tenant-scoped attribution aggregates. Billing remains deferred until entitlements are tested; production deployment remains blocked on dedicated Firebase/App Check and operational controls.
 
 ---
 
