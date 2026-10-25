@@ -2617,6 +2617,7 @@ try {
     orgOne.organisationId,
     first.auth.currentUser.uid,
     "updateLeadNotes",
+    "updateLeadFollowUpDate",
     "exhausted",
   ], { stdio: "inherit" });
   await expectCallableFailure(
