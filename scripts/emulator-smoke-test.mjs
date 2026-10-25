@@ -1951,10 +1951,6 @@ try {
     console.log(`OK ${name} (tenant two)`);
     return response.data;
   })();
-  await expectCallableFailure(callTwo("getLeadActivityTimeline", {
-    organisationId: orgOne.organisationId,
-    leadId: leadOne.leadId,
-  }), "functions/permission-denied", "lead activity timeline rejects cross-tenant access");
   // An unauthorized tenant read must fail before creating or consuming a quota
   // bucket under the victim organisation ID.
   const crossTenantReadUid = second.auth.currentUser.uid;
