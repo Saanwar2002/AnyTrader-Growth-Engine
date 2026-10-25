@@ -233,7 +233,7 @@ describe("summarizeCampaignReadiness", () => {
     const csv = serializeSecurityAuditEventsCsv([]);
     expect(csv).toContain("Loaded audit events only");
     expect(csv).toContain("No audit events loaded");
-    expect(csv.split("\\r\\n")).toHaveLength(3);
+    expect(csv.split("\r\n")).toHaveLength(3);
   });
 
 });
