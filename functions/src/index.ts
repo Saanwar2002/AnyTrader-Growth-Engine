@@ -589,12 +589,10 @@ export const createCampaign = onCall(callableOptions, async (request) => {
       throw new HttpsError("not-found", "Organisation was not found.");
     }
     const organisationData = organisationSnapshot.data() ?? {};
-    let meteredOrganisation = false;
     let planResolutionForQuota: ReturnType<typeof resolvePlanPolicy> | null = null;
     let usageStateForQuota: ReturnType<typeof resolvePlanUsageState> | null = null;
     let reservedPlanUsageState: PlanUsageState | null = null;
-    if (organisationData.planUsage !== undefined && organisationData.planUsage !== null) {
-      meteredOrganisation = true;
+    if (Object.prototype.hasOwnProperty.call(organisationData, "planUsage")) {
       planResolutionForQuota = resolvePlanPolicy(organisationData.planId);
       usageStateForQuota = resolvePlanUsageState(organisationData.planUsage, new Date());
       if (!planResolutionForQuota.ok || !usageStateForQuota.ok || usageStateForQuota.source === "initial") {
