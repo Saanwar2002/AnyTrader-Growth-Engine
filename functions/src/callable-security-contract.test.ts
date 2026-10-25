@@ -36,6 +36,7 @@ const expectedRateLimitType: Record<string, "read" | "mutation"> = {
   updateLeadContact: "mutation",
   updateLeadStatus: "mutation",
   updateLeadNotes: "mutation",
+  updateLeadFollowUpDate: "mutation",
   setLeadSuppression: "mutation",
   suggestOutreachDraft: "read",
   createOutreachDraft: "mutation",
@@ -383,6 +384,17 @@ describe("callable security contract", () => {
       const body = callableSource.slice(start, nextStart < 0 ? callableSource.length : nextStart);
       expect(body, `${name} audit event`).toContain(expectedAuditCall);
     }
+
+  it("validates follow-up dates and records tenant-scoped activity and audit events", () => {
+    const start = callableSource.indexOf("export const updateLeadFollowUpDate = onCall(");
+    const end = callableSource.indexOf("export const setLeadSuppression =", start);
+    const callable = callableSource.slice(start, end);
+    expect(callable).toContain('requireTransactionalRole(transaction, organisationId, uid, "lead")');
+    expect(callable).toContain('consumeTransactionalRateLimit(transaction, organisationId, uid, "updateLeadFollowUpDate", 240)');
+    expect(callable).toContain('"lead.follow_up_date_changed"');
+    expect(callable).toContain("followUpDate must be a real UTC calendar date");
+    expect(callable).toContain("transaction.update(leadRef, { followUpDate, updatedAt: now, updatedBy: uid })");
+  });
 
     const notesStart = callableSource.indexOf("export const updateLeadNotes = onCall(");
     const notesEnd = callableSource.indexOf("export const ", notesStart + 1);
