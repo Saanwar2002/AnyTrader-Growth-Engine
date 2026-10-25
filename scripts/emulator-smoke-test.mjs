@@ -2961,6 +2961,16 @@ try {
   await expectCallableFailure(callTwo("getOnboardingCohortCoverage", {
     organisationId: orgOne.organisationId,
   }), "functions/permission-denied", "onboarding timestamp coverage rejects cross-tenant access");
+  const completenessInventory = await callOne("getLeadCompletenessSummary", { organisationId: orgOne.organisationId });
+  assert.equal(completenessInventory.scope, "all_stored_leads");
+  assert.ok(completenessInventory.totalLeadCount >= 1, "completeness aggregate counts stored leads");
+  assert.equal(completenessInventory.totalLeadCount,
+    completenessInventory.lowCount + completenessInventory.mediumCount + completenessInventory.highCount + completenessInventory.unclassifiedCount,
+    "score bands plus unclassified scores reconcile to all stored leads");
+  assert.match(completenessInventory.note, /not a quality, consent, or contactability guarantee/i);
+  await expectCallableFailure(callTwo("getLeadCompletenessSummary", {
+    organisationId: orgOne.organisationId,
+  }), "functions/permission-denied", "lead completeness aggregate rejects cross-tenant access");
   const contactReviewInventory = await callOne("getContactReviewQueueSummary", { organisationId: orgOne.organisationId });
   assert.equal(contactReviewInventory.scope, "all_stored_organisation_leads");
   assert.ok(contactReviewInventory.totalLeadCount >= 1, "contact-review inventory includes stored organisation leads");
