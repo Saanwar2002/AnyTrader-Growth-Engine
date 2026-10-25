@@ -589,26 +589,37 @@ export const createCampaign = onCall(callableOptions, async (request) => {
       throw new HttpsError("not-found", "Organisation was not found.");
     }
     const organisationData = organisationSnapshot.data() ?? {};
+    let meteredOrganisation = false;
+    let planResolutionForQuota: ReturnType<typeof resolvePlanPolicy> | null = null;
+    let usageStateForQuota: ReturnType<typeof resolvePlanUsageState> | null = null;
     if (organisationData.planUsage !== undefined && organisationData.planUsage !== null) {
-      const planResolution = resolvePlanPolicy(organisationData.planId);
-      if (!planResolution.ok) {
-        throw new HttpsError("failed-precondition", "Organisation has an unknown plan and requires operator review.");
-      }
-      const usageResolution = resolvePlanUsageState(organisationData.planUsage, new Date());
-      if (!usageResolution.ok || usageResolution.source === "initial") {
+      meteredOrganisation = true;
+      planResolutionForQuota = resolvePlanPolicy(organisationData.planId);
+      usageStateForQuota = resolvePlanUsageState(organisationData.planUsage, new Date());
+      if (!planResolutionForQuota.ok || !usageStateForQuota.ok || usageStateForQuota.source === "initial") {
         throw new HttpsError("failed-precondition", "Organisation usage state is invalid and requires reconciliation.");
       }
-      const reservation = reservePlanUsage(planResolution.plan, usageResolution.state, "campaigns");
-      if (!reservation.allowed) {
-        if (reservation.reason === "limit_exceeded") {
-          throw new HttpsError("resource-exhausted", `Campaign limit reached for the ${planResolution.plan.displayName} plan (${reservation.limit}).`);
+      const quotaCheck = reservePlanUsage(planResolutionForQuota.plan, usageStateForQuota.state, "campaigns");
+      if (!quotaCheck.allowed) {
+        if (quotaCheck.reason === "limit_exceeded") {
+          throw new HttpsError("resource-exhausted", `Campaign limit reached for the ${planResolutionForQuota.plan.displayName} plan (${quotaCheck.limit}).`);
         }
         throw new HttpsError("failed-precondition", "Organisation usage state cannot be safely updated.");
       }
-      transaction.update(organisationRef, { planUsage: reservation.state });
     }
 
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "createCampaign", 150);
+    if (meteredOrganisation && planResolutionForQuota?.ok && usageStateForQuota?.ok) {
+      const reservation = reservePlanUsage(planResolutionForQuota.plan, usageStateForQuota.state, "campaigns");
+      if (!reservation.allowed) {
+        if (reservation.reason === "limit_exceeded") {
+          throw new HttpsError("resource-exhausted", `Campaign limit reached for the ${planResolutionForQuota.plan.displayName} plan (${reservation.limit}).`);
+        }
+        throw new HttpsError("failed-precondition", "Organisation usage state cannot be safely updated.");
+      }
+      // Persist usage atomically with campaign creation after all transaction reads.
+      transaction.update(organisationRef, { planUsage: reservation.state });
+    }
     transaction.create(campaign, {
       name, category, location, brand, goal, status: "active", createdBy: uid,
       createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
