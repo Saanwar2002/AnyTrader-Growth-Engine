@@ -1,3 +1,13 @@
+## AutoPilot run — direct audit input validation merged (2026-10-25)
+
+- PR #21, [Validate inputs at lead identifier audit boundary](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/pull/21), was merged after exact-head CI run [40177935742](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40177935742) passed both Functions and frontend/emulator jobs.
+- The pure read-only analyzer now rejects non-array input, null/non-object entries, missing or blank IDs, and duplicate record IDs before producing a report. Regression tests cover each case; canonicalization and duplicate grouping behaviour are unchanged.
+- The bounded pagination coordinator still independently validates adapter pages, tenant scope, page limits, repeated cursors, duplicate IDs across pages, and truncation. The analyzer adds a second defensive boundary for direct callers.
+- No Firestore adapter, live database scan, backfill, production data access, deletion, deployment, or outreach was introduced.
+- Next safe batch: reconcile stale continuation notes and keep the production gate explicit. A real tenant-scoped migration adapter remains blocked until the separate Growth Engine Firebase project, least-privilege access, and operator-reviewed dry-run procedure are configured. Do not claim legacy duplicate coverage is complete before a verified backfill.
+
+---
+
 ## AutoPilot run — malformed legacy import regression verified (2026-10-24)
 
 - The malformed-legacy import fixture and audit-event assertions were added in commit `63fb24943043fd170f052f372d4e8fb6fced2481`. Initial CI runs exposed an overly strict aggregate-count assertion; commit `14cc0c286559e5ec2b976bde9272aa1a68c39e04` corrected the helper without changing import behaviour.
