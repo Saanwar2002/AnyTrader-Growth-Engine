@@ -1031,6 +1031,65 @@ export const getLeadSourceFunnelSummary = onCall(callableOptions, async (request
 });
 
 /**
+ * Aggregate monthly first-onboarding timestamps. Counts include leads whose
+ * current status later changed, because onboardedAt records the first transition.
+ */
+export const getOnboardingCohortSummary = onCall(callableOptions, async (request) => {
+  const uid = requireUid(request.auth?.uid);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const organisationId = requireOrganisationId(data.organisationId);
+  const months = data.months === undefined ? 12 : data.months;
+  if (typeof months !== "number" || ![3, 6, 12].includes(months)) {
+    throw new HttpsError("invalid-argument", "months must be 3, 6, or 12.");
+  }
+  await requireMembership(organisationId, uid);
+  await consumeReadRateLimit(organisationId, uid, "getOnboardingCohortSummary", 5);
+
+  const leadsRef = db.collection("organisations").doc(organisationId).collection("leads");
+  const currentOnboardedQuery = leadsRef.where("status", "==", "onboarded");
+  const timestampedCurrentOnboardedQuery = currentOnboardedQuery.where("onboardedAt", ">=", new Date(0));
+  const now = new Date();
+  const currentMonthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const windows = Array.from({ length: months }, (_, index) => {
+    const start = new Date(Date.UTC(
+      currentMonthStart.getUTCFullYear(),
+      currentMonthStart.getUTCMonth() - (months - 1 - index),
+      1,
+    ));
+    const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1));
+    return { month: start.toISOString().slice(0, 7), start, end };
+  });
+  const countQuery = async (query: Query): Promise<number> => {
+    const result = await query.count().get();
+    const count = result.data().count;
+    if (!Number.isSafeInteger(count) || count < 0) {
+      throw new HttpsError("failed-precondition", "Onboarding cohort count is invalid and requires operator review.");
+    }
+    return count;
+  };
+  const [currentOnboardedLeadCount, timestampedCurrentOnboardedLeadCount, ...monthlyCounts] = await Promise.all([
+    countQuery(currentOnboardedQuery),
+    countQuery(timestampedCurrentOnboardedQuery),
+    ...windows.map(({ start, end }) => countQuery(
+      leadsRef.where("onboardedAt", ">=", start).where("onboardedAt", "<", end),
+    )),
+  ]);
+  if (timestampedCurrentOnboardedLeadCount > currentOnboardedLeadCount) {
+    throw new HttpsError("failed-precondition", "Onboarding timestamp coverage is inconsistent and requires operator review.");
+  }
+  return {
+    organisationId,
+    months,
+    monthlyOnboardings: windows.map((window, index) => ({ month: window.month, count: monthlyCounts[index] })),
+    currentOnboardedLeadCount,
+    timestampedCurrentOnboardedLeadCount,
+    legacyUnattributedCurrentOnboardedLeadCount: currentOnboardedLeadCount - timestampedCurrentOnboardedLeadCount,
+    scope: "all_stored_organisation_leads" as const,
+    coverageNote: "Monthly counts include only records with a valid onboardedAt timestamp. Legacy leads already marked onboarded without a timestamp remain unattributed until a reviewed backfill; no historical dates are inferred.",
+  };
+});
+
+/**
  * Import a bounded CSV-mapped batch through the trusted server path.
  * This callable persists only validated rows and leaves every new contact suppressed
  * until an authorised reviewer explicitly clears the contact restriction.
