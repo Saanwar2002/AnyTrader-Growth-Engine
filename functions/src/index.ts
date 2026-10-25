@@ -644,6 +644,62 @@ export const addOrganisationMember = onCall(callableOptions, async (request) => 
   });
 });
 
+export const listOrganisationMembers = onCall(callableOptions, async (request) => {
+  const uid = requireUid(request.auth?.uid);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const organisationId = requireOrganisationId(data.organisationId);
+  const callerMembership = await requireMembership(organisationId, uid);
+  if (callerMembership.role !== "owner" && callerMembership.role !== "admin") {
+    throw new HttpsError("permission-denied", "Only organisation owners and admins can list members.");
+  }
+  await consumeReadRateLimit(organisationId, uid, "listOrganisationMembers", 10);
+
+  const organisationRef = db.collection("organisations").doc(organisationId);
+  const organisationSnapshot = await organisationRef.get();
+  if (!organisationSnapshot.exists) throw new HttpsError("not-found", "Organisation was not found.");
+  const ownerUid = organisationSnapshot.data()?.ownerUid;
+  if (typeof ownerUid !== "string" || ownerUid.length === 0) {
+    throw new HttpsError("failed-precondition", "Organisation owner identity is invalid and requires operator review.");
+  }
+  const page = await organisationRef.collection("members")
+    .orderBy(FieldPath.documentId())
+    .limit(21)
+    .get();
+  const memberDocuments = page.docs.slice(0, 20);
+  const members = await Promise.all(memberDocuments.map(async (document) => {
+    const member = document.data() ?? {};
+    if (!isValidMembershipForOrganisation(member, document.id, ownerUid)) {
+      throw new HttpsError("failed-precondition", "A member record is invalid and requires operator review.");
+    }
+    let email: string | null = null;
+    try {
+      const userRecord = await getAuth().getUser(document.id);
+      email = typeof userRecord.email === "string" && userRecord.email.length <= 254 ? userRecord.email : null;
+    } catch (error) {
+      if (!(typeof error === "object" && error !== null && "code" in error && error.code === "auth/user-not-found")) {
+        logger.error("Could not resolve organisation member account", { organisationId, reason: "auth_lookup_failed" });
+        throw new HttpsError("internal", "Could not verify all member accounts. Please retry.");
+      }
+    }
+    return {
+      uid: document.id,
+      email,
+      role: member.role as "owner" | "admin" | "member" | "viewer",
+      createdAt: safeTimestampToIso(member.createdAt),
+    };
+  }));
+  const finalMembership = await requireMembership(organisationId, uid);
+  if (finalMembership.role !== "owner" && finalMembership.role !== "admin") {
+    throw new HttpsError("permission-denied", "Only organisation owners and admins can list members.");
+  }
+  return {
+    organisationId,
+    members,
+    hasMoreMembers: page.docs.length > 20,
+    scope: "organisation_member_roster" as const,
+  };
+});
+
 export const createCampaign = onCall(callableOptions, async (request) => {
   const uid = requireUid(request.auth?.uid);
   const data = (request.data ?? {}) as Record<string, unknown>;
