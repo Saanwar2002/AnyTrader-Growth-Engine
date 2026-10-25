@@ -1023,8 +1023,8 @@ describe("cloud authentication gate", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Load onboarding cohorts" }));
     await waitFor(() => expect(mocks.api.getOnboardingCohortSummary).toHaveBeenCalledWith({ organisationId: "org-1" }));
     expect(await screen.findByRole("table", { name: /First-onboarding cohorts by UTC calendar month/ })).toBeTruthy();
-    expect(screen.getByText("2025-01")).toBeTruthy();
-    expect(screen.getByText("2025-12")).toBeTruthy();
+    expect(screen.getAllByText("2025-01")).toHaveLength(2);
+    expect(screen.getAllByText("2025-12")).toHaveLength(2);
     const cohortChart = screen.getByRole("group", { name: "Monthly first-onboarding counts chart" });
     expect(cohortChart.querySelectorAll("progress")).toHaveLength(12);
     expect(screen.getByRole("progressbar", { name: "2025-01 first onboardings" }).getAttribute("value")).toBe("0");
