@@ -978,7 +978,7 @@ export const getLeadSourceFunnelSummary = onCall(callableOptions, async (request
   const leadsRef = db.collection("organisations").doc(organisationId).collection("leads");
   const knownSources = ["manual", "csv_import", "linkedin_csv", "google_places_manual", "other_approved"] as const;
   const countQuery = async (source?: string, status?: "qualified" | "onboarded"): Promise<number> => {
-    let query = leadsRef;
+    let query: Query = leadsRef;
     if (source !== undefined) query = query.where("source", "==", source);
     if (status !== undefined) query = query.where("status", "==", status);
     const result = await query.count().get();
@@ -999,7 +999,7 @@ export const getLeadSourceFunnelSummary = onCall(callableOptions, async (request
       countQuery(source, "onboarded"),
     ]),
   ]);
-  const rows = knownSources.map((source, index) => ({
+  const rows: Array<{ source: string; totalLeadCount: number; qualifiedLeadCount: number; onboardedLeadCount: number }> = knownSources.map((source, index) => ({
     source,
     totalLeadCount: knownCounts[index * 3],
     qualifiedLeadCount: knownCounts[index * 3 + 1],
