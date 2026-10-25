@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
   authListener: vi.fn(),
   currentUser: null as unknown,
   api: {
-    listMyOrganisations: vi.fn(), createOrganisation: vi.fn(), updateOrganisationSettings: vi.fn(), createCampaign: vi.fn(), updateCampaignStatus: vi.fn(), updateCampaignDetails: vi.fn(),
+    listMyOrganisations: vi.fn(), createOrganisation: vi.fn(), updateOrganisationSettings: vi.fn(), addOrganisationMember: vi.fn(), createCampaign: vi.fn(), updateCampaignStatus: vi.fn(), updateCampaignDetails: vi.fn(),
     listCampaigns: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), importLeads: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(),
     updateLeadNotes: vi.fn(), setLeadSuppression: vi.fn(), createOutreachDraft: vi.fn(), suggestOutreachDraft: vi.fn(), listOutreachDrafts: vi.fn(),
     updateOutreachDraft: vi.fn(), deleteOutreachDraft: vi.fn(),
@@ -43,6 +43,7 @@ beforeEach(() => {
   mocks.api.listOutreachDrafts.mockResolvedValue({ drafts: [] });
   mocks.api.createOrganisation.mockResolvedValue({ organisationId: "org-new", name: "New Org", role: "owner" });
   mocks.api.updateOrganisationSettings.mockImplementation(async ({ organisationId, name }) => ({ organisationId, name }));
+  mocks.api.addOrganisationMember.mockResolvedValue({ organisationId: "org-1", uid: "member-1", role: "member", added: true });
   mocks.api.updateCampaignDetails.mockImplementation(async ({ campaignId, name, brand, category, location, goal }) => ({ campaignId, name, brand, category, location, goal }));
   mocks.api.createCampaign.mockResolvedValue({ campaignId: "campaign-new", status: "active" });
   mocks.api.updateCampaignStatus.mockImplementation(async ({ campaignId, status }) => ({ campaignId, status }));
@@ -718,6 +719,33 @@ describe("cloud authentication gate", () => {
     expect(await screen.findByRole("option", { name: "Renamed Workspace · owner" })).toBeTruthy();
   });
 
+
+  it("lets an owner add an existing account by email with a selected role", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
+    render(<CloudWorkspace />);
+    await screen.findByRole("option", { name: "Pilot Workspace · owner" });
+    fireEvent.change(screen.getByLabelText("Add existing account by email"), { target: { value: " teammate@example.test " } });
+    fireEvent.change(screen.getByLabelText("Member role"), { target: { value: "viewer" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add member" }));
+    await waitFor(() => expect(mocks.api.addOrganisationMember).toHaveBeenCalledWith(expect.objectContaining({
+      organisationId: "org-1",
+      targetEmail: "teammate@example.test",
+      role: "viewer",
+      idempotencyKey: expect.stringMatching(/^organisation-member-add-/),
+    })));
+    expect(await screen.findByText("Member added.")).toBeTruthy();
+  });
+
+  it("disables member addition for non-admin organisation roles", async () => {
+    mocks.currentUser = { email: "member@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "member" }] });
+    render(<CloudWorkspace />);
+    await screen.findByRole("option", { name: "Pilot Workspace · member" });
+    expect((screen.getByLabelText("Add existing account by email") as HTMLInputElement).disabled).toBe(true);
+    expect((screen.getByLabelText("Member role") as HTMLSelectElement).disabled).toBe(true);
+    expect((screen.getByRole("button", { name: "Add member" }) as HTMLButtonElement).disabled).toBe(true);
+  });
 
   it("lets an owner edit campaign details through the server API", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
