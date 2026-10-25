@@ -1496,6 +1496,23 @@ describe("cloud authentication gate", () => {
     expect(leadRows()[0].textContent).toContain("Alpha Provider");
     fireEvent.change(screen.getByLabelText("Sort leads by"), { target: { value: "newest" } });
     expect(leadRows()[0].textContent).toContain("Zulu Provider");
+
+    fireEvent.change(screen.getByLabelText("Filter by completeness"), { target: { value: "high" } });
+    expect(screen.getByText("Zulu Provider")).toBeTruthy();
+    expect(screen.queryByText("Alpha Provider")).toBeNull();
+    expect(screen.getByText(/Showing 1 of 2/)).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Filter by completeness"), { target: { value: "medium" } });
+    expect(screen.getByText(/No leads match the current filters/i)).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Filter by completeness"), { target: { value: "low" } });
+    expect(screen.getByText("Alpha Provider")).toBeTruthy();
+    expect(screen.queryByText("Zulu Provider")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect((screen.getByLabelText("Filter by completeness") as HTMLSelectElement).value).toBe("all");
+    expect(screen.getByText("Alpha Provider")).toBeTruthy();
+    expect(screen.getByText("Zulu Provider")).toBeTruthy();
   });
 
 });
