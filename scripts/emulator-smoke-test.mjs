@@ -2665,6 +2665,12 @@ try {
     name: "Metered quota tenant",
     idempotencyKey: "campaign-quota-tenant-0001",
   });
+  await expectCallableFailure(callOne("addOrganisationMember", {
+    organisationId: quotaOrg.organisationId,
+    targetUid: "missing-synthetic-account-0001",
+    role: "member",
+    idempotencyKey: "member-addition-missing-user-0001",
+  }), "functions/not-found", "member addition rejects nonexistent accounts");
   const addedMember = await callOne("addOrganisationMember", {
     organisationId: quotaOrg.organisationId,
     targetUid: second.auth.currentUser.uid,
