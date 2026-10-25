@@ -434,3 +434,16 @@ export function serializeLeadExportCsv(
   });
   return [headers.map((value) => escapeCsvCell(value)).join(","), ...rows.map((row) => row.join(","))].join("\r\n") + "\r\n";
 }
+
+
+/** Human-readable labels for user-declared lead provenance. These labels are not independently verified. */
+export function formatLeadSourceLabel(source: string): string {
+  const labels: Record<string, string> = {
+    manual: "Manual entry",
+    csv_import: "CSV import",
+    linkedin_csv: "LinkedIn export (user-declared)",
+    google_places_manual: "Google Maps/Places research (user-declared)",
+    other_approved: "Other approved source (user-declared)",
+  };
+  return labels[source] ?? source;
+}

@@ -689,10 +689,18 @@ export const importLeads = onCall(callableOptions, async (request) => {
     return { fields: normaliseLeadFields(row), index };
   });
   await requireLeadEditor(organisationId, uid);
-
-  const requestHash = createHash("sha256")
-    .update(JSON.stringify({ organisationId, campaignId, leads: rows.map(({ fields }) => fields) }))
-    .digest("hex");
+  const sourceLabel = data.sourceLabel === undefined ? "csv_import" : data.sourceLabel;
+  const allowedSourceLabels = new Set(["csv_import", "linkedin_csv", "google_places_manual", "other_approved"]);
+  if (typeof sourceLabel !== "string" || !allowedSourceLabels.has(sourceLabel)) {
+    throw new HttpsError("invalid-argument", "sourceLabel must be one of csv_import, linkedin_csv, google_places_manual, or other_approved.");
+  }
+  const requestHashPayload: Record<string, unknown> = {
+    organisationId, campaignId, leads: rows.map(({ fields }) => fields),
+  };
+  // Preserve the legacy hash for default CSV imports so uncertain retries from older
+  // clients remain idempotent after this optional attribution field is introduced.
+  if (sourceLabel !== "csv_import") requestHashPayload.sourceLabel = sourceLabel;
+  const requestHash = createHash("sha256").update(JSON.stringify(requestHashPayload)).digest("hex");
   const idempotencyDocumentId = createHash("sha256")
     .update(JSON.stringify([organisationId, uid, idempotencyKey]))
     .digest("hex");
@@ -808,7 +816,7 @@ export const importLeads = onCall(callableOptions, async (request) => {
         ...row.fields,
         campaignId,
         status: "new",
-        source: "csv_import",
+        source: sourceLabel,
         score: completeness.score,
         scoreReasons: completeness.reasons,
         notes: "",

@@ -537,7 +537,7 @@ it("keeps CSV imports bounded, atomic, tenant-authorized, idempotent, and suppre
   expect(body).toContain("doNotContact: true");
   expect(body).toContain('contactReviewStatus: "pending"');
   expect(body).toContain("contactReviewRevision: 0");
-  expect(body).toContain('source: "csv_import"');
+  expect(body).toContain("source: sourceLabel");
   expect(body).toContain("sent: false as const");
   expect(body).toContain("messageSentByThisAction: false as const");
   expect(body).toContain('writeSecurityAuditEvent(transaction, organisationId, uid, "lead.csv_import.completed"');
@@ -596,7 +596,9 @@ it("binds CSV import idempotency to tenant, actor, and normalized payload", () =
   const body = callableSource.slice(start, nextStart < 0 ? callableSource.length : nextStart);
 
   expect(body).toContain('JSON.stringify([organisationId, uid, idempotencyKey])');
-  expect(body).toContain('JSON.stringify({ organisationId, campaignId, leads: rows.map(({ fields }) => fields) })');
+  expect(body).toContain("const requestHashPayload: Record<string, unknown> = {");
+  expect(body).toContain('if (sourceLabel !== "csv_import") requestHashPayload.sourceLabel = sourceLabel');
+  expect(body).toContain('const sourceLabel = data.sourceLabel === undefined ? "csv_import" : data.sourceLabel');
   expect(body).toContain('saved.requestHash !== requestHash');
   expect(body).toContain('new HttpsError("already-exists", "This idempotencyKey was already used with a different import payload.")');
 

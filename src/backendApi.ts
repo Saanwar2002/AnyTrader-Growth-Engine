@@ -3,6 +3,7 @@ import { httpsCallable, type Functions } from "firebase/functions";
 export type OrganisationRole = "owner" | "admin" | "member" | "viewer";
 export type ServerCampaignStatus = "draft" | "active" | "paused" | "completed";
 export type ServerLeadStatus = "new" | "reviewing" | "qualified" | "contacted" | "onboarded" | "rejected";
+export type CsvImportSourceLabel = "csv_import" | "linkedin_csv" | "google_places_manual" | "other_approved";
 
 export interface CallableInvoker {
   <TRequest, TResponse>(name: string, payload: TRequest): Promise<TResponse>;
@@ -28,7 +29,7 @@ export function createGrowthEngineApi(call: CallableInvoker) {
     listCampaigns: (payload: { organisationId: string; pageToken?: string }) => call<typeof payload, { campaigns: CampaignSummary[]; hasMoreCampaigns: boolean; nextPageToken: string | null }>("listCampaigns", payload),
     listLeads: (payload: { organisationId: string; pageToken?: string }) => call<typeof payload, { leads: LeadSummary[]; hasMoreLeads: boolean; nextPageToken: string | null }>("listLeads", payload),
     createLead: (payload: LeadInput) => call<LeadInput, { leadId: string; status: ServerLeadStatus }>("createLead", payload),
-    importLeads: (payload: { organisationId: string; campaignId: string; idempotencyKey: string; leads: CsvImportLeadInput[] }) => call<typeof payload, CsvImportResult>("importLeads", payload),
+    importLeads: (payload: { organisationId: string; campaignId: string; idempotencyKey: string; sourceLabel?: CsvImportSourceLabel; leads: CsvImportLeadInput[] }) => call<typeof payload, CsvImportResult>("importLeads", payload),
     updateLeadContact: (payload: LeadFieldsInput & { leadId: string }) => call<typeof payload, { leadId: string; doNotContact: boolean; contactReviewStatus: "pending" | "cleared" | "blocked"; contactRestrictionVerified: boolean; contactReviewRevision: number }>("updateLeadContact", payload),
     updateLeadStatus: (payload: { organisationId: string; leadId: string; status: ServerLeadStatus }) => call<typeof payload, { leadId: string; status: ServerLeadStatus }>("updateLeadStatus", payload),
     updateLeadNotes: (payload: { organisationId: string; leadId: string; notes: string }) => call<typeof payload, { leadId: string; notes: string }>("updateLeadNotes", payload),

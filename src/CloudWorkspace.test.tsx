@@ -378,6 +378,7 @@ describe("cloud authentication gate", () => {
     const file = new File([
       "businessName,category,location,email,phone\nNorthside Painting,Painters,Manchester,hello@northside.example,01610000001\nCity Decorators,Decorators,Salford,team@citydecorators.example,01610000002",
     ], "providers.csv", { type: "text/csv" });
+    fireEvent.change(screen.getByLabelText("Source label (self-declared)"), { target: { value: "linkedin_csv" } });
     fireEvent.change(screen.getByLabelText("CSV file"), { target: { files: [file] } });
 
     expect(await screen.findByText("Northside Painting")).toBeTruthy();
@@ -389,6 +390,7 @@ describe("cloud authentication gate", () => {
     const payload = mocks.api.importLeads.mock.calls[0][0];
     expect(payload.organisationId).toBe("org-1");
     expect(payload.campaignId).toBe("campaign-1");
+    expect(payload.sourceLabel).toBe("linkedin_csv");
     expect(payload.idempotencyKey.length).toBeGreaterThanOrEqual(16);
     expect(payload.leads).toEqual([
       { businessName: "Northside Painting", category: "Painters", location: "Manchester", website: "", email: "hello@northside.example", phone: "01610000001" },
