@@ -113,6 +113,10 @@ Before enabling cloud mode or deploying Firebase resources, complete the [Cloud 
 
 Firebase CLI deployments are blocked unless `GROWTH_ENGINE_FIREBASE_PROJECT_ID` explicitly names the approved Growth Engine project and Firebase CLI supplies a matching `GCLOUD_PROJECT`. The guard rejects missing values, mismatched targets, and `demo-*` emulator project IDs before the Functions predeploy build. Set both values only after creating and reviewing the dedicated Growth Engine Firebase project; never set the expected ID to the production AnyTrader project. This is a guard against accidental target selection, not proof that the project is correctly secured or that App Check has been verified.
 
+## Privacy, retention, and offboarding
+
+See [`docs/PRIVACY_DATA_RETENTION_AND_OFFBOARDING.md`](./docs/PRIVACY_DATA_RETENTION_AND_OFFBOARDING.md) for the proposed data inventory, retention decisions, tenant-scoped dry-run-first offboarding workflow, and release acceptance criteria. This is a specification only: destructive offboarding, production TTL, and account deletion are not implemented or authorised.
+
 
 ## Tenant offboarding preview
 
