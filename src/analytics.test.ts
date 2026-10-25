@@ -79,16 +79,16 @@ describe("serializeOnboardingCohortCsv", () => {
       { month: "2026-09", onboardedLeadCount: 2 },
       { month: "2026-10", onboardedLeadCount: 4 },
     ], 'Legacy records may be excluded, "review backfill".');
-    expect(csv.split("\\r\\n")[0]).toBe("Scope,UTC month,First onboardings,Attribution note");
+    expect(csv.split("\r\n")[0]).toBe("Scope,UTC month,First onboardings,Attribution note");
     expect(csv).toContain('First server-recorded onboarding timestamp,2026-09,2,"Legacy records may be excluded, ""review backfill"".');
     expect(csv).toContain("2026-10,4");
-    expect(csv.endsWith("\\r\\n")).toBe(true);
+    expect(csv.endsWith("\r\n")).toBe(true);
   });
 
   it("exports a header-only file when the summary has no buckets", async () => {
     const { serializeOnboardingCohortCsv } = await import("./analytics");
     const csv = serializeOnboardingCohortCsv([], "Timestamped records only.");
-    expect(csv.split("\\r\\n")).toHaveLength(2);
+    expect(csv.split("\r\n")).toHaveLength(2);
     expect(csv).toContain("Attribution note");
   });
 });
