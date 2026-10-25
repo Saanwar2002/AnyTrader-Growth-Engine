@@ -1283,7 +1283,10 @@ describe("cloud authentication gate", () => {
     vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
     const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
     render(<CloudWorkspace />);
-    fireEvent.click(await screen.findByRole("button", { name: "Export full campaign report (CSV)" }));
+    const fullReportButton = await screen.findByRole("button", { name: "Export full campaign report (CSV)" });
+    // The action is intentionally disabled until the initial campaign page has loaded.
+    await waitFor(() => expect(fullReportButton).not.toBeDisabled());
+    fireEvent.click(fullReportButton);
     await waitFor(() => expect(mocks.api.getCampaignFunnelSummary).toHaveBeenCalledWith({ organisationId: "org-1", campaignId: "campaign-1" }));
     expect(createObjectURL).toHaveBeenCalledTimes(1);
     expect(click).toHaveBeenCalledTimes(1);
