@@ -877,7 +877,7 @@ describe("cloud authentication gate", () => {
     await waitFor(() => expect(mocks.api.previewOrganisationOffboarding).toHaveBeenCalledWith({ organisationId: "org-1" }));
     expect(await screen.findByText("Inventory completed for all listed categories")).toBeTruthy();
     expect(screen.getByText("leads", { selector: "strong" })).toBeTruthy();
-    expect(screen.getByText("12 records")).toBeTruthy();
+    expect(screen.getByText(/12 records/)).toBeTruthy();
     expect(screen.getByText("No destructive action performed: confirmed.")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /delete|remove|close account/i })).toBeNull();
   });
@@ -889,7 +889,7 @@ describe("cloud authentication gate", () => {
       hasMoreOrganisations: false,
     });
     render(<CloudWorkspace />);
-    await screen.findByText("Pilot Workspace");
+    await screen.findByRole("option", { name: /Pilot Workspace.*admin/ });
     expect(screen.queryByRole("button", { name: "Preview organisation data" })).toBeNull();
     expect(mocks.api.previewOrganisationOffboarding).not.toHaveBeenCalled();
   });
@@ -912,8 +912,8 @@ describe("cloud authentication gate", () => {
     render(<CloudWorkspace />);
     fireEvent.click(await screen.findByRole("button", { name: "Preview organisation data" }));
     expect(await screen.findByText("Inventory incomplete — review required")).toBeTruthy();
-    expect(screen.getByText("at least 1000 records (category cap reached)")).toBeTruthy();
-    expect(screen.getByText("unavailable; 3 records observed before the read failed")).toBeTruthy();
+    expect(screen.getByText(/at least 1000 records \(category cap reached\)/)).toBeTruthy();
+    expect(screen.getByText(/unavailable; 3 records observed before the read failed/)).toBeTruthy();
   });
 
 });
