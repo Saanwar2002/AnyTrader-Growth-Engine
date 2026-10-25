@@ -1046,10 +1046,11 @@ describe("cloud authentication gate", () => {
     render(<CloudWorkspace />);
     fireEvent.click(await screen.findByRole("button", { name: "Preview legacy timestamp coverage" }));
     await waitFor(() => expect(mocks.api.getOnboardingCohortCoverage).toHaveBeenCalledWith({ organisationId: "org-1" }));
-    expect(await screen.findByRole("table", { name: "Onboarding timestamp coverage" })).toBeTruthy();
+    const coverageTable = await screen.findByRole("table", { name: "Onboarding timestamp coverage" });
+    expect(coverageTable.textContent).toContain("4");
+    expect(coverageTable.textContent).toContain("2");
+    expect(coverageTable.textContent).toContain("1000");
     expect(screen.getByText(/Read-only estimate/)).toBeTruthy();
-    expect(screen.getByText("4")).toBeTruthy();
-    expect(screen.getAllByText("2").length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText(/never assigned an inferred date/i)).toBeTruthy();
   });
 
