@@ -2681,7 +2681,7 @@ try {
   assert.equal(addedMember.role, "viewer");
   const retriedMember = await callOne("addOrganisationMember", {
     organisationId: quotaOrg.organisationId,
-    targetUid: second.auth.currentUser.uid,
+    targetEmail: "tenant-two@example.test",
     role: "viewer",
     idempotencyKey: "member-addition-smoke-test-0001",
   });
