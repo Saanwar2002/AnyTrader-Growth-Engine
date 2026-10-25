@@ -15,6 +15,7 @@ const expectedRateLimitType: Record<string, "read" | "mutation"> = {
   addOrganisationMember: "mutation",
   createCampaign: "mutation",
   listCampaigns: "read",
+  getCampaignFunnelSummary: "read",
   updateCampaignStatus: "mutation",
   updateCampaignDetails: "mutation",
   listLeads: "read",
@@ -95,7 +96,7 @@ describe("callable security contract", () => {
 
   it("enforces App Check on every deployed callable and only bypasses it in the Functions emulator", () => {
     expect(callableSource).toContain('const callableOptions = { enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true" }');
-    expect((callableSource.match(/= onCall\(callableOptions, async \(request\) => \{/g) ?? [])).toHaveLength(19);
+    expect((callableSource.match(/= onCall\(callableOptions, async \(request\) => \{/g) ?? [])).toHaveLength(20);
     expect(callableSource.includes("= onCall(async (request) => {")).toBe(false);
   });
 
