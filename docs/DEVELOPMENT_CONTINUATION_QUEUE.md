@@ -1,3 +1,14 @@
+## AutoPilot run — bulk lead status replay validation (2026-10-25)
+
+- Hardened replay handling for bulk lead status updates. The saved response must match the requested organisation and status, use non-negative integer counts, and contain only unique changed lead IDs from the original request.
+- Validated that `updatedCount` equals the changed-ID count and that updated plus unchanged counts equals the requested batch size.
+- Malformed saved state now fails closed instead of being returned via a type assertion.
+- Added pure unit tests for valid replay, arrays, tenant/status mismatch, negative/fractional/inconsistent counts, duplicate IDs, unrequested IDs, and malformed IDs; added callable source-contract coverage.
+- No new endpoint, outreach behavior, production deployment, or billing change.
+- Next: verify exact-head CI and continue the tenant-scoped audit/idempotency review.
+
+---
+
 ## AutoPilot run — outreach-draft idempotency replay integrity (2026-10-25)
 
 - Tightened replay validation for draft creation so saved retry state must match the original actor, canonical request hash, lead/campaign identity, subject/body, and immutable draft response state.

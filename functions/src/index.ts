@@ -6,6 +6,7 @@ import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import { generateAiOutreachDraftSuggestion } from "./ai-outreach-draft";
 import { getValidOutreachDraftReplayResult, isPersistedOutreachDraftAvailable } from "./outreach-draft-idempotency";
+import { getValidBulkLeadStatusReplayResult } from "./bulk-lead-status-idempotency";
 import * as logger from "firebase-functions/logger";
 import { canonicalLeadBusinessLocationKey, canonicalLeadEmailKey, canonicalLeadWebsiteKey } from "./lead-identifiers";
 import { createOffboardingPreview, OFFBOARDING_PREVIEW_CATEGORIES } from "./offboarding-preview";
@@ -2222,10 +2223,14 @@ export const bulkUpdateLeadStatus = onCall(callableOptions, async (request) => {
     await requireTransactionalRole(transaction, organisationId, uid, "lead");
     if (idempotencySnapshot.exists) {
       const saved = idempotencySnapshot.data() ?? {};
-      if (saved.requestHash !== requestHash || saved.actorUid !== uid || !saved.result || typeof saved.result !== "object") {
+      if (saved.requestHash !== requestHash || saved.actorUid !== uid) {
         throw new HttpsError("already-exists", "This idempotencyKey was already used with a different bulk status request.");
       }
-      return saved.result as { organisationId: string; status: string; updatedCount: number; unchangedCount: number; leadIds: string[] };
+      const savedResult = getValidBulkLeadStatusReplayResult(saved.result, { organisationId, status, leadIds });
+      if (!savedResult) {
+        throw new HttpsError("failed-precondition", "Saved bulk status retry state is invalid and requires operator review.");
+      }
+      return savedResult;
     }
 
     const leadRefs = leadIds.map((leadId) => leadsRef.doc(leadId));
