@@ -63,6 +63,7 @@ export default function CloudWorkspace() {
   const [loadingPlanUsageReconciliation, setLoadingPlanUsageReconciliation] = useState(false);
   const [memberEmail, setMemberEmail] = useState("");
   const [memberRole, setMemberRole] = useState<"member" | "viewer">("member");
+  const [memberRoleSelections, setMemberRoleSelections] = useState<Record<string, "admin" | "member" | "viewer">>({});
   const [memberAdditionIdempotencyKey, setMemberAdditionIdempotencyKey] = useState("");
   const [memberRoster, setMemberRoster] = useState<OrganisationMemberRoster | null>(null);
   const [loadingMemberRoster, setLoadingMemberRoster] = useState(false);
@@ -391,6 +392,27 @@ export default function CloudWorkspace() {
         setNotice("That account is no longer a member of this organisation.");
         await loadOrganisationMembers();
       }
+    } catch (reason) {
+      setError(readableError(reason));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function updateOrganisationMemberRole(targetUid: string, targetRole: "admin" | "member" | "viewer", currentRole: string) {
+    if (!api || !organisationId || selectedOrganisationRole !== "owner" || targetUid === user?.uid || currentRole === "owner" || targetRole === currentRole) return;
+    if (!window.confirm(`Change this member's role from ${currentRole} to ${targetRole}? This changes their permissions in this organisation.`)) return;
+    const requestedOrganisationId = organisationId;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const result = await api.updateOrganisationMemberRole({ organisationId: requestedOrganisationId, targetUid, role: targetRole });
+      if (currentOrganisationIdRef.current !== requestedOrganisationId) return;
+      setMemberRoster((current) => current?.organisationId === requestedOrganisationId
+        ? { ...current, members: current.members.map((member) => member.uid === targetUid ? { ...member, role: result.role } : member) }
+        : current);
+      setMemberRoleSelections((current) => ({ ...current, [targetUid]: result.role }));
+      setNotice(result.changed ? `Member role updated to ${result.role}.` : "That member already has the selected role.");
+      await refreshWorkspace(requestedOrganisationId);
     } catch (reason) {
       setError(readableError(reason));
     } finally {
@@ -839,11 +861,11 @@ DRAFT ONLY — NOT SENT.`,
         </div>}
       </section>}
       {selectedOrganisation && (selectedOrganisationRole === "owner" || selectedOrganisationRole === "admin") && <section className="cloud-card" aria-labelledby="member-roster-title">
-        <div className="cloud-section-head"><div><p className="cloud-eyebrow">TEAM ACCESS</p><h2 id="member-roster-title">Organisation members</h2><p className="cloud-muted">View current member roles and the email address on each Firebase Auth account. Owners can remove non-owner members; admins can remove members/viewers. Removing access does not delete the account.</p></div>
+        <div className="cloud-section-head"><div><p className="cloud-eyebrow">TEAM ACCESS</p><h2 id="member-roster-title">Organisation members</h2><p className="cloud-muted">View current member roles and the email address on each Firebase Auth account. Owners can change roles or remove non-owner members; admins can remove members/viewers only. Removing access does not delete the account.</p></div>
           <button className="cloud-secondary" type="button" disabled={loadingMemberRoster} onClick={() => void loadOrganisationMembers()}>{loadingMemberRoster ? "Loading members…" : memberRoster?.organisationId === organisationId ? "Refresh member roster" : "Load member roster"}</button>
         </div>
         {memberRoster?.organisationId === organisationId && <><p className="cloud-muted">{memberRoster.members.length} member(s) loaded. {memberRoster.hasMoreMembers ? "More members are available." : "Roster complete."}</p>
-          <div className="cloud-table-wrap"><table className="cloud-table"><caption>Organisation member roster</caption><thead><tr><th>Account email</th><th>Role</th><th>Joined</th><th>Actions</th></tr></thead><tbody>{memberRoster.members.map((member) => <tr key={member.uid}><td>{member.email ?? "Email unavailable"}<small>Account ID: {member.uid}</small></td><td>{member.role}</td><td>{member.createdAt ? new Date(member.createdAt).toLocaleDateString("en-GB") : "Date unavailable"}</td><td>{member.role !== "owner" && member.uid !== user?.uid && (selectedOrganisationRole === "owner" || (selectedOrganisationRole === "admin" && (member.role === "member" || member.role === "viewer"))) ? <button className="cloud-secondary" type="button" disabled={busy} onClick={() => void removeOrganisationMember(member.uid, member.role)}>Remove access</button> : <span className="cloud-muted">—</span>}</td></tr>)}</tbody></table></div>
+          <div className="cloud-table-wrap"><table className="cloud-table"><caption>Organisation member roster</caption><thead><tr><th>Account email</th><th>Role</th><th>Joined</th><th>Actions</th></tr></thead><tbody>{memberRoster.members.map((member) => <tr key={member.uid}><td>{member.email ?? "Email unavailable"}<small>Account ID: {member.uid}</small></td><td>{member.role}</td><td>{member.createdAt ? new Date(member.createdAt).toLocaleDateString("en-GB") : "Date unavailable"}</td><td>{selectedOrganisationRole === "owner" && member.role !== "owner" && member.uid !== user?.uid ? <div className="cloud-inline-form"><label className="cloud-field">Role<select aria-label={`Role for ${member.email ?? member.uid}`} disabled={busy} value={memberRoleSelections[member.uid] ?? member.role} onChange={(event) => setMemberRoleSelections((current) => ({ ...current, [member.uid]: event.target.value as "admin" | "member" | "viewer" }))}><option value="admin">Admin</option><option value="member">Member</option><option value="viewer">Viewer</option></select></label><button className="cloud-secondary" type="button" disabled={busy || (memberRoleSelections[member.uid] ?? member.role) === member.role} onClick={() => void updateOrganisationMemberRole(member.uid, memberRoleSelections[member.uid] ?? (member.role as "admin" | "member" | "viewer"), member.role)}>Save role</button><button className="cloud-secondary" type="button" disabled={busy} onClick={() => void removeOrganisationMember(member.uid, member.role)}>Remove access</button></div> : member.role !== "owner" && member.uid !== user?.uid && selectedOrganisationRole === "admin" && (member.role === "member" || member.role === "viewer") ? <button className="cloud-secondary" type="button" disabled={busy} onClick={() => void removeOrganisationMember(member.uid, member.role)}>Remove access</button> : <span className="cloud-muted">—</span>}</td></tr>)}</tbody></table></div>
           {memberRoster.hasMoreMembers && memberRoster.nextPageToken && <button className="cloud-secondary" type="button" disabled={loadingMemberRoster} onClick={() => void loadOrganisationMembers(memberRoster.nextPageToken ?? undefined)}>{loadingMemberRoster ? "Loading more members…" : "Load more members"}</button>}
         </>}
       </section>}
