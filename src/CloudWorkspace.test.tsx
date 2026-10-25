@@ -1472,7 +1472,7 @@ describe("cloud authentication gate", () => {
     mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
     const lead = (id: string, businessName: string, score: number, scoreReasons: string[]) => ({
       id, campaignId: "campaign-1", businessName, category: "Painters", location: "Leeds",
-      website: "", email: "", phone: "", source: "manual", status: "new", score, scoreReasons,
+      website: "", email: "", phone: "", source: id === "zulu" ? "linkedin_csv" : "manual", status: "new", score, scoreReasons,
       notes: "", doNotContact: true, contactRestrictionVerified: false, contactReviewStatus: "pending",
       contactReviewRevision: 0, onboardedAt: null,
       createdAt: id === "zulu" ? "2026-10-25T10:00:00.000Z" : "2026-10-24T10:00:00.000Z",
@@ -1511,6 +1511,20 @@ describe("cloud authentication gate", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
     expect((screen.getByLabelText("Filter by completeness") as HTMLSelectElement).value).toBe("all");
+    expect(screen.getByText("Alpha Provider")).toBeTruthy();
+    expect(screen.getByText("Zulu Provider")).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Filter by source"), { target: { value: "linkedin_csv" } });
+    expect(screen.getByText("Zulu Provider")).toBeTruthy();
+    expect(screen.queryByText("Alpha Provider")).toBeNull();
+    expect(screen.getByText(/Showing 1 of 2/)).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Filter by source"), { target: { value: "manual" } });
+    expect(screen.getByText("Alpha Provider")).toBeTruthy();
+    expect(screen.queryByText("Zulu Provider")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect((screen.getByLabelText("Filter by source") as HTMLSelectElement).value).toBe("all");
     expect(screen.getByText("Alpha Provider")).toBeTruthy();
     expect(screen.getByText("Zulu Provider")).toBeTruthy();
   });
