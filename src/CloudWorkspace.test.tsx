@@ -42,6 +42,7 @@ beforeEach(() => {
     organisationId: "org-1",
     members: [{ uid: "owner-uid", email: "owner@example.test", role: "owner", createdAt: "2026-01-01T00:00:00.000Z" }],
     hasMoreMembers: false,
+    nextPageToken: null,
     scope: "organisation_member_roster",
   });
   mocks.api.previewOrganisationOffboarding.mockResolvedValue({
@@ -1177,6 +1178,7 @@ describe("cloud authentication gate", () => {
         { uid: "member-uid", email: "member@example.test", role: "member", createdAt: null },
       ],
       hasMoreMembers: false,
+      nextPageToken: null,
       scope: "organisation_member_roster",
     });
     mocks.api.removeOrganisationMember.mockResolvedValue({ organisationId: "org-1", targetUid: "member-uid", removed: true });
@@ -1190,6 +1192,44 @@ describe("cloud authentication gate", () => {
     expect(confirm).toHaveBeenCalledTimes(1);
     expect(await screen.findByText(/membership removed/i)).toBeTruthy();
     expect(screen.queryByText(/Account ID: member-uid/)).toBeNull();
+  });
+
+ 
+  it("appends the next member roster page without duplicating existing accounts", async () => {
+    mocks.currentUser = { email: "owner@example.test", uid: "owner-uid" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    mocks.api.listOrganisationMembers
+      .mockResolvedValueOnce({
+        organisationId: "org-1",
+        members: [
+          { uid: "owner-uid", email: "owner@example.test", role: "owner", createdAt: null },
+          { uid: "member-uid", email: "member@example.test", role: "member", createdAt: null },
+        ],
+        hasMoreMembers: true,
+        nextPageToken: "cursor-page-2",
+        scope: "organisation_member_roster",
+      })
+      .mockResolvedValueOnce({
+        organisationId: "org-1",
+        members: [
+          { uid: "member-uid", email: "member@example.test", role: "member", createdAt: null },
+          { uid: "viewer-uid", email: "viewer@example.test", role: "viewer", createdAt: null },
+        ],
+        hasMoreMembers: false,
+        nextPageToken: null,
+        scope: "organisation_member_roster",
+      });
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load member roster" }));
+    await screen.findByText("member@example.test");
+    fireEvent.click(screen.getByRole("button", { name: "Load more members" }));
+    await waitFor(() => expect(mocks.api.listOrganisationMembers).toHaveBeenNthCalledWith(2, { organisationId: "org-1", pageToken: "cursor-page-2" }));
+    expect(await screen.findByText("viewer@example.test")).toBeTruthy();
+    expect(screen.getAllByText("member@example.test")).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: "Load more members" })).toBeNull();
   });
 
 });

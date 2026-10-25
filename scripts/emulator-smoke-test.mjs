@@ -2797,6 +2797,15 @@ try {
     name: "Metered quota tenant",
     idempotencyKey: "campaign-quota-tenant-0001",
   });
+  const foreignRosterCursor = Buffer.from(JSON.stringify({
+    scope: "organisation_member_roster",
+    organisationId: "another-tenant",
+    lastUid: "synthetic-user",
+  }), "utf8").toString("base64url");
+  await expectCallableFailure(callOne("listOrganisationMembers", {
+    organisationId: quotaOrg.organisationId,
+    pageToken: foreignRosterCursor,
+  }), "functions/invalid-argument", "member roster rejects cross-tenant cursors");
   await expectCallableFailure(callOne("addOrganisationMember", {
     organisationId: quotaOrg.organisationId,
     targetEmail: "missing-synthetic-account@example.test",
