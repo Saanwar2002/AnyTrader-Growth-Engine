@@ -744,7 +744,7 @@ describe("cloud authentication gate", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Pause" }));
     await waitFor(() => expect(mocks.api.updateCampaignStatus).toHaveBeenCalledWith({ organisationId: "org-1", campaignId: "campaign-1", status: "paused" }));
     expect(await screen.findByText("Campaign paused.")).toBeTruthy();
-    await waitFor(() => expect(screen.getByRole("button", { name: "Activate" })).not.toBeDisabled());
+    await waitFor(() => expect((screen.getByRole("button", { name: "Activate" }) as HTMLButtonElement).disabled).toBe(false));
     fireEvent.click(screen.getByRole("button", { name: "Activate" }));
     await waitFor(() => expect(mocks.api.updateCampaignStatus).toHaveBeenLastCalledWith({ organisationId: "org-1", campaignId: "campaign-1", status: "active" }));
     expect(await screen.findByText("Campaign activated.")).toBeTruthy();
