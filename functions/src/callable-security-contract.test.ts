@@ -495,6 +495,16 @@ describe("callable security contract", () => {
     }
   });
 
+  it("validates organisation creation replay response shape before returning it", () => {
+    const start = callableSource.indexOf("export const createOrganisation = onCall(");
+    const end = callableSource.indexOf("export const ", start + 1);
+    const body = callableSource.slice(start, end < 0 ? callableSource.length : end);
+    expect(body).toContain("getValidOrganisationCreationReplayResult(saved, { actorUid: uid, requestHash, name })");
+    expect(body).toContain('savedOrganisation.data()?.name !== name');
+    expect(body).toContain("return savedResult;");
+    expect(body).not.toContain("return savedResult as { organisationId: string; name: string; role: \"owner\" }");
+  });
+
   it("keeps every expected callable authenticated and rate-limited", () => {
     const declarations = [...callableSource.matchAll(/export const (\w+) = onCall\(/g)];
     expect(declarations.map((match) => match[1]).sort()).toEqual(
