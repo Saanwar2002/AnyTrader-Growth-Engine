@@ -2925,6 +2925,7 @@ try {
     "createOrganisation",
     "updateOrganisationSettings",
     "addOrganisationMember",
+    "removeOrganisationMember",
     "listOrganisationMembers",
     "createCampaign",
     "listCampaigns",
