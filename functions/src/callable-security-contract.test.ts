@@ -18,6 +18,7 @@ const expectedRateLimitType: Record<string, "read" | "mutation"> = {
   getCampaignFunnelSummary: "read",
   getLeadSourceFunnelSummary: "read",
   getOnboardingCohortSummary: "read",
+  getOrganisationPlanUsage: "read",
   updateCampaignStatus: "mutation",
   updateCampaignDetails: "mutation",
   listLeads: "read",
@@ -824,5 +825,24 @@ describe("server-side onboarding cohort analytics", () => {
     expect(body).toContain("windowMonths: 12 as const");
     expect(body).toContain('scope: "first_onboarding_timestamp"');
     expect(body).toContain("Legacy leads already onboarded before timestamp capture may be excluded");
+  });
+});
+
+
+describe("organisation plan usage dashboard callable", () => {
+  it("restricts plan usage details to owners/admins and never fabricates legacy zero usage", () => {
+    const start = callableSource.indexOf("export const getOrganisationPlanUsage = onCall(");
+    const end = callableSource.indexOf("export const ", start + 1);
+    const body = callableSource.slice(start, end < 0 ? callableSource.length : end);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(body).toContain("await requireMembership(organisationId, uid)");
+    expect(body).toContain("hasCampaignWritePermission(membership.role)");
+    expect(body).toContain('consumeReadRateLimit(organisationId, uid, "getOrganisationPlanUsage", 5)');
+    expect(body).toContain("resolvePlanPolicy(organisationData.planId)");
+    expect(body).toContain("resolvePlanUsageState(organisationData.planUsage, new Date())");
+    expect(body).toContain('status: "reconciliation_required" as const');
+    expect(body).toContain("usage: null");
+    expect(body).toContain("remaining: null");
+    expect(body).toContain("plan.limits.monthlyAiSuggestions - usage.monthlyAiSuggestions");
   });
 });
