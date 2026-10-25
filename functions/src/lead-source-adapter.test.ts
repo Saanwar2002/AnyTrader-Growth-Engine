@@ -47,4 +47,56 @@ describe("lead source adapter permission contract", () => {
     expect(issues).toContain("sourceId must be a stable 2–64 character lowercase identifier.");
     expect(issues).toContain("displayName must contain 2–100 characters.");
   });
+
+  it("attaches reviewed provenance and trims allowlisted candidate fields", () => {
+    const result = attributeLeadSourceCandidates(approvedManifest(), [{
+      businessName: "  Example Builder  ", category: "  Builder ", location: "  Edinburgh ",
+      website: " https://example.test ", sourceRecordId: " provider-42 ",
+    }], "2026-10-25T10:00:00.000Z");
+    expect(result).toEqual([{
+      candidate: {
+        businessName: "Example Builder", category: "Builder", location: "Edinburgh",
+        website: "https://example.test", sourceRecordId: "provider-42",
+      },
+      provenance: {
+        sourceId: "directory-api-v1", sourceName: "Example Directory API",
+        termsUrl: "https://example.test/terms", collectedAt: "2026-10-25T10:00:00.000Z",
+        sourceRecordId: "provider-42",
+      },
+    }]);
+  });
+
+  it("rejects candidate output over the configured run limit", () => {
+    expect(() => attributeLeadSourceCandidates({
+      ...approvedManifest(), maxRecordsPerRun: 1,
+    }, [{ businessName: "One" }, { businessName: "Two" }], "2026-10-25T10:00:00.000Z"))
+      .toThrow("exceeded its configured per-run record limit");
+  });
+
+  it("rejects fields not explicitly allowed by the source manifest", () => {
+    expect(() => attributeLeadSourceCandidates(approvedManifest(), [{
+      businessName: "Example", internalNote: "unexpected",
+    }], "2026-10-25T10:00:00.000Z")).toThrow("outside its manifest allowlist");
+  });
+
+  it("rejects malformed candidates and invalid provenance timestamps", () => {
+    expect(() => attributeLeadSourceCandidates(approvedManifest(), [null], "2026-10-25T10:00:00.000Z"))
+      .toThrow("malformed candidate");
+    expect(() => attributeLeadSourceCandidates(approvedManifest(), [{ businessName: "Example" }], "not-a-date"))
+      .toThrow("collectedAt must be a valid ISO-8601 timestamp");
+  });
+
+  it("rejects invalid field values and blank business names", () => {
+    expect(() => attributeLeadSourceCandidates(approvedManifest(), [{ businessName: "Example", category: 7 }], "2026-10-25T10:00:00.000Z"))
+      .toThrow("invalid category value");
+    expect(() => attributeLeadSourceCandidates(approvedManifest(), [{ businessName: "   " }], "2026-10-25T10:00:00.000Z"))
+      .toThrow("valid businessName");
+  });
+
+  it("does not allow output from an unapproved source to be attributed", () => {
+    expect(() => attributeLeadSourceCandidates({
+      ...approvedManifest(), reviewStatus: "pending",
+    }, [{ businessName: "Example" }], "2026-10-25T10:00:00.000Z")).toThrow("blocked until");
+  });
+
 });
