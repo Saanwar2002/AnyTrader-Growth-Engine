@@ -1503,10 +1503,142 @@ export const getOnboardingCohortSummary = onCall(callableOptions, async (request
 });
 
 /**
- * Import a bounded CSV-mapped batch through the trusted server path.
- * This callable persists only validated rows and leaves every new contact suppressed
- * until an authorised reviewer explicitly clears the contact restriction.
+ * Aggregate the age of open leads across the whole organisation without returning
+ * lead records. Age is measured from creation, not the last activity/status change.
  */
+export const getOpenLeadAgingSummary = onCall(callableOptions, async (request) => {
+  const uid = requireUid(request.auth?.uid);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const organisationId = requireOrganisationId(data.organisationId);
+  await requireMembership(organisationId, uid);
+  await consumeReadRateLimit(organisationId, uid, "getOpenLeadAgingSummary", 10);
+
+  const leadsRef = db.collection("organisations").doc(organisationId).collection("leads");
+  const openStatuses = ["new", "reviewing", "qualified", "contacted"];
+  const openLeads = leadsRef.where("status", "in", openStatuses);
+  const now = Date.now();
+  const sevenDaysAgo = Timestamp.fromMillis(now - 7 * 24 * 60 * 60 * 1000);
+  const thirtyDaysAgo = Timestamp.fromMillis(now - 30 * 24 * 60 * 60 * 1000);
+  const ninetyDaysAgo = Timestamp.fromMillis(now - 90 * 24 * 60 * 60 * 1000);
+  const countQuery = async (query: Query): Promise<number> => {
+    const snapshot = await query.count().get();
+    const count = snapshot.data().count;
+    if (!Number.isSafeInteger(count) || count < 0) {
+      throw new HttpsError("failed-precondition", "Open-lead aging aggregate is invalid and requires operator review.");
+    }
+    return count;
+  };
+  const [totalOpenLeadCount, createdWithinSevenDays, createdEightToThirtyDaysAgo, createdThirtyOneToNinetyDaysAgo, createdOverNinetyDaysAgo] = await Promise.all([
+    countQuery(openLeads),
+    countQuery(openLeads.where("createdAt", ">=", sevenDaysAgo)),
+    countQuery(openLeads.where("createdAt", ">=", thirtyDaysAgo).where("createdAt", "<", sevenDaysAgo)),
+    countQuery(openLeads.where("createdAt", ">=", ninetyDaysAgo).where("createdAt", "<", thirtyDaysAgo)),
+    countQuery(openLeads.where("createdAt", "<", ninetyDaysAgo)),
+  ]);
+  const classifiedCount = createdWithinSevenDays + createdEightToThirtyDaysAgo
+    + createdThirtyOneToNinetyDaysAgo + createdOverNinetyDaysAgo;
+  if (classifiedCount > totalOpenLeadCount) {
+    throw new HttpsError("failed-precondition", "Open-lead aging totals are inconsistent and require operator review.");
+  }
+  return {
+    organisationId,
+    totalOpenLeadCount,
+    createdWithinSevenDays,
+    createdEightToThirtyDaysAgo,
+    createdThirtyOneToNinetyDaysAgo,
+    createdOverNinetyDaysAgo,
+    missingOrUnclassifiedCreatedAtCount: totalOpenLeadCount - classifiedCount,
+    scope: "all_stored_open_leads" as const,
+    note: "Includes new, reviewing, qualified, and contacted leads across all stored pages. Age is measured from createdAt, not last activity or last status change. Missing or invalid creation timestamps are unclassified. This report does not authorise contact.",
+  };
+});
+
+export const getFullCampaignReadinessSummary = onCall(callableOptions, async (request) => {
+  const uid = requireUid(request.auth?.uid);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const organisationId = requireOrganisationId(data.organisationId);
+  await requireMembership(organisationId, uid);
+  await consumeReadRateLimit(organisationId, uid, "getFullCampaignReadinessSummary", 3);
+
+  const organisationRef = db.collection("organisations").doc(organisationId);
+  const campaignSnapshot = await organisationRef.collection("campaigns")
+    .orderBy(FieldPath.documentId(), "asc")
+    .limit(21)
+    .get();
+  const hasMoreCampaigns = campaignSnapshot.docs.length > 20;
+  const campaignDocs = campaignSnapshot.docs.slice(0, 20);
+  const countQuery = async (query: Query): Promise<number> => {
+    const snapshot = await query.count().get();
+    const count = snapshot.data().count;
+    if (!Number.isSafeInteger(count) || count < 0) {
+      throw new HttpsError("failed-precondition", "Campaign readiness aggregate is invalid and requires operator review.");
+    }
+    return count;
+  };
+
+  const campaigns = await Promise.all(campaignDocs.map(async (doc) => {
+    const campaign = doc.data();
+    const leadsRef = organisationRef.collection("leads").where("campaignId", "==", doc.id);
+    const draftsRef = organisationRef.collection("outreachDrafts").where("campaignId", "==", doc.id);
+    const [
+      totalLeadCount,
+      sourcePresentCount,
+      knownContactReviewCount,
+      pendingOrBlockedLeadCount,
+      suppressedLeadCount,
+      draftsAwaitingReview,
+    ] = await Promise.all([
+      countQuery(leadsRef),
+      countQuery(leadsRef.where("source", "!=", "")),
+      countQuery(leadsRef.where("contactReviewStatus", "in", ["pending", "cleared", "blocked"])),
+      countQuery(leadsRef.where("contactReviewStatus", "in", ["pending", "blocked"])),
+      countQuery(leadsRef.where("doNotContact", "==", true)),
+      countQuery(draftsRef.where("requiresReview", "==", true)),
+    ]);
+    if (sourcePresentCount > totalLeadCount || knownContactReviewCount > totalLeadCount
+      || pendingOrBlockedLeadCount > knownContactReviewCount) {
+      throw new HttpsError("failed-precondition", "Campaign readiness totals are inconsistent and require operator review.");
+    }
+    const legacyReviewStatusLeadCount = totalLeadCount - knownContactReviewCount;
+    const sourceAttributionMissingCount = totalLeadCount - sourcePresentCount;
+    const missingConfigurationFields = ([
+      ["name", campaign.name],
+      ["brand", campaign.brand],
+      ["category", campaign.category],
+      ["location", campaign.location],
+    ] as const).filter(([, value]) => typeof value !== "string" || !value.trim()).map(([field]) => field);
+    const hasBlockingIssues = missingConfigurationFields.length > 0 || totalLeadCount === 0
+      || pendingOrBlockedLeadCount > 0 || suppressedLeadCount > 0 || legacyReviewStatusLeadCount > 0;
+    const hasReviewIssues = draftsAwaitingReview > 0 || sourceAttributionMissingCount > 0;
+    const status = hasMoreCampaigns ? "incomplete" as const
+      : hasBlockingIssues ? "blocked" as const
+        : hasReviewIssues ? "review_required" as const
+          : "ready_for_manual_review" as const;
+    return {
+      campaignId: doc.id,
+      campaignName: safePersistedText(campaign.name, 160),
+      campaignStatus: safePersistedText(campaign.status, 20),
+      status,
+      totalLeadCount,
+      pendingOrBlockedLeadCount,
+      suppressedLeadCount,
+      legacyReviewStatusLeadCount,
+      draftsAwaitingReview,
+      sourceAttributionMissingCount,
+      missingConfigurationFields,
+    };
+  }));
+
+  return {
+    organisationId,
+    campaigns,
+    hasMoreCampaigns,
+    campaignLimit: 20 as const,
+    scope: "server_counted_campaign_readiness" as const,
+    note: "Lead and draft counts are server-side for each returned campaign. At most 20 campaigns are included; if more exist, every row is marked incomplete. Missing or empty source labels are counted, but source labels remain self-declared and unverified. Pending, blocked, suppressed, and legacy/unclassified contact-review records require human review. This report never authorises or sends outreach.",
+  };
+});
+
 /**
  * Aggregate the age of open leads across the whole organisation without returning
  * lead records. Age is measured from creation, not the last activity/status change.

@@ -2971,6 +2971,26 @@ try {
   await expectCallableFailure(callTwo("getLeadCompletenessSummary", {
     organisationId: orgOne.organisationId,
   }), "functions/permission-denied", "lead completeness aggregate rejects cross-tenant access");
+  const fullCampaignReadiness = await callOne("getFullCampaignReadinessSummary", { organisationId: orgOne.organisationId });
+  assert.equal(fullCampaignReadiness.scope, "server_counted_campaign_readiness");
+  assert.equal(fullCampaignReadiness.campaignLimit, 20);
+  assert.ok(fullCampaignReadiness.campaigns.length <= fullCampaignReadiness.campaignLimit);
+  assert.ok(!fullCampaignReadiness.hasMoreCampaigns || fullCampaignReadiness.campaigns.length === fullCampaignReadiness.campaignLimit,
+    "when additional campaigns exist, the result must explicitly hit the configured cap");
+  assert.ok(fullCampaignReadiness.campaigns.length > 0, "readiness report returns campaigns from the organisation");
+  assert.ok(fullCampaignReadiness.campaigns.every((campaign) =>
+    Number.isSafeInteger(campaign.totalLeadCount) && campaign.totalLeadCount >= 0
+      && Number.isSafeInteger(campaign.pendingOrBlockedLeadCount)
+      && campaign.pendingOrBlockedLeadCount >= 0 && campaign.pendingOrBlockedLeadCount <= campaign.totalLeadCount
+      && Number.isSafeInteger(campaign.suppressedLeadCount)
+      && campaign.suppressedLeadCount >= 0 && campaign.suppressedLeadCount <= campaign.totalLeadCount
+      && Number.isSafeInteger(campaign.sourceAttributionMissingCount)
+      && campaign.sourceAttributionMissingCount >= 0 && campaign.sourceAttributionMissingCount <= campaign.totalLeadCount),
+  "per-campaign readiness aggregates are non-negative and internally consistent");
+  assert.match(fullCampaignReadiness.note, /never authorises or sends outreach/i);
+  await expectCallableFailure(callTwo("getFullCampaignReadinessSummary", {
+    organisationId: orgOne.organisationId,
+  }), "functions/permission-denied", "full campaign readiness rejects cross-tenant access");
   const openLeadAging = await callOne("getOpenLeadAgingSummary", { organisationId: orgOne.organisationId });
   assert.equal(openLeadAging.scope, "all_stored_open_leads");
   assert.ok(openLeadAging.totalOpenLeadCount >= 1, "open-lead aging counts all open leads");
@@ -3054,6 +3074,7 @@ try {
     "getOnboardingCohortSummary",
     "getLeadCompletenessSummary",
     "getOpenLeadAgingSummary",
+    "getFullCampaignReadinessSummary",
     "getOnboardingCohortCoverage",
     "getContactReviewQueueSummary",
     "getOrganisationPlanUsage",

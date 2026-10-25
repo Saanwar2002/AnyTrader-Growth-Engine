@@ -79,6 +79,7 @@
 - [x] Shared spreadsheet-formula neutralisation across loaded campaign, full campaign, onboarding cohort, and full source analytics CSV exports; comma/quote/newline escaping remains covered by serializer tests.
 - [x] Downloadable campaign performance CSV with a loaded-record-only scope column and escaped text fields.
 - [x] Include bounded completeness scores and formula-safe score explanations in both filtered-loaded and full-tenant lead CSV exports so prioritisation can continue in spreadsheets; internal notes remain excluded.
+- [x] Add a server-counted campaign readiness snapshot with per-campaign lead/draft counts, suppressed and pending/blocked review counts, missing source/setup indicators, a 20-campaign cap, and an explicit no-contact-authorisation caveat.
 - [x] Downloadable full campaign funnel report using server-counted totals across all stored leads, with explicit scope labels, escaped campaign names, and a 20-campaign safety cap.
 - [x] Read-only server-counted open-lead aging report across all stored pages, grouped by creation age with missing timestamps reconciled as unclassified; clearly distinguishes creation age from last activity and does not authorise contact.
 - [x] Filter loaded leads by completeness score band (low 0–39, medium 40–69, high 70–100), combine with existing search/status/campaign/contact-review filters, and reset the band with Clear filters; this remains a completeness heuristic, not a quality or contactability guarantee.
