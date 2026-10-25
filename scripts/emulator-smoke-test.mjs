@@ -256,6 +256,18 @@ try {
     "createLead",
     "2",
   ], { stdio: "inherit" });
+  const analyticsLeadPage = await callOne("listLeads", { organisationId: orgOne.organisationId });
+  assert.equal(analyticsLeadPage.hasMoreLeads, false, "early analytics fixture fits in one page for a deterministic comparison");
+  const campaignLeadRows = analyticsLeadPage.leads.filter((lead) => lead.campaignId === campaignOne.campaignId);
+  const fullCampaignFunnel = await callOne("getCampaignFunnelSummary", {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+  });
+  assert.equal(fullCampaignFunnel.scope, "all_stored_campaign_leads", "analytics explicitly labels its complete server-side scope");
+  assert.equal(fullCampaignFunnel.totalLeadCount, campaignLeadRows.length, "server aggregate counts all stored leads for the campaign");
+  assert.equal(fullCampaignFunnel.qualifiedLeadCount, campaignLeadRows.filter((lead) => lead.status === "qualified").length);
+  assert.equal(fullCampaignFunnel.contactedLeadCount, campaignLeadRows.filter((lead) => lead.status === "contacted").length);
+  assert.equal(fullCampaignFunnel.onboardedLeadCount, campaignLeadRows.filter((lead) => lead.status === "onboarded").length);
   await expectCallableFailure(callOne("updateLeadNotes", {
     organisationId: orgOne.organisationId,
     leadId: leadOne.leadId,
@@ -1919,6 +1931,10 @@ try {
   await expectCallableFailure(callTwo("listLeads", { organisationId: orgOne.organisationId }), "functions/permission-denied", "cross-tenant lead listing denial");
   await expectCallableFailure(callTwo("previewOrganisationOffboarding", { organisationId: orgOne.organisationId }), "functions/permission-denied", "cross-tenant offboarding preview denial");
   const orgTwo = await callTwo("createOrganisation", { name: "Tenant Two", idempotencyKey: "organisation-create-tenant-two-0001" });
+  await expectCallableFailure(callOne("getCampaignFunnelSummary", {
+    organisationId: orgTwo.organisationId,
+    campaignId: campaignOne.campaignId,
+  }), "functions/permission-denied", "campaign analytics rejects another tenant before revealing aggregate counts");
   await expectCallableFailure(callTwo("updateCampaignDetails", {
     organisationId: orgOne.organisationId, campaignId: campaignOne.campaignId,
     name: "Cross tenant", brand: "Test Brand", category: "Roofing", location: "Leeds, UK", goal: "",
@@ -2804,6 +2820,7 @@ try {
     "addOrganisationMember",
     "createCampaign",
     "listCampaigns",
+    "getCampaignFunnelSummary",
     "updateCampaignStatus",
     "updateCampaignDetails",
     "listLeads",

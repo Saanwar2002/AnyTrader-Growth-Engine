@@ -912,6 +912,59 @@ export const listLeads = onCall(callableOptions, async (request) => {
 });
 
 /**
+ * Return privacy-minimised campaign funnel counts across all stored lead pages.
+ * Firestore aggregation queries avoid loading an unbounded lead collection into
+ * memory; every query is scoped to the caller's organisation and campaign.
+ */
+export const getCampaignFunnelSummary = onCall(callableOptions, async (request) => {
+  const uid = requireUid(request.auth?.uid);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const organisationId = requireOrganisationId(data.organisationId);
+  const campaignId = requireDocumentId(data.campaignId, "campaignId");
+  await requireMembership(organisationId, uid);
+  await consumeReadRateLimit(organisationId, uid, "getCampaignFunnelSummary", 30);
+
+  const organisationRef = db.collection("organisations").doc(organisationId);
+  const campaignRef = organisationRef.collection("campaigns").doc(campaignId);
+  const campaignSnapshot = await campaignRef.get();
+  if (!campaignSnapshot.exists) {
+    throw new HttpsError("not-found", "Campaign was not found in this organisation.");
+  }
+
+  const leadsRef = organisationRef.collection("leads");
+  const countForStatus = async (status?: "qualified" | "contacted" | "onboarded"): Promise<number> => {
+    let query = leadsRef.where("campaignId", "==", campaignId);
+    if (status) query = query.where("status", "==", status);
+    const result = await query.count().get();
+    const count = result.data().count;
+    if (!Number.isSafeInteger(count) || count < 0) {
+      throw new HttpsError("failed-precondition", "Campaign analytics count is invalid and requires operator review.");
+    }
+    return count;
+  };
+  const [totalLeadCount, qualifiedLeadCount, contactedLeadCount, onboardedLeadCount] = await Promise.all([
+    countForStatus(),
+    countForStatus("qualified"),
+    countForStatus("contacted"),
+    countForStatus("onboarded"),
+  ]);
+  const rate = (count: number) => totalLeadCount
+    ? Math.round((count / totalLeadCount) * 1000) / 10
+    : 0;
+  return {
+    organisationId,
+    campaignId,
+    totalLeadCount,
+    qualifiedLeadCount,
+    contactedLeadCount,
+    onboardedLeadCount,
+    qualifiedRatePercent: rate(qualifiedLeadCount),
+    onboardedRatePercent: rate(onboardedLeadCount),
+    scope: "all_stored_campaign_leads" as const,
+  };
+});
+
+/**
  * Import a bounded CSV-mapped batch through the trusted server path.
  * This callable persists only validated rows and leaves every new contact suppressed
  * until an authorised reviewer explicitly clears the contact restriction.

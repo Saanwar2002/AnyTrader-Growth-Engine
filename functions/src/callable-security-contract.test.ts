@@ -15,6 +15,7 @@ const expectedRateLimitType: Record<string, "read" | "mutation"> = {
   addOrganisationMember: "mutation",
   createCampaign: "mutation",
   listCampaigns: "read",
+  getCampaignFunnelSummary: "read",
   updateCampaignStatus: "mutation",
   updateCampaignDetails: "mutation",
   listLeads: "read",
@@ -95,7 +96,7 @@ describe("callable security contract", () => {
 
   it("enforces App Check on every deployed callable and only bypasses it in the Functions emulator", () => {
     expect(callableSource).toContain('const callableOptions = { enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true" }');
-    expect((callableSource.match(/= onCall\(callableOptions, async \(request\) => \{/g) ?? [])).toHaveLength(19);
+    expect((callableSource.match(/= onCall\(callableOptions, async \(request\) => \{/g) ?? [])).toHaveLength(20);
     expect(callableSource.includes("= onCall(async (request) => {")).toBe(false);
   });
 
@@ -745,4 +746,26 @@ it("keeps offboarding preview owner-only, bounded, tenant-scoped, and non-destru
   expect(body).toContain("destructiveActionPerformed: false");
   expect(body).not.toContain("batch.delete(");
   expect(body).not.toContain("transaction.delete(");
+});
+
+
+describe("server-side campaign funnel analytics", () => {
+  it("requires tenant membership, rate-limits reads, validates campaign ownership, and uses bounded aggregation queries", () => {
+    const start = callableSource.indexOf("export const getCampaignFunnelSummary = onCall(");
+    const end = callableSource.indexOf("export const ", start + 1);
+    const body = callableSource.slice(start, end < 0 ? callableSource.length : end);
+
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(body).toContain("requireUid(request.auth?.uid)");
+    expect(body).toContain("requireOrganisationId(data.organisationId)");
+    expect(body).toContain('requireDocumentId(data.campaignId, "campaignId")');
+    expect(body).toContain("await requireMembership(organisationId, uid)");
+    expect(body).toContain('consumeReadRateLimit(organisationId, uid, "getCampaignFunnelSummary", 30)');
+    expect(body).toContain('organisationRef.collection("campaigns").doc(campaignId)');
+    expect(body).toContain('organisationRef.collection("leads")');
+    expect(body).toContain('leadsRef.where("campaignId", "==", campaignId)');
+    expect(body).toContain("query.count().get()");
+    expect(body).toContain('scope: "all_stored_campaign_leads"');
+    expect(body).not.toContain(".get()\n    .docs");
+  });
 });

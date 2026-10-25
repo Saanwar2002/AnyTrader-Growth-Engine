@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
   currentUser: null as unknown,
   api: {
     listMyOrganisations: vi.fn(), createOrganisation: vi.fn(), updateOrganisationSettings: vi.fn(), addOrganisationMember: vi.fn(), createCampaign: vi.fn(), updateCampaignStatus: vi.fn(), updateCampaignDetails: vi.fn(),
-    listCampaigns: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), importLeads: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(),
+    listCampaigns: vi.fn(), getCampaignFunnelSummary: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), importLeads: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(),
     updateLeadNotes: vi.fn(), setLeadSuppression: vi.fn(), createOutreachDraft: vi.fn(), suggestOutreachDraft: vi.fn(), listOutreachDrafts: vi.fn(),
     updateOutreachDraft: vi.fn(), deleteOutreachDraft: vi.fn(),
   },
@@ -38,8 +38,13 @@ beforeEach(() => {
   mocks.currentUser = null;
   mocks.signIn.mockResolvedValue({}); mocks.googleSignIn.mockResolvedValue({}); mocks.register.mockResolvedValue({});
   mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [] });
-  mocks.api.listCampaigns.mockResolvedValue({ campaigns: [] });
-  mocks.api.listLeads.mockResolvedValue({ leads: [] });
+  mocks.api.listCampaigns.mockResolvedValue({ campaigns: [], hasMoreCampaigns: false, nextPageToken: null });
+  mocks.api.getCampaignFunnelSummary.mockResolvedValue({
+    organisationId: "org-1", campaignId: "campaign-1", totalLeadCount: 120,
+    qualifiedLeadCount: 30, contactedLeadCount: 12, onboardedLeadCount: 4,
+    qualifiedRatePercent: 25, onboardedRatePercent: 3.3, scope: "all_stored_campaign_leads",
+  });
+  mocks.api.listLeads.mockResolvedValue({ leads: [], hasMoreLeads: false, nextPageToken: null });
   mocks.api.listOutreachDrafts.mockResolvedValue({ drafts: [] });
   mocks.api.createOrganisation.mockResolvedValue({ organisationId: "org-new", name: "New Org", role: "owner" });
   mocks.api.updateOrganisationSettings.mockImplementation(async ({ organisationId, name }) => ({ organisationId, name }));
@@ -783,6 +788,28 @@ describe("cloud authentication gate", () => {
     expect((await screen.findAllByText("Roofing pilot")).length).toBeGreaterThan(0);
     expect(screen.queryByRole("button", { name: "Pause" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Complete" })).toBeNull();
+  });
+
+  it("loads full server-side campaign funnel counts on demand", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    mocks.api.listCampaigns.mockResolvedValue({
+      campaigns: [{ id: "campaign-1", name: "Painter pilot", brand: "AnyTrader", category: "Painters", location: "Manchester", goal: "Recruit providers", status: "active", createdAt: null }],
+      hasMoreCampaigns: false,
+      nextPageToken: null,
+    });
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load full counts" }));
+    await waitFor(() => expect(mocks.api.getCampaignFunnelSummary).toHaveBeenCalledWith({
+      organisationId: "org-1",
+      campaignId: "campaign-1",
+    }));
+    expect(await screen.findByText("120 total leads")).toBeTruthy();
+    expect(screen.getByText("30 qualified · 12 contacted · 4 onboarded")).toBeTruthy();
+    expect(screen.getByText("25.0% qualified · 3.3% onboarded")).toBeTruthy();
   });
 
 });
