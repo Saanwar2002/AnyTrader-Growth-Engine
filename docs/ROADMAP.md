@@ -22,6 +22,7 @@
 - [x] Expose owner/admin pause, activation, and completion controls in the cloud workspace using the existing server-enforced status endpoint.
 - [x] Add membership-checked lead listing and tenant-scoped lead creation/contact editing.
 - [x] Display heuristic lead completeness scores and bounded reason text, with loaded-page sorting by score, newest, or business name; explicitly distinguish completeness from quality, consent, and contactability.
+- [x] Add loaded-page quick filters for high, medium, and low completeness score bands, with explicit heuristic labels and a clear-filter reset.
 - [x] Add transactional lead status and notes updates with activity events.
 - [x] Add an on-demand, tenant-scoped lead activity timeline limited to the latest 20 events, excluding actor identifiers and contact values; emulator coverage verifies cross-tenant denial.
 - [x] Add transactional do-not-contact controls; members can suppress, but only owners/admins can remove a restriction.
