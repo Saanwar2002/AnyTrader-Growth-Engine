@@ -1831,7 +1831,7 @@ try {
   await expectCallableFailure(callTwo("listLeads", { organisationId: orgOne.organisationId }), "functions/permission-denied", "cross-tenant lead listing denial");
   await expectCallableFailure(callTwo("previewOrganisationOffboarding", { organisationId: orgOne.organisationId }), "functions/permission-denied", "cross-tenant offboarding preview denial");
   const orgTwo = await callTwo("createOrganisation", { name: "Tenant Two", idempotencyKey: "organisation-create-tenant-two-0001" });
-  const renamedOrganisation = await callOne("updateOrganisationSettings", { organisationId: orgTwo.organisationId, name: "Tenant Two Workspace" });
+  const renamedOrganisation = await callTwo("updateOrganisationSettings", { organisationId: orgTwo.organisationId, name: "Tenant Two Workspace" });
   assert.equal(renamedOrganisation.name, "Tenant Two Workspace", "owner can rename an organisation");
   assert.equal((await callTwo("listMyOrganisations")).organisations.find((item) => item.organisationId === orgTwo.organisationId)?.name, "Tenant Two Workspace",
     "renamed organisation name persists");
