@@ -544,6 +544,66 @@ export const updateOrganisationSettings = onCall(callableOptions, async (request
   return { organisationId, name };
 });
 
+export const listOrganisationMembers = onCall(callableOptions, async (request) => {
+  const uid = requireUid(request.auth?.uid);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const organisationId = requireOrganisationId(data.organisationId);
+  const pageSize = typeof data.pageSize === "number" && Number.isInteger(data.pageSize)
+    ? Math.min(Math.max(data.pageSize, 1), 100)
+    : 50;
+  const pageToken = data.pageToken === undefined ? undefined : data.pageToken;
+  if (pageToken !== undefined && (typeof pageToken !== "string" || pageToken.length > 4096)) {
+    throw new HttpsError("invalid-argument", "pageToken is invalid.");
+  }
+
+  const membership = await requireMembership(organisationId, uid);
+  if (membership.role !== "owner" && membership.role !== "admin") {
+    throw new HttpsError("permission-denied", "Only organisation owners and admins can view the member roster.");
+  }
+  await consumeReadRateLimit(organisationId, uid, "listOrganisationMembers", 30);
+
+  let cursorUid: string | undefined;
+  if (pageToken) {
+    try {
+      const decoded = JSON.parse(Buffer.from(pageToken, "base64url").toString("utf8")) as Record<string, unknown>;
+      if (decoded.organisationId !== organisationId || typeof decoded.lastUid !== "string" || !decoded.lastUid) {
+        throw new Error("Invalid cursor scope");
+      }
+      cursorUid = decoded.lastUid;
+    } catch {
+      throw new HttpsError("invalid-argument", "pageToken is invalid.");
+    }
+  }
+
+  let query = db.collection("organisations").doc(organisationId).collection("members")
+    .orderBy(FieldPath.documentId()).limit(pageSize + 1);
+  if (cursorUid) query = query.startAfter(cursorUid) as typeof query;
+  const snapshot = await query.get();
+  const page = snapshot.docs.slice(0, pageSize);
+  const members = page.map((document) => {
+    const value = document.data();
+    if (value.uid !== document.id || !isValidMembershipForOrganisation(value, document.id, undefined)) {
+      throw new HttpsError("failed-precondition", "An invalid member record was found and requires operator review.");
+    }
+    return {
+      uid: document.id,
+      role: value.role,
+      createdAt: value.createdAt?.toDate?.()?.toISOString?.() ?? null,
+      createdBy: typeof value.createdBy === "string" ? value.createdBy : null,
+    };
+  });
+  const hasMoreMembers = snapshot.docs.length > pageSize;
+  const lastUid = page.at(-1)?.id;
+  return {
+    organisationId,
+    members,
+    hasMoreMembers,
+    nextPageToken: hasMoreMembers && lastUid
+      ? Buffer.from(JSON.stringify({ organisationId, lastUid }), "utf8").toString("base64url")
+      : null,
+  };
+});
+
 export const addOrganisationMember = onCall(callableOptions, async (request) => {
   const uid = requireUid(request.auth?.uid);
   const data = (request.data ?? {}) as Record<string, unknown>;
