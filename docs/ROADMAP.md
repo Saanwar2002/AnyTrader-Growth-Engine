@@ -51,6 +51,7 @@
 - [x] Add a minimal transactional audit event for successful CSV imports; CI passed on head `6b117e14a25dd734bc72dedd5576483da087995a`.
 - [x] Add atomic, PII-minimised audit events for lead contact edits and contact-restriction changes (CI passed on `0c7821a82cb787dea5fa7c9a3fc63a516352a899`).
 - [x] Extend transactional audit coverage to campaign creation/status changes, lead status/notes changes, and outreach-draft create/update/delete without logging note text or draft content (CI passed on `fbce1abe83385f0ced0ed06bd311e88cab45c4f0`).
+- [x] Add bounded all-or-nothing bulk lead status updates for up to 25 selected records, with tenant/role rechecks, contact-restriction gates, stable idempotency, per-lead activity/audit events, and offboarding inventory coverage.
 - [x] Add a transactional, PII-minimised audit event for manual lead creation (CI passed on head `04b39a1de61cf9c04f7219ad83e08f324eb23f79`).
 - [x] Add an atomic, metadata-minimised audit event when an organisation and its initial owner membership are created (verified by CI on `c2e31b169e81ccd9fda1fd1cad0189b09669ba1c`; frontend/emulator and Functions jobs passed).
 - [x] Add emulator assertions for audit metadata allowlists, scalar/bounded values, and rejection of content-bearing fields (CI run `40043306751` passed on head `05dfef69c19db738c048212bc97487cb1722b7e7`).
