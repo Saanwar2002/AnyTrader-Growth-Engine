@@ -102,6 +102,36 @@ describe("bounded read-only lead identifier audit coordinator", () => {
     })).rejects.toThrow("malformed record");
   });
 
+  it("rejects throwing record accessors and snapshots each field only once", async () => {
+    const throwingEmail = Object.defineProperty({ id: "lead-a" }, "email", {
+      get() {
+        throw new Error("adapter detail must not escape");
+      },
+    });
+    await expect(runBoundedLeadIdentifierAudit({
+      tenantId: "tenant-1", pageSize: 10, maxRecords: 5, dryRun: true,
+      fetchPage: vi.fn().mockResolvedValue({ records: [throwingEmail] }),
+    })).rejects.toThrow("malformed record");
+
+    let emailReads = 0;
+    const unstableEmail = {
+      id: "lead-b",
+      get email() {
+        emailReads += 1;
+        if (emailReads > 1) throw new Error("field changed between reads");
+        return "person@example.test";
+      },
+    };
+    const result = await runBoundedLeadIdentifierAudit({
+      tenantId: "tenant-1", pageSize: 10, maxRecords: 5, dryRun: true,
+      fetchPage: vi.fn().mockResolvedValue({ records: [unstableEmail] }),
+    });
+
+    expect(emailReads).toBe(1);
+    expect(result.report.scannedRecords).toBe(1);
+    expect(result.report.missingEmailKeys).toEqual(["lead-b"]);
+  });
+
   it("rejects adapters that violate the requested page size", async () => {
     const fetchPage = vi.fn().mockResolvedValue({
       records: [{ id: "a" }, { id: "b" }],
