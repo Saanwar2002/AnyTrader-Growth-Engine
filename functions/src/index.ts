@@ -651,6 +651,22 @@ export const listOrganisationMembers = onCall(callableOptions, async (request) =
   const uid = requireUid(request.auth?.uid);
   const data = (request.data ?? {}) as Record<string, unknown>;
   const organisationId = requireOrganisationId(data.organisationId);
+  const rawPageToken = data.pageToken;
+  if (rawPageToken !== undefined && rawPageToken !== null && rawPageToken !== ""
+    && (typeof rawPageToken !== "string" || rawPageToken.length > 4096)) {
+    throw new HttpsError("invalid-argument", "Member roster page token is invalid.");
+  }
+  let cursorUid: string | undefined;
+  if (typeof rawPageToken === "string" && rawPageToken.length > 0) {
+    try {
+      const decoded = JSON.parse(Buffer.from(rawPageToken, "base64url").toString("utf8")) as Record<string, unknown>;
+      if (decoded.scope !== "organisation_member_roster" || decoded.organisationId !== organisationId
+        || !isValidDocumentId(decoded.lastUid)) throw new Error("Invalid roster cursor");
+      cursorUid = decoded.lastUid;
+    } catch {
+      throw new HttpsError("invalid-argument", "Member roster page token is invalid for this organisation.");
+    }
+  }
   const callerMembership = await requireMembership(organisationId, uid);
   if (callerMembership.role !== "owner" && callerMembership.role !== "admin") {
     throw new HttpsError("permission-denied", "Only organisation owners and admins can list members.");
@@ -664,10 +680,10 @@ export const listOrganisationMembers = onCall(callableOptions, async (request) =
   if (typeof ownerUid !== "string" || ownerUid.length === 0) {
     throw new HttpsError("failed-precondition", "Organisation owner identity is invalid and requires operator review.");
   }
-  const page = await organisationRef.collection("members")
-    .orderBy(FieldPath.documentId())
-    .limit(21)
-    .get();
+  let membersQuery = organisationRef.collection("members")
+    .orderBy(FieldPath.documentId());
+  if (cursorUid) membersQuery = membersQuery.startAfter(cursorUid);
+  const page = await membersQuery.limit(21).get();
   const memberDocuments = page.docs.slice(0, 20);
   const members = await Promise.all(memberDocuments.map(async (document) => {
     const member = document.data() ?? {};
@@ -695,10 +711,15 @@ export const listOrganisationMembers = onCall(callableOptions, async (request) =
   if (finalMembership.role !== "owner" && finalMembership.role !== "admin") {
     throw new HttpsError("permission-denied", "Only organisation owners and admins can list members.");
   }
+  const hasMoreMembers = page.docs.length > 20;
+  const lastUid = memberDocuments.at(-1)?.id;
   return {
     organisationId,
     members,
-    hasMoreMembers: page.docs.length > 20,
+    hasMoreMembers,
+    nextPageToken: hasMoreMembers && lastUid
+      ? Buffer.from(JSON.stringify({ scope: "organisation_member_roster", organisationId, lastUid }), "utf8").toString("base64url")
+      : null,
     scope: "organisation_member_roster" as const,
   };
 });
