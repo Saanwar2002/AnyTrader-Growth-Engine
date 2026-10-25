@@ -1550,6 +1550,44 @@ export const getContactReviewQueueSummary = onCall(callableOptions, async (reque
  * Read-only bounded inventory of onboarding timestamp coverage.
  * This lets owners estimate legacy backfill scope without exposing lead records or writing data.
  */
+/**
+ * Aggregate stored lead completeness score bands without returning lead details.
+ * Completeness is a prioritisation heuristic, not a quality or contactability guarantee.
+ */
+export const getLeadCompletenessSummary = onCall(callableOptions, async (request) => {
+  const uid = requireUid(request.auth?.uid);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const organisationId = requireOrganisationId(data.organisationId);
+  await requireMembership(organisationId, uid);
+  await consumeReadRateLimit(organisationId, uid, "getLeadCompletenessSummary", 10);
+
+  const leadsRef = db.collection("organisations").doc(organisationId).collection("leads");
+  const countQuery = async (query: Query): Promise<number> => {
+    const snapshot = await query.count().get();
+    const count = snapshot.data().count;
+    if (!Number.isSafeInteger(count) || count < 0) {
+      throw new HttpsError("failed-precondition", "Lead completeness aggregate is invalid and requires operator review.");
+    }
+    return count;
+  };
+  const [totalLeadCount, lowCount, mediumCount, highCount] = await Promise.all([
+    countQuery(leadsRef),
+    countQuery(leadsRef.where("score", ">=", 0).where("score", "<=", 39)),
+    countQuery(leadsRef.where("score", ">=", 40).where("score", "<=", 69)),
+    countQuery(leadsRef.where("score", ">=", 70).where("score", "<=", 100)),
+  ]);
+  const classifiedCount = lowCount + mediumCount + highCount;
+  if (classifiedCount > totalLeadCount) {
+    throw new HttpsError("failed-precondition", "Lead completeness totals are inconsistent and require operator review.");
+  }
+  return {
+    organisationId, totalLeadCount, lowCount, mediumCount, highCount,
+    unclassifiedCount: totalLeadCount - classifiedCount,
+    scope: "all_stored_leads" as const,
+    note: "Bands use stored completeness scores only: low 0–39, medium 40–69, high 70–100. Unclassified includes legacy or invalid scores; completeness is not a quality, consent, or contactability guarantee.",
+  };
+});
+
 export const getOnboardingCohortCoverage = onCall(callableOptions, async (request) => {
   const uid = requireUid(request.auth?.uid);
   const data = (request.data ?? {}) as Record<string, unknown>;
