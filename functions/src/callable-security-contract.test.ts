@@ -301,7 +301,8 @@ describe("callable security contract", () => {
     expect(body).toContain("savedOrganisation.data()?.ownerUid !== uid");
     expect(body).toContain("savedMembership.data()?.role !== \"owner\"");
     expect(body).toContain("isValidMembershipForOrganisation(savedMembership.data(), uid, savedOrganisation.data()?.ownerUid)");
-    expect(body.indexOf("saved.actorUid !== uid")).toBeLessThan(body.indexOf("const savedResult = saved.result as Record<string, unknown>;"));
+    expect(body).toContain("getValidOrganisationCreationReplayResult(saved, { actorUid: uid, requestHash, name })");
+    expect(body.indexOf("getValidOrganisationCreationReplayResult(saved, { actorUid: uid, requestHash, name })")).toBeLessThan(body.indexOf("const savedOrganisationRef = db.collection(\"organisations\").doc(savedResult.organisationId);"));
   });
 
   it("validates the saved campaign and original creator before returning an idempotent replay", () => {
@@ -493,6 +494,16 @@ describe("callable security contract", () => {
       expect(body, `${name} must commit retry state atomically`).toContain("transaction.create(idempotencyRef");
       expect(body, `${name} must reject conflicting payloads`).toContain('new HttpsError("already-exists"');
     }
+  });
+
+  it("validates organisation creation replay response shape before returning it", () => {
+    const start = callableSource.indexOf("export const createOrganisation = onCall(");
+    const end = callableSource.indexOf("export const ", start + 1);
+    const body = callableSource.slice(start, end < 0 ? callableSource.length : end);
+    expect(body).toContain("getValidOrganisationCreationReplayResult(saved, { actorUid: uid, requestHash, name })");
+    expect(body).toContain('savedOrganisation.data()?.name !== name');
+    expect(body).toContain("return savedResult;");
+    expect(body).not.toContain("return savedResult as { organisationId: string; name: string; role: \"owner\" }");
   });
 
   it("keeps every expected callable authenticated and rate-limited", () => {

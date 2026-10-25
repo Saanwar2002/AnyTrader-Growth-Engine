@@ -9,6 +9,7 @@ import { getValidOutreachDraftReplayResult, isPersistedOutreachDraftAvailable } 
 import { getValidBulkLeadStatusReplayResult } from "./bulk-lead-status-idempotency";
 import { hasExactAuditMetadataKeys } from "./audit-metadata-shape";
 import { getValidCampaignCreationReplayResult, isPersistedCampaignCreationReplayAvailable } from "./campaign-creation-idempotency";
+import { getValidOrganisationCreationReplayResult } from "./organisation-creation-idempotency";
 import * as logger from "firebase-functions/logger";
 import { canonicalLeadBusinessLocationKey, canonicalLeadEmailKey, canonicalLeadWebsiteKey } from "./lead-identifiers";
 import { createOffboardingPreview, OFFBOARDING_PREVIEW_CATEGORIES } from "./offboarding-preview";
@@ -493,8 +494,8 @@ export const createOrganisation = onCall(callableOptions, async (request) => {
       if (saved.requestHash !== requestHash || saved.actorUid !== uid || !saved.result || typeof saved.result !== "object") {
         throw new HttpsError("already-exists", "This idempotencyKey was already used with a different organisation payload.");
       }
-      const savedResult = saved.result as Record<string, unknown>;
-      if (!isValidOrganisationId(savedResult.organisationId) || savedResult.name !== name || savedResult.role !== "owner") {
+      const savedResult = getValidOrganisationCreationReplayResult(saved, { actorUid: uid, requestHash, name });
+      if (!savedResult) {
         throw new HttpsError("failed-precondition", "Saved organisation retry state is invalid and requires operator review.");
       }
       const savedOrganisationRef = db.collection("organisations").doc(savedResult.organisationId);
@@ -504,12 +505,13 @@ export const createOrganisation = onCall(callableOptions, async (request) => {
         transaction.get(savedMembershipRef),
       ]);
       if (!savedOrganisation.exists || savedOrganisation.data()?.ownerUid !== uid
+        || savedOrganisation.data()?.name !== name
         || !savedMembership.exists
         || !isValidMembershipForOrganisation(savedMembership.data(), uid, savedOrganisation.data()?.ownerUid)
         || savedMembership.data()?.role !== "owner") {
         throw new HttpsError("failed-precondition", "The organisation created by this request is no longer available to its original owner.");
       }
-      return savedResult as { organisationId: string; name: string; role: "owner" };
+      return savedResult;
     }
 
     await consumeTransactionalRateLimit(transaction, "global", uid, "createOrganisation", 5, 60 * 60_000);

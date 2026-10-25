@@ -1,3 +1,21 @@
+## AutoPilot run — organisation replay contract correction (2026-10-25)
+
+- Updated the existing callable source-contract test to assert the new exact-shape replay validator instead of the removed inline type-assertion implementation.
+- CI failure was a stale source-contract assertion, not a TypeScript or helper-unit-test failure; no production code change in this correction.
+- Re-run exact-head CI and review all jobs before merge.
+
+---
+
+## AutoPilot run — organisation creation idempotency replay shape (2026-10-25)
+
+- Replaced the organisation-create replay type assertion with a pure exact-shape validator bound to the original actor, request fingerprint, name, valid organisation ID, and owner role.
+- Re-checks the persisted organisation name/owner and the actor's authoritative owner membership in the same transaction before replaying.
+- Added pure tests for wrong actor/hash, malformed containers, missing/extra/tampered fields, invalid IDs, and unexpected PII-shaped response fields; added callable source-contract coverage.
+- No new endpoint, production deployment, billing change, or automated outreach.
+- Next: exact-head CI, then continue reviewing remaining idempotent creation and import paths.
+
+---
+
 ## AutoPilot run — campaign creation idempotency replay integrity (2026-10-25)
 
 - Replaced the campaign create replay type assertion with a pure validator that requires the exact saved response keys and validates actor, request fingerprint, tenant ID, original payload, status, and campaign document ID.
