@@ -161,3 +161,52 @@ describe("analytics CSV spreadsheet formula safety", () => {
     expect(csv).toContain("'@SUM(A1)");
   });
 });
+
+
+describe("summarizeCampaignReadiness", () => {
+  const campaign = { id: "c1", name: "Roofers", brand: "AnyTrader", category: "Roofers", location: "Leeds" };
+  const safeLead = {
+    campaignId: "c1", status: "qualified", source: "linkedin_csv", doNotContact: false,
+    contactRestrictionVerified: true, contactReviewStatus: "cleared" as const,
+  };
+
+  it("only reports ready for manual review when loaded records have no known blockers", async () => {
+    const { summarizeCampaignReadiness } = await import("./analytics");
+    const result = summarizeCampaignReadiness([campaign], [safeLead], [{ campaignId: "c1", requiresReview: false }], {
+      hasMoreCampaigns: false, hasMoreLeads: false, hasMoreDrafts: false,
+    });
+    expect(result[0]).toMatchObject({
+      status: "ready_for_manual_review", scope: "loaded_records_only", loadedLeadCount: 1,
+      contactRestrictedLeadCount: 0, draftsAwaitingReview: 0, sourceAttributionMissingCount: 0,
+      missingConfigurationFields: [], hasMoreData: false,
+    });
+  });
+
+  it("marks incomplete coverage ahead of any optimistic readiness status", async () => {
+    const { summarizeCampaignReadiness } = await import("./analytics");
+    const result = summarizeCampaignReadiness([campaign], [safeLead], [], {
+      hasMoreCampaigns: false, hasMoreLeads: true, hasMoreDrafts: false,
+    });
+    expect(result[0].status).toBe("incomplete");
+    expect(result[0].hasMoreData).toBe(true);
+  });
+
+  it("blocks missing setup or contact restrictions and flags source/draft review", async () => {
+    const { summarizeCampaignReadiness } = await import("./analytics");
+    const blocked = summarizeCampaignReadiness([{ ...campaign, location: " " }], [{
+      ...safeLead, doNotContact: true, source: "unknown",
+    }], [{ campaignId: "c1", requiresReview: true }], {
+      hasMoreCampaigns: false, hasMoreLeads: false, hasMoreDrafts: false,
+    })[0];
+    expect(blocked.status).toBe("blocked");
+    expect(blocked.missingConfigurationFields).toContain("location");
+    expect(blocked.contactRestrictedLeadCount).toBe(1);
+    expect(blocked.draftsAwaitingReview).toBe(1);
+    expect(blocked.sourceAttributionMissingCount).toBe(1);
+
+    const review = summarizeCampaignReadiness([campaign], [safeLead], [{ campaignId: "c1", requiresReview: true }], {
+      hasMoreCampaigns: false, hasMoreLeads: false, hasMoreDrafts: false,
+    })[0];
+    expect(review.status).toBe("review_required");
+  });
+});

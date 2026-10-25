@@ -40,6 +40,71 @@ export function summarizeCampaignPerformance(
   });
 }
 
+export type CampaignReadinessStatus = "incomplete" | "blocked" | "review_required" | "ready_for_manual_review";
+export interface CampaignReadinessSummary {
+  campaignId: string;
+  campaignName: string;
+  status: CampaignReadinessStatus;
+  scope: "loaded_records_only";
+  loadedLeadCount: number;
+  contactRestrictedLeadCount: number;
+  draftsAwaitingReview: number;
+  sourceAttributionMissingCount: number;
+  missingConfigurationFields: string[];
+  hasMoreData: boolean;
+}
+
+/**
+ * Conservative read-only preflight over currently loaded records. This is not
+ * permission to contact prospects; it never sends messages or mutates records.
+ */
+export function summarizeCampaignReadiness(
+  campaigns: Array<{ id: string; name: string; brand: string; category: string; location: string }>,
+  leads: Array<{
+    campaignId: string; status: string; source?: string; doNotContact: boolean;
+    contactRestrictionVerified: boolean; contactReviewStatus?: "pending" | "cleared" | "blocked";
+  }>,
+  drafts: Array<{ campaignId: string; requiresReview: boolean }>,
+  coverage: { hasMoreCampaigns: boolean; hasMoreLeads: boolean; hasMoreDrafts: boolean },
+): CampaignReadinessSummary[] {
+  const hasMoreData = coverage.hasMoreCampaigns || coverage.hasMoreLeads || coverage.hasMoreDrafts;
+  return campaigns.map((campaign) => {
+    const campaignLeads = leads.filter((lead) => lead.campaignId === campaign.id);
+    const campaignDrafts = drafts.filter((draft) => draft.campaignId === campaign.id);
+    const missingConfigurationFields = ([
+      ["name", campaign.name],
+      ["brand", campaign.brand],
+      ["category", campaign.category],
+      ["location", campaign.location],
+    ] as const).filter(([, value]) => !value.trim()).map(([field]) => field);
+    const contactRestrictedLeadCount = campaignLeads.filter((lead) =>
+      lead.doNotContact || !lead.contactRestrictionVerified
+      || lead.contactReviewStatus === "pending" || lead.contactReviewStatus === "blocked").length;
+    const draftsAwaitingReview = campaignDrafts.filter((draft) => draft.requiresReview).length;
+    const sourceAttributionMissingCount = campaignLeads.filter((lead) =>
+      typeof lead.source !== "string" || !lead.source.trim() || lead.source.trim().toLowerCase() === "unknown").length;
+    const status: CampaignReadinessStatus = hasMoreData
+      ? "incomplete"
+      : missingConfigurationFields.length > 0 || campaignLeads.length === 0 || contactRestrictedLeadCount > 0
+        ? "blocked"
+        : draftsAwaitingReview > 0 || sourceAttributionMissingCount > 0
+          ? "review_required"
+          : "ready_for_manual_review";
+    return {
+      campaignId: campaign.id,
+      campaignName: campaign.name,
+      status,
+      scope: "loaded_records_only",
+      loadedLeadCount: campaignLeads.length,
+      contactRestrictedLeadCount,
+      draftsAwaitingReview,
+      sourceAttributionMissingCount,
+      missingConfigurationFields,
+      hasMoreData,
+    };
+  });
+}
+
 export interface LeadSourcePerformanceLead { source: string; status: string; }
 export interface LeadSourcePerformanceSummary {
   source: string; loadedLeadCount: number; qualifiedLeadCount: number; onboardedLeadCount: number;

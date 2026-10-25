@@ -878,6 +878,38 @@ describe("cloud authentication gate", () => {
     expect(screen.getByText(/unknown includes missing and unrecognised legacy values/i)).toBeTruthy();
   });
 
+  it("shows a conservative read-only campaign readiness preflight and discloses partial pages", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    mocks.api.listCampaigns.mockResolvedValue({
+      campaigns: [{ id: "campaign-1", name: "Roofers Leeds", brand: "AnyTrader", category: "Roofers", location: "Leeds", goal: "Pilot", status: "active", createdAt: null }],
+      hasMoreCampaigns: false,
+      nextPageToken: null,
+    });
+    mocks.api.listLeads.mockResolvedValue({
+      leads: [{
+        id: "lead-1", campaignId: "campaign-1", businessName: "Roofing Example",
+        category: "Roofers", location: "Leeds", website: "", email: "", phone: "", source: "unknown",
+        status: "new", score: 10, scoreReasons: [], notes: "", doNotContact: true,
+        contactRestrictionVerified: false, contactReviewStatus: "pending", contactReviewRevision: 0, createdAt: null,
+      }],
+      hasMoreLeads: true,
+      nextPageToken: "lead-page-2",
+    });
+    mocks.api.listOutreachDrafts.mockResolvedValue({ drafts: [], hasMoreDrafts: false, nextPageToken: null });
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Show readiness preflight" }));
+    const table = await screen.findByRole("table", { name: "Campaign readiness preflight" });
+    expect(table.textContent).toContain("Roofers Leeds");
+    expect(table.textContent).toContain("incomplete");
+    expect(table.textContent).toContain("Incomplete — more pages available");
+    expect(screen.getByText(/not approval to contact prospects/i)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /send outreach/i })).toBeNull();
+  });
+
   it("exports full server-counted source aggregates only after loading the selected organisation", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({
