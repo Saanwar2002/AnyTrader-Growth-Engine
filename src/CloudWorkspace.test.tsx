@@ -1099,6 +1099,7 @@ describe("cloud authentication gate", () => {
     render(<CloudWorkspace />);
     await screen.findByRole("option", { name: /Pilot Workspace.*viewer/ });
     expect(screen.queryByRole("button", { name: "Export all stored leads (CSV)" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Load plan usage" })).toBeNull();
   });
 
 });
