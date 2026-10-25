@@ -72,7 +72,7 @@
 
 ## Phase 6 — Attribution and SaaS controls (in progress)
 
-- [x] Loaded-record campaign funnel summary with qualified, contacted, onboarded counts and clearly labelled loaded-lead conversion rates; partial pagination is disclosed in the UI.
+- [x] Loaded-record campaign funnel summary with qualified, contacted, onboarded counts, an accessible responsive funnel chart, and clearly labelled loaded-lead conversion rates; partial pagination is disclosed in the UI.
 - [x] Self-declared lead-source performance summary with qualified/onboarded counts and rates, plus a responsive all-record source funnel chart; pagination and unverified source-label limitations are explicit.
 - [x] Full server-counted lead-source funnel CSV export across all stored organisation leads, including the attribution caveat, formula-safe escaping, and an explicit empty-report row.
 - [x] Shared spreadsheet-formula neutralisation across loaded campaign, full campaign, onboarding cohort, and full source analytics CSV exports; comma/quote/newline escaping remains covered by serializer tests.
