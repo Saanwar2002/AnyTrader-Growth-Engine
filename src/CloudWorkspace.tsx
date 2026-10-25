@@ -149,7 +149,7 @@ export default function CloudWorkspace() {
     return events.filter((event) => {
       if (securityAuditEventTypeFilter !== "all" && event.eventType !== securityAuditEventTypeFilter) return false;
       if (!query) return true;
-      return [event.eventType, event.actorUid, event.resourceType, event.resourceId, JSON.stringify(event.metadata)]
+      return [event.eventType, event.actorUid, event.resourceType, event.resourceId, (JSON.stringify(event.metadata) ?? "")]
         .some((value) => value.toLowerCase().includes(query));
     });
   }, [securityAuditPage, organisationId, securityAuditEventTypeFilter, securityAuditSearch]);
