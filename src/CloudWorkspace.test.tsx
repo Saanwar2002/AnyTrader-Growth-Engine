@@ -721,6 +721,10 @@ describe("cloud authentication gate", () => {
     expect(table.textContent).toContain("1");
     expect(table.textContent).toContain("Qualified");
     expect(table.textContent).toContain("Drafts needing review");
+    const campaignChart = screen.getByRole("group", { name: "Loaded campaign funnel chart" });
+    expect(campaignChart.textContent).toContain("currently loaded lead records only");
+    expect(screen.getByRole("progressbar", { name: "Edinburgh painter campaign loaded leads" }).getAttribute("value")).toBe("2");
+    expect(screen.getByRole("progressbar", { name: "Edinburgh painter campaign qualified leads" }).getAttribute("value")).toBe("1");
   });
 
 
