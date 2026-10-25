@@ -124,6 +124,8 @@ export default function CloudWorkspace() {
   const [busy, setBusy] = useState(false);
   const [serverCampaignAnalytics, setServerCampaignAnalytics] = useState<Record<string, CampaignFunnelAnalyticsSummary>>({});
   const [loadingCampaignAnalyticsKey, setLoadingCampaignAnalyticsKey] = useState("");
+  const [fullCampaignAnalytics, setFullCampaignAnalytics] = useState<{ organisationId: string; campaigns: Array<{ campaignName: string; summary: CampaignFunnelAnalyticsSummary }> } | null>(null);
+  const [loadingFullCampaignAnalytics, setLoadingFullCampaignAnalytics] = useState(false);
   const [serverSourceAnalytics, setServerSourceAnalytics] = useState<LeadSourceFunnelAnalytics | null>(null);
   const [loadingSourceAnalyticsOrganisationId, setLoadingSourceAnalyticsOrganisationId] = useState("");
   const [notice, setNotice] = useState("");
@@ -842,6 +844,49 @@ DRAFT ONLY — NOT SENT.`,
       setError("");
     } catch {
       setError("The onboarding cohort CSV could not be prepared in this browser. Please try again.");
+    }
+  }
+
+  async function loadFullCampaignAnalytics() {
+    if (!api || !organisationId || loadingFullCampaignAnalytics) return;
+    const requestedOrganisationId = organisationId;
+    setLoadingFullCampaignAnalytics(true);
+    setError("");
+    try {
+      const allCampaigns: CampaignSummary[] = [];
+      const seenCampaignIds = new Set<string>();
+      let pageToken: string | undefined;
+      let hasMoreCampaigns = true;
+      for (let pageIndex = 0; pageIndex < 2 && hasMoreCampaigns; pageIndex += 1) {
+        const result = await api.listCampaigns({ organisationId: requestedOrganisationId, ...(pageToken ? { pageToken } : {}) });
+        if (currentOrganisationIdRef.current !== requestedOrganisationId) return;
+        for (const campaign of result.campaigns) {
+          if (!seenCampaignIds.has(campaign.id)) {
+            seenCampaignIds.add(campaign.id);
+            allCampaigns.push(campaign);
+          }
+        }
+        if (allCampaigns.length > 20) throw new Error("The full campaign chart is capped at 20 campaigns to stay within safe analytics rate limits.");
+        hasMoreCampaigns = result.hasMoreCampaigns === true;
+        if (hasMoreCampaigns && !result.nextPageToken) throw new Error("The server did not provide a safe campaign continuation cursor. No chart was displayed.");
+        pageToken = result.nextPageToken ?? undefined;
+      }
+      if (hasMoreCampaigns) throw new Error("The campaign inventory exceeds the 20-campaign chart limit. No partial chart was displayed.");
+      if (allCampaigns.length === 0) throw new Error("There are no campaigns to chart yet.");
+      const campaigns: Array<{ campaignName: string; summary: CampaignFunnelAnalyticsSummary }> = [];
+      for (const campaign of allCampaigns) {
+        const summary = await api.getCampaignFunnelSummary({ organisationId: requestedOrganisationId, campaignId: campaign.id });
+        if (currentOrganisationIdRef.current !== requestedOrganisationId) return;
+        campaigns.push({ campaignName: campaign.name, summary });
+      }
+      if (currentOrganisationIdRef.current === requestedOrganisationId) {
+        setFullCampaignAnalytics({ organisationId: requestedOrganisationId, campaigns });
+        setNotice(`Loaded complete server-side funnel counts for ${campaigns.length} campaign(s).`);
+      }
+    } catch (reason) {
+      setError(readableError(reason));
+    } finally {
+      setLoadingFullCampaignAnalytics(false);
     }
   }
 
