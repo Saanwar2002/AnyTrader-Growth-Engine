@@ -65,6 +65,8 @@ Quota documents carry a server-managed `expireAt` timestamp based on the stored 
 
 ## Privacy, legal, and operational readiness
 
+See [PRIVACY_DATA_RETENTION_AND_OFFBOARDING.md](./PRIVACY_DATA_RETENTION_AND_OFFBOARDING.md) for the source-verified Firestore collection inventory and a dry-run-first offboarding design. It is a specification only: no bulk deletion, account deletion, or production TTL policy is implemented by that document. The schema inventory must be reconciled against any legacy/manual records before real-data offboarding.
+
 - [ ] Define and test retention, deletion, user offboarding, backups, and recovery.
 - [ ] Review provider terms and authorised sourcing methods for each lead source.
 - [ ] Review contact permissions, lawful basis, privacy notices, and applicable marketing requirements before outreach use.

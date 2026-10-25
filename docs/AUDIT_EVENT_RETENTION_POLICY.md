@@ -39,6 +39,8 @@ The trusted backend must construct events. Client code must not be allowed to wr
 - User deletion/offboarding must reconcile account data, tenant-owned lead data, product activity history, audit obligations, backups, and any legal holds. Record the outcome without preserving unnecessary personal data.
 - Test retention and deletion using synthetic records in the separate Growth Engine Firebase project before release.
 
+For organisation/account offboarding, use the separate [Privacy, Data Retention, and Organisation Offboarding specification](./PRIVACY_DATA_RETENTION_AND_OFFBOARDING.md). That specification is a design gate only; it does not enable deletion or establish a production retention schedule.
+
 ## 5. Implementation and verification checklist
 
 - [x] Define a code-enforced event catalogue, resource-type mapping, event-specific metadata allow-list, and bounded metadata validation; automated contract test guards the writer.
