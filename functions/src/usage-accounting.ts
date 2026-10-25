@@ -47,7 +47,7 @@ export function resolvePlanUsageState(value: unknown, now: Date): UsageStateReso
   if (candidate.schemaVersion !== 1 || !METRICS.every((metric) => isValidCounter(candidate[metric]))) {
     return { ok: false, reason: "invalid_state" };
   }
-  if (typeof candidate.aiUsagePeriod !== "string" || !/^\\d{4}-(0[1-9]|1[0-2])$/.test(candidate.aiUsagePeriod)) {
+  if (typeof candidate.aiUsagePeriod !== "string" || !/^\d{4}-(0[1-9]|1[0-2])$/.test(candidate.aiUsagePeriod)) {
     return { ok: false, reason: "invalid_state" };
   }
   const state = candidate as unknown as PlanUsageState;
