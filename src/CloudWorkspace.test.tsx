@@ -1180,7 +1180,7 @@ describe("cloud authentication gate", () => {
     mocks.api.listLeads.mockResolvedValue({
       leads: [{
         id: "loaded-lead", campaignId: "campaign-1", businessName: "Loaded Example",
-        category: "Painters", location: "Leeds", website: "", email: "", phone: "", source: "manual",
+        category: "Painters", location: "Leeds", website: "", email: "", phone: "", source: "csv_import",
         status: "new", score: 20, scoreReasons: [], notes: "", doNotContact: true,
         contactRestrictionVerified: false, contactReviewStatus: "pending", contactReviewRevision: 0, createdAt: null,
       }],
