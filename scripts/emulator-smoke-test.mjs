@@ -2629,8 +2629,8 @@ try {
 
   await signOut(first.auth);
   const unauthenticatedCallableNames = [
-    "listMyOrganisations",
     "previewOrganisationOffboarding",
+    "listMyOrganisations",
     "createOrganisation",
     "createCampaign",
     "listCampaigns",
