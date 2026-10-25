@@ -958,6 +958,9 @@ export const importLeads = onCall(callableOptions, async (request) => {
       : null;
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "importLeads", 10);
 
+    if (reservedPlanUsageState) {
+      transaction.update(organisationRef, { planUsage: reservedPlanUsageState });
+    }
     const newLeads: Array<{ leadId: string; businessName: string }> = [];
     for (const row of rowsToImport) {
       const completeness = calculateLeadCompleteness(row.fields);
@@ -988,9 +991,6 @@ export const importLeads = onCall(callableOptions, async (request) => {
       newLeads.push({ leadId: leadRef.id, businessName: row.fields.businessName });
     }
 
-    if (reservedPlanUsageState) {
-      transaction.update(organisationRef, { planUsage: reservedPlanUsageState });
-    }
     const result = {
       organisationId,
       campaignId,
