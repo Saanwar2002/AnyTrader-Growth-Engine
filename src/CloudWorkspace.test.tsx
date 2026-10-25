@@ -1490,7 +1490,7 @@ describe("cloud authentication gate", () => {
     const leadRows = () => screen.getAllByRole("row").filter((row) => /Alpha Provider|Zulu Provider/.test(row.textContent ?? ""));
     expect(leadRows()[0].textContent).toContain("Zulu Provider");
     expect(screen.getByText("90/100")).toBeTruthy();
-    expect(screen.getByText(/Website present/)).toBeTruthy();
+    expect(screen.getByText(/Website listed \(\+20\)/)).toBeTruthy();
     expect(screen.getAllByText(/not a quality, consent, or contactability guarantee/i)).toHaveLength(2);
     fireEvent.change(screen.getByLabelText("Sort leads by"), { target: { value: "business" } });
     expect(leadRows()[0].textContent).toContain("Alpha Provider");
