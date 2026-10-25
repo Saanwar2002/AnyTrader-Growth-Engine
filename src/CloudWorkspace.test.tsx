@@ -938,6 +938,38 @@ describe("cloud authentication gate", () => {
     expect(screen.getByText(/legacy leads already onboarded before timestamp capture may be excluded/i)).toBeTruthy();
   });
 
+  it("exports the loaded monthly onboarding cohorts with their timestamp caveat", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    const createObjectURL = vi.fn((_blob: Blob) => "blob:cohort-export");
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load onboarding cohorts" }));
+    await screen.findByRole("table", { name: /First-onboarding cohorts by UTC calendar month/ });
+    fireEvent.click(screen.getByRole("button", { name: "Export cohort CSV" }));
+    await waitFor(() => expect(createObjectURL).toHaveBeenCalledTimes(1));
+    const exportedBlob = createObjectURL.mock.calls[0][0] as Blob;
+    const csv = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result ?? ""));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsText(exportedBlob);
+    });
+    expect(csv).toContain("Scope,UTC month,First onboardings,Attribution note");
+    expect(csv).toContain("2025-01,0");
+    expect(csv).toContain("2025-12,11");
+    expect(csv).toContain("Legacy leads already onboarded before timestamp capture may be excluded");
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:cohort-export");
+    expect(await screen.findByText(/Exported 12 monthly onboarding cohort row\(s\)/)).toBeTruthy();
+  });
+
   it("exports every stored lead across pages for owners even when UI filters hide records", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({
