@@ -1498,4 +1498,35 @@ describe("cloud authentication gate", () => {
     expect(leadRows()[0].textContent).toContain("Zulu Provider");
   });
 
+  it("filters loaded leads by heuristic completeness bands and clears the filter", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    const lead = (id: string, businessName: string, score: number) => ({
+      id, campaignId: "campaign-1", businessName, category: "Painters", location: "Leeds",
+      website: "", email: "", phone: "", source: "manual", status: "new", score,
+      scoreReasons: [], notes: "", doNotContact: true, contactRestrictionVerified: false,
+      contactReviewStatus: "pending", contactReviewRevision: 0, onboardedAt: null, createdAt: null,
+    });
+    mocks.api.listLeads.mockResolvedValue({
+      leads: [lead("alpha", "Alpha Provider", 25), lead("zulu", "Zulu Provider", 90)],
+      hasMoreLeads: false,
+      nextPageToken: null,
+    });
+    render(<CloudWorkspace />);
+    await screen.findByText("Alpha Provider");
+    const leadRows = () => screen.getAllByRole("row").filter((row) => /Alpha Provider|Zulu Provider/.test(row.textContent ?? ""));
+    fireEvent.change(screen.getByLabelText("Filter by completeness"), { target: { value: "low" } });
+    expect(leadRows()).toHaveLength(1);
+    expect(leadRows()[0].textContent).toContain("Alpha Provider");
+    fireEvent.change(screen.getByLabelText("Filter by completeness"), { target: { value: "high" } });
+    expect(leadRows()).toHaveLength(1);
+    expect(leadRows()[0].textContent).toContain("Zulu Provider");
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(leadRows()).toHaveLength(2);
+    expect(screen.getByLabelText("Filter by completeness")).toHaveProperty("value", "all");
+  });
+
 });
