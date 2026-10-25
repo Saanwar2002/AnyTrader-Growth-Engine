@@ -401,9 +401,9 @@ describe("CSV duplicate preview", () => {
     expect(csv).toContain('"42"');
     expect(csv).toContain('"Unavailable"');
     expect(csv).toContain('"Review required — historical usage is not inferred"');
-    expect(csv).toContain('"'=Review before use"');
+    expect(csv).toContain("\"'=Review before use\"");
     expect(csv).toContain('"Review required"');
-    expect(csv.split("\\r\\n")).toHaveLength(5);
+    expect(csv.split("\r\n")).toHaveLength(5);
   });
 
   it("labels authoritative quota mismatches while retaining the stored values", () => {
