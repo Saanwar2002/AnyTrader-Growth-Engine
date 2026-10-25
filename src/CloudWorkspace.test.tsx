@@ -997,7 +997,12 @@ describe("cloud authentication gate", () => {
     fireEvent.click(screen.getByRole("button", { name: "Export all stored leads (CSV)" }));
     await waitFor(() => expect(createObjectURL).toHaveBeenCalledTimes(1));
     const exportedBlob = createObjectURL.mock.calls[0][0] as Blob;
-    const csv = await exportedBlob.text();
+    const csv = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result ?? ""));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsText(exportedBlob);
+    });
     expect(csv).toContain("First Provider");
     expect(csv).toContain("Second Provider");
     expect(csv).toContain("Full export campaign");
