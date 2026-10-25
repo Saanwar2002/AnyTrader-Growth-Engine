@@ -1,3 +1,12 @@
+## AutoPilot run — plan policy foundation (2026-10-25)
+
+- Added a pure Pilot plan catalog with bounded campaign, lead, member and monthly AI-suggestion policy limits plus feature flags.
+- Legacy organisations without plan metadata resolve to Pilot; explicitly unknown plan IDs fail closed rather than being silently downgraded or granted access.
+- Added a pure limit-decision helper and tests for exact-boundary, over-limit, and malformed usage inputs.
+- Important: this is policy groundwork only. It is not yet connected to production callables and must not be represented as enforced quotas. Next step is to add authoritative, concurrency-safe usage accounting and then enforce the limits transactionally before enabling billing.
+
+---
+
 ## AutoPilot run — campaign performance CSV export (2026-10-25)
 
 - Added a downloadable CSV export for campaign performance summaries currently loaded in the cloud workspace. Each row carries a "Loaded records only" scope label; the filename and success notice also make page-limited scope explicit.
