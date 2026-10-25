@@ -1935,16 +1935,22 @@ describe("cloud authentication gate", () => {
       hasMoreOrganisations: false,
     });
     mocks.api.listCampaigns.mockResolvedValue({ campaigns: [] });
-    mocks.api.listLeads.mockResolvedValue({
-      leads: [{
-        id: "lead-follow-up", campaignId: "campaign-1", businessName: "Follow-up Painter",
-        category: "Painters", location: "Edinburgh", website: "", email: "", phone: "", source: "manual",
-        status: "qualified", score: 30, scoreReasons: [], notes: "", doNotContact: true,
-        contactRestrictionVerified: false, contactReviewStatus: "pending", contactReviewRevision: 0,
-        onboardedAt: null, followUpDate: null, createdAt: null,
-      }],
+    let currentFollowUpDate: string | null = null;
+    const followUpLead = () => ({
+      id: "lead-follow-up", campaignId: "campaign-1", businessName: "Follow-up Painter",
+      category: "Painters", location: "Edinburgh", website: "", email: "", phone: "", source: "manual",
+      status: "qualified", score: 30, scoreReasons: [], notes: "", doNotContact: true,
+      contactRestrictionVerified: false, contactReviewStatus: "pending" as const, contactReviewRevision: 0,
+      onboardedAt: null, followUpDate: currentFollowUpDate, createdAt: null,
+    });
+    mocks.api.listLeads.mockImplementation(async () => ({
+      leads: [followUpLead()],
       hasMoreLeads: false,
       nextPageToken: null,
+    }));
+    mocks.api.updateLeadFollowUpDate.mockImplementation(async ({ leadId, followUpDate }) => {
+      currentFollowUpDate = followUpDate;
+      return { leadId, followUpDate };
     });
     render(<CloudWorkspace />);
     const dateInput = await screen.findByLabelText("Follow-up date for Follow-up Painter");
