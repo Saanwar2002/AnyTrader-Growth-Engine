@@ -308,3 +308,41 @@ export function serializeCampaignReadinessCsv(
 }
 
 /** Export server-counted campaign readiness without exposing individual lead records. */
+export function serializeFullCampaignReadinessCsv(summary: {
+  campaigns: Array<{
+    campaignName: string;
+    campaignStatus: string;
+    status: string;
+    totalLeadCount: number;
+    pendingOrBlockedLeadCount: number;
+    suppressedLeadCount: number;
+    legacyReviewStatusLeadCount: number;
+    draftsAwaitingReview: number;
+    sourceAttributionMissingCount: number;
+    missingConfigurationFields: string[];
+  }>;
+  hasMoreCampaigns: boolean;
+  campaignLimit: number;
+  note: string;
+}): string {
+  const headers = [
+    "Scope", "Campaign", "Campaign status", "Readiness", "All stored leads",
+    "Pending or blocked review", "Suppressed leads", "Legacy/unclassified review status",
+    "Drafts awaiting review", "Missing/empty source labels", "Missing setup fields", "Coverage", "Interpretation",
+  ];
+  const scope = "Server-counted campaign readiness";
+  const coverage = summary.hasMoreCampaigns
+    ? `Incomplete — additional campaigns beyond the ${summary.campaignLimit}-campaign limit are not included`
+    : `Complete within the ${summary.campaignLimit}-campaign limit`;
+  const rows = summary.campaigns.length
+    ? summary.campaigns.map((item) => [
+      scope, item.campaignName, item.campaignStatus, item.status, item.totalLeadCount,
+      item.pendingOrBlockedLeadCount, item.suppressedLeadCount, item.legacyReviewStatusLeadCount,
+      item.draftsAwaitingReview, item.sourceAttributionMissingCount,
+      item.missingConfigurationFields.join("; "), coverage, summary.note,
+    ])
+    : [[scope, "No campaigns returned", "", "", 0, 0, 0, 0, 0, 0, "", coverage, summary.note]];
+  return [headers, ...rows].map((row) => row.map(escapeAnalyticsCsvCell).join(",")).join("\r\n") + "\r\n";
+}
+
+/** Export server-side funnel totals across all stored leads, not just loaded UI pages. */
