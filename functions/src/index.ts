@@ -753,6 +753,52 @@ export const listOrganisationMembers = onCall(callableOptions, async (request) =
   };
 });
 
+export const listOrganisationMembers = onCall(callableOptions, async (request) => {
+  const uid = requireUid(request.auth?.uid);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const organisationId = requireOrganisationId(data.organisationId);
+  const pageSize = typeof data.pageSize === "number" && Number.isInteger(data.pageSize)
+    ? Math.max(1, Math.min(data.pageSize, 100))
+    : 50;
+  const pageToken = typeof data.pageToken === "string" ? data.pageToken : undefined;
+  if (pageToken && (pageToken.length > 2048 || !/^[A-Za-z0-9_-]+$/.test(pageToken))) {
+    throw new HttpsError("invalid-argument", "Invalid member page token.");
+  }
+
+  const membership = await requireMembership(organisationId, uid);
+  if (!hasCampaignWritePermission(membership.role)) {
+    throw new HttpsError("permission-denied", "Only organisation owners and admins can view the member roster.");
+  }
+  const cursorUid = pageToken ? Buffer.from(pageToken, "base64url").toString("utf8") : undefined;
+  if (cursorUid && (!cursorUid || cursorUid.length > 128 || cursorUid.includes("/"))) {
+    throw new HttpsError("invalid-argument", "Invalid member page token.");
+  }
+  const organisationRef = db.collection("organisations").doc(organisationId);
+  const membersQuery = organisationRef.collection("members").orderBy(FieldPath.documentId()).limit(pageSize + 1);
+  const query = cursorUid ? membersQuery.startAfter(cursorUid) : membersQuery;
+  const snapshot = await query.get();
+  const page = snapshot.docs.slice(0, pageSize);
+  const hasMore = snapshot.docs.length > pageSize;
+  const nextPageToken = hasMore && page.length
+    ? Buffer.from(page[page.length - 1].id, "utf8").toString("base64url")
+    : null;
+  await db.runTransaction(async (transaction: Transaction) => {
+    await requireTransactionalRole(transaction, organisationId, uid, "campaign");
+    await consumeTransactionalRateLimit(transaction, organisationId, uid, "listOrganisationMembers", 60);
+  });
+
+  const members = page.map((document) => {
+    const member = document.data();
+    return {
+      uid: document.id,
+      role: member.role,
+      createdAt: member.createdAt?.toDate?.()?.toISOString?.() ?? null,
+      createdBy: typeof member.createdBy === "string" ? member.createdBy : null,
+    };
+  });
+  return { organisationId, members, hasMoreMembers: hasMore, nextPageToken };
+});
+
 export const createCampaign = onCall(callableOptions, async (request) => {
   const uid = requireUid(request.auth?.uid);
   const data = (request.data ?? {}) as Record<string, unknown>;
