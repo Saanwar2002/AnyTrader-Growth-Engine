@@ -1941,6 +1941,17 @@ try {
   await expectCallableFailure(callTwo("listLeads", { organisationId: orgOne.organisationId }), "functions/permission-denied", "cross-tenant lead listing denial");
   await expectCallableFailure(callTwo("previewOrganisationOffboarding", { organisationId: orgOne.organisationId }), "functions/permission-denied", "cross-tenant offboarding preview denial");
   const orgTwo = await callTwo("createOrganisation", { name: "Tenant Two", idempotencyKey: "organisation-create-tenant-two-0001" });
+  const memberRoster = await callOne("listOrganisationMembers", { organisationId: orgOne.organisationId });
+  assert.equal(memberRoster.scope, "organisation_member_roster");
+  assert.equal(memberRoster.hasMoreMembers, false);
+  assert.ok(memberRoster.members.some((member) => member.uid === first.auth.currentUser.uid && member.role === "owner"),
+    "owner roster includes the authoritative owner membership");
+  assert.ok(memberRoster.members.some((member) => member.uid === first.auth.currentUser.uid && member.email === first.auth.currentUser.email),
+    "roster resolves current email from Firebase Auth");
+  await expectCallableFailure(callTwo("listOrganisationMembers", {
+    organisationId: orgOne.organisationId,
+  }), "functions/permission-denied", "cross-tenant member roster access is denied");
+
   await expectCallableFailure(callOne("getCampaignFunnelSummary", {
     organisationId: orgTwo.organisationId,
     campaignId: campaignOne.campaignId,
@@ -2876,6 +2887,7 @@ try {
     "createOrganisation",
     "updateOrganisationSettings",
     "addOrganisationMember",
+    "listOrganisationMembers",
     "createCampaign",
     "listCampaigns",
     "getCampaignFunnelSummary",
