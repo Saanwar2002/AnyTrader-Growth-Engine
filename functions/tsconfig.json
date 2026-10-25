@@ -2,7 +2,9 @@
   "compilerOptions": {
     "module": "commonjs",
     "target": "ES2022",
-    "lib": ["ES2022"],
+    "lib": [
+      "ES2022"
+    ],
     "outDir": "lib",
     "rootDir": "src",
     "strict": true,
@@ -10,5 +12,11 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/index.ts", "src/authorization.ts", "src/lead-identifier-migration-audit.ts", "src/bounded-lead-identifier-audit.ts"]
+  "include": [
+    "src/index.ts",
+    "src/authorization.ts",
+    "src/lead-identifier-migration-audit.ts",
+    "src/bounded-lead-identifier-audit.ts",
+    "src/usage-accounting.ts"
+  ]
 }
