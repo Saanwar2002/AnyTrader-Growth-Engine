@@ -979,6 +979,7 @@ DRAFT ONLY — NOT SENT.`,
         return matchesSearch && matchesCompleteness
           && (leadStatusFilter === "all" || lead.status === leadStatusFilter)
           && (leadCampaignFilter === "all" || lead.campaignId === leadCampaignFilter)
+          && (leadSourceFilter === "all" || lead.source === leadSourceFilter)
           && (contactReviewFilter === "all" || reviewStatus === contactReviewFilter);
       }) : allLeads;
       const csv = serializeLeadExportCsv(exportLeads, campaignNames);
