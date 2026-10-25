@@ -8,7 +8,7 @@ import * as logger from "firebase-functions/logger";
 import { canonicalLeadBusinessLocationKey, canonicalLeadEmailKey, canonicalLeadWebsiteKey } from "./lead-identifiers";
 import { createOffboardingPreview, OFFBOARDING_PREVIEW_CATEGORIES } from "./offboarding-preview";
 import { PILOT_PLAN, resolvePlanPolicy } from "./entitlements";
-import { currentAiUsagePeriod, reservePlanUsage, resolvePlanUsageState } from "./usage-accounting";
+import { currentAiUsagePeriod, reservePlanUsage, resolvePlanUsageState, type PlanUsageState } from "./usage-accounting";
 import {
   calculateLeadCompleteness,
   canChangeSuppression,
@@ -592,6 +592,7 @@ export const createCampaign = onCall(callableOptions, async (request) => {
     let meteredOrganisation = false;
     let planResolutionForQuota: ReturnType<typeof resolvePlanPolicy> | null = null;
     let usageStateForQuota: ReturnType<typeof resolvePlanUsageState> | null = null;
+    let reservedPlanUsageState: PlanUsageState | null = null;
     if (organisationData.planUsage !== undefined && organisationData.planUsage !== null) {
       meteredOrganisation = true;
       planResolutionForQuota = resolvePlanPolicy(organisationData.planId);
@@ -606,19 +607,13 @@ export const createCampaign = onCall(callableOptions, async (request) => {
         }
         throw new HttpsError("failed-precondition", "Organisation usage state cannot be safely updated.");
       }
+      reservedPlanUsageState = quotaCheck.state;
     }
 
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "createCampaign", 150);
-    if (meteredOrganisation && planResolutionForQuota?.ok && usageStateForQuota?.ok) {
-      const reservation = reservePlanUsage(planResolutionForQuota.plan, usageStateForQuota.state, "campaigns");
-      if (!reservation.allowed) {
-        if (reservation.reason === "limit_exceeded") {
-          throw new HttpsError("resource-exhausted", `Campaign limit reached for the ${planResolutionForQuota.plan.displayName} plan (${reservation.limit}).`);
-        }
-        throw new HttpsError("failed-precondition", "Organisation usage state cannot be safely updated.");
-      }
+    if (reservedPlanUsageState) {
       // Persist usage atomically with campaign creation after all transaction reads.
-      transaction.update(organisationRef, { planUsage: reservation.state });
+      transaction.update(organisationRef, { planUsage: reservedPlanUsageState });
     }
     transaction.create(campaign, {
       name, category, location, brand, goal, status: "active", createdBy: uid,
