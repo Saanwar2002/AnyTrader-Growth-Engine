@@ -2827,6 +2827,23 @@ try {
     idempotencyKey: "member-addition-smoke-test-0001",
   });
   assert.equal(retriedMember.added, true, "same idempotency key returns the original member-addition result");
+  const promotedMember = await callOne("updateOrganisationMemberRole", {
+    organisationId: quotaOrg.organisationId,
+    targetUid: addedMember.uid,
+    role: "admin",
+  });
+  assert.equal(promotedMember.changed, true, "owner can promote a member to admin");
+  await expectCallableFailure(callTwo("updateOrganisationMemberRole", {
+    organisationId: quotaOrg.organisationId,
+    targetUid: first.auth.currentUser.uid,
+    role: "viewer",
+  }), "functions/permission-denied", "admin cannot change member roles");
+  const demotedMember = await callOne("updateOrganisationMemberRole", {
+    organisationId: quotaOrg.organisationId,
+    targetUid: addedMember.uid,
+    role: "viewer",
+  });
+  assert.equal(demotedMember.changed, true, "owner can restore viewer role");
   execFileSync(process.execPath, [
     "functions/scripts/assert-emulator-member-usage.mjs",
     quotaOrg.organisationId,
