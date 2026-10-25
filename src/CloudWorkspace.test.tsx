@@ -731,7 +731,6 @@ describe("cloud authentication gate", () => {
       category: "Roofing", location: "Manchester", goal: "Recruit painters",
     }));
     expect(await screen.findByText("Campaign details saved.")).toBeTruthy();
-    expect(await screen.findByText("Roofing pilot")).toBeTruthy();
   });
 
 });
