@@ -46,3 +46,5 @@
 .cloud-review-queue > p { margin: 0; }
 .cloud-review-queue > div { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .cloud-review-queue button[aria-pressed="true"] { border-color: #64748b; box-shadow: inset 0 0 0 1px currentColor; }
+
+.cloud-quality-score { display: inline-flex; align-items: center; padding: 0.2rem 0.45rem; border: 1px solid var(--line, #dbe3ec); border-radius: 0.45rem; font-variant-numeric: tabular-nums; }
