@@ -65,6 +65,7 @@ type SecurityAuditEventType =
   | "organisation.created"
   | "organisation.settings_updated"
   | "organisation.member_added"
+  | "organisation.member_removed"
   | "lead.csv_import.completed"
   | "lead.contact_updated"
   | "lead.contact_restriction_changed"
@@ -98,6 +99,7 @@ const AUDIT_EVENT_RESOURCE_TYPES: Record<SecurityAuditEventType, "organisation" 
   "organisation.created": "organisation",
   "organisation.settings_updated": "organisation",
   "organisation.member_added": "organisation",
+  "organisation.member_removed": "organisation",
   "lead.csv_import.completed": "campaign",
   "lead.contact_updated": "lead",
   "lead.contact_restriction_changed": "lead",
@@ -116,6 +118,7 @@ const AUDIT_METADATA_KEYS: Record<SecurityAuditEventType, readonly (keyof Securi
   "organisation.created": [],
   "organisation.settings_updated": ["nameChanged"],
   "organisation.member_added": ["memberRole"],
+  "organisation.member_removed": [],
   "lead.csv_import.completed": ["importedCount", "duplicatesSkipped"],
   "lead.contact_updated": ["contactChannelsChanged", "contactReviewRevision", "contactReviewStatus", "doNotContact"],
   "lead.contact_restriction_changed": ["doNotContact", "contactReviewRevision", "contactReviewStatus"],
@@ -698,6 +701,57 @@ export const listOrganisationMembers = onCall(callableOptions, async (request) =
     hasMoreMembers: page.docs.length > 20,
     scope: "organisation_member_roster" as const,
   };
+});
+
+export const removeOrganisationMember = onCall(callableOptions, async (request) => {
+  const uid = requireUid(request.auth?.uid);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const organisationId = requireOrganisationId(data.organisationId);
+  const targetUid = typeof data.targetUid === "string" ? data.targetUid.trim() : "";
+  if (!isValidDocumentId(targetUid)) throw new HttpsError("invalid-argument", "A valid targetUid is required.");
+  if (targetUid === uid) throw new HttpsError("failed-precondition", "You cannot remove your own membership.");
+  const organisationRef = db.collection("organisations").doc(organisationId);
+  const targetMembershipRef = organisationRef.collection("members").doc(targetUid);
+
+  return db.runTransaction(async (transaction: Transaction) => {
+    const callerMembership = await requireTransactionalRole(transaction, organisationId, uid, "campaign");
+    if (callerMembership.role !== "owner" && callerMembership.role !== "admin") {
+      throw new HttpsError("permission-denied", "Only organisation owners and admins can remove members.");
+    }
+    const [organisationSnapshot, targetSnapshot] = await Promise.all([
+      transaction.get(organisationRef),
+      transaction.get(targetMembershipRef),
+    ]);
+    if (!organisationSnapshot.exists) throw new HttpsError("not-found", "Organisation was not found.");
+    const organisationData = organisationSnapshot.data() ?? {};
+    const ownerUid = organisationData.ownerUid;
+    if (typeof ownerUid !== "string" || !ownerUid) {
+      throw new HttpsError("failed-precondition", "Organisation owner identity is invalid and requires operator review.");
+    }
+    if (targetUid === ownerUid) throw new HttpsError("failed-precondition", "The organisation owner cannot be removed.");
+    if (!targetSnapshot.exists) return { organisationId, targetUid, removed: false as const };
+    const target = targetSnapshot.data() ?? {};
+    if (!isValidMembershipForOrganisation(target, targetUid, ownerUid)) {
+      throw new HttpsError("failed-precondition", "The target membership is invalid and requires operator review.");
+    }
+    if (callerMembership.role === "admin" && target.role !== "member" && target.role !== "viewer") {
+      throw new HttpsError("permission-denied", "Admins may remove members and viewers, but only the owner may remove admins.");
+    }
+    await consumeTransactionalRateLimit(transaction, organisationId, uid, "removeOrganisationMember", 30);
+
+    if (Object.prototype.hasOwnProperty.call(organisationData, "planUsage")) {
+      const usageResolution = resolvePlanUsageState(organisationData.planUsage, new Date());
+      if (!usageResolution.ok || usageResolution.source === "initial" || usageResolution.state.members < 1) {
+        throw new HttpsError("failed-precondition", "Organisation member usage cannot be safely decremented; reconciliation is required.");
+      }
+      transaction.update(organisationRef, {
+        planUsage: { ...usageResolution.state, members: usageResolution.state.members - 1 },
+      });
+    }
+    transaction.delete(targetMembershipRef);
+    writeSecurityAuditEvent(transaction, organisationId, uid, "organisation.member_removed", "organisation", targetUid, {});
+    return { organisationId, targetUid, removed: true as const };
+  });
 });
 
 export const createCampaign = onCall(callableOptions, async (request) => {
