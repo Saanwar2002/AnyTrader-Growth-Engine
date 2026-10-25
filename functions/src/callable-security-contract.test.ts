@@ -21,6 +21,7 @@ const expectedRateLimitType: Record<string, "read" | "mutation"> = {
   getCampaignFunnelSummary: "read",
   getLeadSourceFunnelSummary: "read",
   getOnboardingCohortSummary: "read",
+  getOnboardingCohortCoverage: "read",
   getContactReviewQueueSummary: "read",
   getOrganisationPlanUsage: "read",
   getOrganisationPlanUsageReconciliation: "read",
@@ -850,6 +851,27 @@ describe("server-side onboarding cohort analytics", () => {
     expect(body).toContain("windowMonths: 12 as const");
     expect(body).toContain('scope: "first_onboarding_timestamp"');
     expect(body).toContain("Legacy leads already onboarded before timestamp capture may be excluded");
+  });
+});
+
+
+describe("onboarding timestamp coverage preview", () => {
+  it("restricts coverage to owners/admins, rate-limits it, and never returns partial or mutating results", () => {
+    const start = callableSource.indexOf("export const getOnboardingCohortCoverage = onCall(");
+    const end = callableSource.indexOf("export const ", start + 1);
+    const body = callableSource.slice(start, end < 0 ? callableSource.length : end);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(body).toContain("requireUid(request.auth?.uid)");
+    expect(body).toContain("await requireMembership(organisationId, uid)");
+    expect(body).toContain('membership.role !== "owner" && membership.role !== "admin"');
+    expect(body).toContain('consumeReadRateLimit(organisationId, uid, "getOnboardingCohortCoverage", 2)');
+    expect(body).toContain('.where("status", "==", "onboarded")');
+    expect(body).toContain(".limit(1001)");
+    expect(body).toContain("if (result.docs.length > 1000)");
+    expect(body).toContain("missingOrInvalidOnboardedTimestampCount");
+    expect(body).toContain("No partial result was returned");
+    expect(body).not.toContain("transaction.update");
+    expect(body).not.toContain("transaction.create");
   });
 });
 
