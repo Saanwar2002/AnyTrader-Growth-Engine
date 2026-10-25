@@ -19,6 +19,7 @@
 - [x] Select Firebase Cloud Functions v2 callable endpoints as the initial trusted backend.
 - [x] Add authenticated organisation creation, atomic owner membership creation, and membership-based organisation discovery.
 - [x] Add owner/admin-only campaign creation/status changes and membership-checked campaign listing.
+- [x] Expose owner/admin pause, activation, and completion controls in the cloud workspace using the existing server-enforced status endpoint.
 - [x] Add membership-checked lead listing and tenant-scoped lead creation/contact editing.
 - [x] Add transactional lead status and notes updates with activity events.
 - [x] Add transactional do-not-contact controls; members can suppress, but only owners/admins can remove a restriction.
