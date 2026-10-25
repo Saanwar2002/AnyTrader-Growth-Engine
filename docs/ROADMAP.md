@@ -83,6 +83,7 @@
 - [x] Filter loaded leads by their declared source, using human-readable labels and the existing search/status/campaign/contact-review/completeness filters; source attribution remains user-declared and unverified.
 - [x] Read-only campaign readiness preflight that flags missing setup, contact restrictions, draft review, source-attribution gaps, and incomplete pagination without authorising or sending outreach.
 - [ ] First-onboarding timestamps and on-demand server-side campaign/source aggregates are implemented for new transitions and all stored leads. A 12-month server-side onboarding cohort report now counts first-onboarding timestamps; legacy records already marked onboarded without a timestamp remain excluded pending a reviewed backfill. Source values remain self-declared.
+- [x] Add a read-only owner/admin onboarding timestamp coverage preview that counts valid versus missing/invalid timestamps among up to 1,000 currently onboarded leads; no inferred dates, record details, or writes are returned.
 - [x] Owner/admin organisation display-name settings with server-side role checks, transactional rate limiting, and PII-minimised audit events.
 - [x] Owner/admin member removal with owner protection, role hierarchy, transactional member-usage decrement when authoritative counters exist, retry-safe missing-member behavior, and PII-minimised audit events.
 - [x] Add tenant-scoped cursor pagination for the owner/admin member roster, with bounded 20-member pages and cross-tenant cursor rejection.

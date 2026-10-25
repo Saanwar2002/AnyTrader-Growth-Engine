@@ -1463,6 +1463,51 @@ export const getContactReviewQueueSummary = onCall(callableOptions, async (reque
   };
 });
 
+/**
+ * Read-only bounded inventory of onboarding timestamp coverage.
+ * This lets owners estimate legacy backfill scope without exposing lead records or writing data.
+ */
+export const getOnboardingCohortCoverage = onCall(callableOptions, async (request) => {
+  const uid = requireUid(request.auth?.uid);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const organisationId = requireOrganisationId(data.organisationId);
+  const membership = await requireMembership(organisationId, uid);
+  if (membership.role !== "owner" && membership.role !== "admin") {
+    throw new HttpsError("permission-denied", "Only organisation owners and admins can inspect onboarding timestamp coverage.");
+  }
+  await consumeReadRateLimit(organisationId, uid, "getOnboardingCohortCoverage", 2);
+
+  const result = await db.collection("organisations").doc(organisationId).collection("leads")
+    .where("status", "==", "onboarded")
+    .orderBy(FieldPath.documentId())
+    .select("onboardedAt")
+    .limit(1001)
+    .get();
+  if (result.docs.length > 1000) {
+    throw new HttpsError("resource-exhausted", "Onboarding timestamp coverage preview is limited to 1,000 onboarded leads. No partial result was returned.");
+  }
+
+  let timestampedOnboardedLeadCount = 0;
+  let missingOrInvalidOnboardedTimestampCount = 0;
+  for (const document of result.docs) {
+    const onboardedAt = document.get("onboardedAt");
+    if (onboardedAt instanceof Timestamp && Number.isFinite(onboardedAt.toMillis())) {
+      timestampedOnboardedLeadCount += 1;
+    } else {
+      missingOrInvalidOnboardedTimestampCount += 1;
+    }
+  }
+  return {
+    organisationId,
+    totalOnboardedLeadCount: result.docs.length,
+    timestampedOnboardedLeadCount,
+    missingOrInvalidOnboardedTimestampCount,
+    scanLimit: 1000 as const,
+    scope: "onboarded_leads_only" as const,
+    note: "Read-only estimate. Missing or invalid timestamps are counted but never assigned an inferred date; review records and policy before any backfill.",
+  };
+});
+
 export const importLeads = onCall(callableOptions, async (request) => {
   const uid = requireUid(request.auth?.uid);
   const data = (request.data ?? {}) as Record<string, unknown>;
