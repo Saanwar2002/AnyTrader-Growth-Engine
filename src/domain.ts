@@ -447,3 +447,84 @@ export function formatLeadSourceLabel(source: string): string {
   };
   return labels[source] ?? source;
 }
+
+
+export type LeadCsvDuplicateField = "email" | "website" | "business/location";
+export interface LeadCsvDuplicateCandidate {
+  businessName: string;
+  location?: string;
+  email?: string;
+  website?: string;
+}
+export interface LeadCsvDuplicateExisting extends LeadCsvDuplicateCandidate {
+  campaignId: string;
+}
+export interface LeadCsvDuplicateMatch {
+  rowIndex: number;
+  duplicateSource: "loaded-lead" | "earlier-upload-row";
+  duplicateBusinessName: string;
+  matchedOn: LeadCsvDuplicateField;
+}
+function canonicalCsvEmail(value: string | undefined): string {
+  return (value ?? "").trim().toLowerCase();
+}
+function canonicalCsvWebsite(value: string | undefined): string {
+  const valueTrimmed = (value ?? "").trim();
+  if (!valueTrimmed) return "";
+  try {
+    const parsed = new URL(valueTrimmed.includes("://") ? valueTrimmed : `https://${valueTrimmed}`);
+    const path = parsed.pathname === "/" ? "" : parsed.pathname;
+    return `${parsed.protocol}//${parsed.host}${path}${parsed.search}${parsed.hash}`;
+  } catch {
+    return "";
+  }
+}
+function canonicalCsvBusinessLocation(businessName: string, location: string | undefined): string {
+  const name = businessName.trim().toLowerCase();
+  const place = (location ?? "").trim().toLowerCase();
+  return name && place ? JSON.stringify([name, place]) : "";
+}
+
+/**
+ * Preview likely import duplicates using the same email, website, and
+ * business/location keys as the server. Only supplied existing leads are checked;
+ * the server remains authoritative for the complete organisation inventory.
+ */
+export function findLeadCsvDuplicates(
+  candidates: LeadCsvDuplicateCandidate[],
+  existingLeads: LeadCsvDuplicateExisting[],
+): LeadCsvDuplicateMatch[] {
+  const emailKeys = new Map<string, { businessName: string; source: "loaded-lead" | "earlier-upload-row" }>();
+  const websiteKeys = new Map<string, { businessName: string; source: "loaded-lead" | "earlier-upload-row" }>();
+  const businessLocationKeys = new Map<string, { businessName: string; source: "loaded-lead" | "earlier-upload-row" }>();
+  const add = (lead: LeadCsvDuplicateCandidate, source: "loaded-lead" | "earlier-upload-row") => {
+    const value = { businessName: lead.businessName, source };
+    const email = canonicalCsvEmail(lead.email);
+    const website = canonicalCsvWebsite(lead.website);
+    const businessLocation = canonicalCsvBusinessLocation(lead.businessName, lead.location);
+    if (email && !emailKeys.has(email)) emailKeys.set(email, value);
+    if (website && !websiteKeys.has(website)) websiteKeys.set(website, value);
+    if (businessLocation && !businessLocationKeys.has(businessLocation)) businessLocationKeys.set(businessLocation, value);
+  };
+  existingLeads.forEach((lead) => add(lead, "loaded-lead"));
+  const matches: LeadCsvDuplicateMatch[] = [];
+  candidates.forEach((candidate, rowIndex) => {
+    const email = canonicalCsvEmail(candidate.email);
+    const website = canonicalCsvWebsite(candidate.website);
+    const businessLocation = canonicalCsvBusinessLocation(candidate.businessName, candidate.location);
+    const match = (email && emailKeys.get(email))
+      ? { value: emailKeys.get(email)!, field: "email" as const }
+      : (website && websiteKeys.get(website))
+        ? { value: websiteKeys.get(website)!, field: "website" as const }
+        : (businessLocation && businessLocationKeys.get(businessLocation))
+          ? { value: businessLocationKeys.get(businessLocation)!, field: "business/location" as const }
+          : null;
+    if (match) {
+      matches.push({ rowIndex, duplicateSource: match.value.source, duplicateBusinessName: match.value.businessName, matchedOn: match.field });
+      // The server skips duplicate rows before they reserve other identifiers.
+      return;
+    }
+    add(candidate, "earlier-upload-row");
+  });
+  return matches;
+}

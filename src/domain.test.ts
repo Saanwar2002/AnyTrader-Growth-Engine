@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canCreateOutreachDraft, getContactRestrictionAction, deduplicateLeads, escapeCsvCell, serializeLeadExportCsv, formatLeadSourceLabel, inspectLeadCsvHeaders, normalizeBusinessName, parseLeadCsv, scoreLead, suggestLeadCsvMapping } from "./domain";
+import { canCreateOutreachDraft, getContactRestrictionAction, deduplicateLeads, escapeCsvCell, serializeLeadExportCsv, formatLeadSourceLabel, findLeadCsvDuplicates, inspectLeadCsvHeaders, normalizeBusinessName, parseLeadCsv, scoreLead, suggestLeadCsvMapping } from "./domain";
 
 describe("outreach suppression", () => {
   it("offers a clear/review action for suppressed, pending, or contradictory blocked records", () => {
@@ -324,5 +324,44 @@ describe("lead source labels", () => {
     expect(formatLeadSourceLabel("linkedin_csv")).toBe("LinkedIn export (user-declared)");
     expect(formatLeadSourceLabel("google_places_manual")).toBe("Google Maps/Places research (user-declared)");
     expect(formatLeadSourceLabel("unknown-source")).toBe("unknown-source");
+  });
+});
+
+
+describe("CSV duplicate preview", () => {
+  it("flags duplicates by email, canonical website, or business/location", () => {
+    const matches = findLeadCsvDuplicates([
+      { businessName: "New name", email: "EXISTING@example.test" },
+      { businessName: "Another name", website: "example.test/" },
+      { businessName: "North Star Decorators", location: "Edinburgh" },
+    ], [
+      { campaignId: "c1", businessName: "Original", location: "Leeds", email: "existing@example.test", website: "" },
+      { campaignId: "c2", businessName: "Website business", location: "Glasgow", email: "", website: "https://example.test" },
+      { campaignId: "c3", businessName: "North Star Decorators", location: "Edinburgh", email: "", website: "" },
+    ]);
+    expect(matches).toEqual([
+      { rowIndex: 0, duplicateSource: "loaded-lead", duplicateBusinessName: "Original", matchedOn: "email" },
+      { rowIndex: 1, duplicateSource: "loaded-lead", duplicateBusinessName: "Website business", matchedOn: "website" },
+      { rowIndex: 2, duplicateSource: "loaded-lead", duplicateBusinessName: "North Star Decorators", matchedOn: "business/location" },
+    ]);
+  });
+  it("flags later upload rows but does not let skipped duplicates reserve extra identifiers", () => {
+    const matches = findLeadCsvDuplicates([
+      { businessName: "First business", location: "Leeds", email: "same@example.test" },
+      { businessName: "Duplicate business", location: "York", email: "same@example.test", website: "new.example.test" },
+      { businessName: "Later website row", location: "Bristol", website: "new.example.test" },
+    ], []);
+    expect(matches).toEqual([
+      { rowIndex: 1, duplicateSource: "earlier-upload-row", duplicateBusinessName: "First business", matchedOn: "email" },
+    ]);
+  });
+  it("does not treat different locations or case-sensitive non-root URL paths as duplicates", () => {
+    expect(findLeadCsvDuplicates([
+      { businessName: "North Star Decorators", location: "Glasgow" },
+      { businessName: "Same website", website: "https://example.test/CasePath" },
+    ], [
+      { campaignId: "c1", businessName: "North Star Decorators", location: "Edinburgh" },
+      { campaignId: "c2", businessName: "Same website", website: "https://example.test/casepath" },
+    ])).toEqual([]);
   });
 });
