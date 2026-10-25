@@ -41,3 +41,8 @@
   .cloud-activity-timeline li { flex-direction: column; gap: 0.25rem; }
   .cloud-activity-timeline time { white-space: normal; }
 }
+
+.cloud-review-queue { display: grid; gap: 0.5rem; margin: 0.75rem 0 1rem; padding: 0.75rem; border: 1px solid var(--line, #dbe3ec); border-radius: 0.75rem; }
+.cloud-review-queue > p { margin: 0; }
+.cloud-review-queue > div { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.cloud-review-queue button[aria-pressed="true"] { border-color: #64748b; box-shadow: inset 0 0 0 1px currentColor; }
