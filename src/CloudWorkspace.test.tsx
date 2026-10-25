@@ -32,7 +32,7 @@ vi.mock("firebase/auth", () => ({
 }));
 import CloudWorkspace from "./CloudWorkspace";
 
-afterEach(() => cleanup());
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 beforeEach(() => {
   vi.resetAllMocks();
   mocks.currentUser = null;
@@ -588,6 +588,35 @@ describe("cloud authentication gate", () => {
     expect(mocks.api.createOutreachDraft.mock.calls[1][0]).toEqual(mocks.api.createOutreachDraft.mock.calls[0][0]);
     expect(mocks.api.createOutreachDraft.mock.calls[0][0].idempotencyKey).toMatch(/^outreach-draft-/);
     expect(mocks.api.createOutreachDraft.mock.calls[0][0].body).toContain("DRAFT ONLY — NOT SENT.");
+  });
+
+
+  it("exports only the filtered loaded leads as a CSV download", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
+    mocks.api.listCampaigns.mockResolvedValue({ campaigns: [
+      { id: "campaign-1", name: "Painter campaign", brand: "AnyTrader", category: "Painters", location: "Edinburgh", goal: "Recruit", status: "active", createdAt: null },
+    ] });
+    mocks.api.listLeads.mockResolvedValue({ leads: [
+      { id: "lead-1", campaignId: "campaign-1", businessName: "North Star Painters", category: "Painters", location: "Edinburgh", website: "", email: "hello@northstar.example", phone: "+44 131 555 0100", source: "csv", status: "new", score: 20, scoreReasons: [], notes: "private internal note", doNotContact: true, contactRestrictionVerified: false, contactReviewStatus: "pending", contactReviewRevision: 0, createdAt: null },
+      { id: "lead-2", campaignId: "campaign-1", businessName: "Southside Decorators", category: "Decorators", location: "Glasgow", website: "", email: "", phone: "", source: "manual", status: "qualified", score: 20, scoreReasons: [], notes: "", doNotContact: true, contactRestrictionVerified: false, contactReviewStatus: "pending", contactReviewRevision: 0, createdAt: null },
+    ] });
+    const createObjectURL = vi.fn((_blob: Blob) => "blob:test-export");
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+
+    render(<CloudWorkspace />);
+    expect(await screen.findByText("North Star Painters")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: "north star" } });
+    fireEvent.click(screen.getByRole("button", { name: "Export 1 filtered loaded lead (CSV)" }));
+
+    await waitFor(() => expect(createObjectURL).toHaveBeenCalledTimes(1));
+    expect(createObjectURL.mock.calls[0][0]).toBeInstanceOf(Blob);
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:test-export");
+    expect(await screen.findByRole("status")).toBeTruthy();
+    expect(screen.getByText(/Exported 1 filtered loaded lead/)).toBeTruthy();
   });
 
 });
