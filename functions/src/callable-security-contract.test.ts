@@ -887,4 +887,23 @@ describe("organisation plan usage reconciliation preview", () => {
     expect(body).not.toContain("transaction.set(");
     expect(body).not.toContain("transaction.update(");
   });
+ 
+describe("organisation member removal", () => {
+  it("protects the owner, enforces role hierarchy, updates usage atomically, and audits removal", () => {
+    const start = callableSource.indexOf("export const removeOrganisationMember = onCall(");
+    const end = callableSource.indexOf("export const ", start + 1);
+    const body = callableSource.slice(start, end < 0 ? callableSource.length : end);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(body).toContain("requireTransactionalRole(transaction, organisationId, uid, \"campaign\")");
+    expect(body).toContain('callerMembership.role !== "owner" && callerMembership.role !== "admin"');
+    expect(body).toContain("The organisation owner cannot be removed.");
+    expect(body).toContain("Admins may remove members and viewers, but only the owner may remove admins.");
+    expect(body).toContain("resolvePlanUsageState(organisationData.planUsage, new Date())");
+    expect(body).toContain('transaction.update(organisationRef, {');
+    expect(body).toContain('"organisation.member_removed"');
+    expect(body).toContain("transaction.delete(targetMembershipRef)");
+    expect(body).not.toContain("getAuth().deleteUser");
+  });
+});
+
 });
