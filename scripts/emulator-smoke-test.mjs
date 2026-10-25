@@ -3062,8 +3062,11 @@ try {
     "deleteOutreachDraft",
   ];
   for (const callableName of unauthenticatedCallableNames) {
+    // Defer invocation until the rejection handler is attached. This avoids an
+    // unhandled-rejection race in the Firebase Functions emulator for newly
+    // registered callable endpoints while preserving the same auth assertion.
     await expectCallableFailure(
-      callOne(callableName, {}),
+      Promise.resolve().then(() => callOne(callableName, {})),
       "functions/unauthenticated",
       `unauthenticated denial for ${callableName}`,
     );
