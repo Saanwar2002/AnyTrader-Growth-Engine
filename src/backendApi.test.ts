@@ -317,3 +317,12 @@ it("forwards a member roster continuation cursor", async () => {
   await expect(api.listOrganisationMembers({ organisationId: "org-1", pageToken: "cursor-page-2" })).resolves.toEqual(response);
   expect(calls).toEqual([{ name: "listOrganisationMembers", payload: { organisationId: "org-1", pageToken: "cursor-page-2" } }]);
 });
+
+ 
+it("requests an organisation member role update", async () => {
+  const response = { organisationId: "org-1", targetUid: "member-uid", role: "admin" as const, changed: true };
+  const { invoke, calls } = makeInvoker([response]);
+  const api = createGrowthEngineApi(invoke);
+  await expect(api.updateOrganisationMemberRole({ organisationId: "org-1", targetUid: "member-uid", role: "admin" })).resolves.toEqual(response);
+  expect(calls).toEqual([{ name: "updateOrganisationMemberRole", payload: { organisationId: "org-1", targetUid: "member-uid", role: "admin" } }]);
+});

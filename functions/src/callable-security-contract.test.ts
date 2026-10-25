@@ -14,6 +14,7 @@ const expectedRateLimitType: Record<string, "read" | "mutation"> = {
   updateOrganisationSettings: "mutation",
   addOrganisationMember: "mutation",
   removeOrganisationMember: "mutation",
+  updateOrganisationMemberRole: "mutation",
   listOrganisationMembers: "read",
   createCampaign: "mutation",
   listCampaigns: "read",
@@ -102,7 +103,7 @@ describe("callable security contract", () => {
 
   it("enforces App Check on every deployed callable and only bypasses it in the Functions emulator", () => {
     expect(callableSource).toContain('const callableOptions = { enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true" }');
-    expect((callableSource.match(/= onCall\(callableOptions, async \(request\) => \{/g) ?? [])).toHaveLength(26);
+    expect((callableSource.match(/= onCall\(callableOptions, async \(request\) => \{/g) ?? [])).toHaveLength(27);
     expect(callableSource.includes("= onCall(async (request) => {")).toBe(false);
   });
 
@@ -165,12 +166,13 @@ describe("callable security contract", () => {
 
     const auditCalls = [...callableSource.matchAll(/writeSecurityAuditEvent\(transaction,\s*[^,]+,\s*[^,]+,\s*"([^"]+)",\s*"([^"]+)"/g)];
     const callPairs = new Set(auditCalls.map((match) => `${match[1]}|${match[2]}`));
-    expect(auditCalls.length).toBe(16);
+    expect(auditCalls.length).toBe(17);
     for (const [eventType, resourceType] of [
       ["organisation.created", "organisation"],
       ["organisation.settings_updated", "organisation"],
       ["organisation.member_added", "organisation"],
       ["organisation.member_removed", "organisation"],
+      ["organisation.member_role_updated", "organisation"],
       ["lead.csv_import.completed", "campaign"],
       ["lead.contact_updated", "lead"],
       ["lead.contact_restriction_changed", "lead"],
@@ -909,6 +911,22 @@ describe("organisation member removal", () => {
     expect(body).toContain('"organisation.member_removed"');
     expect(body).toContain("transaction.delete(targetMembershipRef)");
     expect(body).not.toContain("getAuth().deleteUser");
+  });
+});
+
+ 
+describe("organisation member role management", () => {
+  it("allows only the owner to change non-owner roles and audits the change", () => {
+    const start = callableSource.indexOf("export const updateOrganisationMemberRole = onCall(");
+    const end = callableSource.indexOf("export const ", start + 1);
+    const body = callableSource.slice(start, end < 0 ? callableSource.length : end);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(body).toContain('callerMembership.role !== "owner"');
+    expect(body).toContain("The organisation owner's role cannot be changed.");
+    expect(body).toContain('role !== "admin" && role !== "member" && role !== "viewer"');
+    expect(body).toContain("isValidMembershipForOrganisation(target, targetUid, ownerUid)");
+    expect(body).toContain('"organisation.member_role_updated"');
+    expect(body).toContain("transaction.update(targetMembershipRef, { role,");
   });
 });
 
