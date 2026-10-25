@@ -2896,6 +2896,7 @@ try {
     "createOrganisation",
     "updateOrganisationSettings",
     "addOrganisationMember",
+    "listOrganisationMembers",
     "createCampaign",
     "listCampaigns",
     "getCampaignFunnelSummary",
