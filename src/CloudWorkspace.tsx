@@ -963,6 +963,21 @@ DRAFT ONLY — NOT SENT.`,
     }
   }
 
+  async function loadFullCampaignReadiness() {
+    if (!api || !organisationId || loadingFullCampaignReadiness) return;
+    const requestedOrganisationId = organisationId;
+    setLoadingFullCampaignReadiness(true);
+    setError("");
+    try {
+      const summary = await api.getFullCampaignReadinessSummary({ organisationId: requestedOrganisationId });
+      if (currentOrganisationIdRef.current === requestedOrganisationId) setFullCampaignReadiness(summary);
+    } catch (loadError) {
+      setError(readableError(loadError));
+    } finally {
+      setLoadingFullCampaignReadiness(false);
+    }
+  }
+
   async function loadOpenLeadAgingSummary() {
     if (!api || !organisationId || loadingOpenLeadAgingSummary) return;
     const requestedOrganisationId = organisationId;
