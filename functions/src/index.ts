@@ -1253,7 +1253,7 @@ export const createOutreachDraft = onCall(callableOptions, async (request) => {
   });
 });
 
-export const suggestOutreachDraft = onCall({ ...callableOptions, secrets: [geminiApiKey], timeoutSeconds: 30 }, async (request) => {
+export const suggestOutreachDraft = onCall({ enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true", secrets: [geminiApiKey], timeoutSeconds: 30 }, async (request) => {
   const uid = requireUid(request.auth?.uid);
   const data = (request.data ?? {}) as Record<string, unknown>;
   const organisationId = requireOrganisationId(data.organisationId);
