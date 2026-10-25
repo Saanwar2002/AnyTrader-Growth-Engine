@@ -294,6 +294,7 @@ describe("lead CSV export", () => {
     location: "Edinburgh", website: "https://northstar.example", email: "hello@northstar.example",
     phone: "+44 131 555 0100", source: "csv", status: "new", doNotContact: true,
     contactRestrictionVerified: false, contactReviewStatus: "pending" as const,
+    score: 85, scoreReasons: ["Business name provided (+20)", "Website listed (+20)", "Email listed (+20)"],
   };
 
   it("exports selected lead fields, campaign names, and contact restrictions without internal notes", () => {
@@ -302,6 +303,10 @@ describe("lead CSV export", () => {
     expect(csv).toContain('"Edinburgh decorators"');
     expect(csv).toContain('"pending review"');
     expect(csv).toContain('"hello@northstar.example"');
+    expect(csv).toContain('"Completeness score"');
+    expect(csv).toContain('"Completeness reasons"');
+    expect(csv).toContain('"85"');
+    expect(csv).toContain('"Business name provided (+20); Website listed (+20); Email listed (+20)"');
     expect(csv).not.toContain("Internal notes");
     expect(csv.split("\r\n")).toHaveLength(3);
   });
@@ -309,6 +314,16 @@ describe("lead CSV export", () => {
   it("protects spreadsheet formula injection in lead fields", () => {
     const csv = serializeLeadExportCsv([{ ...lead, businessName: "  =HYPERLINK(\"https://evil.test\")" }], { "campaign-1": "Campaign" });
     expect(csv).toContain('"\'  =HYPERLINK(""https://evil.test"")"');
+  });
+
+  it("exports bounded score values and formula-safe completeness reasons", () => {
+    const csv = serializeLeadExportCsv([{
+      ...lead,
+      score: 150,
+      scoreReasons: ["=1+1"],
+    }], {});
+    expect(csv).toContain('"100"');
+    expect(csv).toContain('"\'=1+1"');
   });
 
   it("marks incomplete restriction metadata as requiring review", () => {
