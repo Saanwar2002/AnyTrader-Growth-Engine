@@ -77,7 +77,6 @@ type SecurityAuditEventType =
   | "lead.status_changed"
   | "lead.notes_changed"
   | "lead.follow_up_date_changed"
-  | "lead.follow_up_date_changed"
   | "outreach_draft.created"
   | "outreach_draft.updated"
   | "outreach_draft.deleted";
@@ -93,7 +92,6 @@ type SecurityAuditEventMetadata = {
   campaignDetailsChanged?: boolean;
   leadStatus?: string;
   notesCleared?: boolean;
-  followUpDateSet?: boolean;
   followUpDateSet?: boolean;
   nameChanged?: boolean;
   draftAction?: "created" | "updated" | "deleted";
@@ -115,7 +113,6 @@ const AUDIT_EVENT_RESOURCE_TYPES: Record<SecurityAuditEventType, "organisation" 
   "campaign.details_updated": "campaign",
   "lead.status_changed": "lead",
   "lead.notes_changed": "lead",
-  "lead.follow_up_date_changed": "lead",
   "lead.follow_up_date_changed": "lead",
   "outreach_draft.created": "outreachDraft",
   "outreach_draft.updated": "outreachDraft",
