@@ -1731,4 +1731,45 @@ describe("cloud authentication gate", () => {
     expect(screen.queryByRole("heading", { name: "Security audit log" })).toBeNull();
   });
 
+  it("exports the loaded security audit page as a scoped CSV", async () => {
+    mocks.currentUser = { email: "pilot@example.test", uid: "owner-uid" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    mocks.api.listOrganisationSecurityAuditEvents.mockResolvedValue({
+      organisationId: "org-1",
+      events: [{
+        id: "audit-1", eventType: "lead.status_changed", actorUid: "owner-uid",
+        resourceType: "lead", resourceId: "lead-1", outcome: "success",
+        metadata: { leadStatus: "qualified" }, createdAt: "2026-10-25T12:00:00.000Z",
+      }],
+      hasMoreEvents: true, nextPageToken: "older-page", scope: "organisation_security_audit",
+    });
+    const createObjectURL = vi.fn((_blob: Blob) => "blob:audit-export");
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load audit log" }));
+    await screen.findByRole("table", { name: "Organisation security audit events" });
+    fireEvent.click(screen.getByRole("button", { name: "Export loaded audit events (CSV)" }));
+    await waitFor(() => expect(createObjectURL).toHaveBeenCalledTimes(1));
+    const exportedBlob = createObjectURL.mock.calls[0][0] as Blob;
+    const csv = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result ?? ""));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsText(exportedBlob);
+    });
+    expect(csv).toContain("Loaded audit events only");
+    expect(csv).toContain("lead.status_changed");
+    expect(csv).toContain("owner-uid");
+    expect(csv).toContain("leadStatus");
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:audit-export");
+    expect(await screen.findByText(/Older pages were not included unless loaded first/)).toBeTruthy();
+  });
+
 });
