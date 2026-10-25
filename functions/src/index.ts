@@ -76,6 +76,7 @@ type SecurityAuditEventType =
   | "campaign.details_updated"
   | "lead.status_changed"
   | "lead.notes_changed"
+  | "lead.follow_up_date_changed"
   | "outreach_draft.created"
   | "outreach_draft.updated"
   | "outreach_draft.deleted";
@@ -91,6 +92,7 @@ type SecurityAuditEventMetadata = {
   campaignDetailsChanged?: boolean;
   leadStatus?: string;
   notesCleared?: boolean;
+  followUpDateSet?: boolean;
   nameChanged?: boolean;
   draftAction?: "created" | "updated" | "deleted";
   memberRole?: "admin" | "member" | "viewer";
@@ -111,6 +113,7 @@ const AUDIT_EVENT_RESOURCE_TYPES: Record<SecurityAuditEventType, "organisation" 
   "campaign.details_updated": "campaign",
   "lead.status_changed": "lead",
   "lead.notes_changed": "lead",
+  "lead.follow_up_date_changed": "lead",
   "outreach_draft.created": "outreachDraft",
   "outreach_draft.updated": "outreachDraft",
   "outreach_draft.deleted": "outreachDraft",
@@ -131,6 +134,7 @@ const AUDIT_METADATA_KEYS: Record<SecurityAuditEventType, readonly (keyof Securi
   "campaign.details_updated": ["campaignDetailsChanged"],
   "lead.status_changed": ["leadStatus"],
   "lead.notes_changed": ["notesCleared"],
+  "lead.follow_up_date_changed": ["followUpDateSet"],
   "outreach_draft.created": ["draftAction"],
   "outreach_draft.updated": ["draftAction"],
   "outreach_draft.deleted": ["draftAction"],
@@ -145,6 +149,7 @@ function isBoundedAuditMetadata(eventType: SecurityAuditEventType, metadata: Sec
     || ("contactChannelsChanged" in metadata && typeof metadata.contactChannelsChanged !== "boolean")
     || ("doNotContact" in metadata && typeof metadata.doNotContact !== "boolean")
     || ("notesCleared" in metadata && typeof metadata.notesCleared !== "boolean")
+    || ("followUpDateSet" in metadata && typeof metadata.followUpDateSet !== "boolean")
     || ("nameChanged" in metadata && typeof metadata.nameChanged !== "boolean")
     || ("campaignDetailsChanged" in metadata && typeof metadata.campaignDetailsChanged !== "boolean")) return false;
   if ("campaignStatus" in metadata && !["active", "paused", "completed"].includes(metadata.campaignStatus ?? "")) return false;
@@ -1161,6 +1166,10 @@ export const listLeads = onCall(callableOptions, async (request) => {
         contactReviewStatus: normaliseContactReviewStatus(lead.doNotContact, lead.contactReviewStatus),
         contactReviewRevision: typeof lead.contactReviewRevision === "number" && Number.isSafeInteger(lead.contactReviewRevision) && lead.contactReviewRevision >= 0 ? lead.contactReviewRevision : 0,
         onboardedAt: safeTimestampToIso(lead.onboardedAt),
+        followUpDate: typeof lead.followUpDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(lead.followUpDate)
+          && !Number.isNaN(Date.parse(`${lead.followUpDate}T00:00:00.000Z`))
+          && new Date(`${lead.followUpDate}T00:00:00.000Z`).toISOString().slice(0, 10) === lead.followUpDate
+          ? lead.followUpDate : null,
         createdAt: safeTimestampToIso(lead.createdAt),
       };
     }),
@@ -2160,6 +2169,39 @@ export const updateLeadNotes = onCall(callableOptions, async (request) => {
     writeSecurityAuditEvent(transaction, organisationId, uid, "lead.notes_changed", "lead", leadId, { notesCleared: notes.length === 0 });
   });
   return { leadId, notes };
+});
+
+export const updateLeadFollowUpDate = onCall(callableOptions, async (request) => {
+  const uid = requireUid(request.auth?.uid);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const organisationId = requireOrganisationId(data.organisationId);
+  const leadId = requireDocumentId(data.leadId, "leadId");
+  const followUpDate = data.followUpDate;
+  if (followUpDate !== null && (typeof followUpDate !== "string"
+    || !/^\d{4}-\d{2}-\d{2}$/.test(followUpDate)
+    || Number.isNaN(Date.parse(`${followUpDate}T00:00:00.000Z`))
+    || new Date(`${followUpDate}T00:00:00.000Z`).toISOString().slice(0, 10) !== followUpDate)) {
+    throw new HttpsError("invalid-argument", "followUpDate must be a real UTC calendar date in YYYY-MM-DD format or null.");
+  }
+  await requireLeadEditor(organisationId, uid);
+  const leadRef = db.collection("organisations").doc(organisationId).collection("leads").doc(leadId);
+  const activity = db.collection("organisations").doc(organisationId).collection("leadActivities").doc();
+  await db.runTransaction(async (transaction: Transaction) => {
+    await requireTransactionalRole(transaction, organisationId, uid, "lead");
+    const leadSnapshot = await transaction.get(leadRef);
+    if (!leadSnapshot.exists) throw new HttpsError("not-found", "Lead was not found in this organisation.");
+    const now = FieldValue.serverTimestamp();
+    await consumeTransactionalRateLimit(transaction, organisationId, uid, "updateLeadFollowUpDate", 240);
+    transaction.update(leadRef, { followUpDate, updatedAt: now, updatedBy: uid });
+    transaction.create(activity, {
+      leadId,
+      actorUid: uid,
+      message: followUpDate ? `Follow-up date set to ${followUpDate}` : "Follow-up date cleared",
+      createdAt: now,
+    });
+    writeSecurityAuditEvent(transaction, organisationId, uid, "lead.follow_up_date_changed", "lead", leadId, { followUpDateSet: followUpDate !== null });
+  });
+  return { leadId, followUpDate };
 });
 
 export const setLeadSuppression = onCall(callableOptions, async (request) => {
