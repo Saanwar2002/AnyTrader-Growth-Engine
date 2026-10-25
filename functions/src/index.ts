@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { initializeApp } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
 import { FieldPath, FieldValue, Timestamp, getFirestore, type QueryDocumentSnapshot, type Transaction } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
@@ -561,6 +562,15 @@ export const addOrganisationMember = onCall(callableOptions, async (request) => 
   }
   if (typeof idempotencyKey !== "string" || !/^[A-Za-z0-9._:-]{16,128}$/.test(idempotencyKey)) {
     throw new HttpsError("invalid-argument", "idempotencyKey must be 16-128 safe characters.");
+  }
+  try {
+    await getAuth().getUser(targetUid);
+  } catch (error) {
+    if (typeof error === "object" && error !== null && "code" in error && error.code === "auth/user-not-found") {
+      throw new HttpsError("not-found", "The target account does not exist.");
+    }
+    logger.error("Could not verify organisation member target account", { organisationId, reason: "auth_lookup_failed" });
+    throw new HttpsError("internal", "Could not verify the target account. Please retry.");
   }
 
   const organisationRef = db.collection("organisations").doc(organisationId);
