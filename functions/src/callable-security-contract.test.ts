@@ -13,6 +13,7 @@ const expectedRateLimitType: Record<string, "read" | "mutation"> = {
   createOrganisation: "mutation",
   updateOrganisationSettings: "mutation",
   addOrganisationMember: "mutation",
+  listOrganisationMembers: "read",
   createCampaign: "mutation",
   listCampaigns: "read",
   getCampaignFunnelSummary: "read",
@@ -98,7 +99,7 @@ describe("callable security contract", () => {
 
   it("enforces App Check on every deployed callable and only bypasses it in the Functions emulator", () => {
     expect(callableSource).toContain('const callableOptions = { enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true" }');
-    expect((callableSource.match(/= onCall\(callableOptions, async \(request\) => \{/g) ?? [])).toHaveLength(22);
+    expect((callableSource.match(/= onCall\(callableOptions, async \(request\) => \{/g) ?? [])).toHaveLength(23);
     expect(callableSource.includes("= onCall(async (request) => {")).toBe(false);
   });
 
@@ -824,5 +825,24 @@ describe("server-side onboarding cohort analytics", () => {
     expect(body).toContain("windowMonths: 12 as const");
     expect(body).toContain('scope: "first_onboarding_timestamp"');
     expect(body).toContain("Legacy leads already onboarded before timestamp capture may be excluded");
+  });
+});
+
+
+describe("organisation member roster", () => {
+  it("limits roster reads to owners/admins, validates member records, and resolves current emails", () => {
+    const start = callableSource.indexOf("export const listOrganisationMembers = onCall(");
+    const end = callableSource.indexOf("export const ", start + 1);
+    const body = callableSource.slice(start, end < 0 ? callableSource.length : end);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(body).toContain("await requireMembership(organisationId, uid)");
+    expect(body).toContain('callerMembership.role !== "owner" && callerMembership.role !== "admin"');
+    expect(body).toContain('consumeReadRateLimit(organisationId, uid, "listOrganisationMembers", 10)');
+    expect(body).toContain('.collection("members")');
+    expect(body).toContain(".limit(21)");
+    expect(body).toContain("isValidMembershipForOrganisation(member, document.id, ownerUid)");
+    expect(body).toContain("getAuth().getUser(document.id)");
+    expect(body).toContain("hasMoreMembers: page.docs.length > 20");
+    expect(body).toContain('scope: "organisation_member_roster"');
   });
 });
