@@ -1031,6 +1031,49 @@ export const getLeadSourceFunnelSummary = onCall(callableOptions, async (request
 });
 
 /**
+ * Return monthly cohorts based on the immutable first-onboarding timestamp.
+ * Legacy leads without a trustworthy onboardedAt timestamp are intentionally
+ * excluded rather than assigned an invented historical month.
+ */
+export const getOnboardingCohortSummary = onCall(callableOptions, async (request) => {
+  const uid = requireUid(request.auth?.uid);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const organisationId = requireOrganisationId(data.organisationId);
+  await requireMembership(organisationId, uid);
+  await consumeReadRateLimit(organisationId, uid, "getOnboardingCohortSummary", 5);
+
+  const now = new Date();
+  const currentMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const cohorts: Array<{ month: string; onboardedLeadCount: number }> = [];
+  const leadsRef = db.collection("organisations").doc(organisationId).collection("leads");
+  const queries = Array.from({ length: 12 }, (_, index) => {
+    const start = new Date(Date.UTC(currentMonth.getUTCFullYear(), currentMonth.getUTCMonth() - (11 - index), 1));
+    const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1));
+    return { month: start.toISOString().slice(0, 7), start, end };
+  });
+  const counts = await Promise.all(queries.map(async ({ start, end }) => {
+    const result = await leadsRef
+      .where("onboardedAt", ">=", Timestamp.fromDate(start))
+      .where("onboardedAt", "<", Timestamp.fromDate(end))
+      .count()
+      .get();
+    const count = result.data().count;
+    if (!Number.isSafeInteger(count) || count < 0) {
+      throw new HttpsError("failed-precondition", "Onboarding cohort count is invalid and requires operator review.");
+    }
+    return count;
+  }));
+  queries.forEach(({ month }, index) => cohorts.push({ month, onboardedLeadCount: counts[index] }));
+  return {
+    organisationId,
+    cohorts,
+    scope: "first_onboarding_timestamp" as const,
+    windowMonths: 12 as const,
+    attributionNote: "Counts use the first server-recorded onboarding timestamp. Legacy leads already onboarded before timestamp capture may be excluded; source labels remain self-declared.",
+  };
+});
+
+/**
  * Import a bounded CSV-mapped batch through the trusted server path.
  * This callable persists only validated rows and leaves every new contact suppressed
  * until an authorised reviewer explicitly clears the contact restriction.
