@@ -677,4 +677,27 @@ describe("cloud authentication gate", () => {
     expect(await screen.findByText("AI-assisted draft saved. Nothing was sent.")).toBeTruthy();
   });
 
+
+  it("shows potential duplicate matches in the CSV preview without silently removing rows", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
+    mocks.api.listCampaigns.mockResolvedValue({ campaigns: [{ id: "campaign-1", name: "Painter pilot", brand: "AnyTrader", category: "Painters", location: "Manchester", goal: "Recruit providers", status: "active", createdAt: null }] });
+    mocks.api.listLeads.mockResolvedValue({ leads: [{
+      id: "existing-1", campaignId: "campaign-1", businessName: "Northside Painting", category: "Painters", location: "Manchester",
+      website: "", email: "hello@northside.example", phone: "", source: "manual", status: "new", score: 20,
+      scoreReasons: [], notes: "", doNotContact: true, contactRestrictionVerified: false, contactReviewStatus: "pending",
+      contactReviewRevision: 0, createdAt: null,
+    }] });
+    render(<CloudWorkspace />);
+    await screen.findByRole("heading", { name: "Provider acquisition workspace" });
+    const file = new File([
+      "businessName,category,location,email,phone\nNorthside Painting,Painters,Manchester,hello@northside.example,01610000001\nFresh Decorators,Decorators,Salford,team@fresh.example,01610000002",
+    ], "providers.csv", { type: "text/csv" });
+    fireEvent.change(screen.getByLabelText("CSV file"), { target: { files: [file] } });
+    expect(await screen.findByText(/1 possible duplicate row/)).toBeTruthy();
+    expect(screen.getByText(/Possible duplicate: email matches loaded lead/)).toBeTruthy();
+    expect(screen.getByText("Fresh Decorators")).toBeTruthy();
+    expect(mocks.api.importLeads).not.toHaveBeenCalled();
+  });
+
 });
