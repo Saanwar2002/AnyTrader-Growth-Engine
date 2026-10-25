@@ -447,7 +447,7 @@ try {
     "functions/scripts/assert-emulator-audit-events.mjs",
     orgOne.organisationId,
     "lead.csv_import.completed",
-    "4",
+    "5",
     "0",
     "2",
   ], { stdio: "inherit" });
@@ -461,7 +461,7 @@ try {
     "functions/scripts/assert-emulator-audit-events.mjs",
     orgOne.organisationId,
     "lead.csv_import.completed",
-    "4",
+    "5",
     "0",
     "2",
   ], { stdio: "inherit" });
@@ -494,7 +494,7 @@ try {
     "functions/scripts/assert-emulator-audit-events.mjs",
     orgOne.organisationId,
     "lead.csv_import.completed",
-    "5",
+    "6",
     "1",
     "0",
     "2",
@@ -506,7 +506,7 @@ try {
     "functions/scripts/assert-emulator-audit-events.mjs",
     orgOne.organisationId,
     "lead.csv_import.completed",
-    "5",
+    "6",
     "1",
     "0",
     "2",
@@ -542,7 +542,7 @@ try {
     "functions/scripts/assert-emulator-audit-events.mjs",
     orgOne.organisationId,
     "lead.csv_import.completed",
-    "6",
+    "7",
     "0",
     "1",
   ], { stdio: "inherit" });
@@ -581,7 +581,7 @@ try {
     "functions/scripts/assert-emulator-audit-events.mjs",
     orgOne.organisationId,
     "lead.csv_import.completed",
-    "7",
+    "8",
     "1",
     "1",
   ], { stdio: "inherit" });
