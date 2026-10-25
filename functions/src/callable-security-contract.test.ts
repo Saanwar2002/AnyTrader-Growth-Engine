@@ -511,6 +511,24 @@ describe("callable security contract", () => {
     expect(body).not.toContain("return savedResult as {");
   });
 
+  it("treats a repeated lead status as a no-op before quota, activity, and audit writes", () => {
+    const start = callableSource.indexOf("export const updateLeadStatus = onCall(");
+    const end = callableSource.indexOf("export const ", start + 1);
+    const body = callableSource.slice(start, end < 0 ? callableSource.length : end);
+    const transitionCheck = body.indexOf("if (!canTransitionLeadStatus(status, lead.doNotContact === true))");
+    const noOpCheck = body.indexOf("if (status === lead.status) return;", transitionCheck);
+    const quotaWrite = body.indexOf('consumeTransactionalRateLimit(transaction, organisationId, uid, "updateLeadStatus"');
+    const leadWrite = body.indexOf("transaction.update(leadRef, leadUpdate)");
+    const activityWrite = body.indexOf("transaction.create(activity");
+    const auditWrite = body.indexOf('writeSecurityAuditEvent(transaction, organisationId, uid, "lead.status_changed"');
+    expect(transitionCheck).toBeGreaterThanOrEqual(0);
+    expect(noOpCheck).toBeGreaterThan(transitionCheck);
+    expect(noOpCheck).toBeLessThan(quotaWrite);
+    expect(noOpCheck).toBeLessThan(leadWrite);
+    expect(noOpCheck).toBeLessThan(activityWrite);
+    expect(noOpCheck).toBeLessThan(auditWrite);
+  });
+
   it("keeps every expected callable authenticated and rate-limited", () => {
     const declarations = [...callableSource.matchAll(/export const (\w+) = onCall\(/g)];
     expect(declarations.map((match) => match[1]).sort()).toEqual(

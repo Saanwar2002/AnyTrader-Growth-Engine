@@ -1247,6 +1247,24 @@ try {
   assert.equal(qualifiedLead.status, "qualified", "reviewed lead can be qualified");
   const qualifiedLeadList = await callOne("listLeads", { organisationId: orgOne.organisationId });
   assert.equal(qualifiedLeadList.leads.find((lead) => lead.id === leadOne.leadId)?.status, "qualified", "qualified status persists in list results");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "lead.status_changed",
+    "1",
+    leadOne.leadId,
+  ], { stdio: "inherit" });
+  const repeatedQualified = await callOne("updateLeadStatus", {
+    organisationId: orgOne.organisationId, leadId: leadOne.leadId, status: "qualified",
+  });
+  assert.equal(repeatedQualified.status, "qualified", "repeating the current lead status succeeds as a retry-safe no-op");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "lead.status_changed",
+    "1",
+    leadOne.leadId,
+  ], { stdio: "inherit" });
   const contactedLead = await callOne("updateLeadStatus", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, status: "contacted" });
   assert.equal(contactedLead.status, "contacted", "explicitly cleared lead can be marked contacted");
   const contactedLeadList = await callOne("listLeads", { organisationId: orgOne.organisationId });

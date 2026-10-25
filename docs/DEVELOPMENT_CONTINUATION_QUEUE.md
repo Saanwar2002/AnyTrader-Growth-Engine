@@ -1,3 +1,13 @@
+## AutoPilot run — retry-safe no-op lead status updates (2026-10-25)
+
+- Repeated status updates now return successfully after tenant authorization, contact-restriction checks, campaign existence checks for contacted status, and status validation.
+- A no-op retry does not consume update quota or write duplicate lead activity/audit events; real status transitions retain their transactional behavior.
+- Added callable source-contract assertions and emulator coverage proving the audit event count remains unchanged on a repeated status.
+- No outreach, deployment, billing changes or data migration.
+- Next: exact-head CI and merge only when all checks are green.
+
+---
+
 ## AutoPilot run — CSV import idempotency replay integrity (2026-10-25)
 
 - Replaced the CSV import replay's loose object cast and inline partial validation with an exact-shape pure validator.
