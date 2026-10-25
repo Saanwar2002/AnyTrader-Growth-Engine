@@ -385,3 +385,52 @@ export function escapeCsvCell(value: string | number): string {
   }
   return '"' + text.replace(/"/g, '""') + '"';
 }
+
+
+export interface LeadExportRecord {
+  campaignId: string;
+  businessName: string;
+  category: string;
+  location: string;
+  website: string;
+  email: string;
+  phone: string;
+  source: string;
+  status: string;
+  doNotContact: boolean;
+  contactRestrictionVerified: boolean;
+  contactReviewStatus?: "pending" | "cleared" | "blocked";
+}
+
+/**
+ * Serialise only the records supplied by the caller. Callers must label partial
+ * exports when their source list is paginated. Internal notes are intentionally
+ * excluded, and all data cells are protected against spreadsheet formula input.
+ */
+export function serializeLeadExportCsv(
+  leads: LeadExportRecord[],
+  campaignNames: Record<string, string>,
+): string {
+  const headers = [
+    "Business name", "Category", "Location", "Website", "Email", "Phone",
+    "Campaign", "Status", "Source", "Contact restriction",
+  ];
+  const rows = leads.map((lead) => {
+    const restriction = lead.contactReviewStatus === "pending"
+      ? "pending review"
+      : lead.contactReviewStatus === "blocked"
+        ? "blocked - review required"
+        : lead.doNotContact
+          ? "do not contact"
+          : lead.contactReviewStatus === "cleared" && lead.contactRestrictionVerified
+            ? "review cleared"
+            : lead.contactRestrictionVerified
+              ? "review cleared"
+              : "review required";
+    return [
+      lead.businessName, lead.category, lead.location, lead.website, lead.email, lead.phone,
+      campaignNames[lead.campaignId] ?? "Unknown campaign", lead.status, lead.source, restriction,
+    ].map((value) => escapeCsvCell(value ?? ""));
+  });
+  return [headers.map((value) => escapeCsvCell(value)).join(","), ...rows.map((row) => row.join(","))].join("\r\n") + "\r\n";
+}
