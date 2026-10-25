@@ -146,6 +146,18 @@ try {
     status: "paused",
   });
   assert.equal(pausedCampaign.status, "paused", "campaign status update returns the new state");
+  const editedCampaign = await callOne("updateCampaignDetails", {
+    organisationId: orgOne.organisationId, campaignId: campaignOne.campaignId,
+    name: "Updated Test Campaign", brand: "Test Brand", category: "Roofing", location: "Leeds, UK", goal: "Recruit roofers",
+  });
+  assert.equal(editedCampaign.name, "Updated Test Campaign", "campaign detail update returns updated name");
+  const campaignAfterEdit = await callOne("listCampaigns", { organisationId: orgOne.organisationId });
+  assert.equal(campaignAfterEdit.campaigns.find((campaign) => campaign.id === campaignOne.campaignId)?.name, "Updated Test Campaign",
+    "campaign details persist after update");
+  await expectCallableFailure(callTwo("updateCampaignDetails", {
+    organisationId: orgOne.organisationId, campaignId: campaignOne.campaignId,
+    name: "Cross tenant", brand: "Test Brand", category: "Roofing", location: "Leeds, UK", goal: "",
+  }), "functions/permission-denied", "cross-tenant campaign detail update is denied");
   const campaignAfterPause = await callOne("listCampaigns", { organisationId: orgOne.organisationId });
   assert.equal(campaignAfterPause.campaigns.find((campaign) => campaign.id === campaignOne.campaignId)?.status, "paused",
     "campaign status update is persisted");
@@ -2652,6 +2664,7 @@ try {
     "createCampaign",
     "listCampaigns",
     "updateCampaignStatus",
+    "updateCampaignDetails",
     "listLeads",
     "createLead",
     "importLeads",

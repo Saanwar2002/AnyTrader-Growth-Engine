@@ -1,3 +1,12 @@
+## AutoPilot run — campaign detail editing (2026-10-25)
+
+- Added an owner/admin-only callable to update campaign name, brand, category, location and goal, with bounded input validation, transaction-time tenant/role checks, rate limiting and a content-free audit event.
+- Added a cloud workspace edit form, security-contract inventory, emulator persistence/cross-tenant tests, and UI regression coverage.
+- Unchanged details are no-ops; campaign status remains managed by the existing status workflow.
+- Next feature priority: plan/entitlement scaffolding and durable tenant-scoped attribution aggregates. Billing remains deferred until entitlements are tested; production deployment remains blocked on dedicated Firebase/App Check and operational controls.
+
+---
+
 ## AutoPilot run — organisation settings (2026-10-25)
 
 - Added an owner/admin-only organisation display-name update callable and cloud workspace form.

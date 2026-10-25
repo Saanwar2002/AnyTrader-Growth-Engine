@@ -67,6 +67,7 @@ type SecurityAuditEventType =
   | "lead.created"
   | "campaign.created"
   | "campaign.status_changed"
+  | "campaign.details_updated"
   | "lead.status_changed"
   | "lead.notes_changed"
   | "outreach_draft.created"
@@ -81,6 +82,7 @@ type SecurityAuditEventMetadata = {
   doNotContact?: boolean;
   contactReviewStatus?: "pending" | "cleared" | "blocked";
   campaignStatus?: "active" | "paused" | "completed";
+  campaignDetailsChanged?: boolean;
   leadStatus?: string;
   notesCleared?: boolean;
   nameChanged?: boolean;
@@ -96,6 +98,7 @@ const AUDIT_EVENT_RESOURCE_TYPES: Record<SecurityAuditEventType, "organisation" 
   "lead.created": "lead",
   "campaign.created": "campaign",
   "campaign.status_changed": "campaign",
+  "campaign.details_updated": "campaign",
   "lead.status_changed": "lead",
   "lead.notes_changed": "lead",
   "outreach_draft.created": "outreachDraft",
@@ -112,6 +115,7 @@ const AUDIT_METADATA_KEYS: Record<SecurityAuditEventType, readonly (keyof Securi
   "lead.created": ["leadStatus"],
   "campaign.created": ["campaignStatus"],
   "campaign.status_changed": ["campaignStatus"],
+  "campaign.details_updated": ["campaignDetailsChanged"],
   "lead.status_changed": ["leadStatus"],
   "lead.notes_changed": ["notesCleared"],
   "outreach_draft.created": ["draftAction"],
@@ -128,7 +132,8 @@ function isBoundedAuditMetadata(eventType: SecurityAuditEventType, metadata: Sec
     || ("contactChannelsChanged" in metadata && typeof metadata.contactChannelsChanged !== "boolean")
     || ("doNotContact" in metadata && typeof metadata.doNotContact !== "boolean")
     || ("notesCleared" in metadata && typeof metadata.notesCleared !== "boolean")
-    || ("nameChanged" in metadata && typeof metadata.nameChanged !== "boolean")) return false;
+    || ("nameChanged" in metadata && typeof metadata.nameChanged !== "boolean")
+    || ("campaignDetailsChanged" in metadata && typeof metadata.campaignDetailsChanged !== "boolean")) return false;
   if ("campaignStatus" in metadata && !["active", "paused", "completed"].includes(metadata.campaignStatus ?? "")) return false;
   if ("leadStatus" in metadata && !["new", "reviewing", "qualified", "contacted", "onboarded", "rejected"].includes(metadata.leadStatus ?? "")) return false;
   if ("contactReviewStatus" in metadata && !["pending", "cleared", "blocked"].includes(metadata.contactReviewStatus ?? "")) return false;
@@ -633,6 +638,36 @@ export const updateCampaignStatus = onCall(callableOptions, async (request) => {
     writeSecurityAuditEvent(transaction, organisationId, uid, "campaign.status_changed", "campaign", campaignId, { campaignStatus: status });
   });
   return { campaignId, status };
+});
+
+export const updateCampaignDetails = onCall(callableOptions, async (request) => {
+  const uid = requireUid(request.auth?.uid);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const organisationId = requireOrganisationId(data.organisationId);
+  const campaignId = requireDocumentId(data.campaignId, "campaignId");
+  const name = normaliseRequiredText(data.name, 120);
+  const brand = normaliseRequiredText(data.brand, 100);
+  const category = normaliseRequiredText(data.category, 100);
+  const location = normaliseRequiredText(data.location, 160);
+  const goal = normaliseOptionalText(data.goal ?? "", 500);
+  if (!name || !brand || !category || !location || goal === null) {
+    throw new HttpsError("invalid-argument", "Campaign fields are missing or exceed their allowed length.");
+  }
+  const campaignRef = db.collection("organisations").doc(organisationId).collection("campaigns").doc(campaignId);
+  const result = { campaignId, name, brand, category, location, goal };
+  await db.runTransaction(async (transaction: Transaction) => {
+    await requireTransactionalRole(transaction, organisationId, uid, "campaign");
+    const snapshot = await transaction.get(campaignRef);
+    if (!snapshot.exists) throw new HttpsError("not-found", "Campaign was not found in this organisation.");
+    const current = snapshot.data() ?? {};
+    const unchanged = current.name === name && current.brand === brand && current.category === category
+      && current.location === location && (current.goal ?? "") === goal;
+    if (unchanged) return;
+    await consumeTransactionalRateLimit(transaction, organisationId, uid, "updateCampaignDetails", 30);
+    transaction.update(campaignRef, { name, brand, category, location, goal, updatedAt: FieldValue.serverTimestamp(), updatedBy: uid });
+    writeSecurityAuditEvent(transaction, organisationId, uid, "campaign.details_updated", "campaign", campaignId, { campaignDetailsChanged: true });
+  });
+  return result;
 });
 
 export const listLeads = onCall(callableOptions, async (request) => {

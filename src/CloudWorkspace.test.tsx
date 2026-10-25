@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
   authListener: vi.fn(),
   currentUser: null as unknown,
   api: {
-    listMyOrganisations: vi.fn(), createOrganisation: vi.fn(), updateOrganisationSettings: vi.fn(), createCampaign: vi.fn(), updateCampaignStatus: vi.fn(),
+    listMyOrganisations: vi.fn(), createOrganisation: vi.fn(), updateOrganisationSettings: vi.fn(), createCampaign: vi.fn(), updateCampaignStatus: vi.fn(), updateCampaignDetails: vi.fn(),
     listCampaigns: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), importLeads: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(),
     updateLeadNotes: vi.fn(), setLeadSuppression: vi.fn(), createOutreachDraft: vi.fn(), suggestOutreachDraft: vi.fn(), listOutreachDrafts: vi.fn(),
     updateOutreachDraft: vi.fn(), deleteOutreachDraft: vi.fn(),
@@ -44,6 +44,7 @@ beforeEach(() => {
   mocks.api.createOrganisation.mockResolvedValue({ organisationId: "org-new", name: "New Org", role: "owner" });
   mocks.api.updateOrganisationSettings.mockImplementation(async ({ organisationId, name }) => ({ organisationId, name }));
   mocks.api.createCampaign.mockResolvedValue({ campaignId: "campaign-new", status: "active" });
+  mocks.api.updateCampaignDetails.mockImplementation(async (payload) => payload);
   mocks.api.createLead.mockResolvedValue({ leadId: "lead-new", status: "new" });
   mocks.api.importLeads.mockResolvedValue({ organisationId: "org-1", campaignId: "campaign-1", received: 2, imported: 2, duplicatesSkipped: 0, leads: [{ leadId: "lead-csv-1", businessName: "Northside Painting" }, { leadId: "lead-csv-2", businessName: "City Decorators" }], sent: false, messageSentByThisAction: false });
   mocks.api.setLeadSuppression.mockResolvedValue({ leadId: "lead-1", doNotContact: true });
@@ -713,6 +714,24 @@ describe("cloud authentication gate", () => {
     await waitFor(() => expect(mocks.api.updateOrganisationSettings).toHaveBeenCalledWith({ organisationId: "org-1", name: "Renamed Workspace" }));
     expect(await screen.findByText("Organisation settings saved.")).toBeTruthy();
     expect(await screen.findByRole("option", { name: "Renamed Workspace · owner" })).toBeTruthy();
+  });
+
+
+  it("lets an owner edit campaign details through the server API", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
+    mocks.api.listCampaigns.mockResolvedValue({ campaigns: [{ id: "campaign-1", name: "Painter pilot", brand: "AnyTrader", category: "Painting", location: "Manchester", goal: "Recruit painters", status: "active", createdAt: null }], hasMoreCampaigns: false, nextPageToken: null });
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Edit details" }));
+    fireEvent.change(screen.getByLabelText("Campaign name"), { target: { value: "Roofing pilot" } });
+    fireEvent.change(screen.getByLabelText("Service category"), { target: { value: "Roofing" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save campaign details" }));
+    await waitFor(() => expect(mocks.api.updateCampaignDetails).toHaveBeenCalledWith({
+      organisationId: "org-1", campaignId: "campaign-1", name: "Roofing pilot", brand: "AnyTrader",
+      category: "Roofing", location: "Manchester", goal: "Recruit painters",
+    }));
+    expect(await screen.findByText("Campaign details saved.")).toBeTruthy();
+    expect(await screen.findByText("Roofing pilot")).toBeTruthy();
   });
 
 });

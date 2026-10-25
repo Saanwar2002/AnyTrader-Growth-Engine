@@ -71,6 +71,7 @@
 - [x] Self-declared lead-source performance summary with qualified/onboarded counts and rates; pagination and unverified source-label limitations are explicit.
 - [ ] Onboarding attribution and durable, server-side aggregate analytics across all pages.
 - [x] Owner/admin organisation display-name settings with server-side role checks, transactional rate limiting, and PII-minimised audit events.
+- [x] Owner/admin campaign detail editing with transactional tenant-role rechecks and PII-minimised audit events.
 - [ ] Plans and server-side entitlements/quotas.
 - [ ] Billing only after core workflows and server-side entitlements are tested.
 
