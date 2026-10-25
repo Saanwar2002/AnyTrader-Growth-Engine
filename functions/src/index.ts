@@ -5,6 +5,7 @@ import { FieldPath, FieldValue, Timestamp, getFirestore, type Query, type QueryD
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import { generateAiOutreachDraftSuggestion } from "./ai-outreach-draft";
+import { getValidOutreachDraftReplayResult, isPersistedOutreachDraftAvailable } from "./outreach-draft-idempotency";
 import * as logger from "firebase-functions/logger";
 import { canonicalLeadBusinessLocationKey, canonicalLeadEmailKey, canonicalLeadWebsiteKey } from "./lead-identifiers";
 import { createOffboardingPreview, OFFBOARDING_PREVIEW_CATEGORIES } from "./offboarding-preview";
@@ -2490,26 +2491,17 @@ export const createOutreachDraft = onCall(callableOptions, async (request) => {
       if (saved.requestHash !== requestHash) {
         throw new HttpsError("already-exists", "This idempotencyKey was already used with a different draft payload.");
       }
-      if (!saved.result || typeof saved.result !== "object") {
-        throw new HttpsError("failed-precondition", "Saved draft retry state is invalid and requires operator review.");
-      }
-      const savedResult = saved.result as Record<string, unknown>;
-      // The SHA-256 request fingerprint is the canonical payload comparison.
-      // Validate immutable result ownership/state separately; Firestore's
-      // returned nested-map representation is not used as a second fingerprint.
-      if (savedResult.leadId !== leadId || savedResult.campaignId !== campaignId) {
-        throw new HttpsError("failed-precondition", "Saved draft retry does not match its lead or campaign.");
-      }
-      if (typeof savedResult.draftId !== "string" || savedResult.status !== "draft" || savedResult.sent !== false) {
+      const expectedReplay = { actorUid: uid, requestHash, leadId, campaignId, subject, body };
+      const savedResult = getValidOutreachDraftReplayResult(saved, expectedReplay);
+      if (!savedResult) {
         throw new HttpsError("failed-precondition", "Saved draft retry state is invalid and requires operator review.");
       }
       const savedDraftRef = organisationRef.collection("outreachDrafts").doc(savedResult.draftId);
       const savedDraftSnapshot = await transaction.get(savedDraftRef);
-      if (!savedDraftSnapshot.exists || savedDraftSnapshot.data()?.leadId !== leadId
-        || savedDraftSnapshot.data()?.createdBy !== uid || savedDraftSnapshot.data()?.sent === true) {
+      if (!savedDraftSnapshot.exists || !isPersistedOutreachDraftAvailable(savedDraftSnapshot.data(), expectedReplay)) {
         throw new HttpsError("failed-precondition", "The draft created by this request is no longer available to retry.");
       }
-      return savedResult as { draftId: string; leadId: string; campaignId: string; subject: string; body: string; status: "draft"; sent: false };
+      return savedResult;
     }
 
     const now = FieldValue.serverTimestamp();
