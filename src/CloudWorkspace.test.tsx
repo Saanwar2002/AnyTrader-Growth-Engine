@@ -897,7 +897,7 @@ describe("cloud authentication gate", () => {
     expect(createObjectURL).toHaveBeenCalledTimes(1);
     expect(click).toHaveBeenCalledTimes(1);
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:source-report");
-    expect(await screen.findByText(/Exported full stored-lead source counts for 2 source categories/i)).toBeTruthy();
+    expect(await screen.findByText(/Exported full stored-lead source counts for 2 source category/i)).toBeTruthy();
   });
 
   it("shows the first onboarding date for an onboarded lead", async () => {
