@@ -31,6 +31,20 @@ const expectedRateLimitType: Record<string, "read" | "mutation"> = {
 };
 
 describe("callable security contract", () => {
+  it("reserves campaign quota atomically for organisations with authoritative usage state", () => {
+    const campaignStart = callableSource.indexOf("export const createCampaign =");
+    const campaignEnd = callableSource.indexOf("export const listCampaigns =", campaignStart);
+    const campaignCallable = callableSource.slice(campaignStart, campaignEnd);
+    expect(campaignCallable).toContain("resolvePlanPolicy(organisationData.planId)");
+    expect(campaignCallable).toContain("resolvePlanUsageState(organisationData.planUsage, new Date())");
+    expect(campaignCallable).toContain('reservePlanUsage(planResolution.plan, usageResolution.state, "campaigns")');
+    expect(campaignCallable).toContain('new HttpsError("resource-exhausted"');
+    expect(campaignCallable).toContain("transaction.update(organisationRef, { planUsage: reservation.state })");
+    expect(campaignCallable.indexOf("transaction.update(organisationRef, { planUsage: reservation.state })"))
+      .toBeLessThan(campaignCallable.indexOf("transaction.create(campaign,"));
+    expect(campaignCallable).toContain("Legacy organisations without a usage snapshot remain on the compatibility");
+  });
+
   it("enforces App Check on every deployed callable and only bypasses it in the Functions emulator", () => {
     expect(callableSource).toContain('const callableOptions = { enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true" }');
     expect((callableSource.match(/= onCall\(callableOptions, async \(request\) => \{/g) ?? [])).toHaveLength(18);
