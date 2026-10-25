@@ -7,8 +7,8 @@ import { generateAiOutreachDraftSuggestion } from "./ai-outreach-draft";
 import * as logger from "firebase-functions/logger";
 import { canonicalLeadBusinessLocationKey, canonicalLeadEmailKey, canonicalLeadWebsiteKey } from "./lead-identifiers";
 import { createOffboardingPreview, OFFBOARDING_PREVIEW_CATEGORIES } from "./offboarding-preview";
-import { PILOT_PLAN } from "./entitlements";
-import { currentAiUsagePeriod } from "./usage-accounting";
+import { PILOT_PLAN, resolvePlanPolicy } from "./entitlements";
+import { currentAiUsagePeriod, reservePlanUsage, resolvePlanUsageState, type PlanUsageState } from "./usage-accounting";
 import {
   calculateLeadCompleteness,
   canChangeSuppression,
@@ -580,7 +580,39 @@ export const createCampaign = onCall(callableOptions, async (request) => {
       return savedResult as typeof result;
     }
 
+    // New organisations have authoritative planUsage. Enforce and reserve the
+    // campaign quota in this transaction so concurrent requests cannot overshoot.
+    // Legacy organisations without a usage snapshot remain on the compatibility
+    // path until their existing resources have been reconciled; never assume zero.
+    const organisationSnapshot = await transaction.get(organisationRef);
+    if (!organisationSnapshot.exists) {
+      throw new HttpsError("not-found", "Organisation was not found.");
+    }
+    const organisationData = organisationSnapshot.data() ?? {};
+    let planResolutionForQuota: ReturnType<typeof resolvePlanPolicy> | null = null;
+    let usageStateForQuota: ReturnType<typeof resolvePlanUsageState> | null = null;
+    let reservedPlanUsageState: PlanUsageState | null = null;
+    if (Object.prototype.hasOwnProperty.call(organisationData, "planUsage")) {
+      planResolutionForQuota = resolvePlanPolicy(organisationData.planId);
+      usageStateForQuota = resolvePlanUsageState(organisationData.planUsage, new Date());
+      if (!planResolutionForQuota.ok || !usageStateForQuota.ok || usageStateForQuota.source === "initial") {
+        throw new HttpsError("failed-precondition", "Organisation usage state is invalid and requires reconciliation.");
+      }
+      const quotaCheck = reservePlanUsage(planResolutionForQuota.plan, usageStateForQuota.state, "campaigns");
+      if (!quotaCheck.allowed) {
+        if (quotaCheck.reason === "limit_exceeded") {
+          throw new HttpsError("resource-exhausted", `Campaign limit reached for the ${planResolutionForQuota.plan.displayName} plan (${quotaCheck.limit}).`);
+        }
+        throw new HttpsError("failed-precondition", "Organisation usage state cannot be safely updated.");
+      }
+      reservedPlanUsageState = quotaCheck.state;
+    }
+
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "createCampaign", 150);
+    if (reservedPlanUsageState) {
+      // Persist usage atomically with campaign creation after all transaction reads.
+      transaction.update(organisationRef, { planUsage: reservedPlanUsageState });
+    }
     transaction.create(campaign, {
       name, category, location, brand, goal, status: "active", createdBy: uid,
       createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),

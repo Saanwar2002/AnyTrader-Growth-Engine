@@ -67,6 +67,12 @@ try {
   assert.deepEqual(orgOneReplay, orgOne, "organisation creation retry returns the original result");
   await expectCallableFailure(callOne("createOrganisation", { ...orgOnePayload, name: "Changed tenant payload" }), "functions/already-exists", "organisation creation rejects key reuse with a different payload");
   assert.equal((await callOne("listMyOrganisations")).organisations.filter((item) => item.organisationId === orgOne.organisationId).length, 1, "organisation retry persists exactly one organisation");
+  // The broad legacy smoke suite exercises many historical campaign flows.
+  // Keep its main tenant explicitly legacy, then test metered quotas on an isolated tenant below.
+  execFileSync(process.execPath, [
+    "functions/scripts/seed-emulator-legacy-plan-usage.mjs",
+    orgOne.organisationId,
+  ], { stdio: "inherit" });
   execFileSync(process.execPath, [
     "functions/scripts/assert-emulator-audit-event-count.mjs",
     orgOne.organisationId,
@@ -2654,6 +2660,32 @@ try {
   ], { stdio: "inherit" });
   console.log("PASS: an expired read-quota bucket starts a fresh window and refreshes its TTL expiry.");
 
+  // Verify authoritative campaign usage enforcement independently from legacy fixtures.
+  const quotaOrg = await callOne("createOrganisation", {
+    name: "Metered quota tenant",
+    idempotencyKey: "campaign-quota-tenant-0001",
+  });
+  for (let index = 1; index <= 10; index += 1) {
+    await callOne("createCampaign", {
+      organisationId: quotaOrg.organisationId,
+      idempotencyKey: `campaign-quota-${String(index).padStart(4, "0")}`,
+      name: `Quota campaign ${index}`,
+      brand: "Example",
+      category: "Painters",
+      location: "Manchester",
+      goal: "Verify pilot campaign quota",
+    });
+  }
+  await expectCallableFailure(callOne("createCampaign", {
+    organisationId: quotaOrg.organisationId,
+    idempotencyKey: "campaign-quota-0011",
+    name: "Quota campaign 11",
+    brand: "Example",
+    category: "Painters",
+    location: "Manchester",
+    goal: "Must exceed the pilot quota",
+  }), "functions/resource-exhausted", "campaign creation is rejected at the Pilot plan limit");
+  console.log("PASS: metered organisations may create ten Pilot campaigns and the eleventh is rejected.");
   console.log("PASS: exhausted and malformed transactional quota states reject mutations without changing protected data.");
 
   await signOut(first.auth);
