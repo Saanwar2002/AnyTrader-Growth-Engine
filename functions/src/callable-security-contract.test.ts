@@ -120,7 +120,7 @@ describe("callable security contract", () => {
 
   it("enforces App Check on every deployed callable and only bypasses it in the Functions emulator", () => {
     expect(callableSource).toContain('const callableOptions = { enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true" }');
-    expect((callableSource.match(/= onCall\(callableOptions, async \(request\) => \{/g) ?? [])).toHaveLength(27);
+    expect((callableSource.match(/= onCall\(callableOptions, async \(request\) => \{/g) ?? [])).toHaveLength(28);
     expect(callableSource.includes("= onCall(async (request) => {")).toBe(false);
   });
 
