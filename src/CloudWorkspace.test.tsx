@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
   authListener: vi.fn(),
   currentUser: null as unknown,
   api: {
-    listMyOrganisations: vi.fn(), createOrganisation: vi.fn(), updateOrganisationSettings: vi.fn(), previewOrganisationOffboarding: vi.fn(), addOrganisationMember: vi.fn(), createCampaign: vi.fn(), updateCampaignStatus: vi.fn(), updateCampaignDetails: vi.fn(),
+    listMyOrganisations: vi.fn(), createOrganisation: vi.fn(), updateOrganisationSettings: vi.fn(), previewOrganisationOffboarding: vi.fn(), addOrganisationMember: vi.fn(), listOrganisationMembers: vi.fn(), createCampaign: vi.fn(), updateCampaignStatus: vi.fn(), updateCampaignDetails: vi.fn(),
     listCampaigns: vi.fn(), getCampaignFunnelSummary: vi.fn(), getLeadSourceFunnelSummary: vi.fn(), getOnboardingCohortSummary: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), importLeads: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(),
     updateLeadNotes: vi.fn(), setLeadSuppression: vi.fn(), createOutreachDraft: vi.fn(), suggestOutreachDraft: vi.fn(), listOutreachDrafts: vi.fn(),
     updateOutreachDraft: vi.fn(), deleteOutreachDraft: vi.fn(),
@@ -38,6 +38,12 @@ beforeEach(() => {
   mocks.currentUser = null;
   mocks.signIn.mockResolvedValue({}); mocks.googleSignIn.mockResolvedValue({}); mocks.register.mockResolvedValue({});
   mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [] });
+  mocks.api.listOrganisationMembers.mockResolvedValue({
+    organisationId: "org-1",
+    members: [{ uid: "owner-uid", email: "owner@example.test", role: "owner", createdAt: "2026-01-01T00:00:00.000Z" }],
+    hasMoreMembers: false,
+    scope: "organisation_member_roster",
+  });
   mocks.api.previewOrganisationOffboarding.mockResolvedValue({
     complete: true,
     destructiveActionPerformed: false,
@@ -1021,6 +1027,33 @@ describe("cloud authentication gate", () => {
     render(<CloudWorkspace />);
     await screen.findByRole("option", { name: /Pilot Workspace.*viewer/ });
     expect(screen.queryByRole("button", { name: "Export all stored leads (CSV)" })).toBeNull();
+  });
+
+  it("loads the owner/admin member roster and shows current Auth emails and roles", async () => {
+    mocks.currentUser = { email: "owner@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load member roster" }));
+    await waitFor(() => expect(mocks.api.listOrganisationMembers).toHaveBeenCalledWith({ organisationId: "org-1" }));
+    expect(await screen.findByRole("table", { name: "Organisation member roster" })).toBeTruthy();
+    expect(screen.getByText("owner@example.test")).toBeTruthy();
+    expect(screen.getByText("owner", { selector: "td" })).toBeTruthy();
+    expect(screen.getByText(/Account ID: owner-uid/)).toBeTruthy();
+  });
+
+  it("does not expose the member roster to viewer roles", async () => {
+    mocks.currentUser = { email: "viewer@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "viewer" }],
+      hasMoreOrganisations: false,
+    });
+    render(<CloudWorkspace />);
+    await screen.findByRole("option", { name: /Pilot Workspace.*viewer/ });
+    expect(screen.queryByRole("button", { name: "Load member roster" })).toBeNull();
+    expect(mocks.api.listOrganisationMembers).not.toHaveBeenCalled();
   });
 
 });
