@@ -4,9 +4,9 @@
 
 ## Post-merge verification — 25 October 2026
 
-- PR #15 (privacy, retention, and offboarding policy) and PR #16 (bounded tenant-scoped offboarding preview) are merged into `main`.
-- Main commit: `56c607bd1bd37ff1a39367b1b761ae578e40e99c`.
-- Exact-main CI run [40148200913](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40148200913) completed successfully for both Functions and frontend/emulator jobs after those merges.
+- PR #15 (privacy, retention, and offboarding policy), PR #16 (bounded tenant-scoped offboarding preview), PR #18 (readiness-document reconciliation), and PR #19 (callable inventory count) are merged into `main`.
+- Current main commit at this checkpoint: `9a5051347d84abdf728b217efeb68964f3c7fb3d`.
+- Exact-main CI run [40149058560](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40149058560) completed successfully for both Functions and frontend/emulator jobs after the latest merge.
 - The offboarding callable is a read-only preview only. It does not delete records, close accounts, configure TTL, or authorise production offboarding.
 
 Use only the separate Growth Engine Firebase project and synthetic data until every blocking control below is implemented and verified. Do not connect production AnyTrader data or enable automated outreach.
