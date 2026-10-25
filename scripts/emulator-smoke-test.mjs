@@ -304,6 +304,11 @@ try {
     leadId: leadOne.leadId,
     notes: "N".repeat(4001),
   }), "functions/invalid-argument", "oversized lead notes are rejected before mutation");
+  await expectCallableFailure(callOne("updateLeadFollowUpDate", {
+    organisationId: orgOne.organisationId,
+    leadId: leadOne.leadId,
+    followUpDate: "2026-02-30",
+  }), "functions/invalid-argument", "impossible lead follow-up dates are rejected before mutation");
   execFileSync(process.execPath, [
     "functions/scripts/assert-emulator-audit-event-count.mjs",
     orgOne.organisationId,
@@ -3041,6 +3046,7 @@ try {
     "updateLeadContact",
     "updateLeadStatus",
     "updateLeadNotes",
+    "updateLeadFollowUpDate",
     "setLeadSuppression",
     "suggestOutreachDraft",
     "createOutreachDraft",
