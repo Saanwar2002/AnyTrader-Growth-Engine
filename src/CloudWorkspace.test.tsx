@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
   currentUser: null as unknown,
   api: {
     listMyOrganisations: vi.fn(), createOrganisation: vi.fn(), updateOrganisationSettings: vi.fn(), previewOrganisationOffboarding: vi.fn(), addOrganisationMember: vi.fn(), createCampaign: vi.fn(), updateCampaignStatus: vi.fn(), updateCampaignDetails: vi.fn(),
-    listCampaigns: vi.fn(), getCampaignFunnelSummary: vi.fn(), getLeadSourceFunnelSummary: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), importLeads: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(),
+    listCampaigns: vi.fn(), getCampaignFunnelSummary: vi.fn(), getLeadSourceFunnelSummary: vi.fn(), getOnboardingCohortSummary: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), importLeads: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(),
     updateLeadNotes: vi.fn(), setLeadSuppression: vi.fn(), createOutreachDraft: vi.fn(), suggestOutreachDraft: vi.fn(), listOutreachDrafts: vi.fn(),
     updateOutreachDraft: vi.fn(), deleteOutreachDraft: vi.fn(),
   },
@@ -52,6 +52,13 @@ beforeEach(() => {
     organisationId: "org-1", campaignId: "campaign-1", totalLeadCount: 120,
     qualifiedLeadCount: 30, contactedLeadCount: 12, onboardedLeadCount: 4,
     qualifiedRatePercent: 25, onboardedRatePercent: 3.3, scope: "all_stored_campaign_leads",
+  });
+  mocks.api.getOnboardingCohortSummary.mockResolvedValue({
+    organisationId: "org-1",
+    cohorts: Array.from({ length: 12 }, (_, index) => ({ month: `2025-${String(index + 1).padStart(2, "0")}`, onboardedLeadCount: index })),
+    scope: "first_onboarding_timestamp",
+    windowMonths: 12,
+    attributionNote: "Counts use the first server-recorded onboarding timestamp. Legacy leads already onboarded before timestamp capture may be excluded; source labels remain self-declared.",
   });
   mocks.api.getLeadSourceFunnelSummary.mockResolvedValue({
     organisationId: "org-1",
@@ -914,6 +921,21 @@ describe("cloud authentication gate", () => {
     expect(await screen.findByText("Inventory incomplete — review required")).toBeTruthy();
     expect(screen.getByText(/at least 1000 records \(category cap reached\)/)).toBeTruthy();
     expect(screen.getByText(/unavailable; 3 records observed before the read failed/)).toBeTruthy();
+  });
+
+  it("loads monthly first-onboarding cohorts and discloses excluded legacy history", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load onboarding cohorts" }));
+    await waitFor(() => expect(mocks.api.getOnboardingCohortSummary).toHaveBeenCalledWith({ organisationId: "org-1" }));
+    expect(await screen.findByRole("table", { name: /First-onboarding cohorts by UTC calendar month/ })).toBeTruthy();
+    expect(screen.getByText("2025-01")).toBeTruthy();
+    expect(screen.getByText("2025-12")).toBeTruthy();
+    expect(screen.getByText(/legacy leads already onboarded before timestamp capture may be excluded/i)).toBeTruthy();
   });
 
 });

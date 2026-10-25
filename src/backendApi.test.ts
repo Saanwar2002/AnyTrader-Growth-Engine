@@ -212,3 +212,18 @@ it("requests a read-only organisation offboarding inventory for the selected ten
   expect(calls).toEqual([{ name: "previewOrganisationOffboarding", payload: { organisationId: "org-1" } }]);
   expect(response.destructiveActionPerformed).toBe(false);
 });
+
+
+it("requests server-side monthly onboarding cohorts for the selected organisation", async () => {
+  const response = {
+    organisationId: "org-1",
+    cohorts: [{ month: "2026-10", onboardedLeadCount: 4 }],
+    scope: "first_onboarding_timestamp" as const,
+    windowMonths: 12 as const,
+    attributionNote: "Legacy leads already onboarded before timestamp capture may be excluded.",
+  };
+  const { invoke, calls } = makeInvoker([response]);
+  const api = createGrowthEngineApi(invoke);
+  await expect(api.getOnboardingCohortSummary({ organisationId: "org-1" })).resolves.toEqual(response);
+  expect(calls).toEqual([{ name: "getOnboardingCohortSummary", payload: { organisationId: "org-1" } }]);
+});

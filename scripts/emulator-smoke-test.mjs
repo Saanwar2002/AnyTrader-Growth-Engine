@@ -2845,6 +2845,17 @@ try {
   ], { encoding: "utf8" }).trim();
   const originalOnboardedAt = JSON.parse(onboardingTimestampOutput).onboardedAt;
   assert.ok(Number.isFinite(Date.parse(originalOnboardedAt)), "first transition to onboarded records a valid server timestamp");
+  const onboardingCohorts = await callOne("getOnboardingCohortSummary", { organisationId: orgOne.organisationId });
+  assert.equal(onboardingCohorts.scope, "first_onboarding_timestamp");
+  assert.equal(onboardingCohorts.windowMonths, 12);
+  assert.equal(onboardingCohorts.cohorts.length, 12, "onboarding cohort summary returns twelve monthly buckets");
+  const currentUtcMonth = originalOnboardedAt.slice(0, 7);
+  assert.ok(onboardingCohorts.cohorts.find((cohort) => cohort.month === currentUtcMonth)?.onboardedLeadCount >= 1,
+    "the server aggregate includes the newly onboarded lead in the current UTC month");
+  assert.match(onboardingCohorts.attributionNote, /legacy leads already onboarded/i);
+  await expectCallableFailure(callTwo("getOnboardingCohortSummary", {
+    organisationId: orgOne.organisationId,
+  }), "functions/permission-denied", "onboarding cohort analytics rejects cross-tenant access");
   await callOne("updateLeadStatus", {
     organisationId: orgOne.organisationId,
     leadId: onboardingAttributionLead.leadId,
@@ -2869,6 +2880,7 @@ try {
     "listCampaigns",
     "getCampaignFunnelSummary",
     "getLeadSourceFunnelSummary",
+    "getOnboardingCohortSummary",
     "updateCampaignStatus",
     "updateCampaignDetails",
     "listLeads",
