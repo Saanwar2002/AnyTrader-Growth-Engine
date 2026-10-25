@@ -30,7 +30,7 @@ export interface SecurityAuditEventPage {
   nextPageToken: string | null;
   scope: "organisation_security_audit";
 }
-export type OffboardingPreviewCategory = "members" | "campaigns" | "leads" | "leadActivities" | "outreachDrafts" | "securityAuditEvents" | "campaignCreationIdempotency" | "importIdempotency" | "leadCreationIdempotency" | "outreachDraftCreationIdempotency";
+export type OffboardingPreviewCategory = "members" | "campaigns" | "leads" | "leadActivities" | "outreachDrafts" | "securityAuditEvents" | "campaignCreationIdempotency" | "importIdempotency" | "leadCreationIdempotency" | "leadBulkStatusIdempotency" | "outreachDraftCreationIdempotency";
 export interface OffboardingPreviewCategoryResult { category: OffboardingPreviewCategory; status: "complete" | "limit_reached" | "unavailable"; exactCount: number | null; observedCount: number; }
 export interface OffboardingPreviewResult { complete: boolean; destructiveActionPerformed: false; maxRecordsPerCategory: number; categories: OffboardingPreviewCategoryResult[]; }
 export interface CampaignInput { organisationId: string; idempotencyKey: string; name: string; brand: string; category: string; location: string; goal: string; }
@@ -146,6 +146,7 @@ export function createGrowthEngineApi(call: CallableInvoker) {
     importLeads: (payload: { organisationId: string; campaignId: string; idempotencyKey: string; sourceLabel?: CsvImportSourceLabel; leads: CsvImportLeadInput[] }) => call<typeof payload, CsvImportResult>("importLeads", payload),
     updateLeadContact: (payload: LeadFieldsInput & { leadId: string }) => call<typeof payload, { leadId: string; doNotContact: boolean; contactReviewStatus: "pending" | "cleared" | "blocked"; contactRestrictionVerified: boolean; contactReviewRevision: number }>("updateLeadContact", payload),
     updateLeadStatus: (payload: { organisationId: string; leadId: string; status: ServerLeadStatus }) => call<typeof payload, { leadId: string; status: ServerLeadStatus }>("updateLeadStatus", payload),
+    bulkUpdateLeadStatus: (payload: { organisationId: string; leadIds: string[]; status: ServerLeadStatus; idempotencyKey: string }) => call<typeof payload, { organisationId: string; status: ServerLeadStatus; updatedCount: number; unchangedCount: number; leadIds: string[] }>("bulkUpdateLeadStatus", payload),
     updateLeadNotes: (payload: { organisationId: string; leadId: string; notes: string }) => call<typeof payload, { leadId: string; notes: string }>("updateLeadNotes", payload),
     setLeadSuppression: (payload: { organisationId: string; leadId: string; doNotContact: boolean; contactReviewRevision?: number }) => call<typeof payload, { leadId: string; doNotContact: boolean }>("setLeadSuppression", payload),
     createOutreachDraft: (payload: { organisationId: string; leadId: string; subject: string; body: string; idempotencyKey: string }) => call<typeof payload, { draftId: string; leadId: string; campaignId: string; subject: string; body: string; status: "draft"; sent: false }>("createOutreachDraft", payload),
