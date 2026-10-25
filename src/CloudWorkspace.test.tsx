@@ -744,6 +744,7 @@ describe("cloud authentication gate", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Pause" }));
     await waitFor(() => expect(mocks.api.updateCampaignStatus).toHaveBeenCalledWith({ organisationId: "org-1", campaignId: "campaign-1", status: "paused" }));
     expect(await screen.findByText("Campaign paused.")).toBeTruthy();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Activate" })).not.toBeDisabled());
     fireEvent.click(screen.getByRole("button", { name: "Activate" }));
     await waitFor(() => expect(mocks.api.updateCampaignStatus).toHaveBeenLastCalledWith({ organisationId: "org-1", campaignId: "campaign-1", status: "active" }));
     expect(await screen.findByText("Campaign activated.")).toBeTruthy();
@@ -754,7 +755,7 @@ describe("cloud authentication gate", () => {
     mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "member" }] });
     mocks.api.listCampaigns.mockResolvedValue({ campaigns: [{ id: "campaign-1", name: "Roofing pilot", brand: "AnyTrader", category: "Roofing", location: "Leeds, UK", goal: "Recruit roofers", status: "active", createdAt: null }], hasMoreCampaigns: false, nextPageToken: null });
     render(<CloudWorkspace />);
-    expect(await screen.findByText("Roofing pilot")).toBeTruthy();
+    expect((await screen.findAllByText("Roofing pilot")).length).toBeGreaterThan(0);
     expect(screen.queryByRole("button", { name: "Pause" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Complete" })).toBeNull();
   });
