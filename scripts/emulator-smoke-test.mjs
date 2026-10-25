@@ -2993,6 +2993,7 @@ try {
     "getCampaignFunnelSummary",
     "getLeadSourceFunnelSummary",
     "getOnboardingCohortSummary",
+    "getOnboardingCohortCoverage",
     "getContactReviewQueueSummary",
     "getOrganisationPlanUsage",
     "getOrganisationPlanUsageReconciliation",
