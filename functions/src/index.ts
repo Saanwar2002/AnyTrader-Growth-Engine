@@ -700,7 +700,7 @@ export const listOrganisationSecurityAuditEvents = onCall(callableOptions, async
     if (event.organisationId !== organisationId
       || typeof event.actorUid !== "string" || !isValidDocumentId(event.actorUid)
       || typeof event.resourceId !== "string" || !isValidDocumentId(event.resourceId)
-      || typeof eventType !== "string" || !(eventType in AUDIT_EVENT_RESOURCE_TYPES)
+      || typeof eventType !== "string" || !Object.prototype.hasOwnProperty.call(AUDIT_EVENT_RESOURCE_TYPES, eventType)
       || typeof resourceType !== "string"
       || AUDIT_EVENT_RESOURCE_TYPES[eventType as SecurityAuditEventType] !== resourceType
       || event.outcome !== "success"
