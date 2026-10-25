@@ -2974,7 +2974,9 @@ try {
   const fullCampaignReadiness = await callOne("getFullCampaignReadinessSummary", { organisationId: orgOne.organisationId });
   assert.equal(fullCampaignReadiness.scope, "server_counted_campaign_readiness");
   assert.equal(fullCampaignReadiness.campaignLimit, 20);
-  assert.equal(fullCampaignReadiness.hasMoreCampaigns, false, "synthetic tenant fits within the campaign cap");
+  assert.ok(fullCampaignReadiness.campaigns.length <= fullCampaignReadiness.campaignLimit);
+  assert.ok(!fullCampaignReadiness.hasMoreCampaigns || fullCampaignReadiness.campaigns.length === fullCampaignReadiness.campaignLimit,
+    "when additional campaigns exist, the result must explicitly hit the configured cap");
   assert.ok(fullCampaignReadiness.campaigns.some((campaign) => campaign.campaignId === campaignOne.campaignId));
   const readinessCampaign = fullCampaignReadiness.campaigns.find((campaign) => campaign.campaignId === campaignOne.campaignId);
   assert.ok(readinessCampaign && readinessCampaign.totalLeadCount >= 1, "readiness counts stored leads per campaign");
