@@ -1948,6 +1948,10 @@ try {
   await expectCallableFailure(callOne("getLeadSourceFunnelSummary", {
     organisationId: orgTwo.organisationId,
   }), "functions/permission-denied", "source analytics rejects another tenant before revealing aggregate counts");
+  await expectCallableFailure(callOne("getOnboardingCohortSummary", {
+    organisationId: orgTwo.organisationId,
+    months: 3,
+  }), "functions/permission-denied", "onboarding cohort analytics rejects another tenant before revealing counts");
   await expectCallableFailure(callTwo("updateCampaignDetails", {
     organisationId: orgOne.organisationId, campaignId: campaignOne.campaignId,
     name: "Cross tenant", brand: "Test Brand", category: "Roofing", location: "Leeds, UK", goal: "",
@@ -2857,6 +2861,17 @@ try {
     "rejected",
     originalOnboardedAt,
   ], { stdio: "inherit" });
+  const onboardingCohorts = await callOne("getOnboardingCohortSummary", {
+    organisationId: orgOne.organisationId,
+    months: 3,
+  });
+  assert.equal(onboardingCohorts.scope, "all_stored_organisation_leads");
+  assert.equal(onboardingCohorts.monthlyOnboardings.length, 3);
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  const currentCohort = onboardingCohorts.monthlyOnboardings.find((row) => row.month === currentMonth);
+  assert.ok(currentCohort && currentCohort.count >= 1, "cohort count retains a lead after its current status changes from onboarded");
+  assert.ok(Number.isSafeInteger(onboardingCohorts.legacyUnattributedCurrentOnboardedLeadCount));
+  assert.match(onboardingCohorts.coverageNote, /no historical dates are inferred/);
 
   await signOut(first.auth);
   const unauthenticatedCallableNames = [
@@ -2869,6 +2884,7 @@ try {
     "listCampaigns",
     "getCampaignFunnelSummary",
     "getLeadSourceFunnelSummary",
+    "getOnboardingCohortSummary",
     "updateCampaignStatus",
     "updateCampaignDetails",
     "listLeads",
