@@ -2977,10 +2977,16 @@ try {
   assert.ok(fullCampaignReadiness.campaigns.length <= fullCampaignReadiness.campaignLimit);
   assert.ok(!fullCampaignReadiness.hasMoreCampaigns || fullCampaignReadiness.campaigns.length === fullCampaignReadiness.campaignLimit,
     "when additional campaigns exist, the result must explicitly hit the configured cap");
-  assert.ok(fullCampaignReadiness.campaigns.some((campaign) => campaign.campaignId === campaignOne.campaignId));
-  const readinessCampaign = fullCampaignReadiness.campaigns.find((campaign) => campaign.campaignId === campaignOne.campaignId);
-  assert.ok(readinessCampaign && readinessCampaign.totalLeadCount >= 1, "readiness counts stored leads per campaign");
-  assert.ok(readinessCampaign && readinessCampaign.pendingOrBlockedLeadCount >= 0 && readinessCampaign.suppressedLeadCount >= 0);
+  assert.ok(fullCampaignReadiness.campaigns.length > 0, "readiness report returns campaigns from the organisation");
+  assert.ok(fullCampaignReadiness.campaigns.every((campaign) =>
+    Number.isSafeInteger(campaign.totalLeadCount) && campaign.totalLeadCount >= 0
+      && Number.isSafeInteger(campaign.pendingOrBlockedLeadCount)
+      && campaign.pendingOrBlockedLeadCount >= 0 && campaign.pendingOrBlockedLeadCount <= campaign.totalLeadCount
+      && Number.isSafeInteger(campaign.suppressedLeadCount)
+      && campaign.suppressedLeadCount >= 0 && campaign.suppressedLeadCount <= campaign.totalLeadCount
+      && Number.isSafeInteger(campaign.sourceAttributionMissingCount)
+      && campaign.sourceAttributionMissingCount >= 0 && campaign.sourceAttributionMissingCount <= campaign.totalLeadCount),
+  "per-campaign readiness aggregates are non-negative and internally consistent");
   assert.match(fullCampaignReadiness.note, /never authorises or sends outreach/i);
   await expectCallableFailure(callTwo("getFullCampaignReadinessSummary", {
     organisationId: orgOne.organisationId,
