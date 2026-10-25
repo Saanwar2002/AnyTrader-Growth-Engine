@@ -39,7 +39,7 @@ describe("callable security contract", () => {
     expect(campaignCallable).toContain("resolvePlanUsageState(organisationData.planUsage, new Date())");
     expect(campaignCallable).toContain('reservePlanUsage(planResolutionForQuota.plan, usageStateForQuota.state, "campaigns")');
     expect(campaignCallable).toContain('new HttpsError("resource-exhausted"');
-    expect(campaignCallable).toContain("transaction.update(organisationRef, { planUsage: reservation.state })");
+    expect(campaignCallable).toContain("transaction.update(organisationRef, { planUsage: reservedPlanUsageState })");
     expect(campaignCallable.indexOf("transaction.update(organisationRef, { planUsage: reservation.state })"))
       .toBeLessThan(campaignCallable.indexOf("transaction.create(campaign,"));
     expect(campaignCallable).toContain("Legacy organisations without a usage snapshot remain on the compatibility");
