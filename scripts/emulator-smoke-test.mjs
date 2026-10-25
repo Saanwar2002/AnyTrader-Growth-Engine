@@ -62,8 +62,6 @@ try {
   assert.equal(initialPlanUsage.usage.campaigns, 0);
   assert.equal(initialPlanUsage.remaining.monthlyAiSuggestions, 50);
   assert.equal(initialPlanUsage.plan.displayName, "Pilot");
-  await expectCallableFailure(callTwo("getOrganisationPlanUsage", { organisationId: orgOne.organisationId }),
-    "functions/permission-denied", "plan usage summary rejects users without tenant membership");
   const offboardingPreview = await callOne("previewOrganisationOffboarding", { organisationId: orgOne.organisationId });
   assert.equal(offboardingPreview.destructiveActionPerformed, false, "offboarding preview never deletes data");
   assert.equal(offboardingPreview.complete, true, "synthetic tenant preview completes within the category caps");
@@ -1949,6 +1947,20 @@ try {
   await expectCallableFailure(callTwo("listLeads", { organisationId: orgOne.organisationId }), "functions/permission-denied", "cross-tenant lead listing denial");
   await expectCallableFailure(callTwo("previewOrganisationOffboarding", { organisationId: orgOne.organisationId }), "functions/permission-denied", "cross-tenant offboarding preview denial");
   const orgTwo = await callTwo("createOrganisation", { name: "Tenant Two", idempotencyKey: "organisation-create-tenant-two-0001" });
+  const memberRoster = await callOne("listOrganisationMembers", { organisationId: orgOne.organisationId });
+  assert.equal(memberRoster.scope, "organisation_member_roster");
+  assert.equal(memberRoster.hasMoreMembers, false);
+  assert.ok(memberRoster.members.some((member) => member.uid === first.auth.currentUser.uid && member.role === "owner"),
+    "owner roster includes the authoritative owner membership");
+  assert.ok(memberRoster.members.some((member) => member.uid === first.auth.currentUser.uid && member.email === first.auth.currentUser.email),
+    "roster resolves current email from Firebase Auth");
+  await expectCallableFailure(callTwo("listOrganisationMembers", {
+    organisationId: orgOne.organisationId,
+  }), "functions/permission-denied", "cross-tenant member roster access is denied");
+
+  await expectCallableFailure(callTwo("getOrganisationPlanUsage", { organisationId: orgOne.organisationId }),
+    "functions/permission-denied", "plan usage summary rejects users without tenant membership");
+
   await expectCallableFailure(callOne("getCampaignFunnelSummary", {
     organisationId: orgTwo.organisationId,
     campaignId: campaignOne.campaignId,
