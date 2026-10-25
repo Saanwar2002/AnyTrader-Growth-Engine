@@ -1,3 +1,14 @@
+## AutoPilot run — lead follow-up queue (2026-10-25)
+
+- Added a loaded-record follow-up queue filter for overdue, due today, upcoming, unscheduled, and malformed legacy date values.
+- Date-only values are compared lexically only after strict real-calendar-date validation, using an explicit UTC calendar day; no local timezone conversion can shift a follow-up across days.
+- Queue counts and the directory state that they cover loaded leads only. The matching filter is applied to both loaded-list filtering and the existing bounded all-record CSV export. Invalid legacy dates are kept visible in an explicit unclassified bucket.
+- Added unit tests for UTC boundaries and invalid dates, plus a UI regression covering overdue filtering and clearing filters.
+- No reminder notifications, automated outreach, server mutations, production Firebase configuration, or billing were added.
+- Next: wait for the exact combined-main CI run after PR #110, then verify this branch's typecheck, tests, production build, Functions checks, and emulator smoke tests before review/merge.
+
+---
+
 ## AutoPilot run — campaign lifecycle controls (2026-10-25)
 
 - Exposed existing server-enforced campaign status transitions in the cloud workspace: pause, activate, and complete.

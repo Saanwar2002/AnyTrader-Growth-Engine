@@ -2022,6 +2022,50 @@ describe("cloud authentication gate", () => {
     expect(await screen.findByText("Follow-up due 2026-11-04")).toBeTruthy();
   });
 
+
+
+  it("filters the loaded lead directory into a follow-up queue with UTC day boundaries", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    mocks.api.listCampaigns.mockResolvedValue({ campaigns: [] });
+    const today = new Date().toISOString().slice(0, 10);
+    const shiftUtcDay = (offset: number) => {
+      const date = new Date(`${today}T00:00:00.000Z`);
+      date.setUTCDate(date.getUTCDate() + offset);
+      return date.toISOString().slice(0, 10);
+    };
+    const makeLead = (id: string, businessName: string, followUpDate: string | null) => ({
+      id, campaignId: "campaign-1", businessName, category: "Painters", location: "Edinburgh",
+      website: "", email: "", phone: "", source: "manual", status: "qualified" as const,
+      score: 30, scoreReasons: [], notes: "", doNotContact: true, contactRestrictionVerified: false,
+      contactReviewStatus: "pending" as const, contactReviewRevision: 0, onboardedAt: null,
+      followUpDate, createdAt: null,
+    });
+    mocks.api.listLeads.mockResolvedValue({
+      leads: [
+        makeLead("overdue", "Overdue Painter", shiftUtcDay(-1)),
+        makeLead("today", "Today Painter", today),
+        makeLead("upcoming", "Upcoming Painter", shiftUtcDay(1)),
+        makeLead("unscheduled", "Unscheduled Painter", null),
+      ],
+      hasMoreLeads: false,
+      nextPageToken: null,
+    });
+    render(<CloudWorkspace />);
+    expect(await screen.findByText("Showing 4 of 4 loaded leads.")).toBeTruthy();
+    fireEvent.change(screen.getByRole("combobox", { name: "Filter by follow-up" }), { target: { value: "overdue" } });
+    expect(await screen.findByText("Showing 1 of 4 loaded leads.")).toBeTruthy();
+    expect(screen.getByText("Overdue Painter")).toBeTruthy();
+    expect(screen.queryByText("Today Painter")).toBeNull();
+    expect(screen.queryByText("Upcoming Painter")).toBeNull();
+    expect(screen.queryByText("Unscheduled Painter")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(await screen.findByText("Showing 4 of 4 loaded leads.")).toBeTruthy();
+  });
+
   it("loads server-counted campaign readiness and discloses the bounded campaign scope", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({
