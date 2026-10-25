@@ -153,6 +153,15 @@ describe("callable security contract", () => {
     );
   });
 
+  it("validates bulk lead status idempotency replay counts and requested IDs", () => {
+    const start = callableSource.indexOf("export const bulkUpdateLeadStatus =");
+    const end = callableSource.indexOf("export const updateLeadStatus =", start);
+    const callable = callableSource.slice(start, end);
+    expect(callable).toContain("getValidBulkLeadStatusReplayResult(saved.result, { organisationId, status, leadIds })");
+    expect(callable).toContain('saved.requestHash !== requestHash || saved.actorUid !== uid');
+    expect(callable).toContain('new HttpsError("failed-precondition"');
+  });
+
   it("validates outreach-draft idempotency replay actor, payload, and persisted ownership", () => {
     const start = callableSource.indexOf("export const createOutreachDraft =");
     const end = callableSource.indexOf("export const suggestOutreachDraft =", start);
