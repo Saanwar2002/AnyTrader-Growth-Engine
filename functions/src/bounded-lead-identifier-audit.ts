@@ -30,6 +30,33 @@ export interface BoundedLeadAuditResult {
 }
 
 /**
+ * Copy a record's audit-relevant fields into a plain snapshot before analysis.
+ * Adapter objects may contain getters or proxies; reading a field must not be
+ * allowed to escape the coordinator's fail-closed validation boundary.
+ */
+function snapshotAuditRecord(value: unknown): LegacyLeadRecord {
+  try {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      throw new Error("invalid record shape");
+    }
+    const record = value as Record<string, unknown>;
+    const id = record.id;
+    if (typeof id !== "string" || !id.trim()) {
+      throw new Error("invalid record id");
+    }
+    return {
+      id,
+      email: record.email,
+      website: record.website,
+      dedupeEmailKey: record.dedupeEmailKey,
+      dedupeWebsiteKey: record.dedupeWebsiteKey,
+    };
+  } catch {
+    throw new Error("Lead audit page adapter returned a malformed record.");
+  }
+}
+
+/**
  * Reads a tenant-scoped, explicitly bounded set of pages and audits it in
  * memory. This coordinator has no write callback and cannot backfill records.
  */
@@ -71,16 +98,19 @@ export async function runBoundedLeadIdentifierAudit(
     if (page.records.length > Math.min(options.pageSize, remaining)) {
       throw new Error("Lead audit page exceeded the requested page limit.");
     }
-    if (page.records.some((record) => (
-      !record
-      || typeof record !== "object"
-      || Array.isArray(record)
-      || typeof record.id !== "string"
-      || !record.id.trim()
-    ))) {
+
+    let pageRecords: LegacyLeadRecord[];
+    try {
+      // Index-based copying also rejects sparse arrays instead of passing holes
+      // to the analyzer as undefined records.
+      pageRecords = [];
+      for (let index = 0; index < page.records.length; index += 1) {
+        pageRecords.push(snapshotAuditRecord(page.records[index]));
+      }
+    } catch {
       throw new Error("Lead audit page adapter returned a malformed record.");
     }
-    records.push(...page.records);
+    records.push(...pageRecords);
 
     const nextCursor = page.nextCursor || undefined;
     if (page.records.length === 0 && nextCursor) {
