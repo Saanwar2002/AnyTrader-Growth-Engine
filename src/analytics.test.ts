@@ -101,5 +101,5 @@ it("serializes full server-side campaign funnel counts with an explicit all-stor
     contactedLeadCount: 20, onboardedLeadCount: 8, qualifiedRatePercent: 25, onboardedRatePercent: 6.7,
   }]);
   expect(csv).toContain("All stored campaign leads,\"Roofers, \"\"North\"\"\",120,30,20,8,25.0,6.7");
-  expect(csv.startsWith("Scope,Campaign,All stored leads,Qualified,Contacted,Onboarded,Qualified rate (%),Onboarded rate (%)\\r\\n")).toBe(true);
+  expect(csv.startsWith("Scope,Campaign,All stored leads,Qualified,Contacted,Onboarded,Qualified rate (%),Onboarded rate (%)\r\n")).toBe(true);
 });
