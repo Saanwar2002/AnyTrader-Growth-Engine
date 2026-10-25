@@ -604,6 +604,48 @@ export const listOrganisationMembers = onCall(callableOptions, async (request) =
   };
 });
 
+export const listOrganisationMembers = onCall(callableOptions, async (request) => {
+  const uid = requireUid(request.auth?.uid);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const organisationId = requireOrganisationId(data.organisationId);
+  const pageSize = data.pageSize === undefined ? 50 : data.pageSize;
+  const pageToken = data.pageToken;
+  if (!Number.isInteger(pageSize) || (pageSize as number) < 1 || (pageSize as number) > 100) {
+    throw new HttpsError("invalid-argument", "pageSize must be an integer between 1 and 100.");
+  }
+  if (pageToken !== undefined && (typeof pageToken !== "string" || !/^[A-Za-z0-9_-]{1,2048}$/.test(pageToken))) {
+    throw new HttpsError("invalid-argument", "pageToken is invalid.");
+  }
+
+  const membership = await requireMembership(organisationId, uid);
+  if (membership.role !== "owner" && membership.role !== "admin") {
+    throw new HttpsError("permission-denied", "Only organisation owners and admins can view the member roster.");
+  }
+  await consumeReadRateLimit(organisationId, uid, "listOrganisationMembers", 60);
+
+  let query = db.collection("organisations").doc(organisationId).collection("members")
+    .orderBy(FieldPath.documentId()).limit((pageSize as number) + 1);
+  if (typeof pageToken === "string") query = query.startAfter(pageToken);
+  const snapshot = await query.get();
+  const hasMoreMembers = snapshot.docs.length > (pageSize as number);
+  const page = snapshot.docs.slice(0, pageSize as number);
+  const members = page.map((document) => {
+    const value = document.data();
+    return {
+      uid: document.id,
+      role: value.role,
+      createdAt: value.createdAt?.toDate?.()?.toISOString?.() ?? null,
+      createdBy: typeof value.createdBy === "string" ? value.createdBy : null,
+    };
+  });
+  return {
+    organisationId,
+    members,
+    hasMoreMembers,
+    nextPageToken: hasMoreMembers ? page[page.length - 1]?.id ?? null : null,
+  };
+});
+
 export const addOrganisationMember = onCall(callableOptions, async (request) => {
   const uid = requireUid(request.auth?.uid);
   const data = (request.data ?? {}) as Record<string, unknown>;
