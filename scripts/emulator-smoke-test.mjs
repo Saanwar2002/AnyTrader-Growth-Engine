@@ -3033,6 +3033,7 @@ try {
     "updateLeadContact",
     "updateLeadStatus",
     "updateLeadNotes",
+    "updateLeadFollowUpDate",
     "setLeadSuppression",
     "suggestOutreachDraft",
     "createOutreachDraft",
