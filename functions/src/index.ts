@@ -7,6 +7,8 @@ import { generateAiOutreachDraftSuggestion } from "./ai-outreach-draft";
 import * as logger from "firebase-functions/logger";
 import { canonicalLeadBusinessLocationKey, canonicalLeadEmailKey, canonicalLeadWebsiteKey } from "./lead-identifiers";
 import { createOffboardingPreview, OFFBOARDING_PREVIEW_CATEGORIES } from "./offboarding-preview";
+import { PILOT_PLAN } from "./entitlements";
+import { currentAiUsagePeriod } from "./usage-accounting";
 import {
   calculateLeadCompleteness,
   canChangeSuppression,
@@ -426,6 +428,8 @@ export const createOrganisation = onCall(callableOptions, async (request) => {
   const organisation = db.collection("organisations").doc();
   const membership = organisation.collection("members").doc(uid);
   const result = { organisationId: organisation.id, name, role: "owner" as const };
+  const aiUsagePeriod = currentAiUsagePeriod(new Date());
+  if (!aiUsagePeriod) throw new HttpsError("internal", "Could not initialise organisation usage accounting.");
 
   return db.runTransaction(async (transaction: Transaction) => {
     const idempotencySnapshot = await transaction.get(idempotencyRef);
@@ -454,7 +458,20 @@ export const createOrganisation = onCall(callableOptions, async (request) => {
     }
 
     await consumeTransactionalRateLimit(transaction, "global", uid, "createOrganisation", 5, 60 * 60_000);
-    transaction.create(organisation, { name, ownerUid: uid, createdAt: FieldValue.serverTimestamp() });
+    transaction.create(organisation, {
+      name,
+      ownerUid: uid,
+      planId: PILOT_PLAN.id,
+      planUsage: {
+        schemaVersion: 1,
+        campaigns: 0,
+        leads: 0,
+        members: 1,
+        monthlyAiSuggestions: 0,
+        aiUsagePeriod,
+      },
+      createdAt: FieldValue.serverTimestamp(),
+    });
     transaction.create(membership, { uid, role: "owner", createdAt: FieldValue.serverTimestamp() });
     transaction.create(idempotencyRef, {
       requestHash,
