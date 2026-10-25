@@ -138,8 +138,6 @@ describe("serializeFullLeadSourceFunnelCsv", () => {
 });
 
 
-import { serializeOnboardingCohortCsv, serializeCampaignPerformanceCsv, serializeFullCampaignFunnelCsv } from "./analytics";
-
 describe("analytics CSV spreadsheet formula safety", () => {
   it("neutralises formulas in loaded and full campaign names", () => {
     const loaded = serializeCampaignPerformanceCsv([{
@@ -157,7 +155,8 @@ describe("analytics CSV spreadsheet formula safety", () => {
     expect(full).toContain("'+SUM(A1:A2)");
   });
 
-  it("neutralises formula-like attribution notes in cohort exports", () => {
+  it("neutralises formula-like attribution notes in cohort exports", async () => {
+    const { serializeOnboardingCohortCsv } = await import("./analytics");
     const csv = serializeOnboardingCohortCsv([{ month: "2026-10", onboardedLeadCount: 2 }], "@SUM(A1)");
     expect(csv).toContain("'@SUM(A1)");
   });
