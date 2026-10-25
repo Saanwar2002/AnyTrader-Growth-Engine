@@ -1,3 +1,12 @@
+## AutoPilot run — organisation settings (2026-10-25)
+
+- Added an owner/admin-only organisation display-name update callable and cloud workspace form.
+- The update revalidates tenant membership and role inside the transaction, applies a per-organisation/user mutation quota, and writes an allowlisted audit event only when the name changes. Identical-name saves are no-ops.
+- Added unauthenticated-callable inventory, source-contract, emulator persistence/cross-tenant denial, and UI coverage.
+- Next feature priority: plan/entitlement scaffolding and durable server-side attribution aggregates. Billing remains deferred until entitlements are tested; production deployment remains blocked on dedicated Firebase/App Check and operational controls.
+
+---
+
 ## AutoPilot run — source attribution analytics (2026-10-25)
 
 - Added a loaded-record summary grouped by user-declared CSV source label, with qualified/onboarded counts and rates.

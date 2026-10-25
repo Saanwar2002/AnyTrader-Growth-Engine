@@ -11,6 +11,7 @@ const expectedRateLimitType: Record<string, "read" | "mutation"> = {
   listMyOrganisations: "read",
   previewOrganisationOffboarding: "read",
   createOrganisation: "mutation",
+  updateOrganisationSettings: "mutation",
   createCampaign: "mutation",
   listCampaigns: "read",
   updateCampaignStatus: "mutation",
@@ -97,6 +98,7 @@ describe("callable security contract", () => {
     expect(auditCalls.length).toBe(12);
     for (const [eventType, resourceType] of [
       ["organisation.created", "organisation"],
+      ["organisation.settings_updated", "organisation"],
       ["lead.csv_import.completed", "campaign"],
       ["lead.contact_updated", "lead"],
       ["lead.contact_restriction_changed", "lead"],

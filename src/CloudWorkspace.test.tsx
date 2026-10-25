@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
   authListener: vi.fn(),
   currentUser: null as unknown,
   api: {
-    listMyOrganisations: vi.fn(), createOrganisation: vi.fn(), createCampaign: vi.fn(), updateCampaignStatus: vi.fn(),
+    listMyOrganisations: vi.fn(), createOrganisation: vi.fn(), updateOrganisationSettings: vi.fn(), createCampaign: vi.fn(), updateCampaignStatus: vi.fn(),
     listCampaigns: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), importLeads: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(),
     updateLeadNotes: vi.fn(), setLeadSuppression: vi.fn(), createOutreachDraft: vi.fn(), suggestOutreachDraft: vi.fn(), listOutreachDrafts: vi.fn(),
     updateOutreachDraft: vi.fn(), deleteOutreachDraft: vi.fn(),
@@ -699,6 +699,19 @@ describe("cloud authentication gate", () => {
     expect(screen.getByText(/Possible duplicate: email matches loaded lead/)).toBeTruthy();
     expect(screen.getByText("Fresh Decorators")).toBeTruthy();
     expect(mocks.api.importLeads).not.toHaveBeenCalled();
+  });
+
+
+  it("lets an owner rename the selected workspace through the server API", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
+    render(<CloudWorkspace />);
+    const nameInput = await screen.findByLabelText("Organisation display name");
+    fireEvent.change(nameInput, { target: { value: "Renamed Workspace" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save workspace settings" }));
+    await waitFor(() => expect(mocks.api.updateOrganisationSettings).toHaveBeenCalledWith({ organisationId: "org-1", name: "Renamed Workspace" }));
+    expect(await screen.findByText("Organisation settings saved.")).toBeTruthy();
+    expect(await screen.findByRole("option", { name: "Renamed Workspace · owner" })).toBeTruthy();
   });
 
 });
