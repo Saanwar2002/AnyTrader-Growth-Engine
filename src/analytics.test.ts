@@ -265,3 +265,32 @@ describe("summarizeCampaignReadiness", () => {
   });
 
 });
+
+
+describe("serializeLeadCompletenessCsv", () => {
+  it("exports all-tenant score bands and clearly states that completeness is not quality", async () => {
+    const { serializeLeadCompletenessCsv } = await import("./analytics");
+    const csv = serializeLeadCompletenessCsv({
+      totalLeadCount: 9,
+      lowCount: 2,
+      mediumCount: 3,
+      highCount: 3,
+      unclassifiedCount: 1,
+      note: "Completeness is not a quality, consent, or contactability guarantee.",
+    });
+    expect(csv).toContain("All stored organisation leads");
+    expect(csv).toContain('"Low (0–39)"');
+    expect(csv).toContain('"Unclassified","1"');
+    expect(csv).toContain("not a quality, consent, or contactability guarantee");
+    expect(csv.split("\\r\\n")).toHaveLength(7);
+  });
+
+  it("protects spreadsheet formulas in report notes", async () => {
+    const { serializeLeadCompletenessCsv } = await import("./analytics");
+    const csv = serializeLeadCompletenessCsv({
+      totalLeadCount: 1, lowCount: 0, mediumCount: 0, highCount: 1, unclassifiedCount: 0,
+      note: "=HYPERLINK(\"https://evil.test\")",
+    });
+    expect(csv).toContain('"\'=HYPERLINK(""https://evil.test"")"');
+  });
+});
