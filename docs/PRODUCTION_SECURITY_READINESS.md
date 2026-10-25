@@ -2,6 +2,13 @@
 
 **Status: NOT READY for public production deployment.**
 
+## Post-merge verification — 25 October 2026
+
+- PR #15 (privacy, retention, and offboarding policy) and PR #16 (bounded tenant-scoped offboarding preview) are merged into `main`.
+- Main commit: `56c607bd1bd37ff1a39367b1b761ae578e40e99c`.
+- Exact-main CI run [40148200913](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40148200913) completed successfully for both Functions and frontend/emulator jobs after those merges.
+- The offboarding callable is a read-only preview only. It does not delete records, close accounts, configure TTL, or authorise production offboarding.
+
 Use only the separate Growth Engine Firebase project and synthetic data until every blocking control below is implemented and verified. Do not connect production AnyTrader data or enable automated outreach.
 
 ## Verified development controls
@@ -17,17 +24,17 @@ Use only the separate Growth Engine Firebase project and synthetic data until ev
 
 These checks support development readiness only; they do not establish production readiness.
 
-## Blocking: Firebase App Check
+## Blocking: live Firebase App Check verification
 
-The audit found 16 callable exports and no `enforceAppCheck` options in `functions/src/index.ts`. App Check is not currently enforced.
+**Code-level enforcement is implemented; live project verification remains incomplete.** The callable exports in `functions/src/index.ts` use `enforceAppCheck` for deployed runtimes, with the emulator-only exception guarded by `FUNCTIONS_EMULATOR`. The frontend requires its public App Check site key before entering cloud mode and initialises the reCAPTCHA v3 provider with automatic token refresh. These code and emulator checks do not prove that a dedicated Firebase project or live attestation flow is configured correctly.
 
 - [ ] Create the separate Growth Engine Firebase project.
 - [ ] Register each supported app with Firebase App Check and configure the appropriate production provider.
-- [x] Add `enforceAppCheck` to all 16 callable exports for deployed runtimes; the explicit `FUNCTIONS_EMULATOR` exception exists only for local emulator tests.
+- [x] Add `enforceAppCheck` to all callable exports for deployed runtimes; the explicit `FUNCTIONS_EMULATOR` exception exists only for local emulator tests.
 - [x] Require the web App Check site key before the frontend enters cloud mode and initialise the reCAPTCHA v3 provider with automatic token refresh.
 - [ ] Configure the dedicated project, register the app/provider and authorised domains, then verify valid client tokens against deployed or production-like Functions before enabling cloud mode.
 - [ ] In a production-like environment, verify missing/invalid tokens are rejected and valid tokens work; source-contract and emulator tests do not prove live attestation.
-- [ ] Retain authentication, authorisation, and tenant-isolation checks; App Check does not replace them.
+- [x] Retain authentication, authorisation, and tenant-isolation checks independently of App Check.
 
 ## Abuse monitoring and cost controls
 

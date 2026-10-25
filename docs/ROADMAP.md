@@ -31,7 +31,9 @@
 - [x] Add emulator-backed tests for unauthenticated requests, non-member access, role escalation, and cross-tenant isolation; continue adding targeted regressions as new workflows are introduced.
 - [x] Scaffold environment-gated Firebase client setup and a typed callable API adapter with unit tests.
 - [x] Connect core organisation, campaign, lead, suppression, and draft workflows through the typed API adapter; keep local demo mode separate.
-- [ ] Complete App Check strategy/enforcement, durable audit-event policy, and safe error-handling review before external exposure; rate limiting is implemented with provisional quotas.
+- [x] Add deployed-runtime App Check enforcement to callable exports and require frontend App Check configuration before cloud mode; live token validation in the dedicated Firebase project remains blocked on project setup.
+- [x] Document the proposed audit-event retention/access policy and privacy/offboarding safeguards; production TTL and deletion remain blocked pending legal/privacy review.
+- [ ] Complete live App Check token validation, operational monitoring/budget alerts, and safe error-handling review before external exposure; rate limits remain provisional.
 
 ## Phase 3 — Complete persisted workflows
 
