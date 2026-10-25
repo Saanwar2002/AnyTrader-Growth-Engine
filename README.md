@@ -116,3 +116,8 @@ Firebase CLI deployments are blocked unless `GROWTH_ENGINE_FIREBASE_PROJECT_ID` 
 ## Privacy, retention, and offboarding
 
 See [`docs/PRIVACY_DATA_RETENTION_AND_OFFBOARDING.md`](./docs/PRIVACY_DATA_RETENTION_AND_OFFBOARDING.md) for the proposed data inventory, retention decisions, tenant-scoped dry-run-first offboarding workflow, and release acceptance criteria. This is a specification only: destructive offboarding, production TTL, and account deletion are not implemented or authorised.
+
+
+## Tenant offboarding preview
+
+See [`docs/TENANT_OFFBOARDING_PREVIEW.md`](docs/TENANT_OFFBOARDING_PREVIEW.md) for the owner-only, bounded, non-destructive inventory callable and its explicit limitations. No deletion or production retention policy is enabled.

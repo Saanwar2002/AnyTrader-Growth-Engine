@@ -1,9 +1,10 @@
 import { createHash } from "node:crypto";
 import { initializeApp } from "firebase-admin/app";
-import { FieldValue, Timestamp, getFirestore, type QueryDocumentSnapshot, type Transaction } from "firebase-admin/firestore";
+import { FieldPath, FieldValue, Timestamp, getFirestore, type QueryDocumentSnapshot, type Transaction } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { canonicalLeadBusinessLocationKey, canonicalLeadEmailKey, canonicalLeadWebsiteKey } from "./lead-identifiers";
+import { createOffboardingPreview, OFFBOARDING_PREVIEW_CATEGORIES } from "./offboarding-preview";
 import {
   calculateLeadCompleteness,
   canChangeSuppression,
@@ -351,6 +352,50 @@ export const listMyOrganisations = onCall(callableOptions, async (request) => {
     nextPageToken: hasMoreOrganisations ? page[page.length - 1]?.ref.path ?? null : null,
   };
 });
+
+export const previewOrganisationOffboarding = onCall(
+  { enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true" },
+  async (request) => {
+    const uid = requireUid(request.auth?.uid);
+    const data = (request.data ?? {}) as Record<string, unknown>;
+    const organisationId = requireOrganisationId(data.organisationId);
+    const membership = await requireMembership(organisationId, uid);
+    if (membership.role !== "owner") {
+      throw new HttpsError("permission-denied", "Only the organisation owner can preview offboarding.");
+    }
+    await consumeReadRateLimit(organisationId, uid, "previewOrganisationOffboarding", 10);
+
+    const preview = await createOffboardingPreview(async (category, afterId, limit) => {
+      // category is a compile-time allow-listed literal; never accept collection
+      // names from request data.
+      if (!(OFFBOARDING_PREVIEW_CATEGORIES as readonly string[]).includes(category)) {
+        throw new HttpsError("failed-precondition", "Offboarding preview category is not allow-listed.");
+      }
+      let query = db.collection("organisations").doc(organisationId)
+        .collection(category)
+        .orderBy(FieldPath.documentId())
+        .limit(limit);
+      if (afterId !== null) query = query.startAfter(afterId);
+      const page = await query.get();
+      return { ids: page.docs.map((document) => document.id) };
+    });
+
+    // Recheck access after the inventory read so a mid-preview membership
+    // revocation or role change cannot receive the accumulated counts.
+    const finalMembership = await requireMembership(organisationId, uid);
+    if (finalMembership.role !== "owner") {
+      throw new HttpsError("permission-denied", "Only the organisation owner can preview offboarding.");
+    }
+
+    return {
+      complete: preview.complete,
+      destructiveActionPerformed: false,
+      maxRecordsPerCategory: preview.maxRecordsPerCategory,
+      categories: preview.categories,
+    };
+  },
+);
+
 
 export const createOrganisation = onCall(callableOptions, async (request) => {
   const uid = requireUid(request.auth?.uid);
