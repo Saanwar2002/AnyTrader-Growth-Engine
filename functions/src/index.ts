@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 import { initializeApp } from "firebase-admin/app";
 import { FieldPath, FieldValue, Timestamp, getFirestore, type QueryDocumentSnapshot, type Transaction } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
+import { defineSecret } from "firebase-functions/params";
+import { generateAiOutreachDraftSuggestion } from "./ai-outreach-draft";
 import * as logger from "firebase-functions/logger";
 import { canonicalLeadBusinessLocationKey, canonicalLeadEmailKey, canonicalLeadWebsiteKey } from "./lead-identifiers";
 import { createOffboardingPreview, OFFBOARDING_PREVIEW_CATEGORIES } from "./offboarding-preview";
@@ -36,6 +38,7 @@ import {
 
 initializeApp();
 const db = getFirestore();
+const geminiApiKey = defineSecret("GEMINI_API_KEY");
 
 // The Functions emulator has no production App Check attestation. Every deployed
 // callable requires App Check; only the local emulator receives this explicit bypass.
@@ -1248,6 +1251,50 @@ export const createOutreachDraft = onCall(callableOptions, async (request) => {
     writeSecurityAuditEvent(transaction, organisationId, uid, "outreach_draft.created", "outreachDraft", draft.id, { draftAction: "created" });
     return result;
   });
+});
+
+export const suggestOutreachDraft = onCall({ enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true", secrets: [geminiApiKey], timeoutSeconds: 30 }, async (request) => {
+  const uid = requireUid(request.auth?.uid);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const organisationId = requireOrganisationId(data.organisationId);
+  const leadId = requireDocumentId(data.leadId, "leadId");
+  await requireLeadEditor(organisationId, uid);
+  let apiKey = "";
+  try { apiKey = geminiApiKey.value(); } catch { /* secret is not configured in this environment */ }
+  if (!apiKey.trim()) throw new HttpsError("failed-precondition", "AI draft assistance is not configured. An operator must configure the GEMINI_API_KEY secret.");
+
+  const organisationRef = db.collection("organisations").doc(organisationId);
+  const [organisationSnapshot, leadSnapshot] = await Promise.all([
+    organisationRef.get(), organisationRef.collection("leads").doc(leadId).get(),
+  ]);
+  if (!organisationSnapshot.exists || !leadSnapshot.exists) throw new HttpsError("not-found", "Lead or organisation was not found.");
+  const lead = leadSnapshot.data() ?? {};
+  if (!canCreateServerOutreachDraft(lead.doNotContact, lead.contactReviewStatus)) {
+    throw new HttpsError("failed-precondition", lead.doNotContact === true || lead.contactReviewStatus === "blocked"
+      ? "This lead is suppressed. Resolve the restriction before requesting an AI draft."
+      : "The lead contact review is pending or unverified; resolve it before requesting an AI draft.");
+  }
+  const campaignId = requireDocumentId(lead.campaignId, "lead campaignId");
+  const campaignSnapshot = await organisationRef.collection("campaigns").doc(campaignId).get();
+  if (!campaignSnapshot.exists) throw new HttpsError("failed-precondition", "The lead's campaign no longer exists in this organisation.");
+  const campaign = campaignSnapshot.data() ?? {};
+  const businessName = safePersistedText(lead.businessName, 160).trim();
+  if (!businessName) throw new HttpsError("failed-precondition", "The lead has no valid business name for draft generation.");
+  await consumeReadRateLimit(organisationId, uid, "suggestOutreachDraft", 10);
+  try {
+    const suggestion = await generateAiOutreachDraftSuggestion({
+      businessName, category: safePersistedText(lead.category, 100), location: safePersistedText(lead.location, 160),
+      brand: safePersistedText(campaign.brand, 100), campaignGoal: safePersistedText(campaign.goal, 300),
+      organisationName: safePersistedText(organisationSnapshot.data()?.name, 100),
+    }, { apiKey, model: process.env.GEMINI_MODEL || "gemini-3.8-flash", timeoutMs: 15000 });
+    return { ...suggestion, sent: false as const };
+  } catch (error) {
+    logger.warn("AI outreach draft suggestion failed", {
+      operation: "suggestOutreachDraft", organisationId, actorUid: uid,
+      reason: error instanceof Error ? error.name : "unknown",
+    });
+    throw new HttpsError("unavailable", "AI draft assistance is temporarily unavailable. You can create a manual draft instead.");
+  }
 });
 
 export const listOutreachDrafts = onCall(callableOptions, async (request) => {
