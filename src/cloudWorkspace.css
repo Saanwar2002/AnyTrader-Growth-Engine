@@ -30,3 +30,5 @@
     flex-direction: column;
   }
 }
+
+.cloud-warning{margin:12px 0;padding:10px 12px;border:1px solid #f1d8a7;border-radius:8px;background:#fff9eb;color:#805d1d;font-size:11px;line-height:1.6}.cloud-table caption{padding:0 0 10px;text-align:left;color:#75849a;font-size:11px}

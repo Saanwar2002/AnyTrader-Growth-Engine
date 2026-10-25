@@ -619,4 +619,34 @@ describe("cloud authentication gate", () => {
     expect(screen.getByText(/Exported 1 filtered loaded lead/)).toBeTruthy();
   });
 
+
+  it("shows campaign performance metrics and marks paginated counts as partial", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
+    mocks.api.listCampaigns.mockResolvedValue({
+      campaigns: [{ id: "campaign-1", name: "Edinburgh painter campaign", brand: "AnyTrader", category: "Painters", location: "Edinburgh", goal: "Recruit", status: "active", createdAt: null }],
+      hasMoreCampaigns: true, nextPageToken: "next-campaign-page",
+    });
+    mocks.api.listLeads.mockResolvedValue({
+      leads: [
+        { id: "lead-1", campaignId: "campaign-1", businessName: "Qualified Painter", category: "Painters", location: "Edinburgh", website: "", email: "", phone: "", source: "manual", status: "qualified", score: 40, scoreReasons: [], notes: "", doNotContact: false, contactRestrictionVerified: true, contactReviewStatus: "cleared", contactReviewRevision: 0, createdAt: null },
+        { id: "lead-2", campaignId: "campaign-1", businessName: "Pending Painter", category: "Painters", location: "Edinburgh", website: "", email: "", phone: "", source: "csv", status: "new", score: 20, scoreReasons: [], notes: "", doNotContact: true, contactRestrictionVerified: false, contactReviewStatus: "pending", contactReviewRevision: 0, createdAt: null },
+      ],
+      hasMoreLeads: false, nextPageToken: null,
+    });
+    mocks.api.listOutreachDrafts.mockResolvedValue({
+      drafts: [{ id: "draft-1", leadId: "lead-1", campaignId: "campaign-1", subject: "Review me", body: "Draft", status: "draft", leadSuppressed: false, requiresReview: true, reviewReason: "human review", createdAt: null }],
+      hasMoreDrafts: false, nextPageToken: null,
+    });
+    render(<CloudWorkspace />);
+    expect(await screen.findByRole("heading", { name: "Acquisition pipeline overview" })).toBeTruthy();
+    expect(screen.getByText("Edinburgh painter campaign")).toBeTruthy();
+    expect(screen.getByText("Partial view: more pages are available. Load more campaigns, leads and drafts to improve coverage before comparing campaign results.")).toBeTruthy();
+    const table = screen.getByRole("table", { name: "Campaign counts from loaded records only" });
+    expect(table.textContent).toContain("2");
+    expect(table.textContent).toContain("1");
+    expect(table.textContent).toContain("Qualified");
+    expect(table.textContent).toContain("Drafts needing review");
+  });
+
 });
