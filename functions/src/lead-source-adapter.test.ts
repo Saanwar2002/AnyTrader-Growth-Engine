@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assertLeadSourceAdapterRunnable, validateLeadSourceManifest, type LeadSourceAdapterManifest } from "./lead-source-adapter";
+import { assertLeadSourceAdapterRunnable, validateLeadSourceManifest, attributeLeadSourceCandidates, type LeadSourceAdapterManifest } from "./lead-source-adapter";
 const approvedManifest = (): LeadSourceAdapterManifest => ({
   sourceId: "directory-api-v1", displayName: "Example Directory API", termsUrl: "https://example.test/terms",
   reviewStatus: "approved", reviewedAt: "2026-10-25T09:00:00.000Z", reviewedBy: "review-ticket-123",
