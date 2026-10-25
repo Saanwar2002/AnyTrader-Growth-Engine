@@ -563,6 +563,10 @@ export const addOrganisationMember = onCall(callableOptions, async (request) => 
   if (typeof idempotencyKey !== "string" || !/^[A-Za-z0-9._:-]{16,128}$/.test(idempotencyKey)) {
     throw new HttpsError("invalid-argument", "idempotencyKey must be 16-128 safe characters.");
   }
+  // Authorise before consulting Firebase Auth so non-admins cannot use this callable to probe account IDs.
+  await db.runTransaction(async (transaction: Transaction) => {
+    await requireTransactionalRole(transaction, organisationId, uid, "campaign");
+  });
   try {
     await getAuth().getUser(targetUid);
   } catch (error) {
