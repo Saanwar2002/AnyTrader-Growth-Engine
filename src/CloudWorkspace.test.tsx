@@ -1868,7 +1868,7 @@ describe("cloud authentication gate", () => {
 
     fireEvent.change(screen.getByLabelText("From date (UTC)"), { target: { value: "2026-10-25" } });
     fireEvent.change(screen.getByLabelText("To date (UTC)"), { target: { value: "2026-10-25" } });
-    expect(screen.getByText(/1 matching event\\(s\\) from 2 loaded/)).toBeTruthy();
+    expect(screen.getByText(/1 matching event\(s\) from 2 loaded/)).toBeTruthy();
     expect(screen.getByRole("row", { name: /lead status changed/ })).toBeTruthy();
     expect(screen.queryByRole("row", { name: /organisation member added/ })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Clear audit filters" }));
