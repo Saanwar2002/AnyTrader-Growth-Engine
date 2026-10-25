@@ -301,7 +301,8 @@ describe("callable security contract", () => {
     expect(body).toContain("savedOrganisation.data()?.ownerUid !== uid");
     expect(body).toContain("savedMembership.data()?.role !== \"owner\"");
     expect(body).toContain("isValidMembershipForOrganisation(savedMembership.data(), uid, savedOrganisation.data()?.ownerUid)");
-    expect(body.indexOf("saved.actorUid !== uid")).toBeLessThan(body.indexOf("const savedResult = saved.result as Record<string, unknown>;"));
+    expect(body).toContain("getValidOrganisationCreationReplayResult(saved, { actorUid: uid, requestHash, name })");
+    expect(body.indexOf("getValidOrganisationCreationReplayResult(saved, { actorUid: uid, requestHash, name })")).toBeLessThan(body.indexOf("const savedOrganisationRef = db.collection(\"organisations\").doc(savedResult.organisationId);"));
   });
 
   it("validates the saved campaign and original creator before returning an idempotent replay", () => {

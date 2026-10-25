@@ -1,3 +1,11 @@
+## AutoPilot run — organisation replay contract correction (2026-10-25)
+
+- Updated the existing callable source-contract test to assert the new exact-shape replay validator instead of the removed inline type-assertion implementation.
+- CI failure was a stale source-contract assertion, not a TypeScript or helper-unit-test failure; no production code change in this correction.
+- Re-run exact-head CI and review all jobs before merge.
+
+---
+
 ## AutoPilot run — organisation creation idempotency replay shape (2026-10-25)
 
 - Replaced the organisation-create replay type assertion with a pure exact-shape validator bound to the original actor, request fingerprint, name, valid organisation ID, and owner role.
