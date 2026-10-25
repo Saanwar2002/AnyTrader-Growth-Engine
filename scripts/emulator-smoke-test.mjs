@@ -2977,6 +2977,7 @@ try {
     "updateCampaignStatus",
     "updateCampaignDetails",
     "listLeads",
+    "getLeadActivityTimeline",
     "createLead",
     "importLeads",
     "updateLeadContact",
