@@ -346,3 +346,22 @@ describe("serializeFullCampaignReadinessCsv", () => {
     expect(empty.split("\r\n")).toHaveLength(3);
   });
 });
+
+
+describe("classifyLeadFollowUpDate", () => {
+  it("classifies date-only follow-ups against the supplied UTC day", async () => {
+    const { classifyLeadFollowUpDate } = await import("./analytics");
+    expect(classifyLeadFollowUpDate("2026-10-24", "2026-10-25")).toBe("overdue");
+    expect(classifyLeadFollowUpDate("2026-10-25", "2026-10-25")).toBe("today");
+    expect(classifyLeadFollowUpDate("2026-10-26", "2026-10-25")).toBe("upcoming");
+    expect(classifyLeadFollowUpDate(null, "2026-10-25")).toBe("unscheduled");
+    expect(classifyLeadFollowUpDate("", "2026-10-25")).toBe("unscheduled");
+  });
+
+  it("fails closed for malformed or impossible calendar dates", async () => {
+    const { classifyLeadFollowUpDate } = await import("./analytics");
+    expect(classifyLeadFollowUpDate("2026-02-30", "2026-10-25")).toBe("unclassified");
+    expect(classifyLeadFollowUpDate("2026-1-01", "2026-10-25")).toBe("unclassified");
+    expect(classifyLeadFollowUpDate("2026-10-24", "not-a-date")).toBe("unclassified");
+  });
+});

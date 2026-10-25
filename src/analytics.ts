@@ -7,6 +7,25 @@ function escapeAnalyticsCsvCell(value: string | number): string {
   return /[",\r\n]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
 }
 
+export type LeadFollowUpBucket = "overdue" | "today" | "upcoming" | "unscheduled" | "unclassified";
+
+/** Classify a date-only follow-up against an explicit UTC calendar date. */
+export function classifyLeadFollowUpDate(
+  followUpDate: string | null | undefined,
+  todayUtc: string,
+): LeadFollowUpBucket {
+  if (followUpDate == null || followUpDate.trim() === "") return "unscheduled";
+  const isCalendarDate = (value: string) => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+    const parsed = new Date(`${value}T00:00:00.000Z`);
+    return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+  };
+  if (!isCalendarDate(followUpDate) || !isCalendarDate(todayUtc)) return "unclassified";
+  if (followUpDate < todayUtc) return "overdue";
+  if (followUpDate === todayUtc) return "today";
+  return "upcoming";
+}
+
 export interface CampaignPerformanceCampaign { id: string; name: string; }
 export interface CampaignPerformanceLead {
   campaignId: string; status: string; doNotContact: boolean; contactRestrictionVerified: boolean;
