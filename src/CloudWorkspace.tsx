@@ -3,7 +3,7 @@ import { createUserWithEmailAndPassword, GoogleAuthProvider, onAuthStateChanged,
 import { createFirebaseCallableInvoker, createGrowthEngineApi, type CampaignFunnelAnalyticsSummary, type ContactReviewQueueAnalytics, type LeadSourceFunnelAnalytics, type CampaignSummary, type CsvImportSourceLabel, type LeadSummary, type LeadActivityTimeline, type OrganisationSummary, type OffboardingPreviewResult, type OnboardingCohortAnalytics, type OnboardingCohortCoverage, type OrganisationMemberRoster, type SecurityAuditEventPage, type OrganisationPlanUsageSummary, type PlanUsageReconciliationSummary, type OutreachDraftSummary, type ServerLeadStatus } from "./backendApi";
 import { firebaseClient } from "./firebaseClient";
 import { findLeadCsvDuplicates, formatLeadSourceLabel, getContactRestrictionAction, parseLeadCsv, serializeLeadExportCsv } from "./domain";
-import { serializeCampaignPerformanceCsv, serializeFullCampaignFunnelCsv, serializeFullLeadSourceFunnelCsv, serializeOnboardingCohortCsv, summarizeCampaignPerformance, summarizeCampaignReadiness, summarizeLeadSourcePerformance } from "./analytics";
+import { serializeCampaignPerformanceCsv, serializeFullCampaignFunnelCsv, serializeFullLeadSourceFunnelCsv, serializeOnboardingCohortCsv, serializeSecurityAuditEventsCsv, summarizeCampaignPerformance, summarizeCampaignReadiness, summarizeLeadSourcePerformance } from "./analytics";
 import "./cloudWorkspace.css";
 
 const leadStatuses: ServerLeadStatus[] = ["new", "reviewing", "qualified", "contacted", "onboarded", "rejected"];
@@ -396,6 +396,22 @@ export default function CloudWorkspace() {
     } finally {
       setLoadingSecurityAudit(false);
     }
+  }
+
+  function exportLoadedSecurityAuditEvents() {
+    if (!securityAuditPage || securityAuditPage.organisationId !== organisationId || securityAuditPage.events.length === 0) return;
+    const csv = serializeSecurityAuditEventsCsv(securityAuditPage.events);
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `growth-engine-security-audit-loaded-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.style.display = "none";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    setNotice(`Exported ${securityAuditPage.events.length} loaded security audit event(s). Older pages were not included unless loaded first.`);
+    setError("");
   }
 
   async function loadOrganisationMembers(pageToken?: string) {
@@ -1079,8 +1095,8 @@ DRAFT ONLY — NOT SENT.`,
         </div>}
       </section>}
       {selectedOrganisation && (selectedOrganisationRole === "owner" || selectedOrganisationRole === "admin") && <section className="cloud-card" aria-labelledby="security-audit-title">
-        <div className="cloud-section-head"><div><p className="cloud-eyebrow">SECURITY &amp; ACCOUNTABILITY</p><h2 id="security-audit-title">Security audit log</h2><p className="cloud-muted">Read-only organisation events. Actor IDs and resource IDs are shown instead of resolving additional personal details; event metadata is limited to the server-approved audit fields.</p></div>
-          <button className="cloud-secondary" type="button" disabled={loadingSecurityAudit} onClick={() => void loadSecurityAuditEvents()}>{loadingSecurityAudit ? "Loading audit log…" : securityAuditPage?.organisationId === organisationId ? "Refresh audit log" : "Load audit log"}</button>
+        <div className="cloud-section-head"><div><p className="cloud-eyebrow">SECURITY &amp; ACCOUNTABILITY</p><h2 id="security-audit-title">Security audit log</h2><p className="cloud-muted">Read-only organisation events. Actor IDs and resource IDs are shown instead of resolving additional personal details; event metadata is limited to the server-approved audit fields. CSV export contains loaded events only; load older pages first if they are needed.</p></div>
+          <button className="cloud-secondary" type="button" disabled={loadingSecurityAudit} onClick={() => void loadSecurityAuditEvents()}>{loadingSecurityAudit ? "Loading audit log…" : securityAuditPage?.organisationId === organisationId ? "Refresh audit log" : "Load audit log"}</button><button className="cloud-secondary" type="button" disabled={loadingSecurityAudit || securityAuditPage?.organisationId !== organisationId || !securityAuditPage.events.length} onClick={exportLoadedSecurityAuditEvents}>Export loaded audit events (CSV)</button>
         </div>
         {securityAuditPage?.organisationId === organisationId && <>
           <p className="cloud-muted">{securityAuditPage.events.length} event(s) loaded. {securityAuditPage.hasMoreEvents ? "More events are available." : "Latest available events loaded."}</p>
