@@ -1044,6 +1044,30 @@ describe("cloud authentication gate", () => {
     expect(screen.getByText("43")).toBeTruthy();
   });
 
+  it("warns when quotas are near their limit and marks exhausted quotas", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    mocks.api.getOrganisationPlanUsage.mockResolvedValue({
+      organisationId: "org-1",
+      status: "authoritative",
+      plan: { id: "pilot", displayName: "Pilot", limits: { campaigns: 10, leads: 50, members: 5, monthlyAiSuggestions: 10 } },
+      usage: { campaigns: 9, leads: 50, members: 5, monthlyAiSuggestions: 8 },
+      remaining: { campaigns: 1, leads: 0, members: 0, monthlyAiSuggestions: 2 },
+      aiUsagePeriod: "2026-10",
+      message: "Usage is server-maintained.",
+    });
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load plan usage" }));
+    await waitFor(() => expect(mocks.api.getOrganisationPlanUsage).toHaveBeenCalledWith({ organisationId: "org-1" }));
+    expect(await screen.findByLabelText("Quota status for Campaigns (lifetime)").textContent).toBe("Near limit");
+    expect(screen.getByLabelText("Quota status for Leads (lifetime)").textContent).toBe("Limit reached");
+    expect(screen.getByLabelText("Quota status for Organisation members (current counter)").textContent).toBe("Limit reached");
+    expect(screen.getByLabelText("Quota status for AI suggestions (UTC month)").textContent).toBe("Near limit");
+  });
+
   it("does not display invented numeric usage for legacy organisations awaiting reconciliation", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({
