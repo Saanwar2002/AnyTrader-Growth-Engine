@@ -1,3 +1,12 @@
+## AutoPilot run — campaign lifecycle controls (2026-10-25)
+
+- Exposed existing server-enforced campaign status transitions in the cloud workspace: pause, activate, and complete.
+- Controls are shown only to owners/admins; the server remains authoritative for tenant membership, role checks, allowed statuses, throttling, and audit events.
+- Added UI coverage for pause/reactivation and hiding controls from ordinary members. No new backend endpoint or production integration was introduced.
+- Next: plan entitlement usage accounting and durable attribution metrics, keeping legacy data migration and quota enforcement blocked until authoritative usage is reconciled.
+
+---
+
 ## AutoPilot run — plan policy foundation (2026-10-25)
 
 - Added a pure Pilot plan catalog with bounded campaign, lead, member and monthly AI-suggestion policy limits plus feature flags.
