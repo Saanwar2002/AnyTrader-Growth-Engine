@@ -117,7 +117,7 @@ describe("serializeFullLeadSourceFunnelCsv", () => {
       qualifiedRatePercent: 30,
       onboardedRatePercent: 10,
     }], "Self-declared source; unknown values include legacy records.");
-    expect(csv).toContain('"All stored organisation leads","linkedin, ""manual""",10,3,1,30.0,10.0,"Self-declared source; unknown values include legacy records."');
+    expect(csv).toContain('All stored organisation leads,"linkedin, ""manual""",10,3,1,30.0,10.0,Self-declared source; unknown values include legacy records.');
     expect(csv.startsWith("Scope,Source (self-declared),All stored leads,Qualified,Onboarded,Qualified rate (%),Onboarded rate (%),Attribution note\r\n")).toBe(true);
   });
 
