@@ -27,6 +27,7 @@ export function createGrowthEngineApi(call: CallableInvoker) {
     updateOrganisationSettings: (payload: { organisationId: string; name: string }) => call<typeof payload, { organisationId: string; name: string }>("updateOrganisationSettings", payload),
     createCampaign: (payload: CampaignInput) => call<CampaignInput, { campaignId: string; status: ServerCampaignStatus }>("createCampaign", payload),
     updateCampaignStatus: (payload: { organisationId: string; campaignId: string; status: ServerCampaignStatus }) => call<typeof payload, { campaignId: string; status: ServerCampaignStatus }>("updateCampaignStatus", payload),
+    updateCampaignDetails: (payload: { organisationId: string; campaignId: string; name: string; brand: string; category: string; location: string; goal: string }) => call<typeof payload, { campaignId: string; name: string; brand: string; category: string; location: string; goal: string }>("updateCampaignDetails", payload),
     listCampaigns: (payload: { organisationId: string; pageToken?: string }) => call<typeof payload, { campaigns: CampaignSummary[]; hasMoreCampaigns: boolean; nextPageToken: string | null }>("listCampaigns", payload),
     listLeads: (payload: { organisationId: string; pageToken?: string }) => call<typeof payload, { leads: LeadSummary[]; hasMoreLeads: boolean; nextPageToken: string | null }>("listLeads", payload),
     createLead: (payload: LeadInput) => call<LeadInput, { leadId: string; status: ServerLeadStatus }>("createLead", payload),

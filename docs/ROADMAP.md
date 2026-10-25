@@ -72,6 +72,7 @@
 - [x] Downloadable campaign performance CSV with a loaded-record-only scope column and escaped text fields.
 - [ ] Onboarding attribution and durable, server-side aggregate analytics across all pages.
 - [x] Owner/admin organisation display-name settings with server-side role checks, transactional rate limiting, and PII-minimised audit events.
+- [x] Owner/admin campaign detail editing with transactional tenant-role rechecks and PII-minimised audit events.
 - [ ] Plans and server-side entitlements/quotas.
 - [ ] Billing only after core workflows and server-side entitlements are tested.
 
