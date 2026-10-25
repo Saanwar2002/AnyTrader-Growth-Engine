@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
   currentUser: null as unknown,
   api: {
     listMyOrganisations: vi.fn(), createOrganisation: vi.fn(), updateOrganisationSettings: vi.fn(), previewOrganisationOffboarding: vi.fn(), addOrganisationMember: vi.fn(), removeOrganisationMember: vi.fn(), updateOrganisationMemberRole: vi.fn(), listOrganisationMembers: vi.fn(), createCampaign: vi.fn(), updateCampaignStatus: vi.fn(), updateCampaignDetails: vi.fn(),
-    listCampaigns: vi.fn(), getCampaignFunnelSummary: vi.fn(), getLeadSourceFunnelSummary: vi.fn(), getOnboardingCohortSummary: vi.fn(), getOrganisationPlanUsage: vi.fn(), getOrganisationPlanUsageReconciliation: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), importLeads: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(),
+    listCampaigns: vi.fn(), getCampaignFunnelSummary: vi.fn(), getLeadSourceFunnelSummary: vi.fn(), getOnboardingCohortSummary: vi.fn(), getLeadActivityTimeline: vi.fn(), getOrganisationPlanUsage: vi.fn(), getOrganisationPlanUsageReconciliation: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), importLeads: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(),
     updateLeadNotes: vi.fn(), setLeadSuppression: vi.fn(), createOutreachDraft: vi.fn(), suggestOutreachDraft: vi.fn(), listOutreachDrafts: vi.fn(),
     updateOutreachDraft: vi.fn(), deleteOutreachDraft: vi.fn(),
   },
@@ -97,6 +97,15 @@ beforeEach(() => {
     attributionNote: "Source values are self-declared; unknown includes missing and unrecognised legacy values.",
   });
   mocks.api.listLeads.mockResolvedValue({ leads: [], hasMoreLeads: false, nextPageToken: null });
+  mocks.api.getLeadActivityTimeline.mockResolvedValue({
+    organisationId: "org-1", leadId: "lead-history",
+    activities: [
+      { id: "activity-2", message: "Lead status changed to qualified", createdAt: "2026-10-24T10:00:00.000Z" },
+      { id: "activity-1", message: "Lead created: History Painter", createdAt: "2026-10-23T10:00:00.000Z" },
+    ],
+    scope: "latest_20_lead_activity_events",
+    hasMoreHistory: false,
+  });
   mocks.api.listOutreachDrafts.mockResolvedValue({ drafts: [] });
   mocks.api.createOrganisation.mockResolvedValue({ organisationId: "org-new", name: "New Org", role: "owner" });
   mocks.api.updateOrganisationSettings.mockImplementation(async ({ organisationId, name }) => ({ organisationId, name }));
@@ -1346,6 +1355,26 @@ describe("cloud authentication gate", () => {
     expect(click).toHaveBeenCalledTimes(1);
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:campaign-report");
     expect(await screen.findByText(/full stored-lead funnel counts for 1 campaign/)).toBeTruthy();
+  });
+
+  it("loads a privacy-minimised activity timeline on demand for the selected lead", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
+    mocks.api.listLeads.mockResolvedValue({ leads: [{
+      id: "lead-history", campaignId: "campaign-1", businessName: "History Painter", category: "Painters",
+      location: "Leeds", website: "", email: "", phone: "", source: "manual", status: "qualified",
+      score: 40, scoreReasons: [], notes: "", doNotContact: true, contactRestrictionVerified: false,
+      contactReviewStatus: "pending", contactReviewRevision: 0, onboardedAt: null, createdAt: null,
+    }], hasMoreLeads: false, nextPageToken: null });
+    render(<CloudWorkspace />);
+    await screen.findByText("History Painter");
+    fireEvent.click(screen.getByRole("button", { name: "View history" }));
+    expect(await screen.findByText("Lead status changed to qualified")).toBeTruthy();
+    expect(screen.getByText("Lead created: History Painter")).toBeTruthy();
+    expect(screen.getByText(/Internal note contents, contact values, and actor account identifiers are not included/i)).toBeTruthy();
+    expect(mocks.api.getLeadActivityTimeline).toHaveBeenCalledWith({ organisationId: "org-1", leadId: "lead-history" });
+    fireEvent.click(screen.getByRole("button", { name: "Hide history" }));
+    expect(screen.queryByText("Lead status changed to qualified")).toBeNull();
   });
 
 });

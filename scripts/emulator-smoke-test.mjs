@@ -211,6 +211,15 @@ try {
     email: "hello@example.test",
   };
   const leadOne = await callOne("createLead", manualLeadPayload);
+  const leadTimeline = await callOne("getLeadActivityTimeline", {
+    organisationId: orgOne.organisationId,
+    leadId: leadOne.leadId,
+  });
+  assert.equal(leadTimeline.scope, "latest_20_lead_activity_events");
+  assert.equal(leadTimeline.hasMoreHistory, false);
+  assert.ok(leadTimeline.activities.some((event) => event.message === "Lead created: Synthetic Test Painting Ltd"));
+  assert.ok(leadTimeline.activities.every((event) => !("actorUid" in event) && !("email" in event) && !("phone" in event)),
+    "lead timeline excludes actor identifiers and contact values");
   execFileSync(process.execPath, [
     "functions/scripts/assert-emulator-lead-identifier-keys.mjs",
     orgOne.organisationId,
@@ -1953,6 +1962,10 @@ try {
   await expectCallableFailure(callTwo("listLeads", { organisationId: orgOne.organisationId }), "functions/permission-denied", "cross-tenant lead listing denial");
   await expectCallableFailure(callTwo("previewOrganisationOffboarding", { organisationId: orgOne.organisationId }), "functions/permission-denied", "cross-tenant offboarding preview denial");
   const orgTwo = await callTwo("createOrganisation", { name: "Tenant Two", idempotencyKey: "organisation-create-tenant-two-0001" });
+  await expectCallableFailure(callTwo("getLeadActivityTimeline", {
+    organisationId: orgOne.organisationId,
+    leadId: leadOne.leadId,
+  }), "functions/permission-denied", "lead activity timeline rejects cross-tenant access");
   await expectCallableFailure(callTwo("getOrganisationPlanUsageReconciliation", { organisationId: orgOne.organisationId }),
     "functions/permission-denied", "plan usage reconciliation rejects users without tenant membership");
 
@@ -2964,6 +2977,7 @@ try {
     "updateCampaignStatus",
     "updateCampaignDetails",
     "listLeads",
+    "getLeadActivityTimeline",
     "createLead",
     "importLeads",
     "updateLeadContact",

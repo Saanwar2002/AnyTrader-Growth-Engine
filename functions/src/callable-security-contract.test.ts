@@ -26,6 +26,7 @@ const expectedRateLimitType: Record<string, "read" | "mutation"> = {
   updateCampaignStatus: "mutation",
   updateCampaignDetails: "mutation",
   listLeads: "read",
+  getLeadActivityTimeline: "read",
   createLead: "mutation",
   importLeads: "mutation",
   updateLeadContact: "mutation",
@@ -54,6 +55,23 @@ describe("callable security contract", () => {
     expect(callable).toContain("memberAdditionIdempotency");
     expect(callable).toContain("getUserByEmail(targetEmail)");
     expect(callable).toContain('writeSecurityAuditEvent(transaction, organisationId, uid, "organisation.member_added"');
+  });
+
+
+  it("keeps lead activity history tenant-scoped, bounded, and privacy-minimised", () => {
+    const start = callableSource.indexOf("export const getLeadActivityTimeline =");
+    const end = callableSource.indexOf("export const getCampaignFunnelSummary =", start);
+    const callable = callableSource.slice(start, end);
+    expect(callable).toContain("requireMembership(organisationId, uid)");
+    expect(callable).toContain('consumeReadRateLimit(organisationId, uid, "getLeadActivityTimeline", 30)');
+    expect(callable).toContain('collection("leadActivities")');
+    expect(callable).toContain('.where("leadId", "==", leadId)');
+    expect(callable).toContain('.orderBy("createdAt", "desc")');
+    expect(callable).toContain(".limit(21)");
+    expect(callable).toContain("snapshot.docs.slice(0, 20)");
+    expect(callable).not.toContain("actorUid:");
+    expect(callable).not.toContain("email:");
+    expect(callable).not.toContain("phone:");
   });
 
   it("reserves campaign quota atomically for organisations with authoritative usage state", () => {
@@ -103,7 +121,7 @@ describe("callable security contract", () => {
 
   it("enforces App Check on every deployed callable and only bypasses it in the Functions emulator", () => {
     expect(callableSource).toContain('const callableOptions = { enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true" }');
-    expect((callableSource.match(/= onCall\(callableOptions, async \(request\) => \{/g) ?? [])).toHaveLength(27);
+    expect((callableSource.match(/= onCall\(callableOptions, async \(request\) => \{/g) ?? [])).toHaveLength(28);
     expect(callableSource.includes("= onCall(async (request) => {")).toBe(false);
   });
 

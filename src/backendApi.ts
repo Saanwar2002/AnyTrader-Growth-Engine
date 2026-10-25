@@ -47,6 +47,13 @@ export interface LeadFieldsInput { organisationId: string; campaignId: string; b
 export interface LeadInput extends LeadFieldsInput { idempotencyKey: string; }
 export interface CsvImportLeadInput { businessName: string; category?: string; location?: string; website?: string; email?: string; phone?: string; }
 export interface CsvImportResult { organisationId: string; campaignId: string; received: number; imported: number; duplicatesSkipped: number; leads: Array<{ leadId: string; businessName: string }>; sent: false; messageSentByThisAction: false; }
+export interface LeadActivityTimeline {
+  organisationId: string;
+  leadId: string;
+  activities: Array<{ id: string; message: string; createdAt: string | null }>;
+  scope: "latest_20_lead_activity_events";
+  hasMoreHistory: boolean;
+}
 export interface LeadSummary { id: string; campaignId: string; businessName: string; category: string; location: string; website: string; email: string; phone: string; source: string; status: ServerLeadStatus; score: number; scoreReasons: string[]; notes: string; doNotContact: boolean; contactRestrictionVerified: boolean; contactReviewStatus?: "pending" | "cleared" | "blocked"; contactReviewRevision: number; onboardedAt: string | null; createdAt: string | null; }
 export interface OutreachDraftSummary { id: string; leadId: string; campaignId: string; subject: string; body: string; status: string; leadSuppressed: boolean; requiresReview: boolean; reviewReason: string | null; createdAt: string | null; }
 
@@ -71,6 +78,7 @@ export function createGrowthEngineApi(call: CallableInvoker) {
     getOrganisationPlanUsage: (payload: { organisationId: string }) => call<typeof payload, OrganisationPlanUsageSummary>("getOrganisationPlanUsage", payload),
     getOrganisationPlanUsageReconciliation: (payload: { organisationId: string }) => call<typeof payload, PlanUsageReconciliationSummary>("getOrganisationPlanUsageReconciliation", payload),
     listLeads: (payload: { organisationId: string; pageToken?: string }) => call<typeof payload, { leads: LeadSummary[]; hasMoreLeads: boolean; nextPageToken: string | null }>("listLeads", payload),
+    getLeadActivityTimeline: (payload: { organisationId: string; leadId: string }) => call<typeof payload, LeadActivityTimeline>("getLeadActivityTimeline", payload),
     createLead: (payload: LeadInput) => call<LeadInput, { leadId: string; status: ServerLeadStatus }>("createLead", payload),
     importLeads: (payload: { organisationId: string; campaignId: string; idempotencyKey: string; sourceLabel?: CsvImportSourceLabel; leads: CsvImportLeadInput[] }) => call<typeof payload, CsvImportResult>("importLeads", payload),
     updateLeadContact: (payload: LeadFieldsInput & { leadId: string }) => call<typeof payload, { leadId: string; doNotContact: boolean; contactReviewStatus: "pending" | "cleared" | "blocked"; contactRestrictionVerified: boolean; contactReviewRevision: number }>("updateLeadContact", payload),
