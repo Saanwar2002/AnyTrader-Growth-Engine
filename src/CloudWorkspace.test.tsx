@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
   currentUser: null as unknown,
   api: {
     listMyOrganisations: vi.fn(), createOrganisation: vi.fn(), updateOrganisationSettings: vi.fn(), previewOrganisationOffboarding: vi.fn(), addOrganisationMember: vi.fn(), removeOrganisationMember: vi.fn(), updateOrganisationMemberRole: vi.fn(), listOrganisationMembers: vi.fn(), listOrganisationSecurityAuditEvents: vi.fn(), createCampaign: vi.fn(), updateCampaignStatus: vi.fn(), updateCampaignDetails: vi.fn(),
-    listCampaigns: vi.fn(), getCampaignFunnelSummary: vi.fn(), getLeadSourceFunnelSummary: vi.fn(), getOnboardingCohortSummary: vi.fn(), getOnboardingCohortCoverage: vi.fn(), getContactReviewQueueSummary: vi.fn(), getLeadActivityTimeline: vi.fn(), getOrganisationPlanUsage: vi.fn(), getOrganisationPlanUsageReconciliation: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), importLeads: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(),
+    listCampaigns: vi.fn(), getCampaignFunnelSummary: vi.fn(), getLeadSourceFunnelSummary: vi.fn(), getOnboardingCohortSummary: vi.fn(), getOnboardingCohortCoverage: vi.fn(), getContactReviewQueueSummary: vi.fn(), getLeadCompletenessSummary: vi.fn(), getLeadActivityTimeline: vi.fn(), getOrganisationPlanUsage: vi.fn(), getOrganisationPlanUsageReconciliation: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), importLeads: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(),
     updateLeadNotes: vi.fn(), setLeadSuppression: vi.fn(), createOutreachDraft: vi.fn(), suggestOutreachDraft: vi.fn(), listOutreachDrafts: vi.fn(),
     updateOutreachDraft: vi.fn(), deleteOutreachDraft: vi.fn(),
   },
@@ -1893,6 +1893,38 @@ describe("cloud authentication gate", () => {
     expect(screen.queryByRole("row", { name: /organisation member added/ })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Clear audit filters" }));
     expect(screen.getByRole("row", { name: /organisation member added/ })).toBeTruthy();
+  });
+
+  it("shows and exports all-tenant lead completeness bands with a clear scope note", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    mocks.api.getLeadCompletenessSummary.mockResolvedValue({
+      organisationId: "org-1",
+      totalLeadCount: 9,
+      lowCount: 2,
+      mediumCount: 3,
+      highCount: 3,
+      unclassifiedCount: 1,
+      scope: "all_stored_leads",
+      note: "Completeness is not a quality, consent, or contactability guarantee.",
+    });
+    const createObjectURL = vi.fn(() => "blob:completeness");
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load completeness report" }));
+    await waitFor(() => expect(mocks.api.getLeadCompletenessSummary).toHaveBeenCalledWith({ organisationId: "org-1" }));
+    expect(await screen.findByRole("table", { name: "All stored lead completeness bands" })).toBeTruthy();
+    expect(screen.getAllByText("Low (0–39)").length).toBeGreaterThan(0);
+    expect(screen.getByText(/not a quality, consent, or contactability guarantee/i)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Export completeness CSV" }));
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:completeness");
   });
 
 });
