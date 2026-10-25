@@ -400,6 +400,8 @@ export interface LeadExportRecord {
   doNotContact: boolean;
   contactRestrictionVerified: boolean;
   contactReviewStatus?: "pending" | "cleared" | "blocked";
+  score?: number;
+  scoreReasons?: string[];
 }
 
 /**
@@ -413,7 +415,7 @@ export function serializeLeadExportCsv(
 ): string {
   const headers = [
     "Business name", "Category", "Location", "Website", "Email", "Phone",
-    "Campaign", "Status", "Source", "Contact restriction",
+    "Campaign", "Status", "Source", "Contact restriction", "Completeness score", "Completeness reasons",
   ];
   const rows = leads.map((lead) => {
     const restriction = lead.contactReviewStatus === "pending"
@@ -430,6 +432,8 @@ export function serializeLeadExportCsv(
     return [
       lead.businessName, lead.category, lead.location, lead.website, lead.email, lead.phone,
       campaignNames[lead.campaignId] ?? "Unknown campaign", lead.status, lead.source, restriction,
+      typeof lead.score === "number" && Number.isFinite(lead.score) ? String(Math.max(0, Math.min(100, Math.round(lead.score)))) : "",
+      Array.isArray(lead.scoreReasons) ? lead.scoreReasons.join("; ") : "",
     ].map((value) => escapeCsvCell(value ?? ""));
   });
   return [headers.map((value) => escapeCsvCell(value)).join(","), ...rows.map((row) => row.join(","))].join("\r\n") + "\r\n";
