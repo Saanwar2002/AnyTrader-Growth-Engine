@@ -76,6 +76,7 @@ type SecurityAuditEventType =
   | "campaign.details_updated"
   | "lead.status_changed"
   | "lead.notes_changed"
+  | "lead.follow_up_date_changed"
   | "outreach_draft.created"
   | "outreach_draft.updated"
   | "outreach_draft.deleted";
@@ -91,6 +92,7 @@ type SecurityAuditEventMetadata = {
   campaignDetailsChanged?: boolean;
   leadStatus?: string;
   notesCleared?: boolean;
+  followUpDateSet?: boolean;
   nameChanged?: boolean;
   draftAction?: "created" | "updated" | "deleted";
   memberRole?: "admin" | "member" | "viewer";
@@ -111,6 +113,7 @@ const AUDIT_EVENT_RESOURCE_TYPES: Record<SecurityAuditEventType, "organisation" 
   "campaign.details_updated": "campaign",
   "lead.status_changed": "lead",
   "lead.notes_changed": "lead",
+  "lead.follow_up_date_changed": "lead",
   "outreach_draft.created": "outreachDraft",
   "outreach_draft.updated": "outreachDraft",
   "outreach_draft.deleted": "outreachDraft",
@@ -131,6 +134,7 @@ const AUDIT_METADATA_KEYS: Record<SecurityAuditEventType, readonly (keyof Securi
   "campaign.details_updated": ["campaignDetailsChanged"],
   "lead.status_changed": ["leadStatus"],
   "lead.notes_changed": ["notesCleared"],
+  "lead.follow_up_date_changed": ["followUpDateSet"],
   "outreach_draft.created": ["draftAction"],
   "outreach_draft.updated": ["draftAction"],
   "outreach_draft.deleted": ["draftAction"],
@@ -145,6 +149,7 @@ function isBoundedAuditMetadata(eventType: SecurityAuditEventType, metadata: Sec
     || ("contactChannelsChanged" in metadata && typeof metadata.contactChannelsChanged !== "boolean")
     || ("doNotContact" in metadata && typeof metadata.doNotContact !== "boolean")
     || ("notesCleared" in metadata && typeof metadata.notesCleared !== "boolean")
+    || ("followUpDateSet" in metadata && typeof metadata.followUpDateSet !== "boolean")
     || ("nameChanged" in metadata && typeof metadata.nameChanged !== "boolean")
     || ("campaignDetailsChanged" in metadata && typeof metadata.campaignDetailsChanged !== "boolean")) return false;
   if ("campaignStatus" in metadata && !["active", "paused", "completed"].includes(metadata.campaignStatus ?? "")) return false;
@@ -2143,7 +2148,7 @@ export const updateLeadFollowUpDate = onCall(callableOptions, async (request) =>
       message: followUpDate ? `Follow-up date set to ${followUpDate}` : "Follow-up date cleared",
       createdAt: now,
     });
-    writeSecurityAuditEvent(transaction, organisationId, uid, "lead.follow_up_date_changed", "lead", leadId, { dateSet: followUpDate !== null });
+    writeSecurityAuditEvent(transaction, organisationId, uid, "lead.follow_up_date_changed", "lead", leadId, { followUpDateSet: followUpDate !== null });
   });
   return { leadId, followUpDate };
 });
