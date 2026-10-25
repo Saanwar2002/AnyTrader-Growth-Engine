@@ -37,7 +37,7 @@ describe("callable security contract", () => {
     const campaignCallable = callableSource.slice(campaignStart, campaignEnd);
     expect(campaignCallable).toContain("resolvePlanPolicy(organisationData.planId)");
     expect(campaignCallable).toContain("resolvePlanUsageState(organisationData.planUsage, new Date())");
-    expect(campaignCallable).toContain('reservePlanUsage(planResolution.plan, usageResolution.state, "campaigns")');
+    expect(campaignCallable).toContain('reservePlanUsage(planResolutionForQuota.plan, usageStateForQuota.state, "campaigns")');
     expect(campaignCallable).toContain('new HttpsError("resource-exhausted"');
     expect(campaignCallable).toContain("transaction.update(organisationRef, { planUsage: reservation.state })");
     expect(campaignCallable.indexOf("transaction.update(organisationRef, { planUsage: reservation.state })"))
