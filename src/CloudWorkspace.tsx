@@ -92,6 +92,8 @@ export default function CloudWorkspace() {
   const [loadingMemberRoster, setLoadingMemberRoster] = useState(false);
   const [securityAuditPage, setSecurityAuditPage] = useState<SecurityAuditEventPage | null>(null);
   const [loadingSecurityAudit, setLoadingSecurityAudit] = useState(false);
+  const [securityAuditEventTypeFilter, setSecurityAuditEventTypeFilter] = useState("all");
+  const [securityAuditSearch, setSecurityAuditSearch] = useState("");
   // Preserve the exact organisation request key after an uncertain response.
   const [organisationIdempotencyKey, setOrganisationIdempotencyKey] = useState("");
   const [campaignName, setCampaignName] = useState("");
@@ -141,6 +143,16 @@ export default function CloudWorkspace() {
   }, [organisationId, organisations]);
 
   const selectedOrganisationRole = organisations.find((org) => org.organisationId === organisationId)?.role ?? "";
+  const filteredSecurityAuditEvents = useMemo(() => {
+    const events = securityAuditPage?.organisationId === organisationId ? securityAuditPage.events : [];
+    const query = securityAuditSearch.trim().toLowerCase();
+    return events.filter((event) => {
+      if (securityAuditEventTypeFilter !== "all" && event.eventType !== securityAuditEventTypeFilter) return false;
+      if (!query) return true;
+      return [event.eventType, event.actorUid, event.resourceType, event.resourceId, (JSON.stringify(event.metadata) ?? "")]
+        .some((value) => value.toLowerCase().includes(query));
+    });
+  }, [securityAuditPage, organisationId, securityAuditEventTypeFilter, securityAuditSearch]);
   const canClearContactRestriction = selectedOrganisationRole === "owner" || selectedOrganisationRole === "admin";
 
   useEffect(() => {
@@ -401,8 +413,8 @@ export default function CloudWorkspace() {
   }
 
   function exportLoadedSecurityAuditEvents() {
-    if (!securityAuditPage || securityAuditPage.organisationId !== organisationId || securityAuditPage.events.length === 0) return;
-    const csv = serializeSecurityAuditEventsCsv(securityAuditPage.events);
+    if (!securityAuditPage || securityAuditPage.organisationId !== organisationId || filteredSecurityAuditEvents.length === 0) return;
+    const csv = serializeSecurityAuditEventsCsv(filteredSecurityAuditEvents);
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
     const link = document.createElement("a");
     link.href = url;
@@ -412,7 +424,7 @@ export default function CloudWorkspace() {
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
-    setNotice(`Exported ${securityAuditPage.events.length} loaded security audit event(s). Older pages were not included unless loaded first.`);
+    setNotice(`Exported ${filteredSecurityAuditEvents.length} matching loaded security audit event(s). Older pages were not included unless loaded first.`);
     setError("");
   }
 
@@ -1164,11 +1176,12 @@ DRAFT ONLY — NOT SENT.`,
       </section>}
       {selectedOrganisation && (selectedOrganisationRole === "owner" || selectedOrganisationRole === "admin") && <section className="cloud-card" aria-labelledby="security-audit-title">
         <div className="cloud-section-head"><div><p className="cloud-eyebrow">SECURITY &amp; ACCOUNTABILITY</p><h2 id="security-audit-title">Security audit log</h2><p className="cloud-muted">Read-only organisation events. Actor IDs and resource IDs are shown instead of resolving additional personal details; event metadata is limited to the server-approved audit fields. CSV export contains loaded events only; load older pages first if they are needed.</p></div>
-          <button className="cloud-secondary" type="button" disabled={loadingSecurityAudit} onClick={() => void loadSecurityAuditEvents()}>{loadingSecurityAudit ? "Loading audit log…" : securityAuditPage?.organisationId === organisationId ? "Refresh audit log" : "Load audit log"}</button><button className="cloud-secondary" type="button" disabled={loadingSecurityAudit || securityAuditPage?.organisationId !== organisationId || !securityAuditPage.events.length} onClick={exportLoadedSecurityAuditEvents}>Export loaded audit events (CSV)</button>
+          <button className="cloud-secondary" type="button" disabled={loadingSecurityAudit} onClick={() => void loadSecurityAuditEvents()}>{loadingSecurityAudit ? "Loading audit log…" : securityAuditPage?.organisationId === organisationId ? "Refresh audit log" : "Load audit log"}</button><button className="cloud-secondary" type="button" disabled={loadingSecurityAudit || securityAuditPage?.organisationId !== organisationId || !filteredSecurityAuditEvents.length} onClick={exportLoadedSecurityAuditEvents}>Export loaded audit events (CSV)</button>
         </div>
         {securityAuditPage?.organisationId === organisationId && <>
-          <p className="cloud-muted">{securityAuditPage.events.length} event(s) loaded. {securityAuditPage.hasMoreEvents ? "More events are available." : "Latest available events loaded."}</p>
-          {securityAuditPage.events.length ? <div className="cloud-table-wrap"><table className="cloud-table"><caption>Organisation security audit events</caption><thead><tr><th>When</th><th>Action</th><th>Actor ID</th><th>Resource</th><th>Details</th></tr></thead><tbody>{securityAuditPage.events.map((event) => <tr key={event.id}><td>{event.createdAt ? new Date(event.createdAt).toLocaleString("en-GB") : "Date unavailable"}</td><td>{event.eventType.replace(/[._]/g, " ")}</td><td><code>{event.actorUid}</code></td><td>{event.resourceType} <code>{event.resourceId}</code></td><td>{Object.keys(event.metadata).length ? Object.entries(event.metadata).map(([key, value]) => `${key}: ${String(value)}`).join(" · ") : "No additional details"}</td></tr>)}</tbody></table></div> : <p className="cloud-empty">No security audit events are available for this organisation.</p>}
+          <p className="cloud-muted">{filteredSecurityAuditEvents.length} matching event(s) from {securityAuditPage.events.length} loaded. {securityAuditPage.hasMoreEvents ? "More events are available." : "Latest available events loaded."}</p>
+          <div className="cloud-inline-form"><label className="cloud-field">Filter by action<select value={securityAuditEventTypeFilter} onChange={(event) => setSecurityAuditEventTypeFilter(event.target.value)}><option value="all">All actions</option>{[...new Set(securityAuditPage.events.map((event) => event.eventType))].sort().map((eventType) => <option key={eventType} value={eventType}>{eventType.replace(/[._]/g, " ")}</option>)}</select></label><label className="cloud-field">Search loaded audit events<input type="search" maxLength={160} value={securityAuditSearch} onChange={(event) => setSecurityAuditSearch(event.target.value)} placeholder="Actor ID, resource ID, action or detail" /></label><button className="cloud-secondary" type="button" disabled={securityAuditEventTypeFilter === "all" && !securityAuditSearch} onClick={() => { setSecurityAuditEventTypeFilter("all"); setSecurityAuditSearch(""); }}>Clear audit filters</button></div>
+          {filteredSecurityAuditEvents.length ? <div className="cloud-table-wrap"><table className="cloud-table"><caption>Organisation security audit events</caption><thead><tr><th>When</th><th>Action</th><th>Actor ID</th><th>Resource</th><th>Details</th></tr></thead><tbody>{filteredSecurityAuditEvents.map((event) => <tr key={event.id}><td>{event.createdAt ? new Date(event.createdAt).toLocaleString("en-GB") : "Date unavailable"}</td><td>{event.eventType.replace(/[._]/g, " ")}</td><td><code>{event.actorUid}</code></td><td>{event.resourceType} <code>{event.resourceId}</code></td><td>{Object.keys(event.metadata).length ? Object.entries(event.metadata).map(([key, value]) => `${key}: ${String(value)}`).join(" · ") : "No additional details"}</td></tr>)}</tbody></table></div> : <p className="cloud-empty">{securityAuditPage.events.length ? "No loaded audit events match these filters." : "No security audit events are available for this organisation."}</p>}
           {securityAuditPage.hasMoreEvents && securityAuditPage.nextPageToken && <button className="cloud-secondary" type="button" disabled={loadingSecurityAudit} onClick={() => void loadSecurityAuditEvents(securityAuditPage.nextPageToken ?? undefined)}>{loadingSecurityAudit ? "Loading audit events…" : "Load more audit events"}</button>}
         </>}
       </section>}
