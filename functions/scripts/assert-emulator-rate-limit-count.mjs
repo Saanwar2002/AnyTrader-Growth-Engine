@@ -14,7 +14,7 @@ const validId = (value) => typeof value === "string" && /^[A-Za-z0-9_-]{1,128}$/
 const allowedOperations = new Set(["createOrganisation", "createCampaign", "updateCampaignStatus", "createLead", "updateLeadContact", "updateLeadStatus", "updateLeadNotes", "setLeadSuppression", "createOutreachDraft", "updateOutreachDraft", "deleteOutreachDraft", "listMyOrganisations", "listCampaigns", "listLeads", "listOutreachDrafts"]);
 if (!validId(organisationId) || !validId(uid) || !allowedOperations.has(operation)
   || (expectedArg !== undefined && !/^\d+$/.test(expectedArg))) {
-  throw new Error("Usage: node assert-emulator-rate-limit-count.mjs <organisationId> <uid> <createOrganisation|createCampaign|updateCampaignStatus|createLead|updateLeadContact|updateLeadStatus|updateLeadNotes|setLeadSuppression|createOutreachDraft|updateOutreachDraft|deleteOutreachDraft|listMyOrganisations|listCampaigns|listLeads|listOutreachDrafts> [expectedCount]");
+  throw new Error("Usage: node assert-emulator-rate-limit-count.mjs <organisationId> <uid> <createOrganisation|createCampaign|updateCampaignStatus|createLead|importLeads|updateLeadContact|updateLeadStatus|updateLeadNotes|setLeadSuppression|createOutreachDraft|updateOutreachDraft|deleteOutreachDraft|listMyOrganisations|listCampaigns|listLeads|listOutreachDrafts> [expectedCount]");
 }
 initializeApp({ projectId });
 const db = getFirestore();
