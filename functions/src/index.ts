@@ -63,6 +63,7 @@ function safePersistedStringArray(value: unknown, maxItems: number, maxLength: n
 type SecurityAuditEventType =
   | "organisation.created"
   | "organisation.settings_updated"
+  | "organisation.member_added"
   | "lead.csv_import.completed"
   | "lead.contact_updated"
   | "lead.contact_restriction_changed"
@@ -89,11 +90,13 @@ type SecurityAuditEventMetadata = {
   notesCleared?: boolean;
   nameChanged?: boolean;
   draftAction?: "created" | "updated" | "deleted";
+  memberRole?: "member" | "viewer";
 };
 
 const AUDIT_EVENT_RESOURCE_TYPES: Record<SecurityAuditEventType, "organisation" | "campaign" | "lead" | "outreachDraft"> = {
   "organisation.created": "organisation",
   "organisation.settings_updated": "organisation",
+  "organisation.member_added": "organisation",
   "lead.csv_import.completed": "campaign",
   "lead.contact_updated": "lead",
   "lead.contact_restriction_changed": "lead",
@@ -111,6 +114,7 @@ const AUDIT_EVENT_RESOURCE_TYPES: Record<SecurityAuditEventType, "organisation" 
 const AUDIT_METADATA_KEYS: Record<SecurityAuditEventType, readonly (keyof SecurityAuditEventMetadata)[]> = {
   "organisation.created": [],
   "organisation.settings_updated": ["nameChanged"],
+  "organisation.member_added": ["memberRole"],
   "lead.csv_import.completed": ["importedCount", "duplicatesSkipped"],
   "lead.contact_updated": ["contactChannelsChanged", "contactReviewRevision", "contactReviewStatus", "doNotContact"],
   "lead.contact_restriction_changed": ["doNotContact", "contactReviewRevision", "contactReviewStatus"],
@@ -140,6 +144,7 @@ function isBoundedAuditMetadata(eventType: SecurityAuditEventType, metadata: Sec
   if ("leadStatus" in metadata && !["new", "reviewing", "qualified", "contacted", "onboarded", "rejected"].includes(metadata.leadStatus ?? "")) return false;
   if ("contactReviewStatus" in metadata && !["pending", "cleared", "blocked"].includes(metadata.contactReviewStatus ?? "")) return false;
   if ("draftAction" in metadata && !["created", "updated", "deleted"].includes(metadata.draftAction ?? "")) return false;
+  if ("memberRole" in metadata && !["member", "viewer"].includes(metadata.memberRole ?? "")) return false;
   return true;
 }
 
@@ -286,7 +291,7 @@ async function requireTransactionalRole(
 async function reserveOrganisationPlanUsage(
   transaction: Transaction,
   organisationId: string,
-  metric: "leads" | "monthlyAiSuggestions",
+  metric: "leads" | "members" | "monthlyAiSuggestions",
   requested: number,
 ): Promise<PlanUsageState | null> {
   const organisationRef = db.collection("organisations").doc(organisationId);
@@ -303,7 +308,7 @@ async function reserveOrganisationPlanUsage(
   const reservation = reservePlanUsage(planResolution.plan, usageResolution.state, metric, requested);
   if (!reservation.allowed) {
     if (reservation.reason === "limit_exceeded") {
-      const label = metric === "leads" ? "Lead" : "Monthly AI suggestion";
+      const label = metric === "leads" ? "Lead" : metric === "members" ? "Organisation member" : "Monthly AI suggestion";
       throw new HttpsError("resource-exhausted", `${label} limit reached for the ${planResolution.plan.displayName} plan (${reservation.limit}).`);
     }
     throw new HttpsError("failed-precondition", "Organisation usage state cannot be safely updated.");
@@ -536,6 +541,92 @@ export const updateOrganisationSettings = onCall(callableOptions, async (request
     writeSecurityAuditEvent(transaction, organisationId, uid, "organisation.settings_updated", "organisation", organisationId, { nameChanged: true });
   });
   return { organisationId, name };
+});
+
+export const addOrganisationMember = onCall(callableOptions, async (request) => {
+  const uid = requireUid(request.auth?.uid);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const organisationId = requireOrganisationId(data.organisationId);
+  const targetUid = data.targetUid;
+  const role = data.role ?? "member";
+  const idempotencyKey = data.idempotencyKey;
+  if (typeof targetUid !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(targetUid)) {
+    throw new HttpsError("invalid-argument", "A valid targetUid is required.");
+  }
+  if (targetUid === uid) {
+    throw new HttpsError("invalid-argument", "You are already a member of this organisation.");
+  }
+  if (role !== "member" && role !== "viewer") {
+    throw new HttpsError("invalid-argument", "New members may only be assigned the member or viewer role.");
+  }
+  if (typeof idempotencyKey !== "string" || !/^[A-Za-z0-9._:-]{16,128}$/.test(idempotencyKey)) {
+    throw new HttpsError("invalid-argument", "idempotencyKey must be 16-128 safe characters.");
+  }
+
+  const organisationRef = db.collection("organisations").doc(organisationId);
+  const targetMembershipRef = organisationRef.collection("members").doc(targetUid);
+  const idempotencyDocumentId = createHash("sha256")
+    .update(JSON.stringify([organisationId, uid, idempotencyKey]))
+    .digest("hex");
+  const idempotencyRef = organisationRef.collection("memberAdditionIdempotency").doc(idempotencyDocumentId);
+  const requestHash = createHash("sha256")
+    .update(JSON.stringify({ organisationId, targetUid, role }))
+    .digest("hex");
+  const result = { organisationId, uid: targetUid, role, added: true as const };
+
+  return db.runTransaction(async (transaction: Transaction) => {
+    await requireTransactionalRole(transaction, organisationId, uid, "campaign");
+    const idempotencySnapshot = await transaction.get(idempotencyRef);
+    if (idempotencySnapshot.exists) {
+      const saved = idempotencySnapshot.data() ?? {};
+      if (saved.actorUid !== uid || saved.requestHash !== requestHash || !saved.result || typeof saved.result !== "object") {
+        throw new HttpsError("already-exists", "This idempotencyKey was already used with a different member request.");
+      }
+      const savedResult = saved.result as Record<string, unknown>;
+      if (savedResult.organisationId !== organisationId || savedResult.uid !== targetUid
+        || savedResult.role !== role || savedResult.added !== true) {
+        throw new HttpsError("failed-precondition", "Saved member request state is invalid and requires operator review.");
+      }
+      const savedMembership = await transaction.get(targetMembershipRef);
+      if (!savedMembership.exists || savedMembership.data()?.uid !== targetUid || savedMembership.data()?.role !== role) {
+        throw new HttpsError("failed-precondition", "The member added by this request is no longer available in the organisation.");
+      }
+      return savedResult as typeof result;
+    }
+
+    const [organisationSnapshot, targetMembershipSnapshot] = await Promise.all([
+      transaction.get(organisationRef),
+      transaction.get(targetMembershipRef),
+    ]);
+    if (!organisationSnapshot.exists) throw new HttpsError("not-found", "Organisation was not found.");
+    if (targetMembershipSnapshot.exists) {
+      const existing = targetMembershipSnapshot.data() ?? {};
+      if (!isValidMembershipForOrganisation(existing, targetUid, organisationSnapshot.data()?.ownerUid)) {
+        throw new HttpsError("failed-precondition", "The existing member record is invalid and requires operator review.");
+      }
+      return { organisationId, uid: targetUid, role: existing.role, added: false as const };
+    }
+
+    // Legacy organisations without planUsage remain compatible until reconciled.
+    // Never initialise their usage to zero because doing so could bypass existing usage.
+    const reservedPlanUsageState = await reserveOrganisationPlanUsage(transaction, organisationId, "members", 1);
+    await consumeTransactionalRateLimit(transaction, organisationId, uid, "addOrganisationMember", 30);
+    if (reservedPlanUsageState) transaction.update(organisationRef, { planUsage: reservedPlanUsageState });
+    transaction.create(targetMembershipRef, {
+      uid: targetUid,
+      role,
+      createdAt: FieldValue.serverTimestamp(),
+      createdBy: uid,
+    });
+    transaction.create(idempotencyRef, {
+      requestHash,
+      result,
+      actorUid: uid,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    writeSecurityAuditEvent(transaction, organisationId, uid, "organisation.member_added", "organisation", targetUid, { memberRole: role });
+    return result;
+  });
 });
 
 export const createCampaign = onCall(callableOptions, async (request) => {
