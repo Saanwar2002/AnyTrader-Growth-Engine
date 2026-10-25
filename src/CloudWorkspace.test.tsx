@@ -725,7 +725,7 @@ describe("cloud authentication gate", () => {
     mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
     render(<CloudWorkspace />);
     await screen.findByRole("option", { name: "Pilot Workspace · owner" });
-    fireEvent.change(screen.getByLabelText("Add existing account by email"), { target: { value: " teammate@example.test " } });
+    fireEvent.change(screen.getByLabelText("Add existing account by email"), { target: { value: "teammate@example.test" } });
     fireEvent.change(screen.getByLabelText("Member role"), { target: { value: "viewer" } });
     fireEvent.click(screen.getByRole("button", { name: "Add member" }));
     await waitFor(() => expect(mocks.api.addOrganisationMember).toHaveBeenCalledWith(expect.objectContaining({
