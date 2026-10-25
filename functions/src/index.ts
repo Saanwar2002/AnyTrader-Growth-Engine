@@ -548,14 +548,11 @@ export const addOrganisationMember = onCall(callableOptions, async (request) => 
   const uid = requireUid(request.auth?.uid);
   const data = (request.data ?? {}) as Record<string, unknown>;
   const organisationId = requireOrganisationId(data.organisationId);
-  const targetUid = data.targetUid;
+  const targetEmail = typeof data.targetEmail === "string" ? data.targetEmail.trim().toLowerCase() : "";
   const role = data.role ?? "member";
   const idempotencyKey = data.idempotencyKey;
-  if (typeof targetUid !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(targetUid)) {
-    throw new HttpsError("invalid-argument", "A valid targetUid is required.");
-  }
-  if (targetUid === uid) {
-    throw new HttpsError("invalid-argument", "You are already a member of this organisation.");
+  if (targetEmail.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(targetEmail)) {
+    throw new HttpsError("invalid-argument", "A valid targetEmail is required.");
   }
   if (role !== "member" && role !== "viewer") {
     throw new HttpsError("invalid-argument", "New members may only be assigned the member or viewer role.");
@@ -567,8 +564,9 @@ export const addOrganisationMember = onCall(callableOptions, async (request) => 
   await db.runTransaction(async (transaction: Transaction) => {
     await requireTransactionalRole(transaction, organisationId, uid, "campaign");
   });
+  let targetUser;
   try {
-    await getAuth().getUser(targetUid);
+    targetUser = await getAuth().getUserByEmail(targetEmail);
   } catch (error) {
     if (typeof error === "object" && error !== null && "code" in error && error.code === "auth/user-not-found") {
       throw new HttpsError("not-found", "The target account does not exist.");
@@ -577,6 +575,10 @@ export const addOrganisationMember = onCall(callableOptions, async (request) => 
     throw new HttpsError("internal", "Could not verify the target account. Please retry.");
   }
 
+  const targetUid = targetUser.uid;
+  if (targetUid === uid) {
+    throw new HttpsError("invalid-argument", "You are already a member of this organisation.");
+  }
   const organisationRef = db.collection("organisations").doc(organisationId);
   const targetMembershipRef = organisationRef.collection("members").doc(targetUid);
   const idempotencyDocumentId = createHash("sha256")
@@ -584,7 +586,7 @@ export const addOrganisationMember = onCall(callableOptions, async (request) => 
     .digest("hex");
   const idempotencyRef = organisationRef.collection("memberAdditionIdempotency").doc(idempotencyDocumentId);
   const requestHash = createHash("sha256")
-    .update(JSON.stringify({ organisationId, targetUid, role }))
+    .update(JSON.stringify({ organisationId, targetEmail, targetUid, role }))
     .digest("hex");
   const result = { organisationId, uid: targetUid, role, added: true as const };
 
