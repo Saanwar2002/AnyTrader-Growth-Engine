@@ -87,6 +87,24 @@ describe("transaction-ready usage reservation decision", () => {
     });
   });
 
+  it("enforces the organisation member limit at the exact boundary", () => {
+    const atLimit = { ...state, members: PILOT_PLAN.limits.members };
+    expect(reservePlanUsage(PILOT_PLAN, atLimit, "members")).toEqual({
+      allowed: false,
+      reason: "limit_exceeded",
+      metric: "members",
+      requested: 1,
+      used: 5,
+      limit: 5,
+    });
+    expect(reservePlanUsage(PILOT_PLAN, state, "members")).toMatchObject({
+      allowed: true,
+      remaining: 0,
+      state: { members: 5 },
+    });
+    expect(state.members).toBe(4);
+  });
+
   it("rejects over-limit reservations without increasing usage", () => {
     expect(reservePlanUsage(PILOT_PLAN, state, "leads", 2)).toEqual({
       allowed: false, reason: "limit_exceeded", metric: "leads", requested: 2, used: 499, limit: 500,
