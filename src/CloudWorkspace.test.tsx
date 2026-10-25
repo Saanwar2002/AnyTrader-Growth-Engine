@@ -1674,4 +1674,34 @@ describe("cloud authentication gate", () => {
     expect(screen.getByText("Zulu Provider")).toBeTruthy();
   });
 
+  it("loads a bounded all-record campaign funnel chart independent of loaded lead pages", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    mocks.api.listCampaigns.mockResolvedValue({
+      campaigns: [{ id: "campaign-1", name: "Roofers Leeds", brand: "AnyTrader", category: "Roofers", location: "Leeds", goal: "Pilot", status: "active", createdAt: null }],
+      hasMoreCampaigns: false,
+      nextPageToken: null,
+    });
+    mocks.api.getCampaignFunnelSummary.mockResolvedValue({
+      organisationId: "org-1", campaignId: "campaign-1", totalLeadCount: 120,
+      qualifiedLeadCount: 30, contactedLeadCount: 12, onboardedLeadCount: 4,
+      qualifiedRatePercent: 25, onboardedRatePercent: 3.3, scope: "all_stored_campaign_leads",
+    });
+
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load full campaign chart" }));
+    await waitFor(() => expect(mocks.api.getCampaignFunnelSummary).toHaveBeenCalledWith({
+      organisationId: "org-1", campaignId: "campaign-1",
+    }));
+    const chart = await screen.findByRole("group", { name: "Full campaign funnel chart" });
+    expect(chart.textContent).toContain("independent of loaded lead pages");
+    expect(screen.getByRole("progressbar", { name: "Roofers Leeds all stored leads" }).getAttribute("value")).toBe("120");
+    expect(screen.getByRole("progressbar", { name: "Roofers Leeds qualified leads (all stored)" }).getAttribute("value")).toBe("30");
+    expect(screen.getByRole("progressbar", { name: "Roofers Leeds contacted leads (all stored)" }).getAttribute("value")).toBe("12");
+    expect(screen.getByRole("progressbar", { name: "Roofers Leeds onboarded leads (all stored)" }).getAttribute("value")).toBe("4");
+  });
+
 });
