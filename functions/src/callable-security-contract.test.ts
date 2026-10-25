@@ -66,6 +66,16 @@ describe("callable security contract", () => {
     expect(importCallable).toContain("for (const row of rowsToImport)");
   });
 
+  it("reserves monthly AI suggestion quota before calling the external model", () => {
+    const start = callableSource.indexOf("export const suggestOutreachDraft =");
+    const end = callableSource.indexOf("export const listOutreachDrafts =", start);
+    const callable = callableSource.slice(start, end);
+    expect(callable).toContain('transaction, organisationId, "monthlyAiSuggestions", 1');
+    expect(callable.indexOf("reserveOrganisationPlanUsage("))
+      .toBeLessThan(callable.indexOf("generateAiOutreachDraftSuggestion("));
+    expect(callable).toContain("transaction.update(organisationRef, { planUsage: reservedPlanUsageState })");
+  });
+
   it("enforces App Check on every deployed callable and only bypasses it in the Functions emulator", () => {
     expect(callableSource).toContain('const callableOptions = { enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true" }');
     expect((callableSource.match(/= onCall\(callableOptions, async \(request\) => \{/g) ?? [])).toHaveLength(18);

@@ -286,7 +286,7 @@ async function requireTransactionalRole(
 async function reserveOrganisationPlanUsage(
   transaction: Transaction,
   organisationId: string,
-  metric: "leads",
+  metric: "leads" | "monthlyAiSuggestions",
   requested: number,
 ): Promise<PlanUsageState | null> {
   const organisationRef = db.collection("organisations").doc(organisationId);
@@ -303,7 +303,8 @@ async function reserveOrganisationPlanUsage(
   const reservation = reservePlanUsage(planResolution.plan, usageResolution.state, metric, requested);
   if (!reservation.allowed) {
     if (reservation.reason === "limit_exceeded") {
-      throw new HttpsError("resource-exhausted", `Lead limit reached for the ${planResolution.plan.displayName} plan (${reservation.limit}).`);
+      const label = metric === "leads" ? "Lead" : "Monthly AI suggestion";
+      throw new HttpsError("resource-exhausted", `${label} limit reached for the ${planResolution.plan.displayName} plan (${reservation.limit}).`);
     }
     throw new HttpsError("failed-precondition", "Organisation usage state cannot be safely updated.");
   }
@@ -1445,6 +1446,17 @@ export const suggestOutreachDraft = onCall({ enforceAppCheck: process.env.FUNCTI
   const businessName = safePersistedText(lead.businessName, 160).trim();
   if (!businessName) throw new HttpsError("failed-precondition", "The lead has no valid business name for draft generation.");
   await consumeReadRateLimit(organisationId, uid, "suggestOutreachDraft", 10);
+  // Reserve the monthly AI allowance atomically before calling the external model.
+  // Attempts that fail after reservation still consume quota, preventing retries
+  // from bypassing the provider-cost limit under concurrency.
+  await db.runTransaction(async (transaction: Transaction) => {
+    const reservedPlanUsageState = await reserveOrganisationPlanUsage(
+      transaction, organisationId, "monthlyAiSuggestions", 1,
+    );
+    if (reservedPlanUsageState) {
+      transaction.update(organisationRef, { planUsage: reservedPlanUsageState });
+    }
+  });
   try {
     const suggestion = await generateAiOutreachDraftSuggestion({
       businessName, category: safePersistedText(lead.category, 100), location: safePersistedText(lead.location, 160),
