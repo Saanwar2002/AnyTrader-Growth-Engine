@@ -170,6 +170,8 @@ export default function CloudWorkspace() {
     setBusy(false);
     setLoadingMemberRoster(false);
     setMemberRoster(null);
+    // Member role edits are scoped to the active organisation, even if UIDs overlap.
+    setMemberRoleSelections({});
     // Bulk selections and retry keys belong to one organisation context only.
     // Clear them synchronously with workspace changes so stale IDs cannot be
     // submitted against a newly selected organisation.
