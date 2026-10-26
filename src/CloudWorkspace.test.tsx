@@ -885,7 +885,7 @@ describe("cloud authentication gate", () => {
     ], "providers.csv", { type: "text/csv" });
     fireEvent.change(screen.getByLabelText("CSV file"), { target: { files: [file] } });
     expect(await screen.findByText(/1 possible duplicate row/)).toBeTruthy();
-    expect(screen.getByText(/Duplicate preview is partial\. It checks only currently loaded leads/i)).toBeTruthy();
+    expect(screen.getByText("Duplicate preview is partial.")).toBeTruthy();
     expect(screen.getByText(/Possible duplicate: email matches loaded lead/)).toBeTruthy();
     expect(screen.getByText("Fresh Decorators")).toBeTruthy();
     expect(mocks.api.importLeads).not.toHaveBeenCalled();
