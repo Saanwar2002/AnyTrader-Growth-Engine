@@ -17,3 +17,8 @@ This module establishes a provider-neutral boundary for future lead-source integ
 2. Record an approval only after that review; do not mark a provider ready based on this helper alone.
 3. Implement one adapter at a time and validate every returned record's provenance before mapping it into the existing lead-import workflow.
 4. Keep human contact review and the existing do-not-contact gate authoritative.
+
+
+## Bounded page requests
+
+Before an adapter receives a request, callers should use `validateLeadSourcePageRequest`. It requires the adapter to pass the readiness gate, trims and bounds the query to 500 characters, and constrains page size to the adapter's configured maximum (which cannot exceed 500). It copies only query, page size, and optional cursor; unrelated caller-supplied properties are dropped. Cursor interpretation remains provider-specific.
