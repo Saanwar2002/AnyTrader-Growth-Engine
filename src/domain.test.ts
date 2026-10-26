@@ -316,7 +316,7 @@ describe("lead CSV export", () => {
       { ...lead, sourceRecordId: "provider-record-42" },
       { ...lead, businessName: "Legacy business", sourceRecordId: undefined },
     ], { "campaign-1": "Campaign" });
-    const [header, attributed, legacy] = csv.split("\\r\\n");
+    const [header, attributed, legacy] = csv.split("\r\n");
     expect(header).toContain('"Source record ID"');
     expect(attributed).toContain('"provider-record-42"');
     expect(legacy).toContain('"",');
