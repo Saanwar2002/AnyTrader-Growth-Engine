@@ -620,10 +620,10 @@ export function findLeadCsvDuplicates(
     if (includeSourceRecordId && sourceRecordId && !sourceRecordIdKeys.has(sourceRecordId)) sourceRecordIdKeys.set(sourceRecordId, value);
   };
   existingLeads.forEach((lead) => {
-    // Contact and business/location duplicates are source-independent. Only source
-    // record IDs need matching source labels to avoid false positives across systems.
-    add(lead, "loaded-lead", (lead.source ?? "csv_import") === sourceLabel
-      && (campaignId === undefined || lead.campaignId === campaignId));
+    // The server's duplicate checks are campaign-scoped. Ignore other campaigns
+    // entirely; source labels further scope only external source record IDs.
+    if (campaignId !== undefined && lead.campaignId !== campaignId) return;
+    add(lead, "loaded-lead", (lead.source ?? "csv_import") === sourceLabel);
   });
   const matches: LeadCsvDuplicateMatch[] = [];
   candidates.forEach((candidate, rowIndex) => {
