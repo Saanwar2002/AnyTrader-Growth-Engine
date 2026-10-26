@@ -212,10 +212,11 @@ describe("cloud authentication gate", () => {
     const firstLead = {
       id: "lead-1", campaignId: "campaign-1", businessName: "First Tenant Private Lead",
       category: "Painters", location: "Manchester", website: "", email: "", phone: "",
-      source: "manual", status: "new", score: 20, scoreReasons: [], notes: "",
+      source: "manual", status: "new", score: 20, scoreReasons: [], notes: "First tenant saved note",
       doNotContact: false, contactRestrictionVerified: true, createdAt: null,
     };
     let resolveSecondTenant!: (value: { leads: typeof firstLead[] }) => void;
+    const secondTenantLead = { ...firstLead, businessName: "Second Tenant Private Lead", notes: "Second tenant saved note" };
     const secondTenantLeads = new Promise<{ leads: typeof firstLead[] }>((resolve) => { resolveSecondTenant = resolve; });
     mocks.api.listLeads.mockImplementation(({ organisationId }: { organisationId: string }) =>
       organisationId === "org-1" ? Promise.resolve({ leads: [firstLead] }) : secondTenantLeads
@@ -230,6 +231,7 @@ describe("cloud authentication gate", () => {
     render(<CloudWorkspace />);
     expect(await screen.findByText("First Tenant Private Lead")).toBeTruthy();
     expect((await screen.findAllByText("First Tenant Private Campaign")).length).toBeGreaterThan(0);
+    fireEvent.change(screen.getByLabelText("Notes for First Tenant Private Lead"), { target: { value: "Unsaved first tenant note" } });
     fireEvent.click(await screen.findByRole("checkbox", { name: "Select First Tenant Private Lead for bulk status update" }));
     expect(screen.getByText("1/25 selected. Bulk updates are all-or-nothing; selecting “contacted” is blocked if any selected lead has an unresolved contact restriction.")).toBeTruthy();
     fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
@@ -237,8 +239,9 @@ describe("cloud authentication gate", () => {
     expect(screen.queryByText("First Tenant Private Lead")).toBeNull();
     expect(screen.queryByText("First Tenant Private Campaign")).toBeNull();
 
-    resolveSecondTenant({ leads: [] });
-    await waitFor(() => expect(screen.queryByText("First Tenant Private Lead")).toBeNull());
+    resolveSecondTenant({ leads: [secondTenantLead] });
+    expect(await screen.findByText("Second Tenant Private Lead")).toBeTruthy();
+    await waitFor(() => expect((screen.getByLabelText("Notes for Second Tenant Private Lead") as HTMLTextAreaElement).value).toBe("Second tenant saved note"));
   });
 
 

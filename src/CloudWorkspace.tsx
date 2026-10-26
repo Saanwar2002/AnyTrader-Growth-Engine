@@ -166,6 +166,11 @@ export default function CloudWorkspace() {
     // submitted against a newly selected organisation.
     setSelectedLeadIds([]);
     setBulkStatusIdempotencyKey("");
+    // Per-lead editor state is tenant-specific even when document IDs overlap.
+    setLeadNotes({});
+    setLeadFollowUpDates({});
+    setSelectedLeadActivityId("");
+    setLeadActivityTimeline(null);
   }, [organisationId]);
 
   const selectedOrganisationRole = organisations.find((org) => org.organisationId === organisationId)?.role ?? "";
