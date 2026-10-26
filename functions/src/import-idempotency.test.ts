@@ -32,3 +32,40 @@ describe("CSV import idempotency replay integrity", () => {
     expect(isPersistedImportedLeadReplayAvailable(null,{actorUid:"user-1",campaignId:"campaign-1",businessName:"Example Ltd",sourceLabel:"csv_import"})).toBe(false);
   });
 });
+
+
+describe("optional source record attribution", () => {
+  it("accepts a bounded source record ID in a saved import replay result", () => {
+    const attributedResult = {
+      ...result,
+      leads: [{ leadId: "lead_1", businessName: "Example Ltd", sourceRecordId: "directory-record-42" }],
+    };
+    expect(getValidImportReplayResult({ ...saved, result: attributedResult }, expected)).toEqual(attributedResult);
+  });
+
+  it("rejects blank, oversized, and non-string source record IDs in replay state", () => {
+    for (const sourceRecordId of [" ", "x".repeat(201), 42]) {
+      const invalidResult = {
+        ...result,
+        leads: [{ leadId: "lead_1", businessName: "Example Ltd", sourceRecordId }],
+      };
+      expect(getValidImportReplayResult({ ...saved, result: invalidResult }, expected)).toBeNull();
+    }
+  });
+
+  it("requires persisted source attribution to match on replay when supplied", () => {
+    const persisted = {
+      createdBy: "user-1", campaignId: "campaign-1", businessName: "Example Ltd",
+      source: "csv_import", sourceRecordId: "directory-record-42", status: "new",
+      doNotContact: true, contactReviewStatus: "pending", contactReviewRevision: 0,
+    };
+    const expectedAttribution = {
+      actorUid: "user-1", campaignId: "campaign-1", businessName: "Example Ltd",
+      sourceLabel: "csv_import", sourceRecordId: "directory-record-42",
+    };
+    expect(isPersistedImportedLeadReplayAvailable(persisted, expectedAttribution)).toBe(true);
+    expect(isPersistedImportedLeadReplayAvailable({
+      ...persisted, sourceRecordId: "different-record",
+    }, expectedAttribution)).toBe(false);
+  });
+});
