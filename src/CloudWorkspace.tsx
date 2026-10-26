@@ -941,7 +941,7 @@ DRAFT ONLY — NOT SENT.`,
       const result = await api.getOrganisationPlanUsageReconciliation({ organisationId: requestedOrganisationId });
       if (currentOrganisationIdRef.current === requestedOrganisationId) setPlanUsageReconciliation(result);
     } catch (loadError) {
-      setError(readableError(loadError));
+      if (currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(loadError));
     } finally {
       setLoadingPlanUsageReconciliation(false);
     }
