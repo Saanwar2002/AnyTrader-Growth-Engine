@@ -510,6 +510,36 @@ describe("cloud authentication gate", () => {
     expect(screen.getByText(/nothing was sent/i)).toBeTruthy();
   });
 
+  it("clears an unsubmitted CSV preview when switching organisations", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [
+        { organisationId: "org-1", name: "First Workspace", role: "owner" },
+        { organisationId: "org-2", name: "Second Workspace", role: "owner" },
+      ],
+      hasMoreOrganisations: false,
+    });
+    mocks.api.listCampaigns.mockImplementation(({ organisationId }: { organisationId: string }) => Promise.resolve({
+      campaigns: organisationId === "org-1"
+        ? [{ id: "campaign-1", name: "First Campaign", brand: "AnyTrader", category: "Painters", location: "Leeds", goal: "Recruit", status: "active", createdAt: null }]
+        : [{ id: "campaign-2", name: "Second Campaign", brand: "AnyTrader", category: "Decorators", location: "York", goal: "Recruit", status: "active", createdAt: null }],
+    }));
+    mocks.api.listLeads.mockResolvedValue({ leads: [], hasMoreLeads: false, nextPageToken: null });
+
+    render(<CloudWorkspace />);
+    await screen.findByRole("heading", { name: "Provider acquisition workspace" });
+    await waitFor(() => expect((screen.getByLabelText("Import into campaign") as HTMLSelectElement).value).toBe("campaign-1"));
+    const file = new File(["businessName,category\nPrivate CSV Lead,Painters"], "staged.csv", { type: "text/csv" });
+    fireEvent.change(screen.getByLabelText("CSV file"), { target: { files: [file] } });
+    expect(await screen.findByText("Private CSV Lead")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Import 1 reviewed row" })).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
+    await waitFor(() => expect(screen.queryByText("Private CSV Lead")).toBeNull());
+    expect(screen.queryByRole("button", { name: "Import 1 reviewed row" })).toBeNull();
+    expect((screen.getByLabelText("Import into campaign") as HTMLSelectElement).value).toBe("campaign-2");
+  });
+
   it("keeps a CSV retry bound to the original campaign and idempotency key after an uncertain failure", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({
