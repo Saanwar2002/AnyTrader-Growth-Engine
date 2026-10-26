@@ -62,6 +62,9 @@ A header row is required. The import first suggests column mappings, which you c
 - `website` or `url`
 - `email` or `emailAddress`
 - `phone` or `telephone`
+- `sourceRecordId`, `providerRecordId`, or `externalRecordId` for an optional source-side row identifier (up to 200 characters)
+
+The CSV import panel includes a blank downloadable template with all supported core columns and the optional source record ID column. The preview displays each ID before confirmation; exports preserve it for traceability. The ID is user-supplied metadata, not proof of source authenticity or permission to contact.
 
 Import starts with a review summary, skips blank-name rows and businesses already present in the selected campaign using case-insensitive whitespace-normalised names, and lets you include/exclude candidate rows before confirming. The table shows up to eight candidates at a time; select-all applies to the complete candidate set. The parser handles a UTF-8 BOM, escaped quotes and quoted fields containing line breaks; rejects empty or duplicate headers, malformed quote placement, rows with more values than the header, oversized lead fields and malformed non-empty email addresses; and reports original source line numbers. The mapping step lets you map unfamiliar headings to supported lead fields; unmapped columns are ignored. Review every imported record before any outreach. This remains a lightweight MVP CSV parser and is not a full RFC 4180 implementation; recovery from an unmatched quote uses a conservative heuristic and should be verified against representative imports.
 
