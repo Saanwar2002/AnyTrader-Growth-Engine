@@ -454,7 +454,7 @@ export default function CloudWorkspace() {
         }
       }
     } catch (reason) {
-      setError(readableError(reason));
+      if (currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(reason));
     } finally {
       setLoadingSecurityAudit(false);
     }
