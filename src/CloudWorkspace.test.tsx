@@ -519,14 +519,16 @@ describe("cloud authentication gate", () => {
       ],
       hasMoreOrganisations: false,
     });
-    mocks.api.listCampaigns
-      .mockResolvedValueOnce({ campaigns: [{ id: "campaign-1", name: "First Campaign", brand: "AnyTrader", category: "Painters", location: "Leeds", goal: "Recruit", status: "active", createdAt: null }] })
-      .mockResolvedValueOnce({ campaigns: [{ id: "campaign-2", name: "Second Campaign", brand: "AnyTrader", category: "Decorators", location: "York", goal: "Recruit", status: "active", createdAt: null }] });
+    mocks.api.listCampaigns.mockImplementation(({ organisationId }: { organisationId: string }) => Promise.resolve({
+      campaigns: organisationId === "org-1"
+        ? [{ id: "campaign-1", name: "First Campaign", brand: "AnyTrader", category: "Painters", location: "Leeds", goal: "Recruit", status: "active", createdAt: null }]
+        : [{ id: "campaign-2", name: "Second Campaign", brand: "AnyTrader", category: "Decorators", location: "York", goal: "Recruit", status: "active", createdAt: null }],
+    }));
     mocks.api.listLeads.mockResolvedValue({ leads: [], hasMoreLeads: false, nextPageToken: null });
 
     render(<CloudWorkspace />);
     await screen.findByRole("heading", { name: "Provider acquisition workspace" });
-    await screen.findByRole("option", { name: /First Campaign/ });
+    await waitFor(() => expect((screen.getByLabelText("Import into campaign") as HTMLSelectElement).value).toBe("campaign-1"));
     const file = new File(["businessName,category\nPrivate CSV Lead,Painters"], "staged.csv", { type: "text/csv" });
     fireEvent.change(screen.getByLabelText("CSV file"), { target: { files: [file] } });
     expect(await screen.findByText("Private CSV Lead")).toBeTruthy();
