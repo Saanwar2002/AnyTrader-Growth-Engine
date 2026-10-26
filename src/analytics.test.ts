@@ -182,6 +182,21 @@ describe("summarizeCampaignReadiness", () => {
     });
   });
 
+  it("blocks malformed legacy configuration values without throwing", async () => {
+    const { summarizeCampaignReadiness } = await import("./analytics");
+    const malformed = {
+      ...campaign,
+      brand: 42,
+      category: {},
+      location: null,
+    } as unknown as typeof campaign;
+    const result = summarizeCampaignReadiness([malformed], [safeLead], [], {
+      hasMoreCampaigns: false, hasMoreLeads: false, hasMoreDrafts: false,
+    })[0];
+    expect(result.status).toBe("blocked");
+    expect(result.missingConfigurationFields).toEqual(["brand", "category", "location"]);
+  });
+
   it("marks incomplete coverage ahead of any optimistic readiness status", async () => {
     const { summarizeCampaignReadiness } = await import("./analytics");
     const result = summarizeCampaignReadiness([campaign], [safeLead], [], {
