@@ -676,6 +676,42 @@ try {
   ], { stdio: "inherit" });
   console.log("PASS: server-side import deduplicates existing businesses by canonical business name and location and does not reserve identifiers from skipped rows.");
 
+  // Source record IDs deduplicate only within the same campaign and self-declared source label.
+  const sourceRecordDuplicate = await callOne("importLeads", {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    idempotencyKey: "csv-source-record-duplicate-01",
+    sourceLabel: "linkedin_csv",
+    leads: [{
+      businessName: "Different Name Same LinkedIn Record",
+      category: "Painters",
+      location: "Leeds",
+      email: "different-source-id-duplicate@example.test",
+      website: "https://different-source-id-duplicate.example.test",
+      sourceRecordId: "linkedin-record-001",
+    }],
+  });
+  assert.equal(sourceRecordDuplicate.imported, 0, "a repeated source record ID from the same source and campaign is skipped even when contact details differ");
+  assert.equal(sourceRecordDuplicate.duplicatesSkipped, 1, "source record ID duplicate is counted exactly once");
+  assert.equal(sourceRecordDuplicate.sent, false, "source ID duplicate detection never sends outreach");
+
+  const sameIdDifferentSource = await callOne("importLeads", {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    idempotencyKey: "csv-source-record-other-source-01",
+    sourceLabel: "other_approved",
+    leads: [{
+      businessName: "Different Source Same External ID",
+      category: "Decorators",
+      location: "York",
+      email: "different-source-label@example.test",
+      website: "https://different-source-label.example.test",
+      sourceRecordId: "linkedin-record-001",
+    }],
+  });
+  assert.equal(sameIdDifferentSource.imported, 1, "matching external IDs from different source labels do not create false duplicates");
+  assert.equal(sameIdDifferentSource.duplicatesSkipped, 0, "source ID matching is scoped to the declared source label");
+
   const importedLeads = (await callOne("listLeads", { organisationId: orgOne.organisationId })).leads;
   for (const importedName of ["Synthetic Imported Alpha Ltd", "Synthetic Imported Beta Ltd"]) {
     const imported = importedLeads.find((lead) => lead.businessName === importedName);
