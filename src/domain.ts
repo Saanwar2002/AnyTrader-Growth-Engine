@@ -551,15 +551,17 @@ export function formatLeadSourceLabel(source: string): string {
 }
 
 
-export type LeadCsvDuplicateField = "email" | "website" | "business/location";
+export type LeadCsvDuplicateField = "email" | "website" | "business/location" | "source record ID";
 export interface LeadCsvDuplicateCandidate {
   businessName: string;
   location?: string;
   email?: string;
   website?: string;
+  sourceRecordId?: string;
 }
 export interface LeadCsvDuplicateExisting extends LeadCsvDuplicateCandidate {
   campaignId: string;
+  source?: string;
 }
 export interface LeadCsvDuplicateMatch {
   rowIndex: number;
@@ -595,32 +597,47 @@ function canonicalCsvBusinessLocation(businessName: string, location: string | u
 export function findLeadCsvDuplicates(
   candidates: LeadCsvDuplicateCandidate[],
   existingLeads: LeadCsvDuplicateExisting[],
+  sourceLabel = "csv_import",
 ): LeadCsvDuplicateMatch[] {
   const emailKeys = new Map<string, { businessName: string; source: "loaded-lead" | "earlier-upload-row" }>();
   const websiteKeys = new Map<string, { businessName: string; source: "loaded-lead" | "earlier-upload-row" }>();
   const businessLocationKeys = new Map<string, { businessName: string; source: "loaded-lead" | "earlier-upload-row" }>();
-  const add = (lead: LeadCsvDuplicateCandidate, source: "loaded-lead" | "earlier-upload-row") => {
+  const sourceRecordIdKeys = new Map<string, { businessName: string; source: "loaded-lead" | "earlier-upload-row" }>();
+  const add = (
+    lead: LeadCsvDuplicateCandidate,
+    source: "loaded-lead" | "earlier-upload-row",
+    includeSourceRecordId = true,
+  ) => {
     const value = { businessName: lead.businessName, source };
     const email = canonicalCsvEmail(lead.email);
     const website = canonicalCsvWebsite(lead.website);
     const businessLocation = canonicalCsvBusinessLocation(lead.businessName, lead.location);
+    const sourceRecordId = lead.sourceRecordId?.trim();
     if (email && !emailKeys.has(email)) emailKeys.set(email, value);
     if (website && !websiteKeys.has(website)) websiteKeys.set(website, value);
     if (businessLocation && !businessLocationKeys.has(businessLocation)) businessLocationKeys.set(businessLocation, value);
+    if (includeSourceRecordId && sourceRecordId && !sourceRecordIdKeys.has(sourceRecordId)) sourceRecordIdKeys.set(sourceRecordId, value);
   };
-  existingLeads.forEach((lead) => add(lead, "loaded-lead"));
+  existingLeads.forEach((lead) => {
+    // Contact and business/location duplicates are source-independent. Only source
+    // record IDs need matching source labels to avoid false positives across systems.
+    add(lead, "loaded-lead", (lead.source ?? "csv_import") === sourceLabel);
+  });
   const matches: LeadCsvDuplicateMatch[] = [];
   candidates.forEach((candidate, rowIndex) => {
     const email = canonicalCsvEmail(candidate.email);
     const website = canonicalCsvWebsite(candidate.website);
     const businessLocation = canonicalCsvBusinessLocation(candidate.businessName, candidate.location);
+    const sourceRecordId = candidate.sourceRecordId?.trim();
     const match = (email && emailKeys.get(email))
       ? { value: emailKeys.get(email)!, field: "email" as const }
       : (website && websiteKeys.get(website))
         ? { value: websiteKeys.get(website)!, field: "website" as const }
         : (businessLocation && businessLocationKeys.get(businessLocation))
           ? { value: businessLocationKeys.get(businessLocation)!, field: "business/location" as const }
-          : null;
+          : (sourceRecordId && sourceRecordIdKeys.get(sourceRecordId))
+            ? { value: sourceRecordIdKeys.get(sourceRecordId)!, field: "source record ID" as const }
+            : null;
     if (match) {
       matches.push({ rowIndex, duplicateSource: match.value.source, duplicateBusinessName: match.value.businessName, matchedOn: match.field });
       // The server skips duplicate rows before they reserve other identifiers.

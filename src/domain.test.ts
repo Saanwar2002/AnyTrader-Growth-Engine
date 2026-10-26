@@ -413,6 +413,41 @@ describe("CSV duplicate preview", () => {
       { campaignId: "c2", businessName: "Same website", website: "https://example.test/casepath" },
     ])).toEqual([]);
   });
+  it("previews source record ID duplicates only within the selected source label", () => {
+    const candidate = {
+      businessName: "Different listing name",
+      location: "York",
+      email: "new@example.test",
+      website: "new.example.test",
+      sourceRecordId: "external-42",
+    };
+    const existing = [{
+      campaignId: "c1",
+      source: "linkedin_csv",
+      businessName: "Original listing",
+      location: "Leeds",
+      email: "original@example.test",
+      website: "original.example.test",
+      sourceRecordId: "external-42",
+    }];
+    expect(findLeadCsvDuplicates([candidate], existing, "linkedin_csv")).toEqual([
+      { rowIndex: 0, duplicateSource: "loaded-lead", duplicateBusinessName: "Original listing", matchedOn: "source record ID" },
+    ]);
+    expect(findLeadCsvDuplicates([candidate], existing, "other_approved")).toEqual([]);
+  });
+
+  it("flags repeated source record IDs in the same upload without reserving IDs from skipped rows", () => {
+    expect(findLeadCsvDuplicates([
+      { businessName: "First", email: "same@example.test", sourceRecordId: "record-1" },
+      { businessName: "Duplicate email row", email: "same@example.test", sourceRecordId: "record-2" },
+      { businessName: "Later source ID row", email: "later@example.test", sourceRecordId: "record-2" },
+      { businessName: "Repeated source ID", email: "another@example.test", sourceRecordId: "record-1" },
+    ], [], "linkedin_csv")).toEqual([
+      { rowIndex: 1, duplicateSource: "earlier-upload-row", duplicateBusinessName: "First", matchedOn: "email" },
+      { rowIndex: 3, duplicateSource: "earlier-upload-row", duplicateBusinessName: "First", matchedOn: "source record ID" },
+    ]);
+  });
+
   it("exports quota reconciliation without inventing legacy or AI usage and protects formula cells", () => {
     const csv = serializePlanUsageReconciliationCsv({
       organisationId: "org-1",
