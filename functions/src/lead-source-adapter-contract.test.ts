@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   assessLeadSourceAdapterReadiness,
   validateLeadSourceProvenance,
+  validateLeadSourcePageRequest,
   type LeadSourceAdapterDefinition,
 } from "./lead-source-adapter-contract";
 
@@ -133,5 +134,61 @@ describe("lead source provenance validation", () => {
     expect(() => validateLeadSourceProvenance({
       ...base, retrievedAt: "2026-10-27T00:00:00.000Z",
     }, "example_places", now)).toThrow("valid past UTC timestamp");
+  });
+});
+
+
+describe("bounded lead source page requests", () => {
+  const manualDefinition: LeadSourceAdapterDefinition = {
+    id: "csv_import",
+    kind: "manual_import",
+    maxPageSize: 25,
+  };
+
+  it("trims valid queries and copies only request fields", () => {
+    expect(validateLeadSourcePageRequest({
+      query: "  roofers in Edinburgh  ",
+      pageSize: 20,
+      cursor: "opaque-cursor",
+      injected: "must-not-cross-boundary",
+    }, manualDefinition)).toEqual({
+      query: "roofers in Edinburgh",
+      pageSize: 20,
+      cursor: "opaque-cursor",
+    });
+  });
+
+  it("rejects empty, non-string, and oversized queries", () => {
+    for (const query of ["", "   ", 123, "x".repeat(501)]) {
+      expect(() => validateLeadSourcePageRequest({
+        query, pageSize: 1,
+      }, manualDefinition)).toThrow("query must contain 1 to 500 characters");
+    }
+  });
+
+  it("rejects zero, negative, fractional, oversized, and non-numeric page sizes", () => {
+    for (const pageSize of [0, -1, 1.5, 26, "10", Number.NaN]) {
+      expect(() => validateLeadSourcePageRequest({
+        query: "builders", pageSize,
+      }, manualDefinition)).toThrow("page size exceeds the configured bound");
+    }
+  });
+
+  it("refuses malformed requests and adapters that fail the readiness gate", () => {
+    expect(() => validateLeadSourcePageRequest(null, manualDefinition))
+      .toThrow("request must be an object");
+    expect(() => validateLeadSourcePageRequest({
+      query: "builders", pageSize: 10,
+    }, { id: "example_places", kind: "approved_api", maxPageSize: 10 }))
+      .toThrow("adapter is not ready");
+  });
+
+  it("preserves opaque cursor values without accepting unrelated request fields", () => {
+    const cursor = { pageToken: "next", offset: 25 };
+    const result = validateLeadSourcePageRequest<typeof cursor>({
+      query: "gardeners", pageSize: 25, cursor, extra: true,
+    }, manualDefinition);
+    expect(result.cursor).toEqual(cursor);
+    expect("extra" in result).toBe(false);
   });
 });
