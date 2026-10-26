@@ -13,6 +13,10 @@ describe("plan usage state", () => {
     });
   });
 
+  it("rejects an explicitly null persisted state instead of treating it as missing", () => {
+    expect(resolvePlanUsageState(null, now)).toEqual({ ok: false, reason: "invalid_state" });
+  });
+
   it("uses UTC calendar months and rejects invalid dates", () => {
     expect(currentAiUsagePeriod(new Date("2026-11-01T00:30:00+02:00"))).toBe("2026-10");
     expect(currentAiUsagePeriod(new Date(Number.NaN))).toBeNull();

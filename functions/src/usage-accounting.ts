@@ -36,14 +36,14 @@ function isValidCounter(value: unknown): value is number {
 export function resolvePlanUsageState(value: unknown, now: Date): UsageStateResolution {
   const period = currentAiUsagePeriod(now);
   if (!period) return { ok: false, reason: "invalid_state" };
-  if (value === undefined || value === null) {
+  if (value === undefined) {
     return {
       ok: true,
       source: "initial",
       state: { schemaVersion: 1, campaigns: 0, leads: 0, members: 0, monthlyAiSuggestions: 0, aiUsagePeriod: period },
     };
   }
-  if (typeof value !== "object" || Array.isArray(value)) return { ok: false, reason: "invalid_state" };
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return { ok: false, reason: "invalid_state" };
   const candidate = value as Record<string, unknown>;
   const keys = Object.keys(candidate);
   if (
