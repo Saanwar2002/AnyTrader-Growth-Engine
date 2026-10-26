@@ -370,6 +370,7 @@ describe("cloud authentication gate", () => {
     expect((screen.getByLabelText("Campaign") as HTMLSelectElement).disabled).toBe(true);
     expect(retryButton).toBeTruthy();
     const firstPayload = mocks.api.createLead.mock.calls[0][0];
+    expect((screen.getByLabelText("Current organisation") as HTMLSelectElement).disabled).toBe(true);
     expect(firstPayload.idempotencyKey).toMatch(/^manual-lead-[A-Za-z0-9-]+$/);
     expect(firstPayload.businessName).toBe("Retry-safe Painting Ltd");
     expect(firstPayload.sourceRecordId).toBe("manual-directory-42");
