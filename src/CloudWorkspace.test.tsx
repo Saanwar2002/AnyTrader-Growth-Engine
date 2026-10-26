@@ -2066,6 +2066,30 @@ describe("cloud authentication gate", () => {
     expect(screen.getByText("Total open leads")).toBeTruthy();
   });
 
+  it("selects the first 25 filtered loaded leads when more than 25 match", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    mocks.api.listLeads.mockResolvedValue({
+      leads: Array.from({ length: 26 }, (_, index) => ({
+        id: `lead-${index + 1}`, campaignId: "campaign-1", businessName: `Bulk Candidate ${String(index + 1).padStart(2, "0")}`,
+        category: "Painters", location: "Leeds", website: "", email: "", phone: "", source: "manual",
+        status: "new", score: 40, scoreReasons: [], notes: "", doNotContact: true,
+        contactRestrictionVerified: false, contactReviewStatus: "pending", createdAt: null,
+      })),
+      hasMoreLeads: false,
+      nextPageToken: null,
+    });
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Select first 25 filtered loaded leads" }));
+    expect(screen.getByText(/25\/25 selected\. Bulk updates are all-or-nothing/)).toBeTruthy();
+    expect(screen.getByRole("checkbox", { name: "Select Bulk Candidate 01 for bulk status update" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Select Bulk Candidate 25 for bulk status update" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Select Bulk Candidate 26 for bulk status update" })).not.toBeChecked();
+  });
+
   it("updates multiple selected leads with one idempotent request", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({
