@@ -13,7 +13,7 @@
     "test:emulators": "npm --prefix functions ci --no-audit --no-fund && npm --prefix functions run build && npx --yes firebase-tools emulators:exec --project demo-growth-engine-test --only auth,functions,firestore \"node scripts/emulator-smoke-test.mjs\""
   },
   "dependencies": {
-    "firebase": "^13.0.0",
+    "firebase": "^13.1.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
