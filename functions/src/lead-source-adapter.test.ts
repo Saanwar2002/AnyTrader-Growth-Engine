@@ -1,8 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { assertLeadSourceAdapterRunnable, validateLeadSourceManifest, attributeLeadSourceCandidates, type LeadSourceAdapterManifest } from "./lead-source-adapter";
+import {
+  assertLeadSourceAdapterRunnable,
+  validateLeadSourceManifest,
+  attributeLeadSourceCandidates,
+  validateLeadSourcePageRequest,
+  validateLeadSourcePageResult,
+  type LeadSourceAdapterManifest,
+} from "./lead-source-adapter";
 const approvedManifest = (): LeadSourceAdapterManifest => ({
   sourceId: "directory-api-v1", displayName: "Example Directory API", termsUrl: "https://example.test/terms",
   reviewStatus: "approved", reviewedAt: "2026-10-25T09:00:00.000Z", reviewedBy: "review-ticket-123",
+  approvalExpiresAt: "2027-01-01T00:00:00.000Z",
   permittedPurpose: "business_provider_recruitment", maxRequestsPerMinute: 30, maxRecordsPerRun: 100,
   allowedFields: ["businessName", "category", "location", "website"],
 });
@@ -15,7 +23,7 @@ describe("lead source adapter permission contract", () => {
     expect(() => assertLeadSourceAdapterRunnable({ ...approvedManifest(), reviewStatus })).toThrow("blocked until");
   });
   it("requires reviewer, timestamp, and purpose for approval", () => {
-    const manifest = { ...approvedManifest(), reviewedAt: undefined, reviewedBy: " ", permittedPurpose: undefined };
+    const manifest = { ...approvedManifest(), reviewedAt: undefined, reviewedBy: " ", approvalExpiresAt: undefined, permittedPurpose: undefined };
     const issues = validateLeadSourceManifest(manifest);
     expect(issues.join(" ")).toContain("reviewedAt");
     expect(issues.join(" ")).toContain("reviewer reference");
@@ -99,4 +107,56 @@ describe("lead source adapter permission contract", () => {
     }, [{ businessName: "Example" }], "2026-10-25T10:00:00.000Z")).toThrow("blocked until");
   });
 
+});
+
+
+describe("lead source bounded page contract", () => {
+  const now = new Date("2026-10-26T12:00:00.000Z");
+  const manifest = approvedManifest();
+
+  it("requires time-bounded approval and rejects expired permission", () => {
+    expect(validateLeadSourceManifest({
+      ...manifest, approvalExpiresAt: "2026-10-26T11:59:59.000Z",
+    }, now)).toContain("Approved source permission has expired or the validation clock is invalid.");
+    expect(() => assertLeadSourceAdapterRunnable({
+      ...manifest, approvalExpiresAt: "2026-10-26T11:59:59.000Z",
+    }, now)).toThrow("manifest is invalid");
+  });
+
+  it("trims valid queries and drops unrelated request properties", () => {
+    expect(validateLeadSourcePageRequest({
+      query: "  roofers in Edinburgh  ", pageSize: 50, cursor: "next", injected: "drop",
+    }, manifest, now)).toEqual({
+      query: "roofers in Edinburgh", pageSize: 50, cursor: "next",
+    });
+  });
+
+  it("rejects invalid query and page-size bounds", () => {
+    expect(() => validateLeadSourcePageRequest({
+      query: "   ", pageSize: 1,
+    }, manifest, now)).toThrow("query must contain 1 to 500 characters");
+    expect(() => validateLeadSourcePageRequest({
+      query: "builders", pageSize: 101,
+    }, manifest, now)).toThrow("page size exceeds the configured bound");
+  });
+
+  it("copies bounded page results and allowlists the cursor field", () => {
+    const records = [{ businessName: "A" }, { businessName: "B" }];
+    const result = validateLeadSourcePageResult({
+      records, nextCursor: null, internalDebug: true,
+    }, manifest, now);
+    expect(result).toEqual({ records, nextCursor: null });
+    expect(result.records).not.toBe(records);
+    expect("internalDebug" in result).toBe(false);
+  });
+
+  it("rejects malformed and oversized page results", () => {
+    expect(() => validateLeadSourcePageResult(null, manifest, now))
+      .toThrow("page result must be an object");
+    expect(() => validateLeadSourcePageResult({ records: "invalid" }, manifest, now))
+      .toThrow("records must be an array");
+    expect(() => validateLeadSourcePageResult({
+      records: Array.from({ length: 101 }, (_, index) => ({ index })),
+    }, manifest, now)).toThrow("exceeds the configured record limit");
+  });
 });
