@@ -965,6 +965,31 @@ describe("cloud authentication gate", () => {
     expect(await screen.findByText("Member added.")).toBeTruthy();
   });
 
+  it("keeps an uncertain member addition bound to the original organisation", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [
+        { organisationId: "org-1", name: "First Workspace", role: "owner" },
+        { organisationId: "org-2", name: "Second Workspace", role: "owner" },
+      ],
+      hasMoreOrganisations: false,
+    });
+    mocks.api.addOrganisationMember
+      .mockRejectedValueOnce(new Error("Network request timed out"))
+      .mockResolvedValueOnce({ organisationId: "org-1", uid: "member-1", role: "member", added: true });
+    render(<CloudWorkspace />);
+    await screen.findByRole("heading", { name: "Provider acquisition workspace" });
+    const email = screen.getByLabelText("Add existing account by email");
+    fireEvent.change(email, { target: { value: "teammate@example.test" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add member" }));
+    await screen.findByText("Network request timed out");
+    const firstPayload = mocks.api.addOrganisationMember.mock.calls[0][0];
+    expect((screen.getByLabelText("Current organisation") as HTMLSelectElement).disabled).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Retry member addition" }));
+    await waitFor(() => expect(mocks.api.addOrganisationMember).toHaveBeenCalledTimes(2));
+    expect(mocks.api.addOrganisationMember.mock.calls[1][0]).toEqual(firstPayload);
+  });
+
   it("disables member addition for non-admin organisation roles", async () => {
     mocks.currentUser = { email: "member@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "member" }] });
