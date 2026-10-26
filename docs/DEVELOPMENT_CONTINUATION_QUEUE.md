@@ -1,3 +1,12 @@
+## AutoPilot run — correct cumulative emulator audit assertions (2026-10-26)
+
+- Fixed the no-op lead-note smoke test to account for the earlier successful member-role note edit on the same fixture lead.
+- The test now expects the pre-existing event count to be 1, the first administrative note update to increase it to 2, and the repeated identical note update to leave it at 2.
+- Follow-up-date assertions remain independent and continue checking one successful write plus no duplicate event on retry.
+- This corrects test accounting only; application code is unchanged. Exact-head CI must pass before merge.
+
+---
+
 ## AutoPilot run — retry-safe no-op lead note and follow-up updates (2026-10-25)
 
 - Identical notes and follow-up-date requests now return successfully after authorization and lead-existence checks, without consuming quota or creating duplicate activity/audit events.

@@ -1856,7 +1856,7 @@ try {
     "functions/scripts/assert-emulator-audit-event-count.mjs",
     orgOne.organisationId,
     "lead.notes_changed",
-    "0",
+    "1",
     leadOne.leadId,
   ], { stdio: "inherit" });
   const administrativeNotes = "Administrative note while contact is restricted";
@@ -1865,7 +1865,7 @@ try {
     "functions/scripts/assert-emulator-audit-event-count.mjs",
     orgOne.organisationId,
     "lead.notes_changed",
-    "1",
+    "2",
     leadOne.leadId,
   ], { stdio: "inherit" });
   const repeatedNotesResult = await callOne("updateLeadNotes", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, notes: administrativeNotes });
@@ -1874,7 +1874,7 @@ try {
     "functions/scripts/assert-emulator-audit-event-count.mjs",
     orgOne.organisationId,
     "lead.notes_changed",
-    "1",
+    "2",
     leadOne.leadId,
   ], { stdio: "inherit" });
   execFileSync(process.execPath, [
