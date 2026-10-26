@@ -527,7 +527,7 @@ describe("cloud authentication gate", () => {
     render(<CloudWorkspace />);
     await screen.findByRole("heading", { name: "Provider acquisition workspace" });
     await screen.findByRole("option", { name: /First Campaign/ });
-    const file = new File(["businessName,category\\nPrivate CSV Lead,Painters"], "staged.csv", { type: "text/csv" });
+    const file = new File(["businessName,category\nPrivate CSV Lead,Painters"], "staged.csv", { type: "text/csv" });
     fireEvent.change(screen.getByLabelText("CSV file"), { target: { files: [file] } });
     expect(await screen.findByText("Private CSV Lead")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Import 1 reviewed row" })).toBeTruthy();
