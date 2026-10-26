@@ -1166,7 +1166,7 @@ DRAFT ONLY — NOT SENT.`,
         setNotice(`Loaded complete server-side funnel counts for ${campaigns.length} campaign(s).`);
       }
     } catch (reason) {
-      setError(readableError(reason));
+      if (currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(reason));
     } finally {
       setLoadingFullCampaignAnalytics(false);
     }
