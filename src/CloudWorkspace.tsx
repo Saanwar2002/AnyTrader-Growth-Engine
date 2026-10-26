@@ -1001,7 +1001,7 @@ DRAFT ONLY — NOT SENT.`,
       const summary = await api.getLeadCompletenessSummary({ organisationId: requestedOrganisationId });
       if (currentOrganisationIdRef.current === requestedOrganisationId) setLeadCompletenessSummary(summary);
     } catch (loadError) {
-      setError(readableError(loadError));
+      if (currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(loadError));
     } finally {
       setLoadingLeadCompletenessSummary(false);
     }
@@ -1056,7 +1056,7 @@ DRAFT ONLY — NOT SENT.`,
       const summary = await api.getFullCampaignReadinessSummary({ organisationId: requestedOrganisationId });
       if (currentOrganisationIdRef.current === requestedOrganisationId) setFullCampaignReadiness(summary);
     } catch (loadError) {
-      setError(readableError(loadError));
+      if (currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(loadError));
     } finally {
       setLoadingFullCampaignReadiness(false);
     }
@@ -1071,7 +1071,7 @@ DRAFT ONLY — NOT SENT.`,
       const summary = await api.getOpenLeadAgingSummary({ organisationId: requestedOrganisationId });
       if (currentOrganisationIdRef.current === requestedOrganisationId) setOpenLeadAgingSummary(summary);
     } catch (loadError) {
-      setError(readableError(loadError));
+      if (currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(loadError));
     } finally {
       setLoadingOpenLeadAgingSummary(false);
     }
@@ -1086,7 +1086,7 @@ DRAFT ONLY — NOT SENT.`,
       const summary = await api.getContactReviewQueueSummary({ organisationId: requestedOrganisationId });
       if (currentOrganisationIdRef.current === requestedOrganisationId) setContactReviewQueueSummary(summary);
     } catch (loadError) {
-      setError(readableError(loadError));
+      if (currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(loadError));
     } finally {
       setLoadingContactReviewQueueSummary(false);
     }
