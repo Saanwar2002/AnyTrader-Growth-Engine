@@ -22,3 +22,8 @@ This module establishes a provider-neutral boundary for future lead-source integ
 ## Bounded page requests
 
 Before an adapter receives a request, callers should use `validateLeadSourcePageRequest`. It requires the adapter to pass the readiness gate, trims and bounds the query to 500 characters, and constrains page size to the adapter's configured maximum (which cannot exceed 500). It copies only query, page size, and optional cursor; unrelated caller-supplied properties are dropped. Cursor interpretation remains provider-specific.
+
+
+## Bounded page results
+
+After an adapter returns, use `validateLeadSourcePageResult` before downstream mapping or persistence. It requires a ready adapter, an object result with an array of records, and no more records than the adapter's configured maximum. It copies the records array and only preserves the optional `nextCursor` field. This validates the page envelope, not the provider-specific content of each record; record mapping and provenance validation remain separate required steps.
