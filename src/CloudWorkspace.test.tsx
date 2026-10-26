@@ -907,7 +907,7 @@ describe("cloud authentication gate", () => {
     // (for example, future navigation state restoration) before the request rejects.
     fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
     rejectSuggestion(new Error("stale organisation suggestion failed"));
-    await waitFor(() => expect(screen.getByLabelText("Current organisation").getAttribute("disabled")).not.toBeNull());
+    await waitFor(() => expect((screen.getByLabelText("Current organisation") as HTMLSelectElement).disabled).toBe(false));
     expect(screen.queryByText(/stale organisation suggestion failed/i)).toBeNull();
   });
 
