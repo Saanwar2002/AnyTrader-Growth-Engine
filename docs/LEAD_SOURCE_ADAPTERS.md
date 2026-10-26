@@ -56,3 +56,6 @@ When present, a lead's source record ID is shown in the lead directory and inclu
 
 
 Lead CSV exports include the optional source record ID as a separate column. Missing legacy values export as an empty cell. The value passes through the same spreadsheet-formula protection as other exported data; it remains traceability metadata and is not independently verified.
+
+
+During CSV review, the preview table displays each row's optional source record ID before the user confirms the import. Blank values are shown as an em dash and remain absent from the submitted payload. This helps spot mapping errors but does not verify source authenticity.
