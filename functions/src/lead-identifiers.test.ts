@@ -24,6 +24,13 @@ describe("canonical lead duplicate identifiers", () => {
     expect(canonicalLeadWebsiteKey("https://example.com/Path?Ref=ABC#Top")).not.toBe(canonicalLeadWebsiteKey("https://example.com/Path?ref=ABC#Top"));
   });
 
+  it("rejects non-HTTP schemes and URLs containing embedded credentials", () => {
+    expect(() => canonicalLeadWebsiteKey("ftp://example.com/data")).toThrow("HTTP or HTTPS");
+    expect(() => canonicalLeadWebsiteKey("file:///etc/passwd")).toThrow();
+    expect(() => canonicalLeadWebsiteKey("https://user:password@example.com")).toThrow("must not include credentials");
+    expect(() => canonicalLeadWebsiteKey("https://[invalid-host")).toThrow();
+  });
+
   it("returns an empty key for an absent website", () => {
     expect(canonicalLeadWebsiteKey("")).toBe("");
     expect(canonicalLeadWebsiteKey("   ")).toBe("");
