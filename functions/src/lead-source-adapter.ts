@@ -39,9 +39,7 @@ export interface AttributedLeadSourceCandidate {
   provenance: LeadSourceProvenance;
 }
 export interface LeadSourceDiscoveryRequest { category: string; location: string; limit: number; }
-export interface LeadSourcePageRequest<TCursor = string> {
-  query: string;
-  pageSize: number;
+export interface LeadSourcePageRequest<TCursor = string> extends LeadSourceDiscoveryRequest {
   cursor?: TCursor;
 }
 export interface LeadSourcePage<TRecord = unknown, TCursor = string> {
@@ -49,9 +47,9 @@ export interface LeadSourcePage<TRecord = unknown, TCursor = string> {
   nextCursor?: TCursor | null;
 }
 /** Implementations must only call a provider through an approved, permitted API. */
-export interface LeadSourceAdapter {
+export interface LeadSourceAdapter<TCursor = string> {
   manifest: LeadSourceAdapterManifest;
-  discover(request: LeadSourceDiscoveryRequest): Promise<LeadSourceCandidate[]>;
+  discoverPage(request: LeadSourcePageRequest<TCursor>): Promise<LeadSourcePage<LeadSourceCandidate, TCursor>>;
 }
 const ALLOWED_FIELDS = new Set<LeadSourceField>(["businessName", "category", "location", "website", "email", "phone"]);
 function isIsoDate(value: unknown): value is string {
@@ -195,16 +193,20 @@ export function validateLeadSourcePageRequest<TCursor = string>(
     throw new Error("Lead source page request must be an object.");
   }
   const request = value as Record<string, unknown>;
-  if (typeof request.query !== "string" || !request.query.trim() || request.query.length > 500) {
-    throw new Error("Lead source query must contain 1 to 500 characters.");
+  if (typeof request.category !== "string" || !request.category.trim() || request.category.length > 120) {
+    throw new Error("Lead source category must contain 1 to 120 characters.");
   }
-  if (!Number.isSafeInteger(request.pageSize) || (request.pageSize as number) < 1
-    || (request.pageSize as number) > manifest.maxRecordsPerRun) {
-    throw new Error("Lead source page size exceeds the configured bound.");
+  if (typeof request.location !== "string" || !request.location.trim() || request.location.length > 200) {
+    throw new Error("Lead source location must contain 1 to 200 characters.");
+  }
+  if (!Number.isSafeInteger(request.limit) || (request.limit as number) < 1
+    || (request.limit as number) > manifest.maxRecordsPerRun) {
+    throw new Error("Lead source page limit exceeds the configured bound.");
   }
   return {
-    query: request.query.trim(),
-    pageSize: request.pageSize as number,
+    category: request.category.trim(),
+    location: request.location.trim(),
+    limit: request.limit as number,
     ...(Object.prototype.hasOwnProperty.call(request, "cursor")
       ? { cursor: request.cursor as TCursor }
       : {}),
