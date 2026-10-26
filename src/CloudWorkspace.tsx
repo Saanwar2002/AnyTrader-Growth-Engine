@@ -1226,7 +1226,7 @@ DRAFT ONLY — NOT SENT.`,
       URL.revokeObjectURL(url);
       setNotice(`Exported full stored-lead funnel counts for ${summaries.length} campaign(s). This report is not limited to loaded lead pages.`);
     } catch (reason) {
-      setError(readableError(reason));
+      if (currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(reason));
     } finally {
       setExportingFullCampaignAnalytics(false);
     }

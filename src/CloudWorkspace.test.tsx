@@ -1814,6 +1814,31 @@ describe("cloud authentication gate", () => {
     expect(await screen.findByText(/full stored-lead funnel counts for 1 campaign/)).toBeTruthy();
   });
 
+  it("does not show a failed full campaign export from a previous organisation", async () => {
+    mocks.currentUser = { email: "pilot@example.test", uid: "owner-uid" };
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [
+      { organisationId: "org-1", name: "Pilot Workspace", role: "owner" },
+      { organisationId: "org-2", name: "Second Workspace", role: "owner" },
+    ] });
+    mocks.api.listCampaigns.mockResolvedValue({ campaigns: [{ id: "campaign-1", name: "Painter pilot", brand: "AnyTrader", category: "Painters", location: "Manchester", goal: "Recruit providers", status: "active", createdAt: null }], hasMoreCampaigns: false, nextPageToken: null });
+    mocks.api.getCampaignFunnelSummary.mockResolvedValue({
+      organisationId: "org-1", campaignId: "campaign-1", totalLeadCount: 1,
+      qualifiedLeadCount: 0, contactedLeadCount: 0, onboardedLeadCount: 0,
+      qualifiedRatePercent: 0, onboardedRatePercent: 0, scope: "all_stored_campaign_leads",
+    });
+    render(<CloudWorkspace />);
+    const button = await screen.findByRole("button", { name: "Export full campaign report (CSV)" });
+    await waitFor(() => expect((button as HTMLButtonElement).disabled).toBe(false));
+    let rejectCampaigns!: (reason: Error) => void;
+    mocks.api.listCampaigns.mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectCampaigns = reject; }));
+    fireEvent.click(button);
+    await waitFor(() => expect(mocks.api.listCampaigns).toHaveBeenCalledWith({ organisationId: "org-1" }));
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
+    rejectCampaigns(new Error("stale full campaign export failed"));
+    await waitFor(() => expect(screen.getByLabelText("Current organisation")).toHaveProperty("value", "org-2"));
+    expect(screen.queryByText(/stale full campaign export failed/i)).toBeNull();
+  });
+
   it("does not show a failed lead activity request from a previous organisation", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [
