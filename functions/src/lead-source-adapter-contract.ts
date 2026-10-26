@@ -87,6 +87,9 @@ export function assessLeadSourceAdapterReadiness(
   value: unknown,
   now: Date = new Date(),
 ): LeadSourceAdapterReadiness {
+  if (!(now instanceof Date) || !Number.isFinite(now.getTime())) {
+    return { ready: false, reason: "invalid-review-time" };
+  }
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return { ready: false, reason: "invalid-definition" };
   }
@@ -145,6 +148,9 @@ export function validateLeadSourceProvenance(
   expectedProviderId: string,
   now: Date = new Date(),
 ): LeadSourceProvenance {
+  if (!(now instanceof Date) || !Number.isFinite(now.getTime())) {
+    throw new Error("Lead source provenance validation time is invalid.");
+  }
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error("Lead source provenance must be an object.");
   }
