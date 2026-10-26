@@ -64,9 +64,11 @@ const csvAliases: Record<LeadCsvField, string[]> = {
 export function safeLeadWebsiteHref(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const candidate = value.trim();
-  if (!candidate || candidate.length > 500 || /[\\s\\u0000-\\u001f\\u007f]/.test(candidate)) return null;
-  const hasScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(candidate);
-  const urlValue = hasScheme ? candidate : `https://${candidate}`;
+  if (!candidate || candidate.length > 500 || /[\s\u0000-\u001f\u007f]/.test(candidate)) return null;
+  const hasHttpScheme = /^https?:\/\//i.test(candidate);
+  const looksLikeHostPort = /^[^/:?#]+:\d+(?:[/?#]|$)/.test(candidate);
+  if (candidate.includes(":") && !hasHttpScheme && !looksLikeHostPort) return null;
+  const urlValue = hasHttpScheme ? candidate : \`https://\${candidate}\`;
   try {
     const parsed = new URL(urlValue);
     if ((parsed.protocol !== "http:" && parsed.protocol !== "https:") || !parsed.hostname || parsed.username || parsed.password) return null;
