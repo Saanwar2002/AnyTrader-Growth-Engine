@@ -11,7 +11,7 @@ A standalone, multi-brand lead discovery and provider acquisition workspace for 
 - Lead status workflow: new, in review, qualified, contacted, onboarded, and rejected.
 - Transparent completeness score (0–100) with an explanation of which fields contributed.
 - CSV import with a 2 MB file limit, automatic header suggestions, configurable field mapping for unfamiliar spreadsheets, quoted-field support including embedded line breaks, row validation, per-campaign demo duplicate detection and server-side tenant-scoped canonical email/website/business-location duplicate checks plus source-record-ID duplicate checks scoped to campaign and self-declared source label, and a review table that lets you include/exclude candidates before committing the import.
-- Export currently visible leads to CSV, or export a selected subset (up to 25 selected at a time). Selection exports include only selected records in loaded pages and do not fetch additional pages.
+- Export currently visible leads to CSV, or export a selected subset (up to 25 selected at a time). Bulk selection selects every filtered loaded lead when there are 25 or fewer matches, and the first 25 in the current sort order when there are more. Selection exports include only selected records in loaded pages and do not fetch additional pages.
 - Create and edit outreach drafts; no send action exists.
 - Local activity history and a demo reset action.
 - Synthetic example data clearly labelled as fictional.
