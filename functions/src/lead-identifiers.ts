@@ -13,6 +13,12 @@ export function canonicalLeadWebsiteKey(website: string): string {
   if (!value) return "";
   const hasScheme = value.includes("://");
   const parsed = new URL(hasScheme ? value : `https://${value}`);
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new Error("Lead website must use HTTP or HTTPS.");
+  }
+  if (!parsed.hostname || parsed.username || parsed.password) {
+    throw new Error("Lead website must have a hostname and must not include credentials.");
+  }
   const path = parsed.pathname === "/" ? "" : parsed.pathname;
   return `${parsed.protocol}//${parsed.host}${path}${parsed.search}${parsed.hash}`;
 }
