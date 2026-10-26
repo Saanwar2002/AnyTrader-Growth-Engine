@@ -455,7 +455,7 @@ describe("cloud authentication gate", () => {
     await screen.findByRole("heading", { name: "Provider acquisition workspace" });
     await screen.findAllByText("Painter pilot");
     const file = new File([
-      "businessName,category,location,email,phone\nNorthside Painting,Painters,Manchester,hello@northside.example,01610000001\nCity Decorators,Decorators,Salford,team@citydecorators.example,01610000002",
+      "businessName,category,location,email,phone,sourceRecordId\nNorthside Painting,Painters,Manchester,hello@northside.example,01610000001,linkedin-record-001\nCity Decorators,Decorators,Salford,team@citydecorators.example,01610000002,",
     ], "providers.csv", { type: "text/csv" });
     fireEvent.change(screen.getByLabelText("Source label (self-declared)"), { target: { value: "linkedin_csv" } });
     fireEvent.change(screen.getByLabelText("CSV file"), { target: { files: [file] } });
@@ -472,7 +472,7 @@ describe("cloud authentication gate", () => {
     expect(payload.sourceLabel).toBe("linkedin_csv");
     expect(payload.idempotencyKey.length).toBeGreaterThanOrEqual(16);
     expect(payload.leads).toEqual([
-      { businessName: "Northside Painting", category: "Painters", location: "Manchester", website: "", email: "hello@northside.example", phone: "01610000001" },
+      { businessName: "Northside Painting", category: "Painters", location: "Manchester", website: "", email: "hello@northside.example", phone: "01610000001", sourceRecordId: "linkedin-record-001" },
       { businessName: "City Decorators", category: "Decorators", location: "Salford", website: "", email: "team@citydecorators.example", phone: "01610000002" },
     ]);
     expect(await screen.findByText(/2 imported, 0 duplicates skipped/i)).toBeTruthy();
