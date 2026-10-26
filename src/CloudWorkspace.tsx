@@ -673,10 +673,8 @@ DRAFT ONLY — NOT SENT.`,
     setAiDraftBusyLeadId(lead.id); setError(""); setNotice("");
     try {
       const suggestion = await api.suggestOutreachDraft({ organisationId: requestedOrganisationId, leadId: lead.id });
-      if (currentOrganisationIdRef.current !== requestedOrganisationId) {
-        setError("The active organisation changed while the AI suggestion was loading. The result was discarded; request a new suggestion in the selected workspace.");
-        return;
-      }
+      // A suggestion requested for a previous workspace must be discarded silently.
+      if (currentOrganisationIdRef.current !== requestedOrganisationId) return;
       setEditingDraftId(`new:${lead.id}`);
       setDraftSubject(suggestion.subject);
       setDraftBody(suggestion.body);
