@@ -47,3 +47,6 @@ The authenticated `importLeads` callable now accepts an optional `sourceRecordId
 ## Import record identifiers
 
 The `importLeads` callable accepts an optional per-row `sourceRecordId` (1–200 non-whitespace characters). It is persisted on the lead and exposed by the bounded lead listing. When present, it participates in the idempotency hash, is included in the saved replay result, and must still match the persisted lead on replay. This is traceability metadata supplied by the importer; it is not independently verified provider evidence or an approval signal. Imports without the field retain their legacy request hash and replay shape.
+
+
+The CSV preview recognises an optional `sourceRecordId`, `providerRecordId`, or `externalRecordId` column. It preserves a bounded value through explicit import confirmation and omits the field when blank. Multiple alias columns or values longer than 200 characters are rejected/skipped rather than guessed.
