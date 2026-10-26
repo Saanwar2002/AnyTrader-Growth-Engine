@@ -123,7 +123,7 @@ export interface PlanUsageReconciliationSummary {
   destructiveActionPerformed: false;
 }
 export interface LeadFieldsInput { organisationId: string; campaignId: string; businessName: string; category?: string; location?: string; website?: string; email?: string; phone?: string; }
-export interface LeadInput extends LeadFieldsInput { idempotencyKey: string; }
+export interface LeadInput extends LeadFieldsInput { idempotencyKey: string; sourceRecordId?: string; }
 export interface CsvImportLeadInput { businessName: string; category?: string; location?: string; website?: string; email?: string; phone?: string; sourceRecordId?: string; }
 export interface CsvImportResult { organisationId: string; campaignId: string; received: number; imported: number; duplicatesSkipped: number; leads: Array<{ leadId: string; businessName: string; sourceRecordId?: string }>; sent: false; messageSentByThisAction: false; }
 export interface LeadActivityTimeline {

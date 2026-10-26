@@ -359,6 +359,7 @@ describe("cloud authentication gate", () => {
     render(<CloudWorkspace />);
     const businessName = await screen.findByLabelText("Business name");
     fireEvent.change(businessName, { target: { value: "Retry-safe Painting Ltd" } });
+    fireEvent.change(screen.getByLabelText("Source record ID (optional)"), { target: { value: "manual-directory-42" } });
     fireEvent.click(screen.getByRole("button", { name: "Save lead" }));
 
     const retryButton = await screen.findByRole("button", { name: "Retry save (same request)" });
@@ -368,6 +369,7 @@ describe("cloud authentication gate", () => {
     const firstPayload = mocks.api.createLead.mock.calls[0][0];
     expect(firstPayload.idempotencyKey).toMatch(/^manual-lead-[A-Za-z0-9-]+$/);
     expect(firstPayload.businessName).toBe("Retry-safe Painting Ltd");
+    expect(firstPayload.sourceRecordId).toBe("manual-directory-42");
 
     fireEvent.click(retryButton);
     await waitFor(() => expect(mocks.api.createLead).toHaveBeenCalledTimes(2));
