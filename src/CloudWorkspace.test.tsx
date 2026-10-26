@@ -2235,7 +2235,7 @@ describe("cloud authentication gate", () => {
     await waitFor(() => expect(mocks.api.removeOrganisationMember).toHaveBeenCalledWith({ organisationId: "org-2", targetUid: "member-org-2" }));
 
     resolveFirst({ removed: true });
-    await waitFor(() => expect(screen.getByRole("button", { name: "Remove access" })).toBeDisabled());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Remove access" })).toHaveProperty("disabled", true));
     resolveSecond({ removed: true });
     await waitFor(() => expect(screen.getByText(/Organisation membership removed/i)).toBeTruthy());
   });
