@@ -2271,6 +2271,33 @@ describe("cloud authentication gate", () => {
   });
 
 
+  it("does not show a failed per-campaign funnel request from a previous organisation", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [
+        { organisationId: "org-1", name: "Pilot Workspace", role: "owner" },
+        { organisationId: "org-2", name: "Second Workspace", role: "owner" },
+      ],
+      hasMoreOrganisations: false,
+    });
+    mocks.api.listCampaigns.mockResolvedValue({
+      campaigns: [{ id: "campaign-1", name: "Painter pilot", brand: "AnyTrader", category: "Painters", location: "Edinburgh", goal: "Recruit providers", status: "active", createdAt: null }],
+      hasMoreCampaigns: false,
+      nextPageToken: null,
+    });
+    let rejectSummary!: (reason: Error) => void;
+    mocks.api.getCampaignFunnelSummary.mockImplementation(() => new Promise((_resolve, reject) => { rejectSummary = reject; }));
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load full counts" }));
+    await waitFor(() => expect(mocks.api.getCampaignFunnelSummary).toHaveBeenCalledWith({
+      organisationId: "org-1", campaignId: "campaign-1",
+    }));
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
+    rejectSummary(new Error("stale organisation analytics failure"));
+    await waitFor(() => expect((screen.getByLabelText("Current organisation") as HTMLSelectElement).value).toBe("org-2"));
+    expect(screen.queryByText("stale organisation analytics failure")).toBeNull();
+  });
+
   it("loads a bounded all-record campaign funnel chart independent of loaded lead pages", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({
