@@ -2226,7 +2226,10 @@ describe("cloud authentication gate", () => {
   it("saves a tenant-scoped lead follow-up date", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({
-      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      organisations: [
+        { organisationId: "org-1", name: "Pilot Workspace", role: "owner" },
+        { organisationId: "org-2", name: "Second Workspace", role: "owner" },
+      ],
       hasMoreOrganisations: false,
     });
     mocks.api.listCampaigns.mockResolvedValue({ campaigns: [] });
@@ -2243,7 +2246,9 @@ describe("cloud authentication gate", () => {
       hasMoreLeads: false,
       nextPageToken: null,
     }));
+    let finishFollowUpSave: (() => void) | undefined;
     mocks.api.updateLeadFollowUpDate.mockImplementation(async ({ leadId, followUpDate }) => {
+      await new Promise<void>((resolve) => { finishFollowUpSave = resolve; });
       currentFollowUpDate = followUpDate;
       return { leadId, followUpDate };
     });
@@ -2251,6 +2256,8 @@ describe("cloud authentication gate", () => {
     const dateInput = await screen.findByLabelText("Follow-up date for Follow-up Painter");
     fireEvent.change(dateInput, { target: { value: "2026-11-04" } });
     fireEvent.click(screen.getByRole("button", { name: "Save follow-up date" }));
+    await waitFor(() => expect((screen.getByLabelText("Current organisation") as HTMLSelectElement).disabled).toBe(true));
+    finishFollowUpSave?.();
     await waitFor(() => expect(mocks.api.updateLeadFollowUpDate).toHaveBeenCalledWith({
       organisationId: "org-1", leadId: "lead-follow-up", followUpDate: "2026-11-04",
     }));
