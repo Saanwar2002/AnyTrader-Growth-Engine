@@ -311,6 +311,22 @@ describe("lead CSV export", () => {
     expect(csv.split("\r\n")).toHaveLength(3);
   });
 
+  it("exports optional source record IDs and keeps blank IDs empty", () => {
+    const csv = serializeLeadExportCsv([
+      { ...lead, sourceRecordId: "provider-record-42" },
+      { ...lead, businessName: "Legacy business", sourceRecordId: undefined },
+    ], { "campaign-1": "Campaign" });
+    const [header, attributed, legacy] = csv.split("\r\n");
+    expect(header).toContain('"Source record ID"');
+    expect(attributed).toContain('"provider-record-42"');
+    expect(legacy).toContain('"",');
+  });
+
+  it("protects formula-like source record IDs in CSV exports", () => {
+    const csv = serializeLeadExportCsv([{ ...lead, sourceRecordId: `=HYPERLINK("https://evil.test")` }], {});
+    expect(csv).toContain('"\'=HYPERLINK(""https://evil.test"")"');
+  });
+
   it("protects spreadsheet formula injection in lead fields", () => {
     const csv = serializeLeadExportCsv([{ ...lead, businessName: "  =HYPERLINK(\"https://evil.test\")" }], { "campaign-1": "Campaign" });
     expect(csv).toContain('"\'  =HYPERLINK(""https://evil.test"")"');
