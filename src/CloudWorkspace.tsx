@@ -971,7 +971,7 @@ DRAFT ONLY — NOT SENT.`,
       const summary = await api.getOnboardingCohortSummary({ organisationId: requestedOrganisationId });
       if (currentOrganisationIdRef.current === requestedOrganisationId) setOnboardingCohortSummary(summary);
     } catch (loadError) {
-      setError(readableError(loadError));
+      if (currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(loadError));
     } finally {
       setLoadingOnboardingCohorts(false);
     }
