@@ -53,3 +53,6 @@ The CSV preview recognises an optional `sourceRecordId`, `providerRecordId`, or 
 
 
 When present, a lead's source record ID is shown in the lead directory and included in its text search. It is displayed as traceability metadata alongside the self-declared source label; the UI does not imply independent verification.
+
+
+Lead CSV exports include the optional source record ID as a separate column. Missing legacy values export as an empty cell. The value passes through the same spreadsheet-formula protection as other exported data; it remains traceability metadata and is not independently verified.
