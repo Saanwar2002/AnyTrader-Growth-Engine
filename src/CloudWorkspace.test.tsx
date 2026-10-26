@@ -1378,6 +1378,26 @@ describe("cloud authentication gate", () => {
     expect(screen.queryByText(/stale onboarding coverage request failed/i)).toBeNull();
   });
 
+  it("does not show a failed lead completeness request from a previous organisation", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [
+        { organisationId: "org-1", name: "Pilot Workspace", role: "owner" },
+        { organisationId: "org-2", name: "Second Workspace", role: "owner" },
+      ],
+      hasMoreOrganisations: false,
+    });
+    let rejectSummary!: (reason: Error) => void;
+    mocks.api.getLeadCompletenessSummary.mockImplementation(() => new Promise((_resolve, reject) => { rejectSummary = reject; }));
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load completeness report" }));
+    await waitFor(() => expect(mocks.api.getLeadCompletenessSummary).toHaveBeenCalledWith({ organisationId: "org-1" }));
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
+    rejectSummary(new Error("stale lead completeness request failed"));
+    await waitFor(() => expect(screen.getByLabelText("Current organisation")).toHaveProperty("value", "org-2"));
+    expect(screen.queryByText(/stale lead completeness request failed/i)).toBeNull();
+  });
+
   it("does not expose onboarding timestamp coverage preview to viewer roles", async () => {
     mocks.currentUser = { email: "viewer@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({
