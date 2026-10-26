@@ -1820,7 +1820,7 @@ describe("cloud authentication gate", () => {
       { organisationId: "org-1", name: "Pilot Workspace", role: "owner" },
       { organisationId: "org-2", name: "Second Workspace", role: "owner" },
     ] });
-    mocks.api.listCampaigns.mockResolvedValue({ campaigns: [], hasMoreCampaigns: false, nextPageToken: null });
+    mocks.api.listCampaigns.mockResolvedValue({ campaigns: [{ id: "campaign-1", name: "Painter pilot", brand: "AnyTrader", category: "Painters", location: "Manchester", goal: "Recruit providers", status: "active", createdAt: null }], hasMoreCampaigns: false, nextPageToken: null });
     mocks.api.getCampaignFunnelSummary.mockResolvedValue({
       organisationId: "org-1", campaignId: "campaign-1", totalLeadCount: 1,
       qualifiedLeadCount: 0, contactedLeadCount: 0, onboardedLeadCount: 0,
