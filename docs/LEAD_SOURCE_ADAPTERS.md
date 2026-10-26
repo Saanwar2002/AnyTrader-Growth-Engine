@@ -37,3 +37,13 @@ The adapter contract also exposes a pure `attributeLeadSourceCandidates` boundar
 ## Bounded page request and result contract
 
 The shared `lead-source-adapter.ts` module also provides `validateLeadSourcePageRequest` and `validateLeadSourcePageResult`. Both require a runnable, currently approved manifest. Requests trim and bound the discovery category and location, and constrain `limit` to `maxRecordsPerRun`; unrelated request properties are dropped. The adapter interface exposes `discoverPage` with an optional opaque cursor and returns a bounded page envelope rather than an unbounded candidate array. Results require an array bounded by the same configured maximum, copy the records array, and preserve only the optional `nextCursor`. These helpers validate the page envelope only. Provider record validation and `attributeLeadSourceCandidates` remain responsible for allowlisted fields and provenance; persistence, deduplication, suppression, and human review remain separate gates.
+
+
+## Import-boundary source record IDs
+
+The authenticated `importLeads` callable now accepts an optional `sourceRecordId` on each row, bounds it to 200 non-whitespace characters, and persists it with the imported lead. The ID is included in idempotency hashing and replay integrity checks when supplied. It is an externally reported record identifier, not proof that a provider was approved or that the data is lawful to use. The server continues to derive the actor and timestamps, use the closed source-label enum, deduplicate transactionally, and keep imported leads suppressed pending human review. Existing imports without a source record ID retain their legacy idempotency hash.
+
+
+## Import record identifiers
+
+The `importLeads` callable accepts an optional per-row `sourceRecordId` (1–200 non-whitespace characters). It is persisted on the lead and exposed by the bounded lead listing. When present, it participates in the idempotency hash, is included in the saved replay result, and must still match the persisted lead on replay. This is traceability metadata supplied by the importer; it is not independently verified provider evidence or an approval signal. Imports without the field retain their legacy request hash and replay shape.

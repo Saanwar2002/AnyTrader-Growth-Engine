@@ -1150,6 +1150,10 @@ export const listLeads = onCall(callableOptions, async (request) => {
         email: safePersistedText(lead.email, 254),
         phone: safePersistedText(lead.phone, 80),
         source: safePersistedText(lead.source, 80),
+        ...(typeof lead.sourceRecordId === "string" && lead.sourceRecordId.trim().length > 0
+          && lead.sourceRecordId.length <= 200
+          ? { sourceRecordId: safePersistedText(lead.sourceRecordId, 200) }
+          : {}),
         status: isValidLeadStatus(lead.status) ? lead.status : "unknown",
         score: typeof lead.score === "number" && Number.isFinite(lead.score)
           ? Math.min(100, Math.max(0, lead.score))
@@ -1785,7 +1789,16 @@ export const importLeads = onCall(callableOptions, async (request) => {
       throw new HttpsError("invalid-argument", `Lead row ${index + 1} must be an object.`);
     }
     const row = value as Record<string, unknown>;
-    return { fields: normaliseLeadFields(row), index };
+    const sourceRecordId = row.sourceRecordId;
+    if (sourceRecordId !== undefined
+      && (typeof sourceRecordId !== "string" || !sourceRecordId.trim() || sourceRecordId.length > 200)) {
+      throw new HttpsError("invalid-argument", `Lead row ${index + 1} has an invalid sourceRecordId.`);
+    }
+    return {
+      fields: normaliseLeadFields(row),
+      index,
+      ...(typeof sourceRecordId === "string" ? { sourceRecordId: sourceRecordId.trim() } : {}),
+    };
   });
   await requireLeadEditor(organisationId, uid);
   const sourceLabel = data.sourceLabel === undefined ? "csv_import" : data.sourceLabel;
@@ -1794,7 +1807,9 @@ export const importLeads = onCall(callableOptions, async (request) => {
     throw new HttpsError("invalid-argument", "sourceLabel must be one of csv_import, linkedin_csv, google_places_manual, or other_approved.");
   }
   const requestHashPayload: Record<string, unknown> = {
-    organisationId, campaignId, leads: rows.map(({ fields }) => fields),
+    organisationId, campaignId,
+    leads: rows.map(({ fields, sourceRecordId }) =>
+      sourceRecordId === undefined ? fields : { ...fields, sourceRecordId }),
   };
   // Preserve the legacy hash for default CSV imports so uncertain retries from older
   // clients remain idempotent after this optional attribution field is introduced.
@@ -1811,8 +1826,9 @@ export const importLeads = onCall(callableOptions, async (request) => {
   // persisted records. Do not pre-mark rows as duplicates here: an earlier row
   // may itself be skipped due to a persisted duplicate and therefore must not
   // reserve its otherwise-new identifiers against later valid rows.
-  const prepared = rows.map(({ fields }) => ({
+  const prepared = rows.map(({ fields, sourceRecordId }) => ({
     fields,
+    ...(sourceRecordId !== undefined ? { sourceRecordId } : {}),
     emailKey: fields.dedupeEmailKey,
     websiteKey: fields.dedupeWebsiteKey,
     businessKey: canonicalLeadBusinessLocationKey(fields.businessName, fields.location),
@@ -1843,6 +1859,9 @@ export const importLeads = onCall(callableOptions, async (request) => {
       const allPersistedLeadsMatch = replayLeadSnapshots.every((snapshot, index) =>
         snapshot.exists && isPersistedImportedLeadReplayAvailable(snapshot.data(), {
           actorUid: uid, campaignId, businessName: savedResult.leads[index].businessName, sourceLabel,
+          ...(savedResult.leads[index].sourceRecordId !== undefined
+            ? { sourceRecordId: savedResult.leads[index].sourceRecordId }
+            : {}),
         }));
       if (!allPersistedLeadsMatch) {
         throw new HttpsError("failed-precondition", "Saved import retry state no longer matches its authoritative lead records.");
@@ -1898,7 +1917,7 @@ export const importLeads = onCall(callableOptions, async (request) => {
     if (reservedPlanUsageState) {
       transaction.update(organisationRef, { planUsage: reservedPlanUsageState });
     }
-    const newLeads: Array<{ leadId: string; businessName: string }> = [];
+    const newLeads: Array<{ leadId: string; businessName: string; sourceRecordId?: string }> = [];
     for (const row of rowsToImport) {
       const completeness = calculateLeadCompleteness(row.fields);
       const leadRef = leadsRef.doc();
@@ -1906,6 +1925,7 @@ export const importLeads = onCall(callableOptions, async (request) => {
       const now = FieldValue.serverTimestamp();
       transaction.create(leadRef, {
         ...row.fields,
+        ...(row.sourceRecordId !== undefined ? { sourceRecordId: row.sourceRecordId } : {}),
         campaignId,
         status: "new",
         source: sourceLabel,
@@ -1925,7 +1945,11 @@ export const importLeads = onCall(callableOptions, async (request) => {
         message: `Lead imported: ${row.fields.businessName}`,
         createdAt: now,
       });
-      newLeads.push({ leadId: leadRef.id, businessName: row.fields.businessName });
+      newLeads.push({
+        leadId: leadRef.id,
+        businessName: row.fields.businessName,
+        ...(row.sourceRecordId !== undefined ? { sourceRecordId: row.sourceRecordId } : {}),
+      });
     }
 
     const result = {
