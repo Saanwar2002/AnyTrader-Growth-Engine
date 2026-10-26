@@ -2287,6 +2287,8 @@ export const updateLeadNotes = onCall(callableOptions, async (request) => {
     await requireTransactionalRole(transaction, organisationId, uid, "lead");
     const leadSnapshot = await transaction.get(leadRef);
     if (!leadSnapshot.exists) throw new HttpsError("not-found", "Lead was not found in this organisation.");
+    const currentNotes = leadSnapshot.data()?.notes;
+    if (currentNotes === notes || (currentNotes === undefined && notes === "")) return;
     const now = FieldValue.serverTimestamp();
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "updateLeadNotes", 240);
     transaction.update(leadRef, { notes, updatedAt: now, updatedBy: uid });
@@ -2315,6 +2317,8 @@ export const updateLeadFollowUpDate = onCall(callableOptions, async (request) =>
     await requireTransactionalRole(transaction, organisationId, uid, "lead");
     const leadSnapshot = await transaction.get(leadRef);
     if (!leadSnapshot.exists) throw new HttpsError("not-found", "Lead was not found in this organisation.");
+    const currentFollowUpDate = leadSnapshot.data()?.followUpDate;
+    if (currentFollowUpDate === followUpDate || (currentFollowUpDate === undefined && followUpDate === null)) return;
     const now = FieldValue.serverTimestamp();
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "updateLeadFollowUpDate", 240);
     transaction.update(leadRef, { followUpDate, updatedAt: now, updatedBy: uid });

@@ -18,6 +18,7 @@ const allowedMetadataKeys = {
   "campaign.status_changed": ["campaignStatus"],
   "lead.status_changed": ["leadStatus"],
   "lead.notes_changed": ["notesCleared"],
+  "lead.follow_up_date_changed": ["followUpDateSet"],
   "outreach_draft.created": ["draftAction"],
   "outreach_draft.updated": ["draftAction"],
   "outreach_draft.deleted": ["draftAction"],
@@ -50,7 +51,10 @@ for (const { value } of events) {
   const metadataKeys = Object.keys(value.metadata);
   assert.ok(metadataKeys.every((key) => allowedKeys.includes(key)),
     "audit metadata must contain only allowlisted fields for " + eventType);
-  assert.ok(!metadataKeys.some((key) => /email|phone|website|subject|body|notes|businessName|token|secret|message/i.test(key)),
+  // The explicit per-event allowlist above is authoritative. This secondary
+  // guard rejects sensitive field names without misclassifying safe flags
+  // such as notesCleared or followUpDateSet.
+  assert.ok(!metadataKeys.some((key) => /^(email|phone|website|subject|body|notes|businessName|token|secret|message)$/i.test(key)),
     "audit metadata must not contain contact details, draft content, notes, tokens, or secrets");
   for (const [key, metadataValue] of Object.entries(value.metadata)) {
     assert.ok(["string", "number", "boolean"].includes(typeof metadataValue),

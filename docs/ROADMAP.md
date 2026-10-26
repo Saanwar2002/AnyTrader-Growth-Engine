@@ -112,6 +112,7 @@
 - [x] Harden lead-creation idempotency replay responses with an exact key set and original actor/request/payload binding; compare persisted score, score reasons, contact-safety flags, and creation fields before replay.
 - [x] Harden CSV-import idempotency replay with an exact bounded response shape, unique lead IDs, consistent import totals, and tenant/campaign/creator/contact-suppression checks against persisted imported leads.
 - [x] Make repeated lead-status updates retry-safe no-ops after authorization, contact-restriction, campaign and status validation, preventing duplicate activity/audit events and unnecessary quota consumption.
+- [x] Make identical lead-note and follow-up-date retries no-op after tenant/role/target validation, preventing duplicate activity/audit events and unnecessary quota consumption.
 - Later: agency workspaces, white-labeling, API access, and enterprise controls.
 
 ## Non-negotiable boundaries
