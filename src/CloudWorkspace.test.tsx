@@ -2240,6 +2240,38 @@ describe("cloud authentication gate", () => {
     await waitFor(() => expect(screen.getByText(/Organisation membership removed/i)).toBeTruthy());
   });
 
+  it("resets unsaved member role selections when switching organisations", async () => {
+    mocks.currentUser = { email: "owner@example.test", uid: "owner-uid" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [
+        { organisationId: "org-1", name: "Pilot Workspace", role: "owner" },
+        { organisationId: "org-2", name: "Second Workspace", role: "owner" },
+      ],
+      hasMoreOrganisations: false,
+    });
+    mocks.api.listOrganisationMembers.mockImplementation(async ({ organisationId }: { organisationId: string }) => ({
+      organisationId,
+      members: [
+        { uid: "owner-uid", email: "owner@example.test", role: "owner", createdAt: "2026-01-01T00:00:00.000Z" },
+        { uid: "shared-uid", email: "shared@example.test", role: organisationId === "org-1" ? "member" : "viewer", createdAt: "2026-01-01T00:00:00.000Z" },
+      ],
+      hasMoreMembers: false,
+      nextPageToken: null,
+      scope: "organisation_member_roster" as const,
+    }));
+
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load member roster" }));
+    const roleSelect = await screen.findByRole("combobox", { name: "Role for shared@example.test" });
+    fireEvent.change(roleSelect, { target: { value: "admin" } });
+    expect((roleSelect as HTMLSelectElement).value).toBe("admin");
+
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
+    await waitFor(() => expect((screen.getByLabelText("Current organisation") as HTMLSelectElement).value).toBe("org-2"));
+    fireEvent.click(await screen.findByRole("button", { name: "Load member roster" }));
+    await waitFor(() => expect((screen.getByRole("combobox", { name: "Role for shared@example.test" }) as HTMLSelectElement).value).toBe("viewer"));
+  });
+
   it("does not show a failed member roster request from a previous organisation", async () => {
     mocks.currentUser = { email: "owner@example.test", uid: "owner-uid" };
     mocks.api.listMyOrganisations.mockResolvedValue({
