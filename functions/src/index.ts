@@ -1150,6 +1150,10 @@ export const listLeads = onCall(callableOptions, async (request) => {
         email: safePersistedText(lead.email, 254),
         phone: safePersistedText(lead.phone, 80),
         source: safePersistedText(lead.source, 80),
+        ...(typeof lead.sourceRecordId === "string" && lead.sourceRecordId.trim().length > 0
+          && lead.sourceRecordId.length <= 200
+          ? { sourceRecordId: safePersistedText(lead.sourceRecordId, 200) }
+          : {}),
         status: isValidLeadStatus(lead.status) ? lead.status : "unknown",
         score: typeof lead.score === "number" && Number.isFinite(lead.score)
           ? Math.min(100, Math.max(0, lead.score))
