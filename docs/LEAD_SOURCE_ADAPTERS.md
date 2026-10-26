@@ -59,3 +59,6 @@ Lead CSV exports include the optional source record ID as a separate column. Mis
 
 
 During CSV review, the preview table displays each row's optional source record ID before the user confirms the import. Blank values are shown as an em dash and remain absent from the submitted payload. This helps spot mapping errors but does not verify source authenticity.
+
+
+Manual lead creation accepts the same optional `sourceRecordId` as CSV import, bounded to 200 non-whitespace characters. The ID participates in manual-create idempotency and replay-integrity checks only when supplied; older requests without it retain their legacy request hash. It is traceability metadata, not provider approval evidence.
