@@ -2068,6 +2068,26 @@ describe("cloud authentication gate", () => {
     expect(screen.queryByText(/stale security audit request failed/i)).toBeNull();
   });
 
+  it("does not show a failed member roster request from a previous organisation", async () => {
+    mocks.currentUser = { email: "owner@example.test", uid: "owner-uid" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [
+        { organisationId: "org-1", name: "Pilot Workspace", role: "owner" },
+        { organisationId: "org-2", name: "Second Workspace", role: "owner" },
+      ],
+      hasMoreOrganisations: false,
+    });
+    let rejectRoster!: (reason: Error) => void;
+    mocks.api.listOrganisationMembers.mockImplementation(() => new Promise((_resolve, reject) => { rejectRoster = reject; }));
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load member roster" }));
+    await waitFor(() => expect(mocks.api.listOrganisationMembers).toHaveBeenCalledWith({ organisationId: "org-1" }));
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
+    rejectRoster(new Error("stale member roster request failed"));
+    await waitFor(() => expect(screen.getByLabelText("Current organisation")).toHaveProperty("value", "org-2"));
+    expect(screen.queryByText(/stale member roster request failed/i)).toBeNull();
+  });
+
   it("does not expose the security audit log controls to viewer roles", async () => {
     mocks.currentUser = { email: "viewer@example.test", uid: "viewer-uid" };
     mocks.api.listMyOrganisations.mockResolvedValue({
