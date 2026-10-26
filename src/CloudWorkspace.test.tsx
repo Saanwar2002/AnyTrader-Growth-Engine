@@ -876,7 +876,7 @@ describe("cloud authentication gate", () => {
       website: "", email: "hello@northside.example", phone: "", source: "manual", status: "new", score: 20,
       scoreReasons: [], notes: "", doNotContact: true, contactRestrictionVerified: false, contactReviewStatus: "pending",
       contactReviewRevision: 0, createdAt: null,
-    }] });
+    }], hasMoreLeads: true, nextPageToken: "leads/org-1/lead-1" });
     render(<CloudWorkspace />);
     await screen.findByRole("heading", { name: "Provider acquisition workspace" });
     await screen.findByLabelText("Notes for Northside Painting");
@@ -885,6 +885,7 @@ describe("cloud authentication gate", () => {
     ], "providers.csv", { type: "text/csv" });
     fireEvent.change(screen.getByLabelText("CSV file"), { target: { files: [file] } });
     expect(await screen.findByText(/1 possible duplicate row/)).toBeTruthy();
+    expect(screen.getByText("Duplicate preview is partial.")).toBeTruthy();
     expect(screen.getByText(/Possible duplicate: email matches loaded lead/)).toBeTruthy();
     expect(screen.getByText("Fresh Decorators")).toBeTruthy();
     expect(mocks.api.importLeads).not.toHaveBeenCalled();
