@@ -320,10 +320,14 @@ describe("cloud authentication gate", () => {
 
   it("allows an authenticated user to edit a draft without sending it", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
-    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [
+      { organisationId: "org-1", name: "Pilot Workspace", role: "owner" },
+      { organisationId: "org-2", name: "Second Workspace", role: "owner" },
+    ] });
     mocks.api.listOutreachDrafts.mockResolvedValue({ drafts: [{ id: "draft-1", leadId: "lead-1", campaignId: "campaign-1", subject: "Initial subject", body: "Initial body", status: "draft", leadSuppressed: false, requiresReview: false, reviewReason: null, createdAt: null }] });
     render(<CloudWorkspace />);
     fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+    expect((screen.getByLabelText("Current organisation") as HTMLSelectElement).disabled).toBe(true);
     fireEvent.change(screen.getByLabelText("Draft subject"), { target: { value: "Updated subject" } });
     fireEvent.change(screen.getByLabelText("Draft body"), { target: { value: "Updated body for human review." } });
     fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
