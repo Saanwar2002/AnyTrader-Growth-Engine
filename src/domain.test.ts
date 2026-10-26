@@ -1,5 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { canCreateOutreachDraft, getContactRestrictionAction, deduplicateLeads, escapeCsvCell, serializeLeadExportCsv, serializePlanUsageReconciliationCsv, formatLeadSourceLabel, findLeadCsvDuplicates, inspectLeadCsvHeaders, normalizeBusinessName, parseLeadCsv, scoreLead, suggestLeadCsvMapping } from "./domain";
+import { canCreateOutreachDraft, getContactRestrictionAction, deduplicateLeads, escapeCsvCell, serializeLeadExportCsv, serializePlanUsageReconciliationCsv, formatLeadSourceLabel, findLeadCsvDuplicates, inspectLeadCsvHeaders, normalizeBusinessName, parseLeadCsv, scoreLead, suggestLeadCsvMapping, safeLeadWebsiteHref } from "./domain";
+
+describe("safe lead website links", () => {
+  it("normalises bare domains to HTTPS and preserves safe HTTP(S) URLs", () => {
+    expect(safeLeadWebsiteHref("example.co.uk")).toBe("https://example.co.uk/");
+    expect(safeLeadWebsiteHref("https://example.co.uk/contact")).toBe("https://example.co.uk/contact");
+    expect(safeLeadWebsiteHref("http://example.co.uk")).toBe("http://example.co.uk/");
+  });
+
+  it("rejects non-web schemes, credentials, local hosts, whitespace, and invalid values", () => {
+    expect(safeLeadWebsiteHref("javascript:alert(1)")).toBeNull();
+    expect(safeLeadWebsiteHref("data:text/html,hello")).toBeNull();
+    expect(safeLeadWebsiteHref("https://user:pass@example.co.uk")).toBeNull();
+    expect(safeLeadWebsiteHref("http://localhost:8080")).toBeNull();
+    expect(safeLeadWebsiteHref("example.co.uk/path with spaces")).toBeNull();
+    expect(safeLeadWebsiteHref("")).toBeNull();
+    expect(safeLeadWebsiteHref(null)).toBeNull();
+  });
+});
 
 describe("outreach suppression", () => {
   it("offers a clear/review action for suppressed, pending, or contradictory blocked records", () => {
