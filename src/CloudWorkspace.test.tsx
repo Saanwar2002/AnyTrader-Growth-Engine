@@ -2048,6 +2048,26 @@ describe("cloud authentication gate", () => {
     expect(screen.queryByRole("button", { name: "Load more audit events" })).toBeNull();
   });
 
+  it("does not show a failed security audit request from a previous organisation", async () => {
+    mocks.currentUser = { email: "owner@example.test", uid: "owner-uid" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [
+        { organisationId: "org-1", name: "Pilot Workspace", role: "owner" },
+        { organisationId: "org-2", name: "Second Workspace", role: "owner" },
+      ],
+      hasMoreOrganisations: false,
+    });
+    let rejectAudit!: (reason: Error) => void;
+    mocks.api.listOrganisationSecurityAuditEvents.mockImplementation(() => new Promise((_resolve, reject) => { rejectAudit = reject; }));
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load audit log" }));
+    await waitFor(() => expect(mocks.api.listOrganisationSecurityAuditEvents).toHaveBeenCalledWith({ organisationId: "org-1" }));
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
+    rejectAudit(new Error("stale security audit request failed"));
+    await waitFor(() => expect(screen.getByLabelText("Current organisation")).toHaveProperty("value", "org-2"));
+    expect(screen.queryByText(/stale security audit request failed/i)).toBeNull();
+  });
+
   it("does not expose the security audit log controls to viewer roles", async () => {
     mocks.currentUser = { email: "viewer@example.test", uid: "viewer-uid" };
     mocks.api.listMyOrganisations.mockResolvedValue({
