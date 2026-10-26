@@ -50,3 +50,6 @@ The `importLeads` callable accepts an optional per-row `sourceRecordId` (1–200
 
 
 The CSV preview recognises an optional `sourceRecordId`, `providerRecordId`, or `externalRecordId` column. It preserves a bounded value through explicit import confirmation and omits the field when blank. Multiple alias columns or values longer than 200 characters are rejected/skipped rather than guessed.
+
+
+When present, a lead's source record ID is shown in the lead directory and included in its text search. It is displayed as traceability metadata alongside the self-declared source label; the UI does not imply independent verification.
