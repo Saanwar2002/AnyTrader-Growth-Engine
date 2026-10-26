@@ -12,6 +12,7 @@ export interface LeadSourceAdapterManifest {
   reviewStatus: LeadSourceReviewStatus;
   reviewedAt?: string;
   reviewedBy?: string;
+  approvalExpiresAt?: string;
   permittedPurpose?: "business_provider_recruitment";
   maxRequestsPerMinute: number;
   maxRecordsPerRun: number;
@@ -38,6 +39,15 @@ export interface AttributedLeadSourceCandidate {
   provenance: LeadSourceProvenance;
 }
 export interface LeadSourceDiscoveryRequest { category: string; location: string; limit: number; }
+export interface LeadSourcePageRequest<TCursor = string> {
+  query: string;
+  pageSize: number;
+  cursor?: TCursor;
+}
+export interface LeadSourcePage<TRecord = unknown, TCursor = string> {
+  records: TRecord[];
+  nextCursor?: TCursor | null;
+}
 /** Implementations must only call a provider through an approved, permitted API. */
 export interface LeadSourceAdapter {
   manifest: LeadSourceAdapterManifest;
@@ -50,7 +60,7 @@ function isIsoDate(value: unknown): value is string {
   return Number.isFinite(time) && new Date(time).toISOString() === value;
 }
 /** Return manifest defects; never infer permission or source scope. */
-export function validateLeadSourceManifest(manifest: LeadSourceAdapterManifest): string[] {
+export function validateLeadSourceManifest(manifest: LeadSourceAdapterManifest, now: Date = new Date()): string[] {
   const issues: string[] = [];
   if (!manifest || typeof manifest !== "object" || Array.isArray(manifest)) return ["A source adapter manifest is required."];
   if (typeof manifest.sourceId !== "string" || !/^[a-z0-9][a-z0-9._-]{1,63}$/.test(manifest.sourceId)) {
@@ -82,6 +92,13 @@ export function validateLeadSourceManifest(manifest: LeadSourceAdapterManifest):
   if (manifest.reviewStatus === "approved") {
     if (!isIsoDate(manifest.reviewedAt)) issues.push("Approved sources require a valid ISO-8601 reviewedAt timestamp.");
     if (typeof manifest.reviewedBy !== "string" || !manifest.reviewedBy.trim()) issues.push("Approved sources require a reviewer reference.");
+    if (!isIsoDate(manifest.approvalExpiresAt)) {
+      issues.push("Approved sources require a valid ISO-8601 approvalExpiresAt timestamp.");
+    } else if (!isIsoDate(manifest.reviewedAt) || Date.parse(manifest.approvalExpiresAt) <= Date.parse(manifest.reviewedAt)) {
+      issues.push("approvalExpiresAt must be later than reviewedAt.");
+    } else if (!(now instanceof Date) || !Number.isFinite(now.getTime()) || Date.parse(manifest.approvalExpiresAt) <= now.getTime()) {
+      issues.push("Approved source permission has expired or the validation clock is invalid.");
+    }
     if (manifest.permittedPurpose !== "business_provider_recruitment") {
       issues.push("Approved sources must explicitly permit the business_provider_recruitment purpose.");
     }
@@ -89,8 +106,8 @@ export function validateLeadSourceManifest(manifest: LeadSourceAdapterManifest):
   return issues;
 }
 /** Fail closed until a human has recorded permission review for this exact purpose. */
-export function assertLeadSourceAdapterRunnable(manifest: LeadSourceAdapterManifest): void {
-  const issues = validateLeadSourceManifest(manifest);
+export function assertLeadSourceAdapterRunnable(manifest: LeadSourceAdapterManifest, now: Date = new Date()): void {
+  const issues = validateLeadSourceManifest(manifest, now);
   if (issues.length) throw new Error(`Lead source adapter manifest is invalid: ${issues.join(" ")}`);
   if (manifest.reviewStatus !== "approved") throw new Error("Lead source adapter is blocked until its terms and permitted use are approved.");
 }
@@ -164,4 +181,57 @@ export function attributeLeadSourceCandidates(
       },
     };
   });
+}
+
+
+/** Validate a bounded request before passing it to a provider adapter. */
+export function validateLeadSourcePageRequest<TCursor = string>(
+  value: unknown,
+  manifest: LeadSourceAdapterManifest,
+  now: Date = new Date(),
+): LeadSourcePageRequest<TCursor> {
+  assertLeadSourceAdapterRunnable(manifest, now);
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("Lead source page request must be an object.");
+  }
+  const request = value as Record<string, unknown>;
+  if (typeof request.query !== "string" || !request.query.trim() || request.query.length > 500) {
+    throw new Error("Lead source query must contain 1 to 500 characters.");
+  }
+  if (!Number.isSafeInteger(request.pageSize) || (request.pageSize as number) < 1
+    || (request.pageSize as number) > manifest.maxRecordsPerRun) {
+    throw new Error("Lead source page size exceeds the configured bound.");
+  }
+  return {
+    query: request.query.trim(),
+    pageSize: request.pageSize as number,
+    ...(Object.prototype.hasOwnProperty.call(request, "cursor")
+      ? { cursor: request.cursor as TCursor }
+      : {}),
+  };
+}
+
+/** Validate a bounded adapter result envelope before mapping or persistence. */
+export function validateLeadSourcePageResult<TRecord = unknown, TCursor = string>(
+  value: unknown,
+  manifest: LeadSourceAdapterManifest,
+  now: Date = new Date(),
+): LeadSourcePage<TRecord, TCursor> {
+  assertLeadSourceAdapterRunnable(manifest, now);
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("Lead source page result must be an object.");
+  }
+  const result = value as Record<string, unknown>;
+  if (!Array.isArray(result.records)) {
+    throw new Error("Lead source page records must be an array.");
+  }
+  if (result.records.length > manifest.maxRecordsPerRun) {
+    throw new Error("Lead source page result exceeds the configured record limit.");
+  }
+  return {
+    records: [...result.records] as TRecord[],
+    ...(Object.prototype.hasOwnProperty.call(result, "nextCursor") && result.nextCursor !== undefined
+      ? { nextCursor: result.nextCursor as TCursor | null }
+      : {}),
+  };
 }
