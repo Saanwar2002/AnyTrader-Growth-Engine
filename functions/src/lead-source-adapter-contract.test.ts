@@ -76,6 +76,18 @@ describe("lead source adapter policy contract", () => {
     }, now).ready).toBe(true);
   });
 
+  it("rejects an invalid validation clock instead of treating expired approval as current", () => {
+    const invalidClock = new Date(Number.NaN);
+    expect(assessLeadSourceAdapterReadiness(validApiDefinition, invalidClock)).toEqual({
+      ready: false, reason: "invalid-review-time",
+    });
+    expect(() => validateLeadSourceProvenance({
+      providerId: "example_places",
+      sourceRecordId: "record-123",
+      retrievedAt: "2026-10-26T11:59:00.000Z",
+    }, "example_places", invalidClock)).toThrow("validation time is invalid");
+  });
+
   it("rejects malformed definitions without throwing implementation details", () => {
     expect(assessLeadSourceAdapterReadiness(null, now)).toEqual({
       ready: false, reason: "invalid-definition",
