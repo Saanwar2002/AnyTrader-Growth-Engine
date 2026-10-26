@@ -1902,13 +1902,29 @@ export const importLeads = onCall(callableOptions, async (request) => {
     ])));
     const existingEmails = new Set(emails.filter((_, index) => existingEmailDocs[index].some((snapshot) => !snapshot.empty)));
     const existingWebsites = new Set(websites.filter((_, index) => existingWebsiteDocs[index].some((snapshot) => !snapshot.empty)));
+    const sourceRecordIds = [...new Set(prepared
+      .filter((row) => row.sourceRecordId !== undefined)
+      .map((row) => row.sourceRecordId as string))];
+    const existingSourceRecordDocs = await Promise.all(sourceRecordIds.map((sourceRecordId) =>
+      transaction.get(leadsRef
+        .where("sourceRecordId", "==", sourceRecordId)
+        .where("source", "==", sourceLabel)
+        .where("campaignId", "==", campaignId)
+        .limit(1))));
+    const sourceRecordKey = (sourceRecordId: string) => JSON.stringify([sourceLabel, sourceRecordId]);
+    const existingSourceRecordKeys = new Set(sourceRecordIds
+      .filter((_, index) => !existingSourceRecordDocs[index].empty)
+      .map(sourceRecordKey));
     const existingBusinesses = new Set(businesses
       .filter((row, index) => existingBusinessDocs[index].some((snapshot) => !snapshot.empty))
       .map((row) => row.businessKey));
     const rowsToImport: typeof prepared = [];
     let duplicateCount = 0;
     for (const row of prepared) {
-      if ((row.emailKey && existingEmails.has(row.emailKey)) || (row.websiteKey && existingWebsites.has(row.websiteKey)) || existingBusinesses.has(row.businessKey)) {
+      if ((row.emailKey && existingEmails.has(row.emailKey))
+        || (row.websiteKey && existingWebsites.has(row.websiteKey))
+        || existingBusinesses.has(row.businessKey)
+        || (row.sourceRecordId !== undefined && existingSourceRecordKeys.has(sourceRecordKey(row.sourceRecordId)))) {
         duplicateCount += 1;
         continue;
       }
@@ -1916,6 +1932,7 @@ export const importLeads = onCall(callableOptions, async (request) => {
       if (row.emailKey) existingEmails.add(row.emailKey);
       if (row.websiteKey) existingWebsites.add(row.websiteKey);
       existingBusinesses.add(row.businessKey);
+      if (row.sourceRecordId !== undefined) existingSourceRecordKeys.add(sourceRecordKey(row.sourceRecordId));
     }
     const reservedPlanUsageState = rowsToImport.length > 0
       ? await reserveOrganisationPlanUsage(transaction, organisationId, "leads", rowsToImport.length)
