@@ -754,6 +754,25 @@ describe("cloud authentication gate", () => {
     expect(screen.getByText(/do not scrape, import, or contact results automatically/i)).toBeTruthy();
   });
 
+  it("opens a safe lead website in a protected new tab and suppresses unsafe URLs", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }], hasMoreOrganisations: false });
+    mocks.api.listCampaigns.mockResolvedValue({ campaigns: [{ id: "campaign-1", name: "Painter pilot", brand: "AnyTrader", category: "Painters", location: "Manchester", goal: "Recruit providers", status: "active", createdAt: null }], hasMoreCampaigns: false });
+    mocks.api.listLeads.mockResolvedValue({ leads: [
+      { id: "lead-safe", campaignId: "campaign-1", businessName: "Safe Painting", category: "Painters", location: "Manchester", website: "safe-painting.example", email: "", phone: "", source: "csv_import", sourceRecordId: "src-1", status: "new", score: 50, scoreReasons: [], notes: "", doNotContact: true, contactReviewStatus: "pending", contactRestrictionVerified: false, contactReviewRevision: 0, onboardedAt: null, createdAt: null },
+      { id: "lead-unsafe", campaignId: "campaign-1", businessName: "Unsafe Painting", category: "Painters", location: "Manchester", website: "javascript:alert(1)", email: "", phone: "", source: "csv_import", status: "new", score: 50, scoreReasons: [], notes: "", doNotContact: true, contactReviewStatus: "pending", contactRestrictionVerified: false, contactReviewRevision: 0, onboardedAt: null, createdAt: null },
+    ], hasMoreLeads: false });
+    render(<CloudWorkspace />);
+    await screen.findByRole("heading", { name: "Provider acquisition workspace" });
+    const link = await screen.findByRole("link", { name: "Open website" });
+    expect(link.getAttribute("href")).toBe("https://safe-painting.example/");
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(link.getAttribute("rel")).toContain("noopener");
+    expect(link.getAttribute("rel")).toContain("noreferrer");
+    expect(screen.getAllByText("Unsafe Painting").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("link", { name: "Open website" })).toBe(link);
+  });
+
   it("shows campaign performance metrics and marks paginated counts as partial", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
