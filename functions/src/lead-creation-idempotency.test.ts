@@ -32,3 +32,35 @@ describe("lead creation idempotency replay integrity", () => {
     expect(isPersistedLeadCreationReplayAvailable(null, expected, result)).toBe(false);
   });
 });
+
+
+describe("manual lead source record ID replay integrity", () => {
+  const attributedExpected = { ...expected, sourceRecordId: "directory-record-42" };
+  const attributedResult = { ...result, sourceRecordId: "directory-record-42" };
+  it("accepts an exact attributed creation replay", () => {
+    expect(getValidLeadCreationReplayResult({
+      actorUid: attributedExpected.actorUid,
+      requestHash: attributedExpected.requestHash,
+      result: attributedResult,
+    }, attributedExpected)).toEqual(attributedResult);
+  });
+  it("rejects mismatched source IDs in saved and persisted replay state", () => {
+    expect(getValidLeadCreationReplayResult({
+      actorUid: attributedExpected.actorUid,
+      requestHash: attributedExpected.requestHash,
+      result: { ...attributedResult, sourceRecordId: "other-record" },
+    }, attributedExpected)).toBeNull();
+    const persisted = {
+      createdBy: attributedExpected.actorUid, campaignId: attributedExpected.campaignId,
+      businessName: attributedExpected.businessName, category: attributedExpected.category,
+      location: attributedExpected.location, website: attributedExpected.website, email: attributedExpected.email,
+      phone: attributedExpected.phone, dedupeEmailKey: attributedExpected.dedupeEmailKey,
+      dedupeWebsiteKey: attributedExpected.dedupeWebsiteKey,
+      dedupeBusinessLocationKey: attributedExpected.dedupeBusinessLocationKey,
+      sourceRecordId: "directory-record-42", status: "new", source: "manual", score: result.score,
+      scoreReasons: result.scoreReasons, doNotContact: true, contactReviewStatus: "pending", contactReviewRevision: 0,
+    };
+    expect(isPersistedLeadCreationReplayAvailable(persisted, attributedExpected, attributedResult)).toBe(true);
+    expect(isPersistedLeadCreationReplayAvailable({ ...persisted, sourceRecordId: "other-record" }, attributedExpected, attributedResult)).toBe(false);
+  });
+});
