@@ -871,12 +871,14 @@ describe("cloud authentication gate", () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
     mocks.api.listCampaigns.mockResolvedValue({ campaigns: [{ id: "campaign-1", name: "Painter pilot", brand: "AnyTrader", category: "Painters", location: "Manchester", goal: "Recruit providers", status: "active", createdAt: null }] });
-    mocks.api.listLeads.mockResolvedValue({ leads: [{
-      id: "existing-1", campaignId: "campaign-1", businessName: "Northside Painting", category: "Painters", location: "Manchester",
-      website: "", email: "hello@northside.example", phone: "", source: "manual", status: "new", score: 20,
-      scoreReasons: [], notes: "", doNotContact: true, contactRestrictionVerified: false, contactReviewStatus: "pending",
-      contactReviewRevision: 0, createdAt: null,
-    }], hasMoreLeads: true, nextPageToken: "leads/org-1/lead-1" });
+    mocks.api.listLeads
+      .mockResolvedValueOnce({ leads: [{
+        id: "existing-1", campaignId: "campaign-1", businessName: "Northside Painting", category: "Painters", location: "Manchester",
+        website: "", email: "hello@northside.example", phone: "", source: "manual", status: "new", score: 20,
+        scoreReasons: [], notes: "", doNotContact: true, contactRestrictionVerified: false, contactReviewStatus: "pending",
+        contactReviewRevision: 0, createdAt: null,
+      }], hasMoreLeads: true, nextPageToken: "leads/org-1/lead-1" })
+      .mockResolvedValueOnce({ leads: [], hasMoreLeads: false, nextPageToken: null });
     render(<CloudWorkspace />);
     await screen.findByRole("heading", { name: "Provider acquisition workspace" });
     await screen.findByLabelText("Notes for Northside Painting");
@@ -886,6 +888,12 @@ describe("cloud authentication gate", () => {
     fireEvent.change(screen.getByLabelText("CSV file"), { target: { files: [file] } });
     expect(await screen.findByText(/1 possible duplicate row/)).toBeTruthy();
     expect(screen.getByText("Duplicate preview is partial.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Load more leads for preview" }));
+    await waitFor(() => expect(mocks.api.listLeads).toHaveBeenLastCalledWith({
+      organisationId: "org-1",
+      pageToken: "leads/org-1/lead-1",
+    }));
+    await waitFor(() => expect(screen.queryByText("Duplicate preview is partial.")).toBeNull());
     expect(screen.getByText(/Possible duplicate: email matches loaded lead/)).toBeTruthy();
     expect(screen.getByText("Fresh Decorators")).toBeTruthy();
     expect(mocks.api.importLeads).not.toHaveBeenCalled();
