@@ -100,7 +100,7 @@ export default function CloudWorkspace() {
   const [memberRoleSelections, setMemberRoleSelections] = useState<Record<string, "admin" | "member" | "viewer">>({});
   const [memberAdditionIdempotencyKey, setMemberAdditionIdempotencyKey] = useState("");
   const [memberAdditionAttemptOrganisationId, setMemberAdditionAttemptOrganisationId] = useState("");
-  const [memberRoster, setMemberRoster = useState<OrganisationMemberRoster | null>(null);
+  const [memberRoster, setMemberRoster] = useState<OrganisationMemberRoster | null>(null);
   const [loadingMemberRoster, setLoadingMemberRoster] = useState(false);
   const [securityAuditPage, setSecurityAuditPage] = useState<SecurityAuditEventPage | null>(null);
   const [loadingSecurityAudit, setLoadingSecurityAudit] = useState(false);
