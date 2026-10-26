@@ -1622,6 +1622,26 @@ describe("cloud authentication gate", () => {
     expect(mocks.api.listOrganisationMembers).not.toHaveBeenCalled();
   });
 
+  it("does not show a failed plan usage request from a previous organisation", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [
+        { organisationId: "org-1", name: "Pilot Workspace", role: "owner" },
+        { organisationId: "org-2", name: "Second Workspace", role: "owner" },
+      ],
+      hasMoreOrganisations: false,
+    });
+    let rejectPlanUsage!: (reason: Error) => void;
+    mocks.api.getOrganisationPlanUsage.mockImplementation(() => new Promise((_resolve, reject) => { rejectPlanUsage = reject; }));
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load plan usage" }));
+    await waitFor(() => expect(mocks.api.getOrganisationPlanUsage).toHaveBeenCalledWith({ organisationId: "org-1" }));
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
+    rejectPlanUsage(new Error("stale plan usage request failed"));
+    await waitFor(() => expect(screen.getByLabelText("Current organisation")).toHaveProperty("value", "org-2"));
+    expect(screen.queryByText(/stale plan usage request failed/i)).toBeNull();
+  });
+
   it("does not show a failed plan usage reconciliation request from a previous organisation", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({

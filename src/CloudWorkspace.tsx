@@ -956,7 +956,7 @@ DRAFT ONLY — NOT SENT.`,
       const summary = await api.getOrganisationPlanUsage({ organisationId: requestedOrganisationId });
       if (currentOrganisationIdRef.current === requestedOrganisationId) setOrganisationPlanUsage(summary);
     } catch (loadError) {
-      setError(readableError(loadError));
+      if (currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(loadError));
     } finally {
       setLoadingPlanUsage(false);
     }
