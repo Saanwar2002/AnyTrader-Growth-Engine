@@ -462,6 +462,8 @@ describe("cloud authentication gate", () => {
 
     expect(await screen.findByText("Northside Painting")).toBeTruthy();
     expect(screen.getByText("Preview — no records have been imported yet")).toBeTruthy();
+    expect(screen.getByRole("columnheader", { name: "Source record ID" })).toBeTruthy();
+    expect(screen.getByText("linkedin-record-001")).toBeTruthy();
     expect(mocks.api.importLeads).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "Import 2 reviewed rows" }));
