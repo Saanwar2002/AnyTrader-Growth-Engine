@@ -36,7 +36,7 @@ function isValidCounter(value: unknown): value is number {
 export function resolvePlanUsageState(value: unknown, now: Date): UsageStateResolution {
   const period = currentAiUsagePeriod(now);
   if (!period) return { ok: false, reason: "invalid_state" };
-  if (value === undefined || value === null) {
+  if (value === undefined) {
     return {
       ok: true,
       source: "initial",
