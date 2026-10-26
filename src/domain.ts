@@ -60,6 +60,23 @@ const csvAliases: Record<LeadCsvField, string[]> = {
   phone: ["phone", "telephone", "mobile", "phonenumber", "contactnumber", "tel"],
 };
 
+/** Return a safe external HTTP(S) URL for a user-supplied lead website, or null when it is not safe to link. */
+export function safeLeadWebsiteHref(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const candidate = value.trim();
+  if (!candidate || candidate.length > 500 || /[\\s\\u0000-\\u001f\\u007f]/.test(candidate)) return null;
+  const hasScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(candidate);
+  const urlValue = hasScheme ? candidate : `https://${candidate}`;
+  try {
+    const parsed = new URL(urlValue);
+    if ((parsed.protocol !== "http:" && parsed.protocol !== "https:") || !parsed.hostname || parsed.username || parsed.password) return null;
+    if (parsed.hostname.toLocaleLowerCase("en-GB") === "localhost" || parsed.hostname.endsWith(".localhost")) return null;
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+
 export function normalizeCsvHeader(value: string): string {
   return value.toLocaleLowerCase("en-GB").replace(/[\s_-]+/g, "").replace(/[^\p{L}\p{N}]/gu, "");
 }
