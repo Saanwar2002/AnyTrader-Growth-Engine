@@ -883,7 +883,7 @@ DRAFT ONLY — NOT SENT.`,
       if (currentOrganisationIdRef.current !== requestedOrganisationId) return;
       setServerSourceAnalytics(summary);
     } catch (loadError) {
-      setError(readableError(loadError));
+      if (currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(loadError));
     } finally {
       setLoadingSourceAnalyticsOrganisationId((current) => current === requestedOrganisationId ? "" : current);
     }
