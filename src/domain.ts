@@ -68,7 +68,7 @@ export function safeLeadWebsiteHref(value: unknown): string | null {
   const hasHttpScheme = /^https?:\/\//i.test(candidate);
   const looksLikeHostPort = /^[^/:?#]+:\d+(?:[/?#]|$)/.test(candidate);
   if (candidate.includes(":") && !hasHttpScheme && !looksLikeHostPort) return null;
-  const urlValue = hasHttpScheme ? candidate : \`https://\${candidate}\`;
+  const urlValue = hasHttpScheme ? candidate : `https://${candidate}`;
   try {
     const parsed = new URL(urlValue);
     if ((parsed.protocol !== "http:" && parsed.protocol !== "https:") || !parsed.hostname || parsed.username || parsed.password) return null;
