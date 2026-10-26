@@ -97,7 +97,7 @@ export function summarizeCampaignReadiness(
       ["brand", campaign.brand],
       ["category", campaign.category],
       ["location", campaign.location],
-    ] as const).filter(([, value]) => !value.trim()).map(([field]) => field);
+    ] as const).filter(([, value]) => typeof value !== "string" || !value.trim()).map(([field]) => field);
     const contactRestrictedLeadCount = campaignLeads.filter((lead) =>
       lead.doNotContact || !lead.contactRestrictionVerified
       || lead.contactReviewStatus === "pending" || lead.contactReviewStatus === "blocked").length;
