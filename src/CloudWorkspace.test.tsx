@@ -756,6 +756,36 @@ describe("cloud authentication gate", () => {
     expect(screen.getByText(/do not scrape, import, or contact results automatically/i)).toBeTruthy();
   });
 
+  it("exports only selected loaded leads to a separate CSV", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }], hasMoreOrganisations: false });
+    mocks.api.listCampaigns.mockResolvedValue({ campaigns: [{ id: "campaign-1", name: "Painter pilot", brand: "AnyTrader", category: "Painters", location: "Manchester", goal: "Recruit providers", status: "active", createdAt: null }], hasMoreCampaigns: false });
+    mocks.api.listLeads.mockResolvedValue({ leads: [
+      { id: "lead-1", campaignId: "campaign-1", businessName: "Selected Painting", category: "Painters", location: "Manchester", website: "", email: "selected@example.test", phone: "", source: "csv_import", sourceRecordId: "src-1", status: "new", score: 50, scoreReasons: [], notes: "", doNotContact: true, contactReviewStatus: "pending", contactRestrictionVerified: false, contactReviewRevision: 0, onboardedAt: null, createdAt: null },
+      { id: "lead-2", campaignId: "campaign-1", businessName: "Unselected Painting", category: "Painters", location: "Manchester", website: "", email: "unselected@example.test", phone: "", source: "csv_import", status: "new", score: 50, scoreReasons: [], notes: "", doNotContact: true, contactReviewStatus: "pending", contactRestrictionVerified: false, contactReviewRevision: 0, onboardedAt: null, createdAt: null },
+    ], hasMoreLeads: false });
+    const createObjectURL = vi.fn((_blob: Blob) => "blob:selected-leads");
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+
+    render(<CloudWorkspace />);
+    await screen.findByRole("heading", { name: "Provider acquisition workspace" });
+    const checkbox = await screen.findByRole("checkbox", { name: "Select Selected Painting for bulk status update" });
+    fireEvent.click(checkbox);
+    fireEvent.click(screen.getByRole("button", { name: "Export selected (CSV)" }));
+
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
+    const blob = createObjectURL.mock.calls[0][0] as Blob;
+    const csv = await blob.text();
+    expect(csv).toContain("Selected Painting");
+    expect(csv).toContain("src-1");
+    expect(csv).not.toContain("Unselected Painting");
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:selected-leads");
+    expect(await screen.findByText(/Exported 1 selected lead/i)).toBeTruthy();
+  });
+
   it("opens a safe lead website in a protected new tab and suppresses unsafe URLs", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }], hasMoreOrganisations: false });
