@@ -335,6 +335,14 @@ async function reserveOrganisationPlanUsage(
   return reservation.state;
 }
 
+function normaliseOptionalSourceRecordId(value: unknown): string | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string" || !value.trim() || value.length > 200) {
+    throw new HttpsError("invalid-argument", "sourceRecordId must contain 1 to 200 non-whitespace characters.");
+  }
+  return value.trim();
+}
+
 function normaliseLeadFields(data: Record<string, unknown>) {
   const businessName = normaliseRequiredText(data.businessName, 160);
   const category = normaliseOptionalText(data.category, 100);
@@ -1989,8 +1997,9 @@ export const createLead = onCall(callableOptions, async (request) => {
     throw new HttpsError("invalid-argument", "idempotencyKey must be 16-128 safe characters.");
   }
   const fields = normaliseLeadFields(data);
+  const sourceRecordId = normaliseOptionalSourceRecordId(data.sourceRecordId);
   const requestHash = createHash("sha256")
-    .update(JSON.stringify({ organisationId, campaignId, fields }))
+    .update(JSON.stringify({ organisationId, campaignId, fields, ...(sourceRecordId !== undefined ? { sourceRecordId } : {}) }))
     .digest("hex");
   const organisationRef = db.collection("organisations").doc(organisationId);
   const campaignRef = organisationRef.collection("campaigns").doc(campaignId);
@@ -2010,7 +2019,7 @@ export const createLead = onCall(callableOptions, async (request) => {
       if (saved.requestHash !== requestHash) {
         throw new HttpsError("already-exists", "This idempotencyKey was already used with a different lead payload.");
       }
-      const expectedReplay = { actorUid: uid, requestHash, organisationId, campaignId, ...fields };
+      const expectedReplay = { actorUid: uid, requestHash, organisationId, campaignId, ...fields, ...(sourceRecordId !== undefined ? { sourceRecordId } : {}) };
       const savedResult = getValidLeadCreationReplayResult(saved, expectedReplay);
       if (!savedResult) {
         throw new HttpsError("failed-precondition", "Saved lead retry state is invalid and requires operator review.");
@@ -2042,6 +2051,7 @@ export const createLead = onCall(callableOptions, async (request) => {
       organisationId,
       campaignId,
       ...fields,
+      ...(sourceRecordId !== undefined ? { sourceRecordId } : {}),
       status: "new" as const,
       source: "manual" as const,
       score: completeness.score,
@@ -2054,7 +2064,7 @@ export const createLead = onCall(callableOptions, async (request) => {
       transaction.update(organisationRef, { planUsage: reservedPlanUsageState });
     }
     transaction.create(lead, {
-      ...fields, campaignId, status: "new", source: "manual", score: completeness.score,
+      ...fields, ...(sourceRecordId !== undefined ? { sourceRecordId } : {}), campaignId, status: "new", source: "manual", score: completeness.score,
       scoreReasons: completeness.reasons, notes: "", doNotContact: true,
       contactReviewStatus: "pending", contactReviewRevision: 0, createdBy: uid,
       createdAt: now, updatedAt: now,
