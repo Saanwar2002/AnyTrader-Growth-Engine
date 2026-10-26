@@ -2172,6 +2172,32 @@ describe("cloud authentication gate", () => {
     expect(screen.getByRole("progressbar", { name: "Roofers Leeds onboarded leads (all stored)" }).getAttribute("value")).toBe("4");
   });
 
+  it("does not show a failed full campaign chart request from a previous organisation", async () => {
+    mocks.currentUser = { email: "owner@example.test", uid: "owner-uid" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [
+        { organisationId: "org-1", name: "Pilot Workspace", role: "owner" },
+        { organisationId: "org-2", name: "Second Workspace", role: "owner" },
+      ],
+      hasMoreOrganisations: false,
+    });
+    mocks.api.listCampaigns.mockResolvedValue({
+      campaigns: [],
+      hasMoreCampaigns: false,
+      nextPageToken: null,
+    });
+    let rejectCampaigns!: (reason: Error) => void;
+    render(<CloudWorkspace />);
+    await screen.findByLabelText("Current organisation");
+    mocks.api.listCampaigns.mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectCampaigns = reject; }));
+    fireEvent.click(screen.getByRole("button", { name: "Load full campaign chart" }));
+    await waitFor(() => expect(mocks.api.listCampaigns).toHaveBeenCalledWith({ organisationId: "org-1" }));
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
+    rejectCampaigns(new Error("stale full campaign chart request failed"));
+    await waitFor(() => expect(screen.getByLabelText("Current organisation")).toHaveProperty("value", "org-2"));
+    expect(screen.queryByText(/stale full campaign chart request failed/i)).toBeNull();
+  });
+
 
   it("filters loaded security audit events by action and searchable identifiers", async () => {
     mocks.currentUser = { email: "pilot@example.test", uid: "owner-uid" };
