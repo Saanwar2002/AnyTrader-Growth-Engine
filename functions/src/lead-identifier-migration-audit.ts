@@ -111,14 +111,14 @@ export function auditLeadIdentifierRecords(records: readonly LegacyLeadRecord[])
         const key = canonicalLeadWebsiteKey(website);
         if (!key) {
           report.missingWebsiteKeys.push(id);
-          continue;
+        } else {
+          if (typeof record.dedupeWebsiteKey !== "string" || !record.dedupeWebsiteKey) {
+            report.missingWebsiteKeys.push(id);
+          } else if (record.dedupeWebsiteKey !== key) {
+            report.staleWebsiteKeys.push(id);
+          }
+          addRecordToGroup(websiteGroups, key, id);
         }
-        if (typeof record.dedupeWebsiteKey !== "string" || !record.dedupeWebsiteKey) {
-          report.missingWebsiteKeys.push(id);
-        } else if (record.dedupeWebsiteKey !== key) {
-          report.staleWebsiteKeys.push(id);
-        }
-        addRecordToGroup(websiteGroups, key, id);
       } catch {
         report.malformedWebsiteRecords.push(id);
       }
