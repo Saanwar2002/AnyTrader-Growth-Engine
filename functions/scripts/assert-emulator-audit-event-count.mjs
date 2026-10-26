@@ -5,7 +5,7 @@ import { getFirestore } from "firebase-admin/firestore";
 // Read-only integrity assertion restricted to the local synthetic-data emulator.
 const projectId = process.env.GCLOUD_PROJECT ?? process.env.FIREBASE_PROJECT ?? "demo-growth-engine-test";
 const emulatorHost = process.env.FIRESTORE_EMULATOR_HOST;
-if (projectId !== "demo-growth-engine-test" || !emulatorHost || !/^(127\\.0\\.0\\.1:8080|localhost:8080)$/.test(emulatorHost)) {
+if (projectId !== "demo-growth-engine-test" || !emulatorHost || !/^(127\.0\.0\.1:8080|localhost:8080)$/.test(emulatorHost)) {
   throw new Error("Refusing to inspect security audit events outside the local demo Firestore emulator.");
 }
 const allowedMetadataKeys = {
@@ -26,7 +26,7 @@ const allowedMetadataKeys = {
 const [organisationId, eventType, expectedCountArg, resourceId] = process.argv.slice(2);
 const validId = (value) => typeof value === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(value);
 const validEventType = (value) => typeof value === "string" && /^[a-z][a-z0-9_.-]{2,79}$/.test(value);
-if (!validId(organisationId) || !validEventType(eventType) || !/^\\d+$/.test(expectedCountArg ?? "")
+if (!validId(organisationId) || !validEventType(eventType) || !/^\d+$/.test(expectedCountArg ?? "")
   || (resourceId !== undefined && !validId(resourceId))) {
   throw new Error("Usage: node assert-emulator-audit-event-count.mjs <organisationId> <eventType> <expectedCount> [resourceId]");
 }
