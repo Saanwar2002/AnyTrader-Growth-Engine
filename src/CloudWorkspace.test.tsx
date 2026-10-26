@@ -551,6 +551,7 @@ describe("cloud authentication gate", () => {
     const firstPayload = mocks.api.importLeads.mock.calls[0][0];
 
     expect(campaignSelect.disabled).toBe(true);
+    expect((screen.getByLabelText("Current organisation") as HTMLSelectElement).disabled).toBe(true);
     fireEvent.click(importButton);
     await waitFor(() => expect(mocks.api.importLeads).toHaveBeenCalledTimes(2));
     const retryPayload = mocks.api.importLeads.mock.calls[1][0];
