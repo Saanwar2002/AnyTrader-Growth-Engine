@@ -1,16 +1,19 @@
 import { createHash } from "node:crypto";
-import { canonicalLeadEmailKey, canonicalLeadWebsiteKey } from "./lead-identifiers";
+import { canonicalLeadBusinessLocationKey, canonicalLeadEmailKey, canonicalLeadWebsiteKey } from "./lead-identifiers";
 
 export interface LegacyLeadRecord {
   id: string;
   email?: unknown;
   website?: unknown;
+  businessName?: unknown;
+  location?: unknown;
   dedupeEmailKey?: unknown;
   dedupeWebsiteKey?: unknown;
+  dedupeBusinessLocationKey?: unknown;
 }
 
 export interface IdentifierCollision {
-  identifierType: "email" | "website";
+  identifierType: "email" | "website" | "businessLocation";
   /** SHA-256 fingerprint of the canonical identifier; never contains contact data. */
   canonicalKeyFingerprint: string;
   leadIds: string[];
@@ -22,9 +25,12 @@ export interface LeadIdentifierAuditReport {
   staleEmailKeys: string[];
   missingWebsiteKeys: string[];
   staleWebsiteKeys: string[];
+  missingBusinessLocationKeys: string[];
+  staleBusinessLocationKeys: string[];
   malformedWebsiteRecords: string[];
   emailCollisions: IdentifierCollision[];
   websiteCollisions: IdentifierCollision[];
+  businessLocationCollisions: IdentifierCollision[];
 }
 
 /**
@@ -32,8 +38,8 @@ export interface LeadIdentifierAuditReport {
  *
  * This function never writes to a database and deliberately omits raw contact
  * values from the report. Collision groups contain only a SHA-256 fingerprint.
- * Callers must scope records to one organisation and
- * page through the collection with an explicit limit before invoking it.
+ * Callers must scope records to one organisation and page through the
+ * collection with an explicit limit before invoking it.
  */
 export function auditLeadIdentifierRecords(records: readonly LegacyLeadRecord[]): LeadIdentifierAuditReport {
   // Keep the pure analyzer defensive even when called outside the bounded
@@ -64,13 +70,17 @@ export function auditLeadIdentifierRecords(records: readonly LegacyLeadRecord[])
     staleEmailKeys: [],
     missingWebsiteKeys: [],
     staleWebsiteKeys: [],
+    missingBusinessLocationKeys: [],
+    staleBusinessLocationKeys: [],
     malformedWebsiteRecords: [],
     emailCollisions: [],
     websiteCollisions: [],
+    businessLocationCollisions: [],
   };
 
   const emailGroups = new Map<string, string[]>();
   const websiteGroups = new Map<string, string[]>();
+  const businessLocationGroups = new Map<string, string[]>();
   const addRecordToGroup = (groups: Map<string, string[]>, key: string, id: string): void => {
     const group = groups.get(key);
     if (group) group.push(id);
@@ -78,9 +88,11 @@ export function auditLeadIdentifierRecords(records: readonly LegacyLeadRecord[])
   };
 
   for (const record of records) {
-    const id = typeof record.id === "string" ? record.id : "";
+    const id = record.id;
     const email = typeof record.email === "string" ? record.email.trim() : "";
     const website = typeof record.website === "string" ? record.website.trim() : "";
+    const businessName = typeof record.businessName === "string" ? record.businessName.trim() : "";
+    const location = typeof record.location === "string" ? record.location.trim() : "";
 
     if (email) {
       const key = canonicalLeadEmailKey(email);
@@ -113,22 +125,41 @@ export function auditLeadIdentifierRecords(records: readonly LegacyLeadRecord[])
     } else if (typeof record.dedupeWebsiteKey === "string" && record.dedupeWebsiteKey) {
       report.staleWebsiteKeys.push(id);
     }
+
+    if (businessName || location) {
+      const key = canonicalLeadBusinessLocationKey(businessName, location);
+      if (typeof record.dedupeBusinessLocationKey !== "string" || !record.dedupeBusinessLocationKey) {
+        report.missingBusinessLocationKeys.push(id);
+      } else if (record.dedupeBusinessLocationKey !== key) {
+        report.staleBusinessLocationKeys.push(id);
+      }
+      addRecordToGroup(businessLocationGroups, key, id);
+    } else if (typeof record.dedupeBusinessLocationKey === "string" && record.dedupeBusinessLocationKey) {
+      report.staleBusinessLocationKeys.push(id);
+    }
   }
 
-  report.emailCollisions = [...emailGroups.entries()]
-    .filter(([, ids]) => ids.length > 1)
-    .map(([key, ids]) => ({ identifierType: "email" as const, canonicalKeyFingerprint: createHash("sha256").update(key).digest("hex"), leadIds: [...ids].sort() }))
-    .sort((a, b) => a.canonicalKeyFingerprint.localeCompare(b.canonicalKeyFingerprint));
-  report.websiteCollisions = [...websiteGroups.entries()]
-    .filter(([, ids]) => ids.length > 1)
-    .map(([key, ids]) => ({ identifierType: "website" as const, canonicalKeyFingerprint: createHash("sha256").update(key).digest("hex"), leadIds: [...ids].sort() }))
-    .sort((a, b) => a.canonicalKeyFingerprint.localeCompare(b.canonicalKeyFingerprint));
+  const collisions = (groups: Map<string, string[]>, identifierType: IdentifierCollision["identifierType"]): IdentifierCollision[] =>
+    [...groups.entries()]
+      .filter(([, ids]) => ids.length > 1)
+      .map(([key, ids]) => ({
+        identifierType,
+        canonicalKeyFingerprint: createHash("sha256").update(key).digest("hex"),
+        leadIds: [...ids].sort(),
+      }))
+      .sort((a, b) => a.canonicalKeyFingerprint.localeCompare(b.canonicalKeyFingerprint));
+
+  report.emailCollisions = collisions(emailGroups, "email");
+  report.websiteCollisions = collisions(websiteGroups, "website");
+  report.businessLocationCollisions = collisions(businessLocationGroups, "businessLocation");
 
   for (const field of [
     report.missingEmailKeys,
     report.staleEmailKeys,
     report.missingWebsiteKeys,
     report.staleWebsiteKeys,
+    report.missingBusinessLocationKeys,
+    report.staleBusinessLocationKeys,
     report.malformedWebsiteRecords,
   ]) {
     field.sort();
