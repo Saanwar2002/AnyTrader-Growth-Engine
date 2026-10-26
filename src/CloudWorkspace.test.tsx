@@ -2271,6 +2271,50 @@ describe("cloud authentication gate", () => {
   });
 
 
+  it("keeps the active member roster loading state when an older organisation request fails", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [
+        { organisationId: "org-1", name: "Pilot Workspace", role: "owner" },
+        { organisationId: "org-2", name: "Second Workspace", role: "owner" },
+      ],
+      hasMoreOrganisations: false,
+    });
+    let rejectFirst!: (reason: Error) => void;
+    let resolveSecond!: (value: {
+      organisationId: string;
+      members: Array<{ uid: string; email: string; role: string; createdAt: string }>;
+      hasMoreMembers: boolean;
+      nextPageToken: null;
+      scope: "organisation_member_roster";
+    }) => void;
+    mocks.api.listOrganisationMembers
+      .mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectFirst = reject; }))
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveSecond = resolve; }));
+
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load member roster" }));
+    await waitFor(() => expect(mocks.api.listOrganisationMembers).toHaveBeenCalledWith({ organisationId: "org-1" }));
+
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
+    await waitFor(() => expect((screen.getByLabelText("Current organisation") as HTMLSelectElement).value).toBe("org-2"));
+    fireEvent.click(await screen.findByRole("button", { name: "Load member roster" }));
+    await waitFor(() => expect(mocks.api.listOrganisationMembers).toHaveBeenCalledWith({ organisationId: "org-2" }));
+
+    rejectFirst(new Error("stale member roster failure"));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Loading members…" })).toBeTruthy());
+    expect(screen.queryByText("stale member roster failure")).toBeNull();
+
+    resolveSecond({
+      organisationId: "org-2",
+      members: [{ uid: "owner-2", email: "second@example.test", role: "owner", createdAt: "2026-01-01T00:00:00.000Z" }],
+      hasMoreMembers: false,
+      nextPageToken: null,
+      scope: "organisation_member_roster",
+    });
+    await waitFor(() => expect(screen.getByText("second@example.test")).toBeTruthy());
+  });
+
   it("does not show a failed per-campaign funnel request from a previous organisation", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({
