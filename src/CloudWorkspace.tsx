@@ -680,8 +680,11 @@ DRAFT ONLY — NOT SENT.`,
       setDraftSubject(suggestion.subject);
       setDraftBody(suggestion.body);
       setNotice("AI suggestion ready. Review and edit it before saving; nothing has been sent.");
-    } catch (reason) { setError(readableError(reason)); }
-    finally { setAiDraftBusyLeadId(""); }
+    } catch (reason) {
+      // A rejected request from a workspace that is no longer active must not
+      // surface its error in the newly selected tenant.
+      if (currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(reason));
+    } finally { setAiDraftBusyLeadId(""); }
   }
 
   async function saveDraft(event: FormEvent<HTMLFormElement>) {
