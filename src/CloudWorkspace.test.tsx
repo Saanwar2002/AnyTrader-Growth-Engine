@@ -1104,6 +1104,26 @@ describe("cloud authentication gate", () => {
     expect(screen.getByText("25.0% qualified · 3.3% onboarded")).toBeTruthy();
   });
 
+  it("does not show a failed source analytics request from a previous organisation", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [
+        { organisationId: "org-1", name: "Pilot Workspace", role: "owner" },
+        { organisationId: "org-2", name: "Second Workspace", role: "owner" },
+      ],
+      hasMoreOrganisations: false,
+    });
+    let rejectAnalytics!: (reason: Error) => void;
+    mocks.api.getLeadSourceFunnelSummary.mockImplementation(() => new Promise((_resolve, reject) => { rejectAnalytics = reject; }));
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load full source counts" }));
+    await waitFor(() => expect(mocks.api.getLeadSourceFunnelSummary).toHaveBeenCalledWith({ organisationId: "org-1" }));
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
+    rejectAnalytics(new Error("stale source analytics failed"));
+    await waitFor(() => expect(screen.getByLabelText("Current organisation")).toHaveProperty("value", "org-2"));
+    expect(screen.queryByText(/stale source analytics failed/i)).toBeNull();
+  });
+
   it("loads complete server-side source attribution counts on demand", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({
