@@ -524,7 +524,7 @@ export default function CloudWorkspace() {
         await loadOrganisationMembers();
       }
     } catch (reason) {
-      setError(readableError(reason));
+      if (currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(reason));
     } finally {
       setBusy(false);
     }
@@ -545,7 +545,7 @@ export default function CloudWorkspace() {
       setNotice(result.changed ? `Member role updated to ${result.role}.` : "That member already has the selected role.");
       await refreshWorkspace(requestedOrganisationId);
     } catch (reason) {
-      setError(readableError(reason));
+      if (currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(reason));
     } finally {
       setBusy(false);
     }
@@ -1100,7 +1100,7 @@ DRAFT ONLY — NOT SENT.`,
       if (currentOrganisationIdRef.current !== organisationId) return;
       setServerCampaignAnalytics((current) => ({ ...current, [key]: summary }));
     } catch (loadError) {
-      setError(readableError(loadError));
+      if (currentOrganisationIdRef.current === organisationId) setError(readableError(loadError));
     } finally {
       setLoadingCampaignAnalyticsKey((current) => current === key ? "" : current);
     }
