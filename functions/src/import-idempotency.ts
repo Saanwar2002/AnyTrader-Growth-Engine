@@ -3,7 +3,7 @@ export interface ExpectedImportReplay {
 }
 export interface ValidImportReplayResult {
   organisationId: string; campaignId: string; received: number; imported: number; duplicatesSkipped: number;
-  leads: Array<{ leadId: string; businessName: string }>; sent: false; messageSentByThisAction: false;
+  leads: Array<{ leadId: string; businessName: string; sourceRecordId?: string }>; sent: false; messageSentByThisAction: false;
 }
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -28,15 +28,23 @@ export function getValidImportReplayResult(savedValue: unknown, expected: Expect
     || result.sent !== false || result.messageSentByThisAction !== false || !Array.isArray(result.leads)
     || result.leads.length !== result.imported) return null;
   const seen = new Set<string>();
-  const leads: Array<{leadId:string;businessName:string}> = [];
+  const leads: Array<{leadId:string;businessName:string;sourceRecordId?:string}> = [];
   for (const item of result.leads) {
     if (!isRecord(item)) return null;
     const itemKeys = Object.keys(item);
-    if (itemKeys.length !== 2 || !itemKeys.includes("leadId") || !itemKeys.includes("businessName")
+    if ((itemKeys.length !== 2 && itemKeys.length !== 3)
+      || !itemKeys.includes("leadId") || !itemKeys.includes("businessName")
+      || itemKeys.some((key) => !["leadId", "businessName", "sourceRecordId"].includes(key))
       || !isDocumentId(item.leadId) || typeof item.businessName !== "string" || item.businessName.length < 1
       || seen.has(item.leadId)) return null;
+    if (Object.prototype.hasOwnProperty.call(item, "sourceRecordId")
+      && (typeof item.sourceRecordId !== "string" || !item.sourceRecordId.trim() || item.sourceRecordId.length > 200)) return null;
     seen.add(item.leadId);
-    leads.push({ leadId: item.leadId, businessName: item.businessName });
+    leads.push({
+      leadId: item.leadId,
+      businessName: item.businessName,
+      ...(typeof item.sourceRecordId === "string" ? { sourceRecordId: item.sourceRecordId } : {}),
+    });
   }
   return {
     organisationId: expected.organisationId, campaignId: expected.campaignId, received: expected.received,
@@ -47,11 +55,13 @@ export function getValidImportReplayResult(savedValue: unknown, expected: Expect
 /** Ensure each replayed lead still exists in the original tenant/campaign under the original creator. */
 export function isPersistedImportedLeadReplayAvailable(
   value: unknown,
-  expected: { actorUid: string; campaignId: string; businessName: string; sourceLabel: string },
+  expected: { actorUid: string; campaignId: string; businessName: string; sourceLabel: string; sourceRecordId?: string },
 ): boolean {
   return isRecord(value) && value.createdBy === expected.actorUid
     && value.campaignId === expected.campaignId && value.businessName === expected.businessName
-    && value.source === expected.sourceLabel && value.status === "new"
+    && value.source === expected.sourceLabel
+    && (expected.sourceRecordId === undefined || value.sourceRecordId === expected.sourceRecordId)
+    && value.status === "new"
     && value.doNotContact === true && value.contactReviewStatus === "pending"
     && value.contactReviewRevision === 0;
 }
