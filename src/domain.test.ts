@@ -436,6 +436,27 @@ describe("CSV duplicate preview", () => {
     expect(findLeadCsvDuplicates([candidate], existing, "other_approved")).toEqual([]);
   });
 
+  it("does not preview a source record ID duplicate from a different campaign", () => {
+    const candidate = {
+      businessName: "New listing",
+      email: "new@example.test",
+      website: "new.example.test",
+      sourceRecordId: "external-42",
+    };
+    const existing = [{
+      campaignId: "other-campaign",
+      source: "linkedin_csv",
+      businessName: "Existing listing",
+      email: "existing@example.test",
+      website: "existing.example.test",
+      sourceRecordId: "external-42",
+    }];
+    expect(findLeadCsvDuplicates([candidate], existing, "linkedin_csv", "selected-campaign")).toEqual([]);
+    expect(findLeadCsvDuplicates([candidate], existing, "linkedin_csv", "other-campaign")).toEqual([
+      { rowIndex: 0, duplicateSource: "loaded-lead", duplicateBusinessName: "Existing listing", matchedOn: "source record ID" },
+    ]);
+  });
+
   it("flags repeated source record IDs in the same upload without reserving IDs from skipped rows", () => {
     expect(findLeadCsvDuplicates([
       { businessName: "First", email: "same@example.test", sourceRecordId: "record-1" },
