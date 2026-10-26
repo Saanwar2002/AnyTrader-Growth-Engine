@@ -195,6 +195,11 @@ try {
     idempotencyKey: "manual-lead-oversized-name-01",
     businessName: "X".repeat(161),
   }), "functions/invalid-argument", "server rejects oversized business name");
+  await expectCallableFailure(callOne("createLead", {
+    organisationId: orgOne.organisationId, campaignId: campaignOne.campaignId,
+    idempotencyKey: "manual-lead-invalid-source-id-01",
+    businessName: "Invalid source ID test", sourceRecordId: " ",
+  }), "functions/invalid-argument", "manual lead creation rejects blank source record IDs");
   execFileSync(process.execPath, [
     "functions/scripts/assert-emulator-audit-event-count.mjs",
     orgOne.organisationId,
@@ -209,8 +214,10 @@ try {
     category: "Painters",
     location: "Manchester",
     email: "hello@example.test",
+    sourceRecordId: "manual-directory-42",
   };
   const leadOne = await callOne("createLead", manualLeadPayload);
+  assert.equal(leadOne.sourceRecordId, "manual-directory-42", "manual lead creation returns source record attribution");
   const leadTimeline = await callOne("getLeadActivityTimeline", {
     organisationId: orgOne.organisationId,
     leadId: leadOne.leadId,
@@ -232,8 +239,10 @@ try {
     businessName: "Changed payload with reused key",
   }), "functions/already-exists", "manual lead creation rejects key reuse with a different payload");
   const leadsAfterManualReplay = (await callOne("listLeads", { organisationId: orgOne.organisationId })).leads;
+  const persistedManualLead = leadsAfterManualReplay.find((lead) => lead.businessName === "Synthetic Test Painting Ltd");
   assert.equal(leadsAfterManualReplay.filter((lead) => lead.businessName === "Synthetic Test Painting Ltd").length, 1,
     "manual lead replay persists exactly one lead");
+  assert.equal(persistedManualLead?.sourceRecordId, "manual-directory-42", "manual source record ID persists and is returned by lead listing");
   execFileSync(process.execPath, [
     "functions/scripts/assert-emulator-audit-event-count.mjs",
     orgOne.organisationId,
