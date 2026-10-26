@@ -1,3 +1,13 @@
+## AutoPilot run — retry-safe no-op lead note and follow-up updates (2026-10-25)
+
+- Identical notes and follow-up-date requests now return successfully after authorization and lead-existence checks, without consuming quota or creating duplicate activity/audit events.
+- Empty notes and an absent follow-up date are treated as equivalent to their legacy unset values; malformed stored values are not silently normalized by the no-op path.
+- Added callable source-contract checks, emulator assertions for unchanged audit-event counts, and the missing follow-up-date audit metadata allowlist entry in the local test helper.
+- No outreach, deployment, billing change or data migration.
+- Next: exact-head CI, review failures, and merge only after both jobs pass.
+
+---
+
 ## AutoPilot run — retry-safe no-op lead status updates (2026-10-25)
 
 - Repeated status updates now return successfully after tenant authorization, contact-restriction checks, campaign existence checks for contacted status, and status validation.

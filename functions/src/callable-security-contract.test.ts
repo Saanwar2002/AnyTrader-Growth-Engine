@@ -529,6 +529,35 @@ describe("callable security contract", () => {
     expect(noOpCheck).toBeLessThan(auditWrite);
   });
 
+  it("treats repeated notes and follow-up dates as no-ops before quota and audit writes", () => {
+    const cases = [
+      {
+        name: "updateLeadNotes",
+        noOp: 'if (currentNotes === notes || (currentNotes === undefined && notes === "")) return;',
+        limiter: 'consumeTransactionalRateLimit(transaction, organisationId, uid, "updateLeadNotes"',
+        activity: "transaction.create(activity",
+        audit: 'writeSecurityAuditEvent(transaction, organisationId, uid, "lead.notes_changed"',
+      },
+      {
+        name: "updateLeadFollowUpDate",
+        noOp: "if (currentFollowUpDate === followUpDate || (currentFollowUpDate === undefined && followUpDate === null)) return;",
+        limiter: 'consumeTransactionalRateLimit(transaction, organisationId, uid, "updateLeadFollowUpDate"',
+        activity: "transaction.create(activity",
+        audit: 'writeSecurityAuditEvent(transaction, organisationId, uid, "lead.follow_up_date_changed"',
+      },
+    ];
+    for (const item of cases) {
+      const start = callableSource.indexOf("export const " + item.name + " = onCall(");
+      const end = callableSource.indexOf("export const ", start + 1);
+      const body = callableSource.slice(start, end < 0 ? callableSource.length : end);
+      const noOp = body.indexOf(item.noOp);
+      expect(noOp, item.name + " no-op must exist").toBeGreaterThanOrEqual(0);
+      expect(noOp).toBeLessThan(body.indexOf(item.limiter));
+      expect(noOp).toBeLessThan(body.indexOf(item.activity));
+      expect(noOp).toBeLessThan(body.indexOf(item.audit));
+    }
+  });
+
   it("keeps every expected callable authenticated and rate-limited", () => {
     const declarations = [...callableSource.matchAll(/export const (\w+) = onCall\(/g)];
     expect(declarations.map((match) => match[1]).sort()).toEqual(

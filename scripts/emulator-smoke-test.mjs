@@ -1852,7 +1852,55 @@ try {
   assert.equal(suppressedDraft.requiresReview, true);
   await expectCallableFailure(callOne("updateOutreachDraft", { organisationId: orgOne.organisationId, draftId: draft.draftId, subject: "Blocked update", body: "Must not be edited" }), "functions/failed-precondition", "suppression added after draft creation");
   await expectCallableFailure(callOne("createOutreachDraft", { idempotencyKey: "draft-smoke-key-0010", organisationId: orgOne.organisationId, leadId: leadOne.leadId, subject: "Blocked new draft", body: "Must not be created while suppressed" }), "functions/failed-precondition", "suppressed lead cannot create a new draft");
-  await callOne("updateLeadNotes", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, notes: "Administrative note while contact is restricted" });
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "lead.notes_changed",
+    "0",
+    leadOne.leadId,
+  ], { stdio: "inherit" });
+  const administrativeNotes = "Administrative note while contact is restricted";
+  await callOne("updateLeadNotes", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, notes: administrativeNotes });
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "lead.notes_changed",
+    "1",
+    leadOne.leadId,
+  ], { stdio: "inherit" });
+  const repeatedNotesResult = await callOne("updateLeadNotes", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, notes: administrativeNotes });
+  assert.equal(repeatedNotesResult.notes, administrativeNotes, "repeating identical notes returns successfully");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "lead.notes_changed",
+    "1",
+    leadOne.leadId,
+  ], { stdio: "inherit" });
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "lead.follow_up_date_changed",
+    "0",
+    leadOne.leadId,
+  ], { stdio: "inherit" });
+  await callOne("updateLeadFollowUpDate", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, followUpDate: "2026-11-01" });
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "lead.follow_up_date_changed",
+    "1",
+    leadOne.leadId,
+  ], { stdio: "inherit" });
+  const repeatedFollowUp = await callOne("updateLeadFollowUpDate", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, followUpDate: "2026-11-01" });
+  assert.equal(repeatedFollowUp.followUpDate, "2026-11-01", "repeating the same follow-up date returns successfully");
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-audit-event-count.mjs",
+    orgOne.organisationId,
+    "lead.follow_up_date_changed",
+    "1",
+    leadOne.leadId,
+  ], { stdio: "inherit" });
   const suppressedLeadAfterNotes = await callOne("listLeads", { organisationId: orgOne.organisationId });
   const restrictedLeadAfterNotes = suppressedLeadAfterNotes.leads.find((lead) => lead.id === leadOne.leadId);
   assert.equal(restrictedLeadAfterNotes?.doNotContact, true, "editing notes cannot clear do-not-contact");

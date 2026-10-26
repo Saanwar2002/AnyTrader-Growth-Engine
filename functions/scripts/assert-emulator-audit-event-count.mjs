@@ -18,6 +18,7 @@ const allowedMetadataKeys = {
   "campaign.status_changed": ["campaignStatus"],
   "lead.status_changed": ["leadStatus"],
   "lead.notes_changed": ["notesCleared"],
+  "lead.follow_up_date_changed": ["followUpDateSet"],
   "outreach_draft.created": ["draftAction"],
   "outreach_draft.updated": ["draftAction"],
   "outreach_draft.deleted": ["draftAction"],
