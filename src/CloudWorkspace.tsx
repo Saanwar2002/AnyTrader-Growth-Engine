@@ -681,7 +681,7 @@ DRAFT ONLY — NOT SENT.`,
   }
 
   function downloadCsvImportTemplate() {
-    const csv = "businessName,category,location,website,email,phone,sourceRecordId\\r\\n";
+    const csv = "businessName,category,location,website,email,phone,sourceRecordId\r\n";
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
     const link = document.createElement("a");
     link.href = url;
