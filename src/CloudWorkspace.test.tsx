@@ -911,6 +911,30 @@ describe("cloud authentication gate", () => {
     expect(screen.queryByText(/stale organisation suggestion failed/i)).toBeNull();
   });
 
+  it("silently discards a successful AI suggestion from a previous organisation", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [
+      { organisationId: "org-1", name: "Pilot Workspace", role: "owner" },
+      { organisationId: "org-2", name: "Second Workspace", role: "owner" },
+    ] });
+    mocks.api.listCampaigns.mockResolvedValue({ campaigns: [] });
+    mocks.api.listLeads.mockResolvedValue({ leads: [{
+      id: "lead-1", campaignId: "campaign-1", businessName: "North Star Painters", category: "Painters", location: "Edinburgh",
+      website: "", email: "", phone: "", source: "manual", status: "new", score: 40,
+      scoreReasons: [], notes: "", doNotContact: false, contactRestrictionVerified: true, createdAt: null,
+    }] });
+    let resolveSuggestion!: (value: { subject: string; body: string; sent: false }) => void;
+    mocks.api.suggestOutreachDraft.mockImplementation(() => new Promise((resolve) => { resolveSuggestion = resolve; }));
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "AI draft suggestion" }));
+    await waitFor(() => expect((screen.getByLabelText("Current organisation") as HTMLSelectElement).disabled).toBe(true));
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
+    resolveSuggestion({ subject: "Stale suggestion", body: "Must not be shown in another workspace. DRAFT ONLY — NOT SENT.", sent: false });
+    await waitFor(() => expect((screen.getByLabelText("Current organisation") as HTMLSelectElement).disabled).toBe(false));
+    expect(screen.queryByDisplayValue("Stale suggestion")).toBeNull();
+    expect(screen.queryByText(/active organisation changed while the AI suggestion was loading/i)).toBeNull();
+  });
+
   it("generates an AI suggestion for an eligible lead and requires review before saving", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [
