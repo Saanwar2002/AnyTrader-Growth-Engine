@@ -215,3 +215,37 @@ export function validateLeadSourcePageRequest<TCursor = string>(
       : {}),
   };
 }
+
+
+/**
+ * Validate an adapter's page envelope before downstream mapping or persistence.
+ * Record contents remain provider-specific; this gate bounds the envelope only.
+ */
+export function validateLeadSourcePageResult<TRecord = unknown, TCursor = string>(
+  value: unknown,
+  definition: LeadSourceAdapterDefinition,
+): LeadSourcePage<TRecord, TCursor> {
+  const readiness = assessLeadSourceAdapterReadiness(definition);
+  if (!readiness.ready) {
+    throw new Error("Lead source adapter is not ready to return results.");
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("Lead source page result must be an object.");
+  }
+
+  const result = value as Record<string, unknown>;
+  if (!Array.isArray(result.records)) {
+    throw new Error("Lead source page records must be an array.");
+  }
+  if (result.records.length > readiness.definition.maxPageSize) {
+    throw new Error("Lead source page result exceeds the configured record limit.");
+  }
+
+  return {
+    records: [...result.records] as TRecord[],
+    ...(Object.prototype.hasOwnProperty.call(result, "nextCursor")
+      && result.nextCursor !== undefined
+      ? { nextCursor: result.nextCursor as TCursor | null }
+      : {}),
+  };
+}
