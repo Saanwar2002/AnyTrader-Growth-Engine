@@ -230,7 +230,10 @@ describe("cloud authentication gate", () => {
     render(<CloudWorkspace />);
     expect(await screen.findByText("First Tenant Private Lead")).toBeTruthy();
     expect((await screen.findAllByText("First Tenant Private Campaign")).length).toBeGreaterThan(0);
+    fireEvent.click(await screen.findByRole("checkbox", { name: "Select First Tenant Private Lead for bulk status update" }));
+    expect(screen.getByText("1/25 selected. Bulk updates are all-or-nothing; selecting “contacted” is blocked if any selected lead has an unresolved contact restriction.")).toBeTruthy();
     fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
+    expect(screen.getByText("0/25 selected. Bulk updates are all-or-nothing; selecting “contacted” is blocked if any selected lead has an unresolved contact restriction.")).toBeTruthy();
     expect(screen.queryByText("First Tenant Private Lead")).toBeNull();
     expect(screen.queryByText("First Tenant Private Campaign")).toBeNull();
 
