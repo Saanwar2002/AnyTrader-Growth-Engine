@@ -603,7 +603,11 @@ export function findLeadCsvDuplicates(
   const websiteKeys = new Map<string, { businessName: string; source: "loaded-lead" | "earlier-upload-row" }>();
   const businessLocationKeys = new Map<string, { businessName: string; source: "loaded-lead" | "earlier-upload-row" }>();
   const sourceRecordIdKeys = new Map<string, { businessName: string; source: "loaded-lead" | "earlier-upload-row" }>();
-  const add = (lead: LeadCsvDuplicateCandidate, source: "loaded-lead" | "earlier-upload-row") => {
+  const add = (
+    lead: LeadCsvDuplicateCandidate,
+    source: "loaded-lead" | "earlier-upload-row",
+    includeSourceRecordId = true,
+  ) => {
     const value = { businessName: lead.businessName, source };
     const email = canonicalCsvEmail(lead.email);
     const website = canonicalCsvWebsite(lead.website);
@@ -612,10 +616,12 @@ export function findLeadCsvDuplicates(
     if (email && !emailKeys.has(email)) emailKeys.set(email, value);
     if (website && !websiteKeys.has(website)) websiteKeys.set(website, value);
     if (businessLocation && !businessLocationKeys.has(businessLocation)) businessLocationKeys.set(businessLocation, value);
-    if (sourceRecordId && !sourceRecordIdKeys.has(sourceRecordId)) sourceRecordIdKeys.set(sourceRecordId, value);
+    if (includeSourceRecordId && sourceRecordId && !sourceRecordIdKeys.has(sourceRecordId)) sourceRecordIdKeys.set(sourceRecordId, value);
   };
   existingLeads.forEach((lead) => {
-    if ((lead.source ?? "csv_import") === sourceLabel) add(lead, "loaded-lead");
+    // Contact and business/location duplicates are source-independent. Only source
+    // record IDs need matching source labels to avoid false positives across systems.
+    add(lead, "loaded-lead", (lead.source ?? "csv_import") === sourceLabel);
   });
   const matches: LeadCsvDuplicateMatch[] = [];
   candidates.forEach((candidate, rowIndex) => {
