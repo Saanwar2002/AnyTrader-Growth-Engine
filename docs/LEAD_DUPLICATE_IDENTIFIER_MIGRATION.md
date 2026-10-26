@@ -33,7 +33,7 @@ Do not describe the new key fields as a complete legacy deduplication solution b
 
 ## Read-only audit helper
 
-`functions/src/lead-identifier-migration-audit.ts` provides a pure, read-only analyzer for a bounded set of records already fetched by a caller. It reports missing/stale key record IDs, malformed website record IDs, and duplicate groups. Collision identifiers are represented by SHA-256 fingerprints so reports do not expose raw emails or websites. The helper does not connect to Firestore, paginate collections, write data, or run a migration; a future adapter must enforce per-organisation scoping and explicit page limits before passing records to it. Tests cover legacy gaps, collisions, URL path-case distinctions, deterministic output, and contact-data redaction.
+`functions/src/lead-identifier-migration-audit.ts` provides a pure, read-only analyzer for a bounded set of records already fetched by a caller. It reports missing/stale email, website, and business/location key record IDs, malformed website record IDs, and duplicate groups for all three canonical identifier types. Collision identifiers are represented by SHA-256 fingerprints so reports do not expose raw emails, websites, business names, or locations. The helper does not connect to Firestore, paginate collections, write data, or run a migration; a future adapter must enforce per-organisation scoping and explicit page limits before passing records to it. Tests cover legacy gaps, collisions, URL path-case distinctions, deterministic output, and contact-data redaction.
 
 ## Bounded dry-run coordinator
 
@@ -41,7 +41,7 @@ Do not describe the new key fields as a complete legacy deduplication solution b
 
 ## Regression coverage
 
-The callable security contract test asserts that all write paths share normalization, canonical key lookups remain bounded, legacy exact-value fallbacks remain present, and URL path casing is explicitly preserved. Add behavioral emulator tests for mixed-case legacy records and URL edge cases when the migration/backfill harness is introduced.
+The callable security contract test asserts that all write paths share normalization, canonical key lookups remain bounded, legacy exact-value fallbacks remain present, and URL path casing is explicitly preserved. The pure audit tests cover missing/stale business-location keys, canonical business/location collisions, and redaction of business names and locations in addition to email/website checks.
 
 
 ## Scan readiness contract
@@ -67,7 +67,7 @@ npm --prefix functions run build
 node functions/scripts/backfill-lead-identifiers.mjs --organisation-id <organisationId> --page-size 100 --max-records 5000
 ```
 
-The default is read-only. To rehearse writes against emulator data, add both `--apply --confirm-apply`. The tool pages through one organisation's leads ordered by document ID, caps page size at 200 and the scan at 20,000 records, and reports only record IDs and SHA-256 fingerprints—not raw emails or websites. It updates only the three canonical key fields; it never merges/deletes leads, changes suppression state, sends outreach, or changes quotas.
+The default is read-only. To rehearse writes against emulator data, add both `--apply --confirm-apply`. The tool pages through one organisation's leads ordered by document ID, caps page size at 200 and the scan at 20,000 records, and reports only record IDs and SHA-256 fingerprints—not raw emails, websites, business names, or locations. It updates only the three canonical key fields; it never merges/deletes leads, changes suppression state, sends outreach, or changes quotas.
 
 Apply mode fails closed when the scan reaches its record budget, any malformed source identity is found, or any canonical email, website, or business/location collision exists. Resolve the report and rerun a complete dry run before rehearsing apply. A scan that reaches the exact record budget is conservatively marked truncated; increase the budget and rerun rather than assuming it was complete.
 
