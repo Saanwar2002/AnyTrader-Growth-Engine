@@ -440,6 +440,29 @@ describe("cloud authentication gate", () => {
     expect(screen.queryByRole("button", { name: "Load more organisations" })).toBeNull();
   });
 
+  it("downloads a blank CSV template with the optional source record ID column", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
+    mocks.api.listCampaigns.mockResolvedValue({ campaigns: [
+      { id: "campaign-1", name: "Painter pilot", brand: "AnyTrader", category: "Painters", location: "Manchester", goal: "Recruit providers", status: "active", createdAt: null },
+    ] });
+    const createObjectURL = vi.fn((_blob: Blob) => "blob:csv-template");
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+
+    render(<CloudWorkspace />);
+    await screen.findByRole("heading", { name: "Provider acquisition workspace" });
+    fireEvent.click(screen.getByRole("button", { name: "Download CSV template" }));
+
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
+    const blob = createObjectURL.mock.calls[0][0] as Blob;
+    expect(blob.type).toContain("text/csv");
+    expect(await blob.text()).toContain("businessName,category,location,website,email,phone,sourceRecordId");
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:csv-template");
+  });
+
   it("previews a CSV and imports only after explicit confirmation", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({
