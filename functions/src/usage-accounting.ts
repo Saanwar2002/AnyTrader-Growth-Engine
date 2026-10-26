@@ -43,7 +43,7 @@ export function resolvePlanUsageState(value: unknown, now: Date): UsageStateReso
       state: { schemaVersion: 1, campaigns: 0, leads: 0, members: 0, monthlyAiSuggestions: 0, aiUsagePeriod: period },
     };
   }
-  if (typeof value !== "object" || Array.isArray(value)) return { ok: false, reason: "invalid_state" };
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return { ok: false, reason: "invalid_state" };
   const candidate = value as Record<string, unknown>;
   const keys = Object.keys(candidate);
   if (
