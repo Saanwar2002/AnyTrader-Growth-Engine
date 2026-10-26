@@ -123,21 +123,24 @@ describe("lead source bounded page contract", () => {
     }, now)).toThrow("manifest is invalid");
   });
 
-  it("trims valid queries and drops unrelated request properties", () => {
+  it("trims valid discovery criteria and drops unrelated request properties", () => {
     expect(validateLeadSourcePageRequest({
-      query: "  roofers in Edinburgh  ", pageSize: 50, cursor: "next", injected: "drop",
+      category: "  roofers  ", location: "  Edinburgh  ", limit: 50, cursor: "next", injected: "drop",
     }, manifest, now)).toEqual({
-      query: "roofers in Edinburgh", pageSize: 50, cursor: "next",
+      category: "roofers", location: "Edinburgh", limit: 50, cursor: "next",
     });
   });
 
-  it("rejects invalid query and page-size bounds", () => {
+  it("rejects invalid discovery criteria and page-limit bounds", () => {
     expect(() => validateLeadSourcePageRequest({
-      query: "   ", pageSize: 1,
-    }, manifest, now)).toThrow("query must contain 1 to 500 characters");
+      category: "   ", location: "Edinburgh", limit: 1,
+    }, manifest, now)).toThrow("category must contain 1 to 120 characters");
     expect(() => validateLeadSourcePageRequest({
-      query: "builders", pageSize: 101,
-    }, manifest, now)).toThrow("page size exceeds the configured bound");
+      category: "builders", location: "   ", limit: 1,
+    }, manifest, now)).toThrow("location must contain 1 to 200 characters");
+    expect(() => validateLeadSourcePageRequest({
+      category: "builders", location: "Edinburgh", limit: 101,
+    }, manifest, now)).toThrow("page limit exceeds the configured bound");
   });
 
   it("copies bounded page results and allowlists the cursor field", () => {
