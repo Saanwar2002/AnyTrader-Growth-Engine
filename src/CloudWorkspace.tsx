@@ -156,6 +156,14 @@ export default function CloudWorkspace() {
     setOrganisationSettingsName(organisations.find((org) => org.organisationId === organisationId)?.name ?? "");
   }, [organisationId, organisations]);
 
+  useEffect(() => {
+    // Bulk selections and retry keys belong to one organisation context only.
+    // Clear them synchronously with workspace changes so stale IDs cannot be
+    // submitted against a newly selected organisation.
+    setSelectedLeadIds([]);
+    setBulkStatusIdempotencyKey("");
+  }, [organisationId]);
+
   const selectedOrganisationRole = organisations.find((org) => org.organisationId === organisationId)?.role ?? "";
   const filteredSecurityAuditEvents = useMemo(() => {
     const events = securityAuditPage?.organisationId === organisationId ? securityAuditPage.events : [];
