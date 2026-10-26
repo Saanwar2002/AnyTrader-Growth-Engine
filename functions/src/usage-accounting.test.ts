@@ -26,6 +26,13 @@ describe("plan usage state", () => {
       .toEqual({ ok: false, reason: "invalid_state" });
   });
 
+  it("rejects unexpected or missing fields rather than silently carrying unknown state", () => {
+    const valid = { schemaVersion: 1, campaigns: 0, leads: 0, members: 0, monthlyAiSuggestions: 0, aiUsagePeriod: "2026-10" };
+    expect(resolvePlanUsageState({ ...valid, legacyCounter: 9 }, now)).toEqual({ ok: false, reason: "invalid_state" });
+    const { members: _members, ...missingMember } = valid;
+    expect(resolvePlanUsageState(missingMember, now)).toEqual({ ok: false, reason: "invalid_state" });
+  });
+
   it("resets only the monthly AI counter when the UTC month changes", () => {
     const previous = { schemaVersion: 1, campaigns: 4, leads: 40, members: 2, monthlyAiSuggestions: 50, aiUsagePeriod: "2026-09" };
     expect(resolvePlanUsageState(previous, now)).toEqual({
