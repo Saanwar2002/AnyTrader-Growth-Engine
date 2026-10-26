@@ -323,7 +323,7 @@ describe("lead CSV export", () => {
   });
 
   it("protects formula-like source record IDs in CSV exports", () => {
-    const csv = serializeLeadExportCsv([{ ...lead, sourceRecordId: "=HYPERLINK(\\"https://evil.test\\")" }], {});
+    const csv = serializeLeadExportCsv([{ ...lead, sourceRecordId: `=HYPERLINK("https://evil.test")` }], {});
     expect(csv).toContain('"\'=HYPERLINK(""https://evil.test"")"');
   });
 
