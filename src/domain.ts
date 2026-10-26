@@ -288,6 +288,13 @@ export function parseLeadCsv(csv: string, fieldMapping?: LeadCsvMapping): { rows
   const parsedHeaders = parseLine(records[headerRecordIndex].text);
   if (!parsedHeaders) return { rows: [], errors: ["CSV header contains an unmatched quote."] };
   const headers = parsedHeaders.map(normalizeCsvHeader);
+  const sourceRecordIdHeaderIndexes = headers
+    .map((header, index) => (["sourcerecordid", "providerrecordid", "externalrecordid"].includes(header) ? index : -1))
+    .filter((index) => index >= 0);
+  if (sourceRecordIdHeaderIndexes.length > 1) {
+    return { rows: [], errors: ["CSV contains multiple source record ID columns. Keep only one sourceRecordId, providerRecordId, or externalRecordId column."] };
+  }
+  const sourceRecordIdHeaderIndex = sourceRecordIdHeaderIndexes[0];
   if (headers.some((header) => !header)) {
     return { rows: [], errors: ["CSV contains an empty column header. Give every column a name."] };
   }
@@ -353,6 +360,14 @@ export function parseLeadCsv(csv: string, fieldMapping?: LeadCsvMapping): { rows
     (Object.keys(canonicalMapping) as LeadCsvField[]).forEach((field) => {
       row[normalizeCsvHeader(field)] = values[canonicalMapping[field]!] ?? "";
     });
+    if (sourceRecordIdHeaderIndex !== undefined) {
+      const sourceRecordId = (values[sourceRecordIdHeaderIndex] ?? "").trim();
+      if (sourceRecordId.length > 200) {
+        errors.push(`Row ${rowNumber}: sourceRecordId exceeds the maximum length of 200 characters; row skipped.`);
+        return;
+      }
+      if (sourceRecordId) row.sourcerecordid = sourceRecordId;
+    }
     if (!values[nameIndex]?.trim()) {
       errors.push(`Row ${rowNumber}: business name is required; row skipped.`);
       return;
