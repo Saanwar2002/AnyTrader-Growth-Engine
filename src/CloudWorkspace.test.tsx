@@ -2186,6 +2186,35 @@ describe("cloud authentication gate", () => {
     expect(payload.idempotencyKey).toMatch(/^bulk-lead-status/);
   });
 
+  it("keeps an uncertain bulk lead status retry bound to its organisation", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    mocks.api.listLeads.mockResolvedValue({
+      leads: [
+        { id: "bulk-retry-1", campaignId: "campaign-1", businessName: "Bulk Retry Painter A", category: "Painters", location: "Leeds", website: "", email: "", phone: "", source: "manual", status: "new", score: 40, scoreReasons: [], notes: "", doNotContact: true, contactRestrictionVerified: false, contactReviewStatus: "pending", createdAt: null },
+        { id: "bulk-retry-2", campaignId: "campaign-1", businessName: "Bulk Retry Painter B", category: "Painters", location: "York", website: "", email: "", phone: "", source: "manual", status: "new", score: 55, scoreReasons: [], notes: "", doNotContact: true, contactRestrictionVerified: false, contactReviewStatus: "pending", createdAt: null },
+      ],
+      hasMoreLeads: false,
+      nextPageToken: null,
+    });
+    mocks.api.bulkUpdateLeadStatus
+      .mockRejectedValueOnce(new Error("Network request timed out"))
+      .mockResolvedValueOnce({ organisationId: "org-1", status: "qualified", updatedCount: 2, unchangedCount: 0, leadIds: ["bulk-retry-1", "bulk-retry-2"] });
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("checkbox", { name: "Select Bulk Retry Painter A for bulk status update" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Select Bulk Retry Painter B for bulk status update" }));
+    fireEvent.click(screen.getByRole("button", { name: "Update 2 selected lead(s)" }));
+    await screen.findByText("Network request timed out");
+    const firstPayload = mocks.api.bulkUpdateLeadStatus.mock.calls[0][0];
+    expect((screen.getByLabelText("Current organisation") as HTMLSelectElement).disabled).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Retry bulk update" }));
+    await waitFor(() => expect(mocks.api.bulkUpdateLeadStatus).toHaveBeenCalledTimes(2));
+    expect(mocks.api.bulkUpdateLeadStatus.mock.calls[1][0]).toEqual(firstPayload);
+  });
+
   it("saves a tenant-scoped lead follow-up date", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({
