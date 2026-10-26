@@ -635,7 +635,8 @@ export default function CloudWorkspace() {
       setLeadActivityTimeline(timeline);
       setSelectedLeadActivityId(lead.id);
     } catch (reason) {
-      setError(readableError(reason));
+      // Do not surface a failed timeline request from a workspace that is no longer active.
+      if (currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(reason));
     } finally {
       setLoadingLeadActivityId("");
     }
