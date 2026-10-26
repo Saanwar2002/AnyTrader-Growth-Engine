@@ -29,7 +29,7 @@ describe("plan usage state", () => {
   it("rejects unexpected or missing fields rather than silently carrying unknown state", () => {
     const valid = { schemaVersion: 1, campaigns: 0, leads: 0, members: 0, monthlyAiSuggestions: 0, aiUsagePeriod: "2026-10" };
     expect(resolvePlanUsageState({ ...valid, legacyCounter: 9 }, now)).toEqual({ ok: false, reason: "invalid_state" });
-    const { members: _members, ...missingMember } = valid;
+    const missingMember = { schemaVersion: 1, campaigns: 0, leads: 0, monthlyAiSuggestions: 0, aiUsagePeriod: "2026-10" };
     expect(resolvePlanUsageState(missingMember, now)).toEqual({ ok: false, reason: "invalid_state" });
   });
 
