@@ -1772,6 +1772,30 @@ describe("cloud authentication gate", () => {
     expect(await screen.findByText(/full stored-lead funnel counts for 1 campaign/)).toBeTruthy();
   });
 
+  it("does not show a failed lead activity request from a previous organisation", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [
+      { organisationId: "org-1", name: "Pilot Workspace", role: "owner" },
+      { organisationId: "org-2", name: "Second Workspace", role: "owner" },
+    ] });
+    mocks.api.listLeads.mockResolvedValue({ leads: [{
+      id: "lead-history", campaignId: "campaign-1", businessName: "History Painter", category: "Painters",
+      location: "Leeds", website: "", email: "", phone: "", source: "manual", status: "qualified",
+      score: 40, scoreReasons: [], notes: "", doNotContact: true, contactRestrictionVerified: false,
+      contactReviewStatus: "pending", createdAt: null,
+    }] });
+    let rejectTimeline!: (reason: Error) => void;
+    mocks.api.getLeadActivityTimeline.mockImplementation(() => new Promise((_resolve, reject) => { rejectTimeline = reject; }));
+    render(<CloudWorkspace />);
+    await screen.findByText("History Painter");
+    fireEvent.click(screen.getByRole("button", { name: "View history" }));
+    await waitFor(() => expect(mocks.api.getLeadActivityTimeline).toHaveBeenCalledWith({ organisationId: "org-1", leadId: "lead-history" }));
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
+    rejectTimeline(new Error("stale activity request failed"));
+    await waitFor(() => expect(screen.getByLabelText("Current organisation")).toHaveProperty("value", "org-2"));
+    expect(screen.queryByText(/stale activity request failed/i)).toBeNull();
+  });
+
   it("loads a privacy-minimised activity timeline on demand for the selected lead", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
