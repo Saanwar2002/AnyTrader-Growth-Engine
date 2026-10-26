@@ -72,7 +72,7 @@ Import starts with a review summary, skips blank-name rows and businesses alread
 
 - **Provider category:** Painters and decorators.
 - **Initial market:** United Kingdom; each campaign can specify another location.
-- **Data mode:** Synthetic examples and user-supplied CSV only.
+- **Data mode:** Synthetic examples and user-supplied CSV only. Campaign cards provide manual Google Maps and LinkedIn company-search shortcuts based on the selected service category and target location; these links do not scrape or import results.
 - **Outreach:** Draft-only; a human must review and personalise messages.
 - **Repository boundary:** This project is independent of the AnyTrader application. Do not modify the original AnyTrader repository or its `main` branch as part of this project.
 

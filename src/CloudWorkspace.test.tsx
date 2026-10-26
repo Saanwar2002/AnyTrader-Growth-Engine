@@ -734,6 +734,26 @@ describe("cloud authentication gate", () => {
   });
 
 
+  it("provides safe manual research links for each campaign category and location", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }], hasMoreOrganisations: false });
+    mocks.api.listCampaigns.mockResolvedValue({ campaigns: [
+      { id: "campaign-1", name: "Edinburgh painters", brand: "AnyTrader", category: "Painters", location: "Edinburgh", goal: "Recruit providers", status: "active", createdAt: null },
+    ], hasMoreCampaigns: false });
+
+    render(<CloudWorkspace />);
+    await screen.findByRole("heading", { name: "Provider acquisition workspace" });
+    const maps = await screen.findByRole("link", { name: "Search Google Maps" });
+    const linkedin = screen.getByRole("link", { name: "Search LinkedIn companies" });
+    expect(maps.getAttribute("href")).toBe("https://www.google.com/maps/search/?api=1&query=Painters%20Edinburgh");
+    expect(linkedin.getAttribute("href")).toBe("https://www.linkedin.com/search/results/companies/?keywords=Painters%20Edinburgh");
+    expect(maps.getAttribute("target")).toBe("_blank");
+    expect(maps.getAttribute("rel")).toContain("noopener");
+    expect(linkedin.getAttribute("target")).toBe("_blank");
+    expect(linkedin.getAttribute("rel")).toContain("noreferrer");
+    expect(screen.getByText(/do not scrape, import, or contact results automatically/i)).toBeTruthy();
+  });
+
   it("shows campaign performance metrics and marks paginated counts as partial", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
