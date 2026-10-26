@@ -986,7 +986,7 @@ DRAFT ONLY — NOT SENT.`,
       const coverage = await api.getOnboardingCohortCoverage({ organisationId: requestedOrganisationId });
       if (currentOrganisationIdRef.current === requestedOrganisationId) setOnboardingCohortCoverage(coverage);
     } catch (loadError) {
-      setError(readableError(loadError));
+      if (currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(loadError));
     } finally {
       setLoadingOnboardingCohortCoverage(false);
     }
