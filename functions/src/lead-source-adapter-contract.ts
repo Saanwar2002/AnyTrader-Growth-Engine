@@ -178,3 +178,40 @@ export function validateLeadSourceProvenance(
     ...(record.sourceUrl !== undefined ? { sourceUrl: record.sourceUrl as string } : {}),
   };
 }
+
+
+/**
+ * Validate one bounded page request before handing it to an adapter.
+ * The request is copied so unknown caller-supplied properties do not cross the boundary.
+ */
+export function validateLeadSourcePageRequest<TCursor = string>(
+  value: unknown,
+  definition: LeadSourceAdapterDefinition,
+): LeadSourcePageRequest<TCursor> {
+  const readiness = assessLeadSourceAdapterReadiness(definition);
+  if (!readiness.ready) {
+    throw new Error("Lead source adapter is not ready for requests.");
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("Lead source page request must be an object.");
+  }
+
+  const request = value as Record<string, unknown>;
+  if (typeof request.query !== "string" || !request.query.trim()
+    || request.query.length > 500) {
+    throw new Error("Lead source query must contain 1 to 500 characters.");
+  }
+  if (!Number.isSafeInteger(request.pageSize)
+    || (request.pageSize as number) < 1
+    || (request.pageSize as number) > readiness.definition.maxPageSize) {
+    throw new Error("Lead source page size exceeds the configured bound.");
+  }
+
+  return {
+    query: request.query.trim(),
+    pageSize: request.pageSize as number,
+    ...(Object.prototype.hasOwnProperty.call(request, "cursor")
+      ? { cursor: request.cursor as TCursor }
+      : {}),
+  };
+}
