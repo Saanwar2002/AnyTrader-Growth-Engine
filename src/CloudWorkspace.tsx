@@ -155,6 +155,7 @@ export default function CloudWorkspace() {
   const workspaceLoadIdRef = useRef(0);
   const organisationListLoadIdRef = useRef(0);
   const memberRosterLoadIdRef = useRef(0);
+  const memberActionLoadIdRef = useRef(0);
   const currentOrganisationIdRef = useRef(organisationId);
   currentOrganisationIdRef.current = organisationId;
   useEffect(() => {
@@ -165,6 +166,8 @@ export default function CloudWorkspace() {
     // Invalidate in-flight roster requests when the active tenant changes. An older
     // request must not overwrite the new tenant roster or clear its loading state.
     memberRosterLoadIdRef.current += 1;
+    memberActionLoadIdRef.current += 1;
+    setBusy(false);
     setLoadingMemberRoster(false);
     setMemberRoster(null);
     // Bulk selections and retry keys belong to one organisation context only.
@@ -516,6 +519,7 @@ export default function CloudWorkspace() {
     if (selectedOrganisationRole === "admin" && targetRole !== "member" && targetRole !== "viewer") return;
     if (!window.confirm("Remove this account from the organisation? This revokes its organisation access but does not delete the Firebase Auth account or its data outside this organisation.")) return;
     const requestedOrganisationId = organisationId;
+    const actionId = ++memberActionLoadIdRef.current;
     setBusy(true); setError(""); setNotice("");
     try {
       const result = await api.removeOrganisationMember({ organisationId: requestedOrganisationId, targetUid });
@@ -533,7 +537,7 @@ export default function CloudWorkspace() {
     } catch (reason) {
       if (currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(reason));
     } finally {
-      setBusy(false);
+      if (actionId === memberActionLoadIdRef.current && currentOrganisationIdRef.current === requestedOrganisationId) setBusy(false);
     }
   }
 
@@ -541,6 +545,7 @@ export default function CloudWorkspace() {
     if (!api || !organisationId || selectedOrganisationRole !== "owner" || targetUid === user?.uid || currentRole === "owner" || targetRole === currentRole) return;
     if (!window.confirm(`Change this member's role from ${currentRole} to ${targetRole}? This changes their permissions in this organisation.`)) return;
     const requestedOrganisationId = organisationId;
+    const actionId = ++memberActionLoadIdRef.current;
     setBusy(true); setError(""); setNotice("");
     try {
       const result = await api.updateOrganisationMemberRole({ organisationId: requestedOrganisationId, targetUid, role: targetRole });
@@ -554,7 +559,7 @@ export default function CloudWorkspace() {
     } catch (reason) {
       if (currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(reason));
     } finally {
-      setBusy(false);
+      if (actionId === memberActionLoadIdRef.current && currentOrganisationIdRef.current === requestedOrganisationId) setBusy(false);
     }
   }
 

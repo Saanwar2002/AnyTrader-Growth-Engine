@@ -2197,6 +2197,49 @@ describe("cloud authentication gate", () => {
     expect(screen.queryByText(/stale security audit request failed/i)).toBeNull();
   });
 
+  it("does not let an older member removal clear the active organisation action state", async () => {
+    mocks.currentUser = { email: "owner@example.test", uid: "owner-uid" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [
+        { organisationId: "org-1", name: "Pilot Workspace", role: "owner" },
+        { organisationId: "org-2", name: "Second Workspace", role: "owner" },
+      ],
+      hasMoreOrganisations: false,
+    });
+    mocks.api.listOrganisationMembers.mockImplementation(async ({ organisationId }: { organisationId: string }) => ({
+      organisationId,
+      members: [
+        { uid: "owner-uid", email: "owner@example.test", role: "owner", createdAt: "2026-01-01T00:00:00.000Z" },
+        { uid: `member-${organisationId}`, email: `${organisationId}@example.test`, role: "member", createdAt: "2026-01-01T00:00:00.000Z" },
+      ],
+      hasMoreMembers: false,
+      nextPageToken: null,
+      scope: "organisation_member_roster" as const,
+    }));
+    let resolveFirst!: (value: { removed: boolean }) => void;
+    let resolveSecond!: (value: { removed: boolean }) => void;
+    mocks.api.removeOrganisationMember
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveFirst = resolve; }))
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveSecond = resolve; }));
+    vi.stubGlobal("confirm", vi.fn(() => true));
+
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load member roster" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Remove access" }));
+    await waitFor(() => expect(mocks.api.removeOrganisationMember).toHaveBeenCalledWith({ organisationId: "org-1", targetUid: "member-org-1" }));
+
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
+    await waitFor(() => expect(screen.getByLabelText("Current organisation")).toHaveProperty("value", "org-2"));
+    fireEvent.click(await screen.findByRole("button", { name: "Load member roster" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Remove access" }));
+    await waitFor(() => expect(mocks.api.removeOrganisationMember).toHaveBeenCalledWith({ organisationId: "org-2", targetUid: "member-org-2" }));
+
+    resolveFirst({ removed: true });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Remove access" })).toHaveProperty("disabled", true));
+    resolveSecond({ removed: true });
+    await waitFor(() => expect(screen.getByText(/Organisation membership removed/i)).toBeTruthy());
+  });
+
   it("does not show a failed member roster request from a previous organisation", async () => {
     mocks.currentUser = { email: "owner@example.test", uid: "owner-uid" };
     mocks.api.listMyOrganisations.mockResolvedValue({
