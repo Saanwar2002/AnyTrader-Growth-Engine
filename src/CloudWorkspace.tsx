@@ -723,6 +723,7 @@ DRAFT ONLY — NOT SENT.`,
           businessName: row.businessname.trim(), category: row.category?.trim() ?? "",
           location: row.location?.trim() ?? "", website: row.website?.trim() ?? "",
           email: row.email?.trim() ?? "", phone: row.phone?.trim() ?? "",
+          ...(row.sourcerecordid?.trim() ? { sourceRecordId: row.sourcerecordid.trim() } : {}),
         })),
       });
       setNotice(`CSV import complete: ${result.imported} imported, ${result.duplicatesSkipped} duplicates skipped. All imported leads remain suppressed for review; nothing was sent.`);

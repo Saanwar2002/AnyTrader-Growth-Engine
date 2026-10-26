@@ -431,3 +431,49 @@ describe("CSV duplicate preview", () => {
   });
 
 });
+
+
+describe("CSV source record ID attribution", () => {
+  it("preserves a recognised source record ID column without requiring field mapping", () => {
+    const result = parseLeadCsv(
+      "businessName,category,location,Source Record ID\nNorthside Painting,Painters,Manchester,provider-42",
+    );
+    expect(result.errors).toEqual([]);
+    expect(result.rows).toEqual([{
+      businessname: "Northside Painting",
+      category: "Painters",
+      location: "Manchester",
+      sourcerecordid: "provider-42",
+    }]);
+  });
+
+  it("supports providerRecordId and externalRecordId aliases", () => {
+    expect(parseLeadCsv("businessName,providerRecordId\nExample Builder,provider-1").rows[0].sourcerecordid)
+      .toBe("provider-1");
+    expect(parseLeadCsv("businessName,externalRecordId\nExample Roofer,external-1").rows[0].sourcerecordid)
+      .toBe("external-1");
+  });
+
+  it("skips rows with oversized source IDs and rejects ambiguous ID columns", () => {
+    const oversized = parseLeadCsv(
+      `businessName,sourceRecordId\nExample Builder,${"x".repeat(201)}`,
+    );
+    expect(oversized.rows).toEqual([]);
+    expect(oversized.errors).toContain("Row 2: sourceRecordId exceeds the maximum length of 200 characters; row skipped.");
+
+    const ambiguous = parseLeadCsv(
+      "businessName,sourceRecordId,providerRecordId\nExample Builder,one,two",
+    );
+    expect(ambiguous.rows).toEqual([]);
+    expect(ambiguous.errors[0]).toContain("multiple source record ID columns");
+  });
+
+  it("does not add a source ID field when the column is absent or blank", () => {
+    expect(parseLeadCsv("businessName\nExample Builder").rows[0]).toEqual({
+      businessname: "Example Builder",
+    });
+    expect(parseLeadCsv("businessName,sourceRecordId\nExample Builder,").rows[0]).toEqual({
+      businessname: "Example Builder",
+    });
+  });
+});
