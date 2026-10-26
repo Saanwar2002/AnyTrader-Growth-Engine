@@ -20,6 +20,9 @@ describe("read-only lead identifier migration audit", () => {
     ]);
 
     expect(report.scannedRecords).toBe(2);
+    expect(report.missingBusinessLocationKeys).toEqual([]);
+    expect(report.staleBusinessLocationKeys).toEqual([]);
+    expect(report.businessLocationCollisions).toEqual([]);
     expect(report.missingEmailKeys).toEqual(["lead-a"]);
     expect(report.staleEmailKeys).toEqual(["lead-b"]);
     expect(report.missingWebsiteKeys).toEqual(["lead-a"]);
@@ -42,6 +45,7 @@ describe("read-only lead identifier migration audit", () => {
     expect(report.emailCollisions[0].canonicalKeyFingerprint).toMatch(/^[a-f0-9]{64}$/);
     expect(report.websiteCollisions).toHaveLength(1);
     expect(report.websiteCollisions[0].leadIds).toEqual(["lead-a", "lead-b"]);
+    expect(report.businessLocationCollisions).toHaveLength(0);
     expect(JSON.stringify(report)).not.toContain("team@example.com");
     expect(JSON.stringify(report)).not.toContain("https://example.com");
   });
@@ -57,6 +61,27 @@ describe("read-only lead identifier migration audit", () => {
     expect(report.websiteCollisions).toEqual([]);
   });
 
+
+  it("audits missing, stale, and colliding business/location keys without exposing raw values", () => {
+    const report = auditLeadIdentifierRecords([
+      { id: "business-a", businessName: "  North Star Plumbing ", location: " Edinburgh ", dedupeBusinessLocationKey: undefined },
+      { id: "business-b", businessName: "north star plumbing", location: "edinburgh", dedupeBusinessLocationKey: '["wrong","location"]' },
+      { id: "business-c", businessName: "North Star Plumbing", location: "Glasgow", dedupeBusinessLocationKey: '["north star plumbing","glasgow"]' },
+      { id: "business-d", businessName: "", location: "", dedupeBusinessLocationKey: '["legacy","value"]' },
+    ]);
+
+    expect(report.missingBusinessLocationKeys).toEqual(["business-a"]);
+    expect(report.staleBusinessLocationKeys).toEqual(["business-b", "business-d"]);
+    expect(report.businessLocationCollisions).toHaveLength(1);
+    expect(report.businessLocationCollisions[0]).toMatchObject({
+      identifierType: "businessLocation",
+      leadIds: ["business-a", "business-b"],
+    });
+    expect(report.businessLocationCollisions[0].canonicalKeyFingerprint).toMatch(/^[a-f0-9]{64}$/);
+    expect(JSON.stringify(report)).not.toContain("North Star Plumbing");
+    expect(JSON.stringify(report)).not.toContain("Edinburgh");
+  });
+
   it("returns deterministic sorted record identifiers and an empty report for no records", () => {
     const report = auditLeadIdentifierRecords([
       { id: "z", email: "z@example.com" },
@@ -70,8 +95,11 @@ describe("read-only lead identifier migration audit", () => {
       missingWebsiteKeys: [],
       staleWebsiteKeys: [],
       malformedWebsiteRecords: [],
+      missingBusinessLocationKeys: [],
+      staleBusinessLocationKeys: [],
       emailCollisions: [],
       websiteCollisions: [],
+      businessLocationCollisions: [],
     });
   });
 });
