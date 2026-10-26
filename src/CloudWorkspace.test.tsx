@@ -442,10 +442,10 @@ describe("cloud authentication gate", () => {
 
   it("downloads a blank CSV template with the optional source record ID column", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
-    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }], hasMoreOrganisations: false });
     mocks.api.listCampaigns.mockResolvedValue({ campaigns: [
       { id: "campaign-1", name: "Painter pilot", brand: "AnyTrader", category: "Painters", location: "Manchester", goal: "Recruit providers", status: "active", createdAt: null },
-    ] });
+    ], hasMoreCampaigns: false });
     const createObjectURL = vi.fn((_blob: Blob) => "blob:csv-template");
     const revokeObjectURL = vi.fn();
     vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
@@ -453,6 +453,7 @@ describe("cloud authentication gate", () => {
 
     render(<CloudWorkspace />);
     await screen.findByRole("heading", { name: "Provider acquisition workspace" });
+    await screen.findAllByText("Painter pilot");
     fireEvent.click(screen.getByRole("button", { name: "Download CSV template" }));
 
     expect(createObjectURL).toHaveBeenCalledTimes(1);
