@@ -37,6 +37,11 @@ describe("plan usage state", () => {
     expect(resolvePlanUsageState(missingMember, now)).toEqual({ ok: false, reason: "invalid_state" });
   });
 
+  it("rejects a future AI usage period rather than resetting the monthly quota", () => {
+    const future = { schemaVersion: 1, campaigns: 1, leads: 2, members: 1, monthlyAiSuggestions: 50, aiUsagePeriod: "2026-11" };
+    expect(resolvePlanUsageState(future, now)).toEqual({ ok: false, reason: "invalid_state" });
+  });
+
   it("resets only the monthly AI counter when the UTC month changes", () => {
     const previous = { schemaVersion: 1, campaigns: 4, leads: 40, members: 2, monthlyAiSuggestions: 50, aiUsagePeriod: "2026-09" };
     expect(resolvePlanUsageState(previous, now)).toEqual({

@@ -58,6 +58,9 @@ export function resolvePlanUsageState(value: unknown, now: Date): UsageStateReso
     return { ok: false, reason: "invalid_state" };
   }
   const state = candidate as unknown as PlanUsageState;
+  // A future period is malformed persisted state, not evidence of a new month.
+  // Resetting it would permit an unexpected monthly quota reset.
+  if (state.aiUsagePeriod > period) return { ok: false, reason: "invalid_state" };
   if (state.aiUsagePeriod !== period) {
     // Only the monthly AI counter resets. Lifetime totals are retained.
     return {
