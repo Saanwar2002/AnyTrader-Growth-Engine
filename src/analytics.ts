@@ -14,7 +14,9 @@ export function classifyLeadFollowUpDate(
   followUpDate: string | null | undefined,
   todayUtc: string,
 ): LeadFollowUpBucket {
-  if (followUpDate == null || followUpDate.trim() === "") return "unscheduled";
+  if (followUpDate == null) return "unscheduled";
+  if (typeof followUpDate !== "string") return "unclassified";
+  if (followUpDate.trim() === "") return "unscheduled";
   const isCalendarDate = (value: string) => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
     const parsed = new Date(`${value}T00:00:00.000Z`);

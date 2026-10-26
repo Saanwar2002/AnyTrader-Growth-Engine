@@ -365,3 +365,11 @@ describe("classifyLeadFollowUpDate", () => {
     expect(classifyLeadFollowUpDate("2026-10-24", "not-a-date")).toBe("unclassified");
   });
 });
+
+import { classifyLeadFollowUpDate } from "./analytics";
+
+describe("classifyLeadFollowUpDate malformed runtime values", () => {
+  it.each([42, {}, [], true])("classifies non-string legacy value %j as unclassified", (value) => {
+    expect(classifyLeadFollowUpDate(value as unknown as string, "2026-10-26")).toBe("unclassified");
+  });
+});
