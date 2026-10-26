@@ -20,6 +20,7 @@ export type UsageStateResolution =
   | { ok: false; reason: "invalid_state" | "period_mismatch" };
 
 const METRICS: readonly PlanUsageMetric[] = ["campaigns", "leads", "members", "monthlyAiSuggestions"];
+const USAGE_STATE_KEYS = ["schemaVersion", "campaigns", "leads", "members", "monthlyAiSuggestions", "aiUsagePeriod"] as const;
 
 /** UTC calendar month, stable across time zones and safe for monthly AI reset logic. */
 export function currentAiUsagePeriod(now: Date): string | null {
@@ -44,7 +45,13 @@ export function resolvePlanUsageState(value: unknown, now: Date): UsageStateReso
   }
   if (typeof value !== "object" || Array.isArray(value)) return { ok: false, reason: "invalid_state" };
   const candidate = value as Record<string, unknown>;
-  if (candidate.schemaVersion !== 1 || !METRICS.every((metric) => isValidCounter(candidate[metric]))) {
+  const keys = Object.keys(candidate);
+  if (
+    keys.length !== USAGE_STATE_KEYS.length ||
+    !USAGE_STATE_KEYS.every((key) => Object.prototype.hasOwnProperty.call(candidate, key)) ||
+    candidate.schemaVersion !== 1 ||
+    !METRICS.every((metric) => isValidCounter(candidate[metric]))
+  ) {
     return { ok: false, reason: "invalid_state" };
   }
   if (typeof candidate.aiUsagePeriod !== "string" || !/^\d{4}-(0[1-9]|1[0-2])$/.test(candidate.aiUsagePeriod)) {
@@ -56,7 +63,7 @@ export function resolvePlanUsageState(value: unknown, now: Date): UsageStateReso
     return {
       ok: true,
       source: "stored",
-      state: { ...state, monthlyAiSuggestions: 0, aiUsagePeriod: period },
+      state: { schemaVersion: 1, campaigns: state.campaigns, leads: state.leads, members: state.members, monthlyAiSuggestions: 0, aiUsagePeriod: period },
     };
   }
   return { ok: true, source: "stored", state: { ...state } };
