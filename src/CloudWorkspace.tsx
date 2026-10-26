@@ -154,6 +154,7 @@ export default function CloudWorkspace() {
   const [error, setError] = useState("");
   const workspaceLoadIdRef = useRef(0);
   const organisationListLoadIdRef = useRef(0);
+  const memberRosterLoadIdRef = useRef(0);
   const currentOrganisationIdRef = useRef(organisationId);
   currentOrganisationIdRef.current = organisationId;
   useEffect(() => {
@@ -161,6 +162,11 @@ export default function CloudWorkspace() {
   }, [organisationId, organisations]);
 
   useEffect(() => {
+    // Invalidate in-flight roster requests when the active tenant changes. An older
+    // request must not overwrite the new tenant roster or clear its loading state.
+    memberRosterLoadIdRef.current += 1;
+    setLoadingMemberRoster(false);
+    setMemberRoster(null);
     // Bulk selections and retry keys belong to one organisation context only.
     // Clear them synchronously with workspace changes so stale IDs cannot be
     // submitted against a newly selected organisation.
@@ -479,11 +485,12 @@ export default function CloudWorkspace() {
   async function loadOrganisationMembers(pageToken?: string) {
     if (!api || !organisationId || (selectedOrganisationRole !== "owner" && selectedOrganisationRole !== "admin") || loadingMemberRoster) return;
     const requestedOrganisationId = organisationId;
+    const requestId = ++memberRosterLoadIdRef.current;
     setLoadingMemberRoster(true);
     setError("");
     try {
       const result = await api.listOrganisationMembers({ organisationId: requestedOrganisationId, ...(pageToken ? { pageToken } : {}) });
-      if (currentOrganisationIdRef.current === requestedOrganisationId) {
+      if (requestId === memberRosterLoadIdRef.current && currentOrganisationIdRef.current === requestedOrganisationId) {
         if (!pageToken) {
           setMemberRoster(result);
         } else {
@@ -498,9 +505,9 @@ export default function CloudWorkspace() {
         }
       }
     } catch (reason) {
-      if (currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(reason));
+      if (requestId === memberRosterLoadIdRef.current && currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(reason));
     } finally {
-      setLoadingMemberRoster(false);
+      if (requestId === memberRosterLoadIdRef.current) setLoadingMemberRoster(false);
     }
   }
 
