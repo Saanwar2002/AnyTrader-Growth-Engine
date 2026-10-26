@@ -3,6 +3,7 @@ import {
   assessLeadSourceAdapterReadiness,
   validateLeadSourceProvenance,
   validateLeadSourcePageRequest,
+  validateLeadSourcePageResult,
   type LeadSourceAdapterDefinition,
 } from "./lead-source-adapter-contract";
 
@@ -190,5 +191,51 @@ describe("bounded lead source page requests", () => {
     }, manualDefinition);
     expect(result.cursor).toEqual(cursor);
     expect("extra" in result).toBe(false);
+  });
+});
+
+
+describe("bounded lead source page results", () => {
+  const manualDefinition: LeadSourceAdapterDefinition = {
+    id: "csv_import",
+    kind: "manual_import",
+    maxPageSize: 2,
+  };
+
+  it("copies a valid bounded records array and optional cursor only", () => {
+    const records = [{ sourceRecordId: "a" }, { sourceRecordId: "b" }];
+    const result = validateLeadSourcePageResult({
+      records,
+      nextCursor: "next-page",
+      debug: "must-not-cross-boundary",
+    }, manualDefinition);
+    expect(result).toEqual({ records, nextCursor: "next-page" });
+    expect(result.records).not.toBe(records);
+    expect("debug" in result).toBe(false);
+  });
+
+  it("accepts an empty final page and a null cursor", () => {
+    expect(validateLeadSourcePageResult({
+      records: [], nextCursor: null,
+    }, manualDefinition)).toEqual({ records: [], nextCursor: null });
+  });
+
+  it("rejects malformed result envelopes and non-array records", () => {
+    expect(() => validateLeadSourcePageResult(null, manualDefinition))
+      .toThrow("page result must be an object");
+    expect(() => validateLeadSourcePageResult({ records: "not-an-array" }, manualDefinition))
+      .toThrow("records must be an array");
+  });
+
+  it("rejects a provider returning more records than its configured page limit", () => {
+    expect(() => validateLeadSourcePageResult({
+      records: [{ id: 1 }, { id: 2 }, { id: 3 }],
+    }, manualDefinition)).toThrow("exceeds the configured record limit");
+  });
+
+  it("refuses results from an adapter that fails the readiness gate", () => {
+    expect(() => validateLeadSourcePageResult({ records: [] }, {
+      id: "example_places", kind: "approved_api", maxPageSize: 10,
+    })).toThrow("adapter is not ready");
   });
 });
