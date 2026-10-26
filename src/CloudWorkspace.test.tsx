@@ -1338,6 +1338,26 @@ describe("cloud authentication gate", () => {
     expect(screen.getByText(/never assigned an inferred date/i)).toBeTruthy();
   });
 
+  it("does not show a failed onboarding cohort request from a previous organisation", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [
+        { organisationId: "org-1", name: "Pilot Workspace", role: "owner" },
+        { organisationId: "org-2", name: "Second Workspace", role: "owner" },
+      ],
+      hasMoreOrganisations: false,
+    });
+    let rejectCohorts!: (reason: Error) => void;
+    mocks.api.getOnboardingCohortSummary.mockImplementation(() => new Promise((_resolve, reject) => { rejectCohorts = reject; }));
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load onboarding cohorts" }));
+    await waitFor(() => expect(mocks.api.getOnboardingCohortSummary).toHaveBeenCalledWith({ organisationId: "org-1" }));
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
+    rejectCohorts(new Error("stale onboarding cohorts request failed"));
+    await waitFor(() => expect(screen.getByLabelText("Current organisation")).toHaveProperty("value", "org-2"));
+    expect(screen.queryByText(/stale onboarding cohorts request failed/i)).toBeNull();
+  });
+
   it("does not expose onboarding timestamp coverage preview to viewer roles", async () => {
     mocks.currentUser = { email: "viewer@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({
