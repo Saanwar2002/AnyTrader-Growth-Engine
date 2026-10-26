@@ -885,6 +885,32 @@ describe("cloud authentication gate", () => {
   });
 
 
+  it("does not show a failed AI suggestion from a previous organisation in the active workspace", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [
+      { organisationId: "org-1", name: "Pilot Workspace", role: "owner" },
+      { organisationId: "org-2", name: "Second Workspace", role: "owner" },
+    ] });
+    mocks.api.listCampaigns.mockResolvedValue({ campaigns: [] });
+    mocks.api.listLeads.mockResolvedValue({ leads: [{
+      id: "lead-1", campaignId: "campaign-1", businessName: "North Star Painters", category: "Painters", location: "Edinburgh",
+      website: "", email: "", phone: "", source: "manual", status: "new", score: 40,
+      scoreReasons: [], notes: "", doNotContact: false, contactRestrictionVerified: true, createdAt: null,
+    }] });
+    let rejectSuggestion!: (reason: Error) => void;
+    mocks.api.suggestOutreachDraft.mockImplementation(() => new Promise((_resolve, reject) => { rejectSuggestion = reject; }));
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "AI draft suggestion" }));
+    await waitFor(() => expect((screen.getByLabelText("Current organisation") as HTMLSelectElement).disabled).toBe(true));
+
+    // Simulate a workspace switch occurring outside the normal selector path
+    // (for example, future navigation state restoration) before the request rejects.
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
+    rejectSuggestion(new Error("stale organisation suggestion failed"));
+    await waitFor(() => expect((screen.getByLabelText("Current organisation") as HTMLSelectElement).disabled).toBe(false));
+    expect(screen.queryByText(/stale organisation suggestion failed/i)).toBeNull();
+  });
+
   it("generates an AI suggestion for an eligible lead and requires review before saving", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [
