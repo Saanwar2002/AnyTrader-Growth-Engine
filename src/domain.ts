@@ -598,6 +598,7 @@ export function findLeadCsvDuplicates(
   candidates: LeadCsvDuplicateCandidate[],
   existingLeads: LeadCsvDuplicateExisting[],
   sourceLabel = "csv_import",
+  campaignId?: string,
 ): LeadCsvDuplicateMatch[] {
   const emailKeys = new Map<string, { businessName: string; source: "loaded-lead" | "earlier-upload-row" }>();
   const websiteKeys = new Map<string, { businessName: string; source: "loaded-lead" | "earlier-upload-row" }>();
@@ -621,7 +622,8 @@ export function findLeadCsvDuplicates(
   existingLeads.forEach((lead) => {
     // Contact and business/location duplicates are source-independent. Only source
     // record IDs need matching source labels to avoid false positives across systems.
-    add(lead, "loaded-lead", (lead.source ?? "csv_import") === sourceLabel);
+    add(lead, "loaded-lead", (lead.source ?? "csv_import") === sourceLabel
+      && (campaignId === undefined || lead.campaignId === campaignId));
   });
   const matches: LeadCsvDuplicateMatch[] = [];
   candidates.forEach((candidate, rowIndex) => {
