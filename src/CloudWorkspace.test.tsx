@@ -717,7 +717,10 @@ describe("cloud authentication gate", () => {
 
   it("retries uncertain draft creation with the same key and unchanged content", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
-    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [
+      { organisationId: "org-1", name: "Pilot Workspace", role: "owner" },
+      { organisationId: "org-2", name: "Second Workspace", role: "owner" },
+    ] });
     mocks.api.listLeads.mockResolvedValue({ leads: [{
       id: "lead-1", campaignId: "campaign-1", businessName: "Synthetic Painting Co", category: "Painters",
       location: "Manchester", website: "", email: "", phone: "", source: "manual", status: "new",
@@ -733,6 +736,7 @@ describe("cloud authentication gate", () => {
     fireEvent.click(createButton);
     const retryButton = await screen.findByRole("button", { name: "Retry draft (same request)" });
     expect(retryButton).toBeTruthy();
+    expect((screen.getByLabelText("Current organisation") as HTMLSelectElement).disabled).toBe(true);
 
     fireEvent.click(retryButton);
     await waitFor(() => expect(mocks.api.createOutreachDraft).toHaveBeenCalledTimes(2));
