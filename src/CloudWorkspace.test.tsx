@@ -887,7 +887,10 @@ describe("cloud authentication gate", () => {
 
   it("generates an AI suggestion for an eligible lead and requires review before saving", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
-    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [
+      { organisationId: "org-1", name: "Pilot Workspace", role: "owner" },
+      { organisationId: "org-2", name: "Second Workspace", role: "owner" },
+    ] });
     mocks.api.listCampaigns.mockResolvedValue({ campaigns: [{ id: "campaign-1", name: "Painter campaign", brand: "AnyTrader", category: "Painters", location: "Edinburgh", goal: "Recruit providers", status: "active", createdAt: null }] });
     mocks.api.listLeads.mockResolvedValue({ leads: [{
       id: "lead-1", campaignId: "campaign-1", businessName: "North Star Painters", category: "Painters", location: "Edinburgh",
@@ -895,8 +898,12 @@ describe("cloud authentication gate", () => {
       scoreReasons: [], notes: "private internal note", doNotContact: false, contactRestrictionVerified: true,
       contactReviewStatus: "cleared", contactReviewRevision: 1, createdAt: null,
     }] });
+    let resolveSuggestion!: (value: { subject: string; body: string; sent: false }) => void;
+    mocks.api.suggestOutreachDraft.mockImplementation(() => new Promise((resolve) => { resolveSuggestion = resolve; }));
     render(<CloudWorkspace />);
     fireEvent.click(await screen.findByRole("button", { name: "AI draft suggestion" }));
+    await waitFor(() => expect((screen.getByLabelText("Current organisation") as HTMLSelectElement).disabled).toBe(true));
+    resolveSuggestion({ subject: "Would you like to join our provider network?", body: "May we share details about joining?\\n\\nDRAFT ONLY — NOT SENT.", sent: false });
     expect(await screen.findByDisplayValue("Would you like to join our provider network?")).toBeTruthy();
     expect(mocks.api.suggestOutreachDraft).toHaveBeenCalledWith({ organisationId: "org-1", leadId: "lead-1" });
     expect(screen.getByText(/Check every claim and recipient eligibility/)).toBeTruthy();
