@@ -2085,9 +2085,9 @@ describe("cloud authentication gate", () => {
     render(<CloudWorkspace />);
     fireEvent.click(await screen.findByRole("button", { name: "Select first 25 filtered loaded leads" }));
     expect(screen.getByText(/25\/25 selected\. Bulk updates are all-or-nothing/)).toBeTruthy();
-    expect(screen.getByRole("checkbox", { name: "Select Bulk Candidate 01 for bulk status update" })).toBeChecked();
-    expect(screen.getByRole("checkbox", { name: "Select Bulk Candidate 25 for bulk status update" })).toBeChecked();
-    expect(screen.getByRole("checkbox", { name: "Select Bulk Candidate 26 for bulk status update" })).not.toBeChecked();
+    expect((screen.getByRole("checkbox", { name: "Select Bulk Candidate 01 for bulk status update" }) as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByRole("checkbox", { name: "Select Bulk Candidate 25 for bulk status update" }) as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByRole("checkbox", { name: "Select Bulk Candidate 26 for bulk status update" }) as HTMLInputElement).checked).toBe(false);
   });
 
   it("updates multiple selected leads with one idempotent request", async () => {
