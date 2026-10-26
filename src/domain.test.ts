@@ -436,6 +436,27 @@ describe("CSV duplicate preview", () => {
     expect(findLeadCsvDuplicates([candidate], existing, "other_approved")).toEqual([]);
   });
 
+  it("scopes contact and business duplicate previews to the selected campaign", () => {
+    const candidate = {
+      businessName: "Different business name",
+      location: "York",
+      email: "shared@example.test",
+      website: "shared.example.test",
+    };
+    const existing = [{
+      campaignId: "another-campaign",
+      businessName: "Existing from another campaign",
+      location: "York",
+      email: "shared@example.test",
+      website: "shared.example.test",
+    }];
+    expect(findLeadCsvDuplicates([candidate], existing, "csv_import", "selected-campaign")).toEqual([]);
+    // Callers without a campaign context retain the legacy cross-campaign preview.
+    expect(findLeadCsvDuplicates([candidate], existing)).toEqual([
+      { rowIndex: 0, duplicateSource: "loaded-lead", duplicateBusinessName: "Existing from another campaign", matchedOn: "email" },
+    ]);
+  });
+
   it("does not preview a source record ID duplicate from a different campaign", () => {
     const candidate = {
       businessName: "New listing",
