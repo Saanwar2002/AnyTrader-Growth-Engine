@@ -17,7 +17,7 @@ describe("lead creation idempotency replay integrity", () => {
     const bad = [
       {...result, internalNote:"must not leak"}, {...result, organisationId:"other-org"},
       {...result, businessName:"Other Ltd"}, {...result, leadId:"bad/id"},
-      {...result, score:Number.NaN}, {...result, scoreReasons:["ok",42]},
+      {...result, score:Number.NaN}, {...result, score:-1}, {...result, score:101}, {...result, scoreReasons:["ok",42]},
       {...result, scoreReasons:Array(1)},
       {...result, doNotContact:false},
       Object.fromEntries(Object.entries(result).filter(([key]) => key !== "contactReviewRevision")),
