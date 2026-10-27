@@ -155,6 +155,21 @@ describe("AI outreach draft validation", () => {
       expect(fetcher).not.toHaveBeenCalled();
     },
   );
+  it.each([
+    ["businessName", 161],
+    ["category", 101],
+    ["location", 161],
+    ["brand", 101],
+    ["campaignGoal", 301],
+    ["organisationName", 101],
+  ])("rejects oversized raw context field %s before calling the provider", async (field, length) => {
+    const malformed = { ...context, [field]: "x".repeat(length) } as unknown as AiOutreachDraftContext;
+    const fetcher = vi.fn<typeof fetch>();
+    await expect(generateAiOutreachDraftSuggestion(malformed, { apiKey: "key", fetcher }))
+      .rejects.toThrow("context field exceeds the allowed length");
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
   it("rejects blank context fields and trims surrounding whitespace before sending", async () => {
     for (const field of ["businessName", "category", "location", "brand", "campaignGoal", "organisationName"] as const) {
       const malformed = { ...context, [field]: "   " };
