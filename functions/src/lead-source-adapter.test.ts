@@ -528,6 +528,41 @@ describe("lead source bounded page contract", () => {
       .toThrow("request validation clock must not move backwards");
   });
 
+  it("orchestrates guarded page fetches and releases failed callback slots without refunding budget", async () => {
+    const limitedManifest = { ...manifest, maxRequestsPerRun: 2 };
+    const guard = new LeadSourceAdapterRunGuard<string>(limitedManifest);
+    const request = { category: "roofers", location: "Edinburgh", limit: 1 };
+    const collectedAt = "2026-10-26T12:00:00.000Z";
+    let callbackCalls = 0;
+    let failNext = true;
+    const fetchPage = async () => {
+      callbackCalls += 1;
+      if (failNext) {
+        failNext = false;
+        throw new Error("synthetic provider timeout");
+      }
+      return { records: [{ businessName: "Example Roofer", sourceRecordId: "roofer-1" }], nextCursor: null };
+    };
+    const clock = () => now;
+
+    await expect(guard.requestAndAcceptPage(
+      { ...request, category: " " }, fetchPage, collectedAt, clock,
+    )).rejects.toThrow("category must contain 1 to 120 characters");
+    expect(callbackCalls).toBe(0);
+
+    await expect(guard.requestAndAcceptPage(request, fetchPage, collectedAt, clock))
+      .rejects.toThrow("synthetic provider timeout");
+    expect(callbackCalls).toBe(1);
+
+    const page = await guard.requestAndAcceptPage(request, fetchPage, collectedAt, clock);
+    expect(page.records).toHaveLength(1);
+    expect(callbackCalls).toBe(2);
+
+    await expect(guard.requestAndAcceptPage(request, fetchPage, collectedAt, clock))
+      .rejects.toThrow("total request limit");
+    expect(callbackCalls).toBe(2);
+  });
+
   it("requires one recorded request per accepted page and resolves failed calls", () => {
     const guard = new LeadSourceAdapterRunGuard<string>(manifest);
     const start = new Date("2026-10-26T12:00:00.000Z");
