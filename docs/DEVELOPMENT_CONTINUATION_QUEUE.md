@@ -1,3 +1,12 @@
+## AutoPilot continuation — refresh readiness evidence after immutable run-guard hardening (2026-10-27)
+
+- Updated the dated readiness/security checkpoint to main commit `38fd77eff8031bfc469a2a8f519f8ac6100dc975`.
+- Verified post-merge main CI run `40532460007`: Functions tests/build and frontend typecheck/tests/build/emulator smoke tests passed.
+- Recorded PR #269's strict provider-candidate data-shape checks and PR #270's immutable per-run manifest snapshot, alongside PRs #263–#266's cursor/page/run-budget safeguards.
+- Production remains blocked on dedicated Firebase/App Check verification, privacy/retention approvals, monitoring/budget alerts, backup/recovery, approved source-provider configuration, and legacy identifier reconciliation. No deployment, live migration, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — snapshot the source-run manifest (2026-10-27)
 
 - The per-run guard now copies the approved manifest and its `allowedFields` list when constructed, preventing caller mutation from expanding record budgets or field permissions during a paginated run.
