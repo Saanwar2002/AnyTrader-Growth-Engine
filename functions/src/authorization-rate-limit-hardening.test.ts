@@ -26,6 +26,20 @@ describe("rate-limit persistence hardening", () => {
     });
   });
 
+  it("accepts known Firestore persistence metadata without using it for quota math", () => {
+    expect(evaluateRateLimit({
+      windowStartedAtMs: 10,
+      count: 1,
+      updatedAt: { toDate: "ignored metadata" },
+      expireAt: { toMillis: "ignored metadata" },
+    }, 20, 3, 100)).toEqual({
+      allowed: true,
+      invalidState: false,
+      nextState: { windowStartedAtMs: 10, count: 2 },
+      retryAfterMs: 0,
+    });
+  });
+
   it("rejects quota accessors without invoking getters", () => {
     let getterInvoked = false;
     const accessorState = Object.defineProperties({}, {
