@@ -45,6 +45,9 @@ describe("lead source adapter permission contract", () => {
     expect(validateLeadSourceManifest({ ...approvedManifest(), allowedFields: ["email"] })).toContain("allowedFields must include businessName.");
     expect(validateLeadSourceManifest({ ...approvedManifest(), allowedFields: ["businessName", "email", "email"] }))
       .toContain("allowedFields must be a non-empty list of unique supported lead fields.");
+    const sparseFields = ["businessName", , "email"] as unknown as LeadSourceAdapterManifest["allowedFields"];
+    expect(validateLeadSourceManifest({ ...approvedManifest(), allowedFields: sparseFields }))
+      .toContain("allowedFields must be a non-empty list of unique supported lead fields.");
   });
   it("requires the exact reviewed purpose", () => {
     const manifest = { ...approvedManifest(), permittedPurpose: "general_marketing" } as unknown as LeadSourceAdapterManifest;

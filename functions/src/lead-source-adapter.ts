@@ -57,6 +57,13 @@ function isIsoDate(value: unknown): value is string {
   const time = Date.parse(value);
   return Number.isFinite(time) && new Date(time).toISOString() === value;
 }
+function hasSparseEntries(value: unknown): boolean {
+  if (!Array.isArray(value)) return false;
+  for (let index = 0; index < value.length; index += 1) {
+    if (!Object.prototype.hasOwnProperty.call(value, index)) return true;
+  }
+  return false;
+}
 /** Return manifest defects; never infer permission or source scope. */
 export function validateLeadSourceManifest(manifest: LeadSourceAdapterManifest, now: Date = new Date()): string[] {
   const issues: string[] = [];
@@ -81,6 +88,7 @@ export function validateLeadSourceManifest(manifest: LeadSourceAdapterManifest, 
     issues.push("maxRecordsPerRun must be an integer between 1 and 500.");
   }
   if (!Array.isArray(manifest.allowedFields) || manifest.allowedFields.length === 0
+    || hasSparseEntries(manifest.allowedFields)
     || manifest.allowedFields.some((field) => !ALLOWED_FIELDS.has(field))
     || new Set(manifest.allowedFields).size !== manifest.allowedFields.length) {
     issues.push("allowedFields must be a non-empty list of unique supported lead fields.");
@@ -131,10 +139,8 @@ export function attributeLeadSourceCandidates(
   assertLeadSourceAdapterRunnable(manifest);
   if (!isIsoDate(collectedAt)) throw new Error("collectedAt must be a valid ISO-8601 timestamp.");
   if (!Array.isArray(candidates)) throw new Error("Lead source output must be an array.");
-  for (let index = 0; index < candidates.length; index += 1) {
-    if (!Object.prototype.hasOwnProperty.call(candidates, index)) {
-      throw new Error("Lead source output must not contain sparse entries.");
-    }
+  if (hasSparseEntries(candidates)) {
+    throw new Error("Lead source output must not contain sparse entries.");
   }
   if (candidates.length > manifest.maxRecordsPerRun) {
     throw new Error("Lead source output exceeded its configured per-run record limit.");
@@ -232,10 +238,8 @@ export function validateLeadSourcePageResult<TRecord = unknown, TCursor = string
   if (!Array.isArray(result.records)) {
     throw new Error("Lead source page records must be an array.");
   }
-  for (let index = 0; index < result.records.length; index += 1) {
-    if (!Object.prototype.hasOwnProperty.call(result.records, index)) {
-      throw new Error("Lead source page records must not contain sparse entries.");
-    }
+  if (hasSparseEntries(result.records)) {
+    throw new Error("Lead source page records must not contain sparse entries.");
   }
   if (result.records.length > manifest.maxRecordsPerRun) {
     throw new Error("Lead source page result exceeds the configured record limit.");
