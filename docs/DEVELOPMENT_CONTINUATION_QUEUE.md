@@ -1,3 +1,11 @@
+## AutoPilot continuation — offboarding preview owner-only role coverage (2026-10-27)
+
+- Added emulator assertions that admin, member, and viewer roles are denied access to the owner-only `previewOrganisationOffboarding` callable.
+- The owner preview remains read-only and returns bounded counts only; this change extends authorization regression coverage and does not add destructive offboarding.
+- Synthetic emulator data only. No production migration, deployment, billing changes, production data, or outreach.
+
+---
+
 ## AutoPilot continuation — clarify implemented roadmap work and remaining blockers (2026-10-27)
 
 - Split two mixed roadmap entries into implemented capabilities and explicit remaining work: onboarding cohort/timestamp implementation versus legacy timestamp backfill, and server-side quotas versus legacy usage reconciliation/billing.
