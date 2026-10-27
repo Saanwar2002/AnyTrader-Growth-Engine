@@ -651,6 +651,25 @@ describe("lead source bounded page contract", () => {
     expect(guard.recordsAccepted).toBe(1);
   });
 
+  it("rejects a provider page that returns the same cursor it was asked to use", async () => {
+    const guard = new LeadSourceAdapterRunGuard<Record<string, unknown>>(manifest);
+    const request = {
+      category: "builders",
+      location: "Edinburgh",
+      limit: 1,
+      cursor: { page: 2, token: "continuation" },
+    };
+    const fetchPage = async () => ({
+      records: [{ businessName: "No Progress" }],
+      nextCursor: { token: "continuation", page: 2 },
+    });
+
+    await expect(guard.requestAndAcceptPage(
+      request, fetchPage, "2026-10-26T11:00:00.000Z", () => now,
+    )).rejects.toThrow("repeated a next cursor");
+    expect(guard.recordsAccepted).toBe(0);
+  });
+
   it("rejects malformed and oversized page results", () => {
     expect(() => validateLeadSourcePageResult(null, manifest, now))
       .toThrow("page result must be an object");
