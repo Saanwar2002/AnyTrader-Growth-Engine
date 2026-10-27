@@ -34,7 +34,7 @@ function snapshotDenseStringArray(value: unknown): string[] | null {
   try {
     if (!Array.isArray(value) || Object.getPrototypeOf(value) !== Array.prototype) return null;
     const keys = Reflect.ownKeys(value);
-    if (keys.some((key) => typeof key !== "string" || (key !== "length" && !/^(0|[1-9]\\d*)$/.test(key)))) return null;
+    if (keys.some((key) => typeof key !== "string" || (key !== "length" && !/^(0|[1-9]\d*)$/.test(key)))) return null;
     const lengthDescriptor = Object.getOwnPropertyDescriptor(value, "length");
     if (!lengthDescriptor || !("value" in lengthDescriptor) || !Number.isSafeInteger(lengthDescriptor.value)
       || lengthDescriptor.value < 0 || lengthDescriptor.value > 100 || keys.length !== lengthDescriptor.value + 1) return null;
