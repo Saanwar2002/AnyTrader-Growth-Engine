@@ -713,38 +713,6 @@ try {
   assert.equal(sameIdDifferentSource.imported, 1, "matching external IDs from different source labels do not create false duplicates");
   assert.equal(sameIdDifferentSource.duplicatesSkipped, 0, "source ID matching is scoped to the declared source label");
 
-  execFileSync(process.execPath, [
-    "functions/scripts/seed-emulator-rate-limit.mjs",
-    orgOne.organisationId,
-    first.auth.currentUser.uid,
-    "importLeads",
-    "reset",
-  ], { stdio: "inherit" });
-  const differentKeyImportPayloads = [
-    {
-      organisationId: orgOne.organisationId,
-      campaignId: campaignOne.campaignId,
-      idempotencyKey: "csv-import-identifier-race-0001",
-      leads: [{ businessName: "Synthetic Import Reservation A Ltd", category: "Painters", location: "Sheffield",
-        email: "cross-path-reservation@example.test" }],
-    },
-    {
-      organisationId: orgOne.organisationId,
-      campaignId: campaignOne.campaignId,
-      idempotencyKey: "csv-import-identifier-race-0002",
-      leads: [{ businessName: "Synthetic Import Reservation B Ltd", category: "Painters", location: "Nottingham",
-        email: "CROSS-PATH-RESERVATION@example.test" }],
-    },
-  ];
-  const differentKeyImportResults = await Promise.all(differentKeyImportPayloads.map((payload) => callOne("importLeads", payload)));
-  assert.equal(differentKeyImportResults.reduce((sum, result) => sum + result.imported, 0), 1,
-    "concurrent imports with different idempotency keys reserve a canonical identifier exactly once");
-  assert.equal(differentKeyImportResults.reduce((sum, result) => sum + result.duplicatesSkipped, 0), 1,
-    "losing concurrent import reports the canonical duplicate as skipped");
-  const crossPathReservationMatches = (await callOne("listLeads", { organisationId: orgOne.organisationId }))
-    .leads.filter((lead) => lead.email === "cross-path-reservation@example.test");
-  assert.equal(crossPathReservationMatches.length, 1, "concurrent import race stores only one canonical email");
-
 
   const importedLeads = (await callOne("listLeads", { organisationId: orgOne.organisationId })).leads;
   for (const importedName of ["Synthetic Imported Alpha Ltd", "Synthetic Imported Beta Ltd"]) {
@@ -1531,6 +1499,35 @@ try {
   await createUserWithEmailAndPassword(admin.auth, "admin@example.test", "testing-password-admin");
   seedRole(admin.auth.currentUser.uid, "admin");
   const adminCall = (name, payload = {}) => httpsCallable(admin.functions, name, { timeout: 30000 })(payload).then((response) => response.data);
+
+  const differentKeyImportPayloads = [
+    {
+      organisationId: orgOne.organisationId,
+      campaignId: campaignOne.campaignId,
+      idempotencyKey: "csv-import-identifier-race-0001",
+      leads: [{ businessName: "Synthetic Import Reservation A Ltd", category: "Painters", location: "Sheffield",
+        email: "cross-path-reservation@example.test" }],
+    },
+    {
+      organisationId: orgOne.organisationId,
+      campaignId: campaignOne.campaignId,
+      idempotencyKey: "csv-import-identifier-race-0002",
+      leads: [{ businessName: "Synthetic Import Reservation B Ltd", category: "Painters", location: "Nottingham",
+        email: "CROSS-PATH-RESERVATION@example.test" }],
+    },
+  ];
+  const differentKeyImportResults = await Promise.all([
+    memberCall("importLeads", differentKeyImportPayloads[0]),
+    adminCall("importLeads", differentKeyImportPayloads[1]),
+  ]);
+  assert.equal(differentKeyImportResults.reduce((sum, result) => sum + result.imported, 0), 1,
+    "concurrent imports from different members with different idempotency keys reserve a canonical identifier exactly once");
+  assert.equal(differentKeyImportResults.reduce((sum, result) => sum + result.duplicatesSkipped, 0), 1,
+    "losing concurrent import reports the canonical duplicate as skipped");
+  const crossPathReservationMatches = (await callOne("listLeads", { organisationId: orgOne.organisationId }))
+    .leads.filter((lead) => lead.email === "cross-path-reservation@example.test");
+  assert.equal(crossPathReservationMatches.length, 1, "concurrent import race stores only one canonical email");
+
   const adminCampaign = await adminCall("createCampaign", { organisationId: orgOne.organisationId, idempotencyKey: "campaign-admin-create-0001", name: "Admin role campaign", brand: "Example", category: "Painters", location: "Manchester", goal: "Role test" });
   assert.equal(adminCampaign.status, "active", "admin can create a campaign");
   await adminCall("updateCampaignStatus", { organisationId: orgOne.organisationId, campaignId: adminCampaign.campaignId, status: "paused" });
