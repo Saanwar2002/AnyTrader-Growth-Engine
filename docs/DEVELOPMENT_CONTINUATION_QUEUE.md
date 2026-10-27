@@ -1,3 +1,11 @@
+## AutoPilot continuation — enforce per-run lead-source request rate limits (2026-10-27)
+
+- Added a rolling 60-second request budget to the per-discovery-run guard using the approved manifest's maxRequestsPerMinute value.
+- Callers record each request immediately before a provider call; timestamps are bounded by the manifest's 600-request maximum and backwards/invalid clocks fail closed.
+- Added regressions for the limit, exact rolling-window boundary, manifest mutation, and invalid/backwards clocks. Pure guard only; no provider integration or network activity.
+
+---
+
 ## AutoPilot continuation — harden lead-source candidate batch arrays (2026-10-27)
 
 - Candidate batches are copied from dense indexed data descriptors before iteration, preventing accessor-backed indices, symbol/extra array properties, subclasses, and overridden map methods from influencing validation.
