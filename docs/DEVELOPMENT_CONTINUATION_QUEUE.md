@@ -1,3 +1,11 @@
+## AutoPilot continuation — reject stalled lead-source pagination (2026-10-27)
+
+- The per-run guard now associates a recorded request with its normalized input cursor and rejects a response whose next cursor is equivalent to the cursor just requested, even when object keys are reordered.
+- Cursor association is consumed on every response attempt; failed provider calls clear the association while preserving request-budget accounting.
+- Added regression coverage proving a no-progress page is rejected without incrementing accepted records. Synthetic/provider-neutral only; no live provider connection, persistence, migration, deployment, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — canonicalize pagination cursors for cycle detection (2026-10-27)
 
 - Pagination-cycle keys now serialize normalized JSON-safe cursors deterministically by sorting object keys recursively, so equivalent object cursors with different property insertion order cannot evade repeat detection.
