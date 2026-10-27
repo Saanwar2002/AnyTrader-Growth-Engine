@@ -1,3 +1,11 @@
+## AutoPilot continuation — bound AI draft context fields (2026-10-27)
+
+- Reject raw AI draft context values exceeding the per-field limits before trimming, control-character scanning, or provider calls. Limits match the existing maximum payload lengths: business/location 160, category/brand/organisation 100, campaign goal 300.
+- Added a per-field regression matrix proving oversized values fail closed before the fetcher runs.
+- No real model calls, live data, deployment, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — bound AI provider response bodies (2026-10-27)
 
 - Read Gemini response streams incrementally with a 256 KiB byte ceiling; cancel the stream as soon as the limit is exceeded instead of calling `response.json()` on an unbounded body.
