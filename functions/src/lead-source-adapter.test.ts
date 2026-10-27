@@ -637,6 +637,20 @@ describe("lead source bounded page contract", () => {
     expect(guard.recordsAccepted).toBe(1);
   });
 
+  it("detects equivalent object cursors regardless of property insertion order", () => {
+    const guard = new LeadSourceAdapterRunGuard<Record<string, unknown>>(manifest);
+    acceptPageAfterRequest(guard, {
+      records: [{ businessName: "First" }],
+      nextCursor: { page: 2, token: "continuation" },
+    }, "2026-10-26T11:00:00.000Z", now);
+
+    expect(() => acceptPageAfterRequest(guard, {
+      records: [{ businessName: "Second" }],
+      nextCursor: { token: "continuation", page: 2 },
+    }, "2026-10-26T11:00:00.000Z", now)).toThrow("repeated a next cursor");
+    expect(guard.recordsAccepted).toBe(1);
+  });
+
   it("rejects malformed and oversized page results", () => {
     expect(() => validateLeadSourcePageResult(null, manifest, now))
       .toThrow("page result must be an object");
