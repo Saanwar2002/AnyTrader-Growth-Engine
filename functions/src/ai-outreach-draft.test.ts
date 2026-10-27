@@ -271,6 +271,20 @@ describe("AI outreach draft validation", () => {
     await expect(generateAiOutreachDraftSuggestion(context, { apiKey: "key", timeoutMs: 1, fetcher: timeoutFetcher }))
       .rejects.toThrowError(new Error("Gemini API request timed out."));
   });
+  it("accepts provider text-part arrays with multi-digit own indices", async () => {
+    const draftJson = JSON.stringify({ subject: "Hello", body: "May we share details?" });
+    const chunkSize = Math.ceil(draftJson.length / 11);
+    const parts = Array.from({ length: 11 }, (_, index) => ({
+      text: draftJson.slice(index * chunkSize, (index + 1) * chunkSize),
+    }));
+    const fetcher = vi.fn<typeof fetch>(async () => new Response(JSON.stringify({
+      candidates: [{ finishReason: "STOP", content: { parts } }],
+    }), { status: 200 }));
+
+    await expect(generateAiOutreachDraftSuggestion(context, { apiKey: "key", fetcher }))
+      .resolves.toEqual({ subject: "Hello", body: "May we share details?\n\nDRAFT ONLY — NOT SENT." });
+  });
+
   it("rejects sparse or malformed Gemini content parts instead of silently dropping them", async () => {
     const malformedParts: unknown[][] = [
       Array(1),
