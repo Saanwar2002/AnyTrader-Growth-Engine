@@ -21,7 +21,7 @@ Validation rejects insecure terms URLs, embedded URL credentials, missing review
 
 ## Provenance and status
 
-The contract defines provenance fields (source ID/name, terms URL, collection timestamp, optional provider record ID). Collection timestamps must be valid ISO-8601 UTC values and cannot be later than the validation clock. Persisting provenance to lead documents is a separate schema/API task and must be reviewed before it is wired into import flows.
+The contract defines provenance fields (source ID/name, terms URL, collection timestamp, optional provider record ID). Provider record IDs must be unique within each attributed result batch after trimming. Collection timestamps must be valid ISO-8601 UTC values and cannot be later than the validation clock. Persisting provenance to lead documents is a separate schema/API task and must be reviewed before it is wired into import flows.
 
 - Contract and manifest validation: implemented with unit tests.
 - Provider API clients and persisted provenance: not implemented.
