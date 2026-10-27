@@ -6,6 +6,15 @@ describe("AI outreach draft validation", () => {
   it("validates subject/body and appends the not-sent marker", () => {
     expect(validateAiOutreachDraftSuggestion({ subject: " Provider network invitation ", body: " Hello there. " })).toEqual({ subject: "Provider network invitation", body: "Hello there.\n\nDRAFT ONLY — NOT SENT." });
   });
+  it("keeps exactly one draft-only marker at the end even when provider text embeds it", () => {
+    const result = validateAiOutreachDraftSuggestion({
+      subject: "Provider invitation",
+      body: "May we share details? DRAFT ONLY — NOT SENT. Extra generated text.",
+    });
+    expect(result.body.endsWith("DRAFT ONLY — NOT SENT.")).toBe(true);
+    expect(result.body.match(/DRAFT ONLY — NOT SENT\./g)).toHaveLength(1);
+    expect(result.body).toContain("Extra generated text.");
+  });
   it("rejects malformed fields, control characters, HTML, and oversized bodies", () => {
     expect(() => validateAiOutreachDraftSuggestion(null)).toThrow("draft object");
     expect(() => validateAiOutreachDraftSuggestion({ subject: "", body: "Hello" })).toThrow("subject");

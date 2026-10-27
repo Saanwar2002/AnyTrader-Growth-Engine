@@ -16,7 +16,8 @@ export function validateAiOutreachDraftSuggestion(value: unknown): AiOutreachDra
     || UNSAFE_BIDI_CONTROLS.test(body) || /<\/?[a-z][^>]*>/i.test(body)) {
     throw new Error("AI response body failed plain-text validation.");
   }
-  if (!body.includes(DRAFT_MARKER)) body = `${body}\n\n${DRAFT_MARKER}`;
+  const bodyWithoutMarker = body.replaceAll(DRAFT_MARKER, "").trim();
+  body = bodyWithoutMarker ? `${bodyWithoutMarker}\n\n${DRAFT_MARKER}` : DRAFT_MARKER;
   if (body.length > 10000) throw new Error("AI response body exceeds the allowed length.");
   return { subject, body };
 }
