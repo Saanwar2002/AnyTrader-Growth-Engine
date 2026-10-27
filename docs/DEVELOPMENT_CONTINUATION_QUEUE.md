@@ -2,6 +2,7 @@
 
 - Added an end-to-end emulator smoke check for the bounded reservation integrity CLI against the synthetic organisation created by the existing smoke suite.
 - Asserted complete bounded scans, non-empty lead/reservation inventories, explicit read-only flags, no raw contact values, deterministic repeated reports, and unchanged first-page lead IDs.
+- CI exposed that the new analyzer was omitted from the Functions TypeScript build include list, leaving the CLI's compiled import absent; added the analyzer to the build inputs so the guard and emulator integration tests exercise the actual compiled CLI.
 - Added child-process guard tests confirming the CLI refuses a non-demo project even with an emulator host, a demo project without an emulator host, and unsupported emulator endpoints; CI runs these after the Functions build.
 - No production data, repair writes, deployment, billing changes, or outreach.
 - Next: verify exact-head CI, fix any emulator integration failures, review, merge when safe, and confirm post-merge main CI.
