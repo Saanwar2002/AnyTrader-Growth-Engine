@@ -49,6 +49,24 @@ describe("non-destructive tenant offboarding preview", () => {
     });
   });
 
+  it("does not invoke array proxy get traps while validating page length", async () => {
+    let getTrapInvoked = false;
+    const result = await createOffboardingPreview(async (category) => {
+      if (category !== "members") return { ids: [] };
+      const ids = new Proxy(["member-1"], {
+        get(target, property, receiver) {
+          if (property === "length") getTrapInvoked = true;
+          return Reflect.get(target, property, receiver);
+        },
+      });
+      return { ids };
+    });
+    expect(getTrapInvoked).toBe(false);
+    expect(result.categories.find((item) => item.category === "members")).toMatchObject({
+      status: "unavailable", exactCount: null,
+    });
+  });
+
   it("rejects malformed and hostile page-reader envelopes as unavailable", async () => {
     const result = await createOffboardingPreview(async (category) => {
       if (category !== "members") return { ids: [] };
