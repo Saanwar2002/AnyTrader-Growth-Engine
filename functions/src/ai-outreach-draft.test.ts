@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { generateAiOutreachDraftSuggestion, validateAiOutreachDraftSuggestion, type AiOutreachDraftContext } from "./ai-outreach-draft";
+import { generateAiOutreachDraftSuggestion, validateAiOutreachDraftSuggestion, type AiOutreachDraftContext, type AiOutreachDraftOptions } from "./ai-outreach-draft";
 const context: AiOutreachDraftContext = { businessName: "North Star Decorators", category: "Decorators", location: "Edinburgh", brand: "AnyTrader", campaignGoal: "Invite local providers to join", organisationName: "Pilot workspace" };
 function okResponse(text: string): Response { return new Response(JSON.stringify({ candidates: [{ finishReason: "STOP", content: { parts: [{ text }] } }] }), { status: 200 }); }
 describe("AI outreach draft validation", () => {
@@ -50,6 +50,14 @@ describe("AI outreach draft validation", () => {
     } finally {
       timerSpy.mockRestore();
     }
+  });
+  it("rejects malformed runtime options before attempting a provider request", async () => {
+    await expect(generateAiOutreachDraftSuggestion(context, null as unknown as AiOutreachDraftOptions))
+      .rejects.toThrow("AI draft options are invalid");
+    await expect(generateAiOutreachDraftSuggestion(context, { apiKey: "key", model: 42 } as unknown as AiOutreachDraftOptions))
+      .rejects.toThrow("model name is invalid");
+    await expect(generateAiOutreachDraftSuggestion(context, { apiKey: "key", fetcher: 42 } as unknown as AiOutreachDraftOptions))
+      .rejects.toThrow("AI draft fetcher is invalid");
   });
   it("fails closed for missing keys, invalid model names, provider errors, and malformed JSON", async () => {
     await expect(generateAiOutreachDraftSuggestion(context, { apiKey: "" })).rejects.toThrow("not configured");

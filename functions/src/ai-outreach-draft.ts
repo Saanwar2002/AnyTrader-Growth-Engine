@@ -25,7 +25,16 @@ export async function generateAiOutreachDraftSuggestion(context: AiOutreachDraft
     || typeof context.organisationName !== "string") {
     throw new Error("AI draft context is invalid.");
   }
+  if (!options || typeof options !== "object" || Array.isArray(options)) {
+    throw new Error("AI draft options are invalid.");
+  }
   if (typeof options.apiKey !== "string" || !options.apiKey.trim()) throw new Error("AI draft assistance is not configured.");
+  if (options.model !== undefined && typeof options.model !== "string") {
+    throw new Error("Configured AI model name is invalid.");
+  }
+  if (options.fetcher !== undefined && typeof options.fetcher !== "function") {
+    throw new Error("AI draft fetcher is invalid.");
+  }
   const model = options.model?.trim() || "gemini-3.8-flash";
   if (!/^[A-Za-z0-9._-]{1,100}$/.test(model)) throw new Error("Configured AI model name is invalid.");
   const fetcher = options.fetcher ?? fetch;
