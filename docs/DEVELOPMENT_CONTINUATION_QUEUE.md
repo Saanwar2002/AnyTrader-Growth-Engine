@@ -1,3 +1,11 @@
+## AutoPilot continuation — enforce whole-run lead-source pagination bounds (2026-10-27)
+
+- Added a stateful per-discovery-run guard to enforce `maxRecordsPerRun` cumulatively across pages rather than treating it as a per-page limit.
+- The guard also rejects repeated next cursors and duplicate provider `sourceRecordId` values across pages; rejected pages do not advance accepted-record state.
+- Added synthetic unit regressions for cumulative limits, cross-page duplicate IDs, and cursor cycles. No provider connection, network access, live data, import persistence, migration, deployment, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — validate and attribute source pages as one boundary (2026-10-27)
 
 - Added `validateAndAttributeLeadSourcePage` to validate the bounded page envelope and cursor, validate every candidate against the approved manifest allowlist and record limits, normalize candidate fields, and attach provenance before returning any records.
