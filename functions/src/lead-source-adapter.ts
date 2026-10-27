@@ -377,7 +377,9 @@ export class LeadSourceAdapterRunGuard<TCursor = string> {
 
     let nextCursorKey: string | undefined;
     if (page.nextCursor !== undefined && page.nextCursor !== null) {
-      nextCursorKey = JSON.stringify(page.nextCursor);
+      const serializedCursor = JSON.stringify(page.nextCursor);
+      if (typeof serializedCursor !== "string") throw new Error("Lead source next cursor is not serializable.");
+      nextCursorKey = serializedCursor;
       if (this.seenNextCursors.has(nextCursorKey)) {
         throw new Error("Lead source pagination repeated a next cursor.");
       }
