@@ -1,3 +1,12 @@
+## AutoPilot continuation — enforce offboarding allow-list/privacy-inventory parity (2026-10-27)
+
+- Added a source-contract regression test that every `OFFBOARDING_PREVIEW_CATEGORIES` entry must be present in the schema-backed privacy inventory, preventing omissions when the allow-list changes.
+- Added the missing `leadBulkStatusIdempotency` row; all six organisation-scoped idempotency collections are now documented.
+- Based on verified main checkpoint `dabac3a185c6002dd7fd884adb908c2377847a5f` with post-merge CI run `40505264525` successful for both jobs. This change remains test/documentation-only.
+- No deletion, production migration, deployment, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — verify offboarding inventory completeness and refresh readiness checkpoint (2026-10-27)
 
 - Added a regression assertion covering all six organisation-scoped idempotency collections so future offboarding inventory edits cannot silently omit membership-addition retry records.

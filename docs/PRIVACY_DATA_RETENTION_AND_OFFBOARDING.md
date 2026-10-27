@@ -47,6 +47,7 @@ The following collection paths were verified in `functions/src/index.ts` on `mai
 | `organisations/{organisationId}/memberAdditionIdempotency/{key}` | Retry/idempotency records for membership changes; include in the organisation-scoped offboarding inventory. |
 | `organisations/{organisationId}/importIdempotency/{key}` | CSV-import retry records. |
 | `organisations/{organisationId}/leadCreationIdempotency/{key}` | Manual lead-creation retry records. |
+| `organisations/{organisationId}/leadBulkStatusIdempotency/{key}` | Retry/idempotency records for bulk lead-status changes. |
 | `organisations/{organisationId}/outreachDraftCreationIdempotency/{key}` | Draft-creation retry records. |
 | `organisationCreationIdempotency/{key}` | Root-level organisation-creation retry records keyed from caller and request key; cannot be blindly deleted with a single organisation. |
 | `rateLimits/{key}` | Root-level rate-limit/quota state; cleanup needs its own expiry and abuse-investigation rules. |
