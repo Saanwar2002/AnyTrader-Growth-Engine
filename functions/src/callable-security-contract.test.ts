@@ -1082,6 +1082,7 @@ describe("organisation security audit log", () => {
     expect(body).toContain('consumeReadRateLimit(organisationId, uid, "listOrganisationSecurityAuditEvents", 10)');
     expect(body).toContain('decoded.scope !== "organisation_security_audit" || decoded.organisationId !== organisationId');
     expect(body).toContain("query.limit(51)");
+    expect(body).toContain('isValidFirestoreTimestamp(cursor.get("createdAt"))');
     expect(body).toContain("await requireAuditViewer();");
     expect(body).toContain("isBoundedAuditMetadata(eventType as SecurityAuditEventType");
     expect(body).not.toContain("getAuth().getUser");
