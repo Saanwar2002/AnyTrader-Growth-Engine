@@ -15,6 +15,12 @@ describe("AI outreach draft validation", () => {
     expect(result.body.match(/DRAFT ONLY — NOT SENT\./g)).toHaveLength(1);
     expect(result.body).toContain("Extra generated text.");
   });
+  it("rejects a marker-only response without actual draft text", () => {
+    expect(() => validateAiOutreachDraftSuggestion({
+      subject: "Provider invitation",
+      body: "DRAFT ONLY — NOT SENT.",
+    })).toThrow("must contain message text");
+  });
   it("rejects malformed fields, control characters, HTML, and oversized bodies", () => {
     expect(() => validateAiOutreachDraftSuggestion(null)).toThrow("draft object");
     expect(() => validateAiOutreachDraftSuggestion({ subject: "", body: "Hello" })).toThrow("subject");
