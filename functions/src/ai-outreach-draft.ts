@@ -3,6 +3,7 @@ export interface AiOutreachDraftSuggestion { subject: string; body: string; }
 export interface AiOutreachDraftOptions { apiKey: string; model?: string; fetcher?: typeof fetch; timeoutMs?: number; }
 const DRAFT_MARKER = "DRAFT ONLY — NOT SENT.";
 const UNSAFE_BIDI_CONTROLS = /[\u202A-\u202E\u2066-\u2069]/;
+const UNSAFE_CONTEXT_CONTROLS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F\u202A-\u202E\u2066-\u2069]/;
 export function validateAiOutreachDraftSuggestion(value: unknown): AiOutreachDraftSuggestion {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("AI response was not a draft object.");
   const record = value as Record<string, unknown>;
@@ -29,6 +30,10 @@ export async function generateAiOutreachDraftSuggestion(context: AiOutreachDraft
     || typeof context.campaignGoal !== "string"
     || typeof context.organisationName !== "string") {
     throw new Error("AI draft context is invalid.");
+  }
+  if ([context.businessName, context.category, context.location, context.brand, context.campaignGoal, context.organisationName]
+    .some((value) => UNSAFE_CONTEXT_CONTROLS.test(value))) {
+    throw new Error("AI draft context contains unsupported control characters.");
   }
   if (!options || typeof options !== "object" || Array.isArray(options)) {
     throw new Error("AI draft options are invalid.");
