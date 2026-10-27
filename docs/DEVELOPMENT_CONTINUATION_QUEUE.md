@@ -1,3 +1,11 @@
+## AutoPilot continuation — centralize guarded lead-source page fetches (2026-10-27)
+
+- Added `requestAndAcceptPage` to validate and detach the request, consume per-minute and total-run budgets before the provider callback, and validate/accept its response as one sequence.
+- Callback failures release the outstanding request slot but do not refund the request budget; approval is rechecked at response time. Invalid requests never invoke the callback.
+- Added regression coverage for invalid requests, callback failure recovery, successful page acceptance, and exhausted request budgets. The helper has no provider credentials or built-in network integration.
+
+---
+
 ## AutoPilot continuation — bind accepted pages to recorded provider requests (2026-10-27)
 
 - The per-run guard now requires a recorded request before accepting a page and consumes that request association before validating the response, preventing one request budget entry from authorizing multiple pages.
