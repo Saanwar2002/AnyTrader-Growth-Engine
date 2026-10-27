@@ -10,10 +10,10 @@ This is an evidence-based repository audit, not a certification that any externa
 
 - Repository: `Saanwar2002/AnyTrader-Growth-Engine`
 - Branch: `main`
-- Audited code checkpoint: `e26bd24bc6fa27acc6cec75a7bd0792c05710265`.
-- Recent merged hardening includes PRs #239–#241 (offboarding-preview input, persisted quota-state, and concurrent quota-boundary safeguards), PR #243 (include organisation-scoped member-addition idempotency records in the offboarding inventory), and PR #246 (explicit client-side Growth Engine Firebase project allow-list), PR #249 (offboarding allow-list/privacy-inventory parity), and PR #250 (frontend offboarding category type aligned with the backend), alongside canonical identifier reservation lifecycle and bounded read-only audit work.
-- Exact current-main CI: [run 40516135401](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40516135401) for commit `e26bd24bc6fa27acc6cec75a7bd0792c05710265` — **success**; both Functions and frontend/emulator jobs passed.
-- Recent merged source-contract hardening rejects future approval review timestamps, future collection timestamps, and duplicate trimmed provider record IDs within one attribution batch. These changes validate synthetic data only and do not connect a provider.
+- Audited code checkpoint: `49ddb971674b2db9ea57c2712c4a0d8661687e6d`.
+- Recent merged hardening includes PRs #239–#241 (offboarding-preview input, persisted quota-state, and concurrent quota-boundary safeguards), PR #243 (member-addition idempotency inventory), PR #246 (client-side Firebase project allow-list), PRs #249–#250 (offboarding inventory/type parity), and PRs #263–#266 (strict JSON-safe cursors, accessor rejection, candidate validation with provenance, and cumulative pagination-run limits).
+- Exact current-main CI: [run 40528132846](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40528132846) for commit `49ddb971674b2db9ea57c2712c4a0d8661687e6d` — **success**; both Functions and frontend/emulator jobs passed.
+- Recent merged source-contract hardening rejects future approval/collection timestamps, lossy or accessor-backed cursors, malformed candidate fields, duplicate trimmed provider record IDs, repeated pagination cursors, and cumulative run-budget overruns. The new page pipeline attaches provenance before returning records. These are provider-neutral safeguards only; no provider is connected.
 - Offboarding preview remains owner-only, bounded, tenant-scoped, read-only, App-Check protected outside the emulator, and quota-limited. Invalid organisation IDs and malformed/exhausted quota states fail closed; denied roles do not consume quota.
 - The dedicated Growth Engine Firebase project, live App Check verification, privacy/retention approvals, monitoring/budget alerts, backup/recovery, and approved data-source configuration remain release blockers. No production deployment or live migration was performed.
 
@@ -26,7 +26,7 @@ Status meanings:
 
 | Area | Status | Evidence and remaining work |
 |---|---|---|
-| Build and automated regression suite | **PASS — repository evidence** | Post-merge CI run 40507397467 passed both Functions and frontend/emulator jobs for checkpoint `73e3b04fb05c3ea18aaf1de49edd9ee3980b7160`, including typecheck, unit tests, build, dependency guards, CLI cloud-target/argument guard checks, and Firebase emulator smoke tests. Rerun against the exact release candidate before release. |
+| Build and automated regression suite | **PASS — repository evidence** | Post-merge CI run 40528132846 passed both Functions and frontend/emulator jobs for checkpoint `49ddb971674b2db9ea57c2712c4a0d8661687e6d`, including typecheck, unit tests, build, dependency guards, CLI cloud-target/argument guard checks, and Firebase emulator smoke tests. Rerun against the exact release candidate before release. |
 | Tenant authorization | **PASS — development only** | Callable handlers enforce Firebase Auth and organisation membership/roles; emulator tests cover cross-tenant denial. Still require project-specific security review and production-like verification. |
 | Direct Firestore client access | **PASS — repository evidence** | `firestore.rules` denies direct client reads/writes. Keep this default until narrowly scoped rules are independently reviewed. |
 | Callable App Check enforcement | **PARTIAL** | Deployed callable options enforce App Check; the bypass is explicitly limited to the Functions emulator. The frontend requires a public site key. A live project/provider/token flow has not been verified. |
