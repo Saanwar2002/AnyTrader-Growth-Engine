@@ -30,6 +30,54 @@ describe("non-destructive tenant offboarding preview", () => {
     expect(JSON.stringify(result)).not.toContain("phone");
   });
 
+  it("rejects accessor-backed page envelopes and array entries without invoking getters", async () => {
+    let getterInvoked = false;
+    const result = await createOffboardingPreview(async (category) => {
+      if (category !== "members") return { ids: [] };
+      const ids: string[] = [];
+      Object.defineProperty(ids, "0", {
+        enumerable: true,
+        configurable: true,
+        get: () => { getterInvoked = true; return "member-1"; },
+      });
+      Object.defineProperty(ids, "length", { value: 1, writable: true });
+      return { ids };
+    });
+    expect(getterInvoked).toBe(false);
+    expect(result.categories.find((item) => item.category === "members")).toMatchObject({
+      status: "unavailable", exactCount: null,
+    });
+  });
+
+  it("does not invoke array proxy get traps while validating page length", async () => {
+    let getTrapInvoked = false;
+    const result = await createOffboardingPreview(async (category) => {
+      if (category !== "members") return { ids: [] };
+      const ids = new Proxy(["member-1"], {
+        get(target, property, receiver) {
+          if (property === "length") getTrapInvoked = true;
+          return Reflect.get(target, property, receiver);
+        },
+      });
+      return { ids };
+    });
+    expect(getTrapInvoked).toBe(false);
+    expect(result.categories.find((item) => item.category === "members")).toMatchObject({
+      status: "complete", exactCount: 1,
+    });
+  });
+
+  it("rejects malformed and hostile page-reader envelopes as unavailable", async () => {
+    const result = await createOffboardingPreview(async (category) => {
+      if (category !== "members") return { ids: [] };
+      return new Proxy({ ids: ["member-1"] }, { ownKeys() { throw new Error("inspection trap"); } });
+    });
+    expect(result.categories.find((item) => item.category === "members")).toMatchObject({
+      status: "unavailable", exactCount: null,
+    });
+    expect(result.destructiveActionPerformed).toBe(false);
+  });
+
   it("includes all organisation-scoped idempotency collections in the inventory", () => {
     expect(OFFBOARDING_PREVIEW_CATEGORIES).toEqual(expect.arrayContaining([
       "campaignCreationIdempotency",
