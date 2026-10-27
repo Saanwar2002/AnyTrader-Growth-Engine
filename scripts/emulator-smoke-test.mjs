@@ -1486,7 +1486,10 @@ try {
   await createUserWithEmailAndPassword(member.auth, "member@example.test", "testing-password-member");
   seedRole(member.auth.currentUser.uid, "member");
   const memberCall = (name, payload = {}) => httpsCallable(member.functions, name, { timeout: 30000 })(payload).then((response) => response.data);
+  const memberOffboardingQuotaBefore = currentQuotaCount("previewOrganisationOffboarding", member.auth.currentUser.uid);
   await expectCallableFailure(memberCall("previewOrganisationOffboarding", { organisationId: orgOne.organisationId }), "functions/permission-denied", "member cannot preview organisation offboarding");
+  assert.equal(currentQuotaCount("previewOrganisationOffboarding", member.auth.currentUser.uid), memberOffboardingQuotaBefore,
+    "member-denied offboarding preview does not consume read quota");
   await memberCall("updateLeadNotes", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, notes: "Updated by member role integration test" });
   await memberCall("setLeadSuppression", { organisationId: orgOne.organisationId, leadId: leadOne.leadId, doNotContact: true });
   await expectCallableFailure(memberCall("setLeadSuppression", {
@@ -1500,7 +1503,10 @@ try {
   await createUserWithEmailAndPassword(admin.auth, "admin@example.test", "testing-password-admin");
   seedRole(admin.auth.currentUser.uid, "admin");
   const adminCall = (name, payload = {}) => httpsCallable(admin.functions, name, { timeout: 30000 })(payload).then((response) => response.data);
+  const adminOffboardingQuotaBefore = currentQuotaCount("previewOrganisationOffboarding", admin.auth.currentUser.uid);
   await expectCallableFailure(adminCall("previewOrganisationOffboarding", { organisationId: orgOne.organisationId }), "functions/permission-denied", "admin cannot preview owner-only organisation offboarding");
+  assert.equal(currentQuotaCount("previewOrganisationOffboarding", admin.auth.currentUser.uid), adminOffboardingQuotaBefore,
+    "admin-denied offboarding preview does not consume read quota");
 
   const differentKeyImportPayloads = [
     {
@@ -1542,7 +1548,10 @@ try {
   await createUserWithEmailAndPassword(viewer.auth, "viewer@example.test", "testing-password-viewer");
   seedRole(viewer.auth.currentUser.uid, "viewer");
   const viewerCall = (name, payload = {}) => httpsCallable(viewer.functions, name, { timeout: 30000 })(payload).then((response) => response.data);
+  const viewerOffboardingQuotaBefore = currentQuotaCount("previewOrganisationOffboarding", viewer.auth.currentUser.uid);
   await expectCallableFailure(viewerCall("previewOrganisationOffboarding", { organisationId: orgOne.organisationId }), "functions/permission-denied", "viewer cannot preview organisation offboarding");
+  assert.equal(currentQuotaCount("previewOrganisationOffboarding", viewer.auth.currentUser.uid), viewerOffboardingQuotaBefore,
+    "viewer-denied offboarding preview does not consume read quota");
   const viewerLeads = await viewerCall("listLeads", { organisationId: orgOne.organisationId });
   assert.ok(viewerLeads.leads.some((lead) => lead.id === leadOne.leadId), "viewer can read leads within their organisation");
   await expectCallableFailure(viewerCall("createLead", { organisationId: orgOne.organisationId, campaignId: campaignOne.campaignId, businessName: "Viewer denied lead" }), "functions/permission-denied", "viewer cannot create lead");
