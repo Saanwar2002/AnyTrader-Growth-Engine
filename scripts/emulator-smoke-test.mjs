@@ -3049,6 +3049,7 @@ try {
   for (const [operation, payload, label] of [
     ["listCampaigns", { organisationId: orgOne.organisationId }, "campaign listing"],
     ["listOutreachDrafts", { organisationId: orgOne.organisationId }, "outreach-draft listing"],
+    ["previewOrganisationOffboarding", { organisationId: orgOne.organisationId }, "owner offboarding preview"],
   ]) {
     execFileSync(process.execPath, [
       "functions/scripts/seed-emulator-rate-limit.mjs",

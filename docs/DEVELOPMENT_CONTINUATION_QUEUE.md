@@ -1,3 +1,11 @@
+## AutoPilot continuation — offboarding preview exhausted read quota coverage (2026-10-27)
+
+- Extended the emulator-only rate-limit seeder's operation allow-list and usage text for `previewOrganisationOffboarding`; its exhausted fixture now matches the callable's 10-request per-user/organisation ceiling.
+- Added owner offboarding preview to the existing persisted read-quota boundary regression loop, verifying an authenticated owner is rejected with `resource-exhausted` when the quota is exhausted before any inventory scan.
+- Emulator-only synthetic data. No cloud access, production migration, deployment, billing changes, or outreach.
+
+---
+
 ## AutoPilot continuation — successful owner offboarding preview consumes one quota (2026-10-27)
 
 - Extended the synthetic emulator smoke test to assert a successful owner-only `previewOrganisationOffboarding` call increments the owner's read-rate-limit count by exactly one.
