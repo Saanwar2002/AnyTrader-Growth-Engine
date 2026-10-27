@@ -1,3 +1,12 @@
+## AutoPilot continuation — harden lead-source page envelope shapes (2026-10-27)
+
+- Request and result envelopes are copied from plain/null-prototype objects using own enumerable data descriptors; accessors, symbol keys, class instances, and hidden/non-data properties fail closed without invoking getters.
+- Provider result record arrays are copied from dense indexed data properties, rejecting accessor-backed indices and unexpected array properties.
+- Safe unrelated ordinary data fields remain discarded for compatibility; the returned request/result contains only contract fields.
+- Added synthetic regressions for request/result accessors, symbols, class instances, and accessor-backed record arrays. No provider connection, live data, persistence, migration, deployment, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — use detached validated source manifest snapshots (2026-10-27)
 
 - Fixed a permission-boundary gap where a manifest could change after validation but before candidate allowlists or record limits were consumed.
