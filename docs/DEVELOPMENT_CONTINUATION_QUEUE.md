@@ -1,3 +1,12 @@
+## AutoPilot continuation — refresh production-readiness checkpoint after PR #249 (2026-10-27)
+
+- Refreshed the production-readiness audit and security gate to the verified `main` checkpoint `136999f5233fd61fa45e8dce7518b66df1cf1f61`.
+- Recorded successful exact-head PR #249 CI (`40505812514`) and post-merge main CI (`40506312642`), including Functions and frontend/emulator jobs.
+- PR #249 added schema-backed privacy-inventory parity coverage for every offboarding-preview category and documented `leadBulkStatusIdempotency`. Production remains blocked by live Firebase/App Check, privacy/retention approvals, monitoring, backup/recovery, approved data sources, and legacy reconciliation.
+- Documentation-only; no deployment, production migration, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — enforce offboarding allow-list/privacy-inventory parity (2026-10-27)
 
 - Added a source-contract regression test that every `OFFBOARDING_PREVIEW_CATEGORIES` entry must be present in the schema-backed privacy inventory, preventing omissions when the allow-list changes.
