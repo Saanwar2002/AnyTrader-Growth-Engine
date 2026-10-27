@@ -26,6 +26,38 @@ describe("rate-limit persistence hardening", () => {
     });
   });
 
+  it("rejects quota accessors without invoking getters", () => {
+    let getterInvoked = false;
+    const accessorState = Object.defineProperties({}, {
+      windowStartedAtMs: { enumerable: true, get: () => { getterInvoked = true; return 10; } },
+      count: { enumerable: true, value: 1 },
+    });
+    expect(evaluateRateLimit(accessorState, 20, 3, 100)).toEqual({
+      allowed: false, invalidState: true, nextState: null, retryAfterMs: 0,
+    });
+    expect(getterInvoked).toBe(false);
+  });
+
+  it("rejects symbol, hidden, extra, class-instance and hostile-proxy state shapes", () => {
+    const symbolState = { windowStartedAtMs: 10, count: 1, [Symbol("extra")]: true };
+    const hiddenState = { windowStartedAtMs: 10, count: 1 };
+    Object.defineProperty(hiddenState, "hidden", { value: true, enumerable: false });
+    const extraState = { windowStartedAtMs: 10, count: 1, other: true };
+    class QuotaState {
+      windowStartedAtMs = 10;
+      count = 1;
+    }
+    const hostileState = new Proxy({ windowStartedAtMs: 10, count: 1 }, {
+      ownKeys: () => { throw new Error("sensitive proxy detail"); },
+    });
+
+    for (const state of [symbolState, hiddenState, extraState, new QuotaState(), hostileState]) {
+      expect(evaluateRateLimit(state, 20, 3, 100)).toEqual({
+        allowed: false, invalidState: true, nextState: null, retryAfterMs: 0,
+      });
+    }
+  });
+
   it("does not trust inherited quota fields", () => {
     const inherited = Object.create({ windowStartedAtMs: 10, count: 1 });
     expect(evaluateRateLimit(inherited, 20, 3, 100)).toEqual({
