@@ -514,7 +514,6 @@ function createLeadIdentifierReservations(
     transaction.create(reservation.ref, {
       schemaVersion: 1,
       identifierType: reservation.type,
-      canonicalKey: reservation.key,
       leadId,
       createdAt,
     });
