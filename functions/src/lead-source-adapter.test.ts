@@ -81,6 +81,14 @@ describe("lead source adapter permission contract", () => {
       .toThrow("exceeded its configured per-run record limit");
   });
 
+  it("rejects sparse provider result arrays instead of silently skipping missing rows", () => {
+    expect(() => attributeLeadSourceCandidates(
+      approvedManifest(),
+      Array(1),
+      "2026-10-25T10:00:00.000Z",
+    )).toThrow("must not contain sparse entries");
+  });
+
   it("rejects fields not explicitly allowed by the source manifest", () => {
     expect(() => attributeLeadSourceCandidates(approvedManifest(), [{
       businessName: "Example", internalNote: "unexpected",
