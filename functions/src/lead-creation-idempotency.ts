@@ -51,7 +51,9 @@ function snapshotDenseStringArray(value: unknown): string[] | null {
 }
 export function getValidLeadCreationReplayResult(savedValue: unknown, expected: ExpectedLeadCreationReplay): ValidLeadCreationReplayResult | null {
   const saved = snapshotPlainRecord(savedValue);
-  if (!saved || Object.keys(saved).length !== 3
+  const savedKeys = saved ? Object.keys(saved) : [];
+  if (!saved || (savedKeys.length !== 3 && savedKeys.length !== 4)
+    || savedKeys.some((key) => !["actorUid", "requestHash", "result", "createdAt"].includes(key))
     || !Object.prototype.hasOwnProperty.call(saved, "actorUid")
     || !Object.prototype.hasOwnProperty.call(saved, "requestHash")
     || !Object.prototype.hasOwnProperty.call(saved, "result")
