@@ -65,6 +65,7 @@
 
 ## Phase 4 — Approved lead-source adapters
 
+- [x] Snapshot the approved manifest and allowed-field list at run-guard construction so caller mutation cannot expand per-run budgets or permissions mid-pagination.
 - [x] Restrict provider candidate records to plain data objects; reject symbol keys, unknown/non-enumerable/accessor properties, and class/host objects without invoking getters, with regression coverage.
 - [x] Add a stateful per-run guard that enforces the total record budget across pages and rejects repeated next cursors or duplicate provider record IDs across pages; rejected pages do not mutate accepted-run state.
 - [x] Provide a single pure helper that validates each bounded adapter page and cursor, validates/maps every candidate against the approved manifest, and attaches provenance before returning the page; regression tests cover valid normalization and malformed/disallowed records.

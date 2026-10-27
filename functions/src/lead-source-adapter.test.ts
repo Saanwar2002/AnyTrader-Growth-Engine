@@ -332,6 +332,25 @@ describe("lead source bounded page contract", () => {
     expect(guard.recordsAccepted).toBe(2);
   });
 
+  it("snapshots run limits and allowed fields so caller mutation cannot expand them", () => {
+    const limitedManifest = { ...manifest, maxRecordsPerRun: 1, allowedFields: [...manifest.allowedFields] };
+    const budgetGuard = new LeadSourceAdapterRunGuard<string>(limitedManifest);
+    limitedManifest.maxRecordsPerRun = 10;
+    budgetGuard.acceptPage({
+      records: [{ businessName: "First" }], nextCursor: "page-2",
+    }, "2026-10-26T11:00:00.000Z", now);
+    expect(() => budgetGuard.acceptPage({
+      records: [{ businessName: "Second" }], nextCursor: null,
+    }, "2026-10-26T11:00:00.000Z", now)).toThrow("total record limit");
+
+    const fieldsManifest = { ...manifest, allowedFields: [...manifest.allowedFields] };
+    const fieldsGuard = new LeadSourceAdapterRunGuard<string>(fieldsManifest);
+    fieldsManifest.allowedFields.push("email");
+    expect(() => fieldsGuard.acceptPage({
+      records: [{ businessName: "Email Builder", email: "builder@example.test" }],
+    }, "2026-10-26T11:00:00.000Z", now)).toThrow("outside its manifest allowlist");
+  });
+
   it("rejects duplicate provider record IDs across pages without accepting the page", () => {
     const guard = new LeadSourceAdapterRunGuard<string>(manifest);
     guard.acceptPage({

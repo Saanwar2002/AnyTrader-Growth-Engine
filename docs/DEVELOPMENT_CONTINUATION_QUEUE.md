@@ -1,3 +1,11 @@
+## AutoPilot continuation — snapshot the source-run manifest (2026-10-27)
+
+- The per-run guard now copies the approved manifest and its `allowedFields` list when constructed, preventing caller mutation from expanding record budgets or field permissions during a paginated run.
+- Added regressions proving later changes to the original manifest do not expand the cumulative record limit or candidate allowlist.
+- Provider-neutral validation only; no provider connection, network access, live data, persistence, migration, deployment, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — strict provider candidate record shapes (2026-10-27)
 
 - Candidate validation accepts only plain or null-prototype records with enumerable own data properties.
