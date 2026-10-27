@@ -6,10 +6,10 @@
 
 The current evidence-based assessment is in [PRODUCTION_READINESS_AUDIT_2026-10-27.md](./PRODUCTION_READINESS_AUDIT_2026-10-27.md). It supersedes the older commit/run snapshots below for current repository status while retaining them as historical context.
 
-- Reviewed code checkpoint: `cffd4f3b808695e70420a795d041825c0e58863d`.
-- CI run [40493742548](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40493742548) targets reviewed code checkpoint `cffd4f3b808695e70420a795d041825c0e58863d` and includes reservation audit CLI cloud-target and argument-validation tests. The run completed successfully with both jobs passed; rerun against the exact release candidate before release.
-- PR #218 adds bounded tenant-scoped duplicate rejection to manual lead creation and contact edits; PRs #220–#223 strengthen concurrent canonical identifier reservation and lifecycle coverage. PR #226 fixes the analyzer's TypeScript build inclusion and verifies the CLI refuses cloud targets and behaves read-only against synthetic emulator data. Commit `b217ff1` adds CLI argument-boundary tests for invalid organisation IDs, page sizes over 200, and record budgets over 20,000; the CI run completed green on the exact code checkpoint.
-- PR #235 adds emulator coverage that admin/member/viewer denials on the owner-only offboarding preview do not consume read quota; latest post-merge main CI [run 40493742548](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40493742548) passed both jobs for commit `cffd4f3b808695e70420a795d041825c0e58863d`.
+- Reviewed code checkpoint: `c9c63c37e63b213e05d32026668760e104ca1ea5`.
+- PR #241 exact-head CI [run 40500358252](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40500358252) completed successfully with both Functions and frontend/emulator jobs passed; post-merge `main` CI [run 40500970931](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40500970931) also passed for the merged checkpoint.
+- Recent PRs #239–#241 add emulator coverage for malformed offboarding organisation IDs, malformed persisted quota state, and concurrent requests at the final per-organisation read-quota slot. Invalid inputs and corrupt quota state fail closed; only one concurrent request can consume the final slot.
+- Canonical identifier reservation, bounded audit CLI, and owner-only offboarding authorization/quota tests remain in the current branch. The preview is still non-destructive and does not authorize deletion or migration.
 - The dedicated Growth Engine Firebase project and live App Check flow remain unverified. Production migration, privacy/retention operations, monitoring/budget alerts, backups/recovery, and release ownership remain blockers.
 - Continue with synthetic data and draft-only outreach. Do not deploy, enable billing, run a live migration, or connect production AnyTrader data without explicit approval.
 
