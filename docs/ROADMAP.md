@@ -141,6 +141,7 @@
 - [x] Harden campaign-creation idempotency replay records: require the exact saved response shape, original actor/request fingerprint and payload, then re-check persisted tenant-contained campaign ownership and immutable creation fields.
 - [x] Harden organisation-creation idempotency replay responses with an exact key set, original actor/request/name binding, and a re-check of persisted owner membership and organisation name.
 - [x] Harden lead-creation idempotency replay responses with an exact key set and original actor/request/payload binding; compare persisted score, score reasons, contact-safety flags, and creation fields before replay.
+- [x] Snapshot lead-creation replay envelopes, results, persisted records and bounded score-reason arrays via own data descriptors; reject accessor-backed, symbol, hidden, sparse, extended-array and non-plain shapes without executing getters.
 - [x] Harden CSV-import idempotency replay with an exact bounded response shape, unique lead IDs, consistent import totals, and tenant/campaign/creator/contact-suppression checks against persisted imported leads.
 - [x] Make repeated lead-status updates retry-safe no-ops after authorization, contact-restriction, campaign and status validation, preventing duplicate activity/audit events and unnecessary quota consumption.
 - [x] Make identical lead-note and follow-up-date retries no-op after tenant/role/target validation, preventing duplicate activity/audit events and unnecessary quota consumption.

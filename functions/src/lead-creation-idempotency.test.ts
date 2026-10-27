@@ -12,7 +12,58 @@ describe("lead creation idempotency replay integrity", () => {
     expect(getValidLeadCreationReplayResult({...saved, requestHash:"other"}, expected)).toBeNull();
     expect(getValidLeadCreationReplayResult(null, expected)).toBeNull();
     expect(getValidLeadCreationReplayResult({...saved, result:[]}, expected)).toBeNull();
+    expect(getValidLeadCreationReplayResult({ ...saved, createdAt: new Date("2026-10-27T12:00:00.000Z") }, expected)).toEqual(result);
+    expect(getValidLeadCreationReplayResult({ ...saved, unexpectedMetadata: true }, expected)).toBeNull();
   });
+  it("rejects accessor-backed replay envelopes and results without invoking getters", () => {
+    let getterInvoked = false;
+    const unsafeEnvelope = Object.defineProperty({ requestHash: expected.requestHash, result }, "actorUid", {
+      enumerable: true,
+      get: () => { getterInvoked = true; return expected.actorUid; },
+    });
+    expect(getValidLeadCreationReplayResult(unsafeEnvelope, expected)).toBeNull();
+
+    const unsafeResult = Object.defineProperty({ ...result }, "businessName", {
+      enumerable: true,
+      get: () => { getterInvoked = true; return expected.businessName; },
+    });
+    expect(getValidLeadCreationReplayResult({ ...saved, result: unsafeResult }, expected)).toBeNull();
+    expect(getterInvoked).toBe(false);
+  });
+
+  it("rejects accessor-backed score reason indices, symbols, and class instances", () => {
+    let getterInvoked = false;
+    const reasons = ["website-present"];
+    Object.defineProperty(reasons, "0", {
+      enumerable: true,
+      configurable: true,
+      get: () => { getterInvoked = true; return "website-present"; },
+    });
+    expect(getValidLeadCreationReplayResult({ ...saved, result: { ...result, scoreReasons: reasons } }, expected)).toBeNull();
+
+    expect(getValidLeadCreationReplayResult({ ...saved, [Symbol("extra")]: true }, expected)).toBeNull();
+    class ReplayResult { leadId = "lead_123"; }
+    expect(getValidLeadCreationReplayResult({ ...saved, result: new ReplayResult() }, expected)).toBeNull();
+    expect(getterInvoked).toBe(false);
+  });
+
+  it("rejects accessor-backed persisted lead fields without invoking getters", () => {
+    let getterInvoked = false;
+    const persisted = Object.defineProperty({
+      campaignId: expected.campaignId, businessName: expected.businessName, category: expected.category,
+      location: expected.location, website: expected.website, email: expected.email, phone: expected.phone,
+      dedupeEmailKey: expected.dedupeEmailKey, dedupeWebsiteKey: expected.dedupeWebsiteKey,
+      dedupeBusinessLocationKey: expected.dedupeBusinessLocationKey, source: "manual", status: "new",
+      score: result.score, scoreReasons: result.scoreReasons, doNotContact: true,
+      contactReviewStatus: "pending", contactReviewRevision: 0,
+    }, "createdBy", {
+      enumerable: true,
+      get: () => { getterInvoked = true; return expected.actorUid; },
+    });
+    expect(isPersistedLeadCreationReplayAvailable(persisted, expected, result)).toBe(false);
+    expect(getterInvoked).toBe(false);
+  });
+
   it("rejects missing, extra, tampered and invalid fields", () => {
     const bad = [
       {...result, internalNote:"must not leak"}, {...result, organisationId:"other-org"},
