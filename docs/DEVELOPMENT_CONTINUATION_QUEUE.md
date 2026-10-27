@@ -1,3 +1,11 @@
+## AutoPilot continuation — reservation audit CLI cloud-target guard (2026-10-27)
+
+- Added child-process regression tests proving the read-only reservation audit CLI fails closed for a non-demo project even when an emulator host is set, for the demo project without an emulator host, and for unsupported emulator endpoints.
+- CI runs these guard tests after the Functions build so the CLI's compiled imports are available; refusal cases must not emit audit findings.
+- This validates the safety boundary only; no cloud access, Firestore writes, production migration, deployment, billing changes, or outreach.
+
+---
+
 ## AutoPilot continuation — bounded read-only reservation integrity audit (2026-10-27)
 
 - Added a pure analyzer comparing canonical identifiers from a complete tenant lead inventory with its hashed reservation documents.
