@@ -1,3 +1,11 @@
+## AutoPilot continuation — validate member-roster cursor payloads (2026-10-27)
+
+- Member-roster pagination now validates decoded cursor payloads against an exact three-field schema, the expected organisation ID, the expected roster scope, and a safe member UID before querying Firestore.
+- Added descriptor-only validation and regressions for extra/missing fields, wrong tenant/scope, invalid UIDs, class instances, accessor non-execution, and hostile inspection traps.
+- Synthetic cursor validation only; no membership records were read or changed, and no migration, deployment, billing activation, or outreach occurred.
+
+---
+
 ## AutoPilot continuation — validate security audit cursor payloads (2026-10-27)
 
 - Security audit pagination now validates decoded cursor payloads against an exact three-field schema, the expected organisation ID, the expected scope, and a safe event document ID before querying Firestore.
