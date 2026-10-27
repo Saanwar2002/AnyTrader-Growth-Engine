@@ -64,6 +64,14 @@ function hasSparseEntries(value: unknown): boolean {
   }
   return false;
 }
+function isBoundedSerializableCursor(value: unknown): boolean {
+  try {
+    const serialized = JSON.stringify(value);
+    return typeof serialized === "string" && serialized.length <= 2048;
+  } catch {
+    return false;
+  }
+}
 /** Return manifest defects; never infer permission or source scope. */
 export function validateLeadSourceManifest(manifest: LeadSourceAdapterManifest, now: Date = new Date()): string[] {
   const issues: string[] = [];
@@ -214,16 +222,9 @@ export function validateLeadSourcePageRequest<TCursor = string>(
     || (request.limit as number) > manifest.maxRecordsPerRun) {
     throw new Error("Lead source page limit exceeds the configured bound.");
   }
-  if (Object.prototype.hasOwnProperty.call(request, "cursor") && request.cursor !== undefined) {
-    let serializedCursor: string | undefined;
-    try {
-      serializedCursor = JSON.stringify(request.cursor);
-    } catch {
-      throw new Error("Lead source cursor must be JSON-serializable and at most 2048 characters.");
-    }
-    if (typeof serializedCursor !== "string" || serializedCursor.length > 2048) {
-      throw new Error("Lead source cursor must be JSON-serializable and at most 2048 characters.");
-    }
+  if (Object.prototype.hasOwnProperty.call(request, "cursor") && request.cursor !== undefined
+    && !isBoundedSerializableCursor(request.cursor)) {
+    throw new Error("Lead source cursor must be JSON-serializable and at most 2048 characters.");
   }
   return {
     category: request.category.trim(),
@@ -254,6 +255,10 @@ export function validateLeadSourcePageResult<TRecord = unknown, TCursor = string
   }
   if (result.records.length > manifest.maxRecordsPerRun) {
     throw new Error("Lead source page result exceeds the configured record limit.");
+  }
+  if (Object.prototype.hasOwnProperty.call(result, "nextCursor") && result.nextCursor !== undefined
+    && !isBoundedSerializableCursor(result.nextCursor)) {
+    throw new Error("Lead source next cursor must be JSON-serializable and at most 2048 characters.");
   }
   return {
     records: [...result.records] as TRecord[],

@@ -176,6 +176,18 @@ describe("lead source bounded page contract", () => {
     expect("internalDebug" in result).toBe(false);
   });
 
+  it("rejects oversized and non-serializable provider next cursors", () => {
+    expect(() => validateLeadSourcePageResult({
+      records: [], nextCursor: "x".repeat(2049),
+    }, manifest, now)).toThrow("next cursor must be JSON-serializable and at most 2048 characters");
+
+    const circular: Record<string, unknown> = {};
+    circular.self = circular;
+    expect(() => validateLeadSourcePageResult({
+      records: [], nextCursor: circular,
+    }, manifest, now)).toThrow("next cursor must be JSON-serializable and at most 2048 characters");
+  });
+
   it("rejects malformed and oversized page results", () => {
     expect(() => validateLeadSourcePageResult(null, manifest, now))
       .toThrow("page result must be an object");
