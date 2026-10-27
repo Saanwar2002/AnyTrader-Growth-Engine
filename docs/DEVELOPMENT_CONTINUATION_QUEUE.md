@@ -1,3 +1,11 @@
+## AutoPilot continuation — harden usage reservation inputs (2026-10-27)
+
+- `reservePlanUsage` now snapshots the complete usage state using own enumerable data descriptors and validates runtime metric values before reading counters, so accessors, symbols, unknown fields, class instances and hostile inspection traps fail closed without executing getters.
+- Plan limits are read only through own data descriptors and must be non-negative safe integers; malformed or accessor-backed limits are rejected. Returned reservation state is built from the validated snapshot rather than spreading caller-owned objects.
+- Added regressions for accessor-backed usage counters and plan limits, unsupported runtime metrics, and unexpected state fields. No billing activation, data repair, migration, production reads/writes, or deployment.
+
+---
+
 ## AutoPilot continuation — harden audit metadata data shapes (2026-10-27)
 
 - Exact event-specific audit metadata validation now inspects own keys and data descriptors, rejecting symbols, hidden/accessor fields, class instances, and object-inspection traps without invoking getters.

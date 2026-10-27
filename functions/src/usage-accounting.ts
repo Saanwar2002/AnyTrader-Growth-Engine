@@ -88,6 +88,50 @@ export function resolvePlanUsageState(value: unknown, now: Date): UsageStateReso
   return { ok: true, source: "stored", state: { ...state } };
 }
 
+function snapshotUsageStateForReservation(value: unknown): PlanUsageState | null {
+  try {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) return null;
+    const keys = Reflect.ownKeys(value);
+    if (keys.length !== USAGE_STATE_KEYS.length
+      || keys.some((key) => typeof key !== "string" || !USAGE_STATE_KEYS.includes(key as (typeof USAGE_STATE_KEYS)[number]))) return null;
+    const snapshot = Object.create(null) as Record<string, unknown>;
+    for (const key of USAGE_STATE_KEYS) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      if (!descriptor || !descriptor.enumerable || !("value" in descriptor)) return null;
+      snapshot[key] = descriptor.value;
+    }
+    if (snapshot.schemaVersion !== 1 || !METRICS.every((key) => isValidCounter(snapshot[key]))) return null;
+    if (typeof snapshot.aiUsagePeriod !== "string" || !/^\d{4}-(0[1-9]|1[0-2])$/.test(snapshot.aiUsagePeriod)) return null;
+    return {
+      schemaVersion: 1,
+      campaigns: snapshot.campaigns as number,
+      leads: snapshot.leads as number,
+      members: snapshot.members as number,
+      monthlyAiSuggestions: snapshot.monthlyAiSuggestions as number,
+      aiUsagePeriod: snapshot.aiUsagePeriod,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function readPlanLimit(plan: unknown, metric: PlanUsageMetric): number | null {
+  try {
+    if (!plan || typeof plan !== "object" || Array.isArray(plan)) return null;
+    const planDescriptor = Object.getOwnPropertyDescriptor(plan, "limits");
+    if (!planDescriptor || !("value" in planDescriptor) || !planDescriptor.value
+      || typeof planDescriptor.value !== "object" || Array.isArray(planDescriptor.value)) return null;
+    const descriptor = Object.getOwnPropertyDescriptor(planDescriptor.value, metric);
+    if (!descriptor || !descriptor.enumerable || !("value" in descriptor)
+      || !Number.isSafeInteger(descriptor.value) || descriptor.value < 0) return null;
+    return descriptor.value as number;
+  } catch {
+    return null;
+  }
+}
+
 export type UsageReservation =
   | { allowed: true; state: PlanUsageState; metric: PlanUsageMetric; requested: number; remaining: number }
   | { allowed: false; reason: "limit_exceeded" | "invalid_usage"; metric: PlanUsageMetric; requested: number; used: number; limit: number };
@@ -99,19 +143,22 @@ export function reservePlanUsage(
   metric: PlanUsageMetric,
   requested = 1,
 ): UsageReservation {
-  const used = state[metric];
-  const limit = plan.limits[metric];
-  if (!isValidCounter(used) || !Number.isSafeInteger(requested) || requested < 1) {
-    return { allowed: false, reason: "invalid_usage", metric, requested, used, limit };
+  const normalizedMetric = (METRICS as readonly string[]).includes(metric) ? metric : null;
+  const normalizedState = snapshotUsageStateForReservation(state);
+  const limit = normalizedMetric ? readPlanLimit(plan, normalizedMetric) : null;
+  const used = normalizedMetric && normalizedState ? normalizedState[normalizedMetric] : Number.NaN;
+  if (!normalizedMetric || !normalizedState || limit === null
+    || !isValidCounter(used) || !Number.isSafeInteger(requested) || requested < 1) {
+    return { allowed: false, reason: "invalid_usage", metric, requested, used, limit: limit ?? Number.NaN };
   }
   if (used + requested > limit) {
     return { allowed: false, reason: "limit_exceeded", metric, requested, used, limit };
   }
   return {
     allowed: true,
-    metric,
+    metric: normalizedMetric,
     requested,
     remaining: limit - used - requested,
-    state: { ...state, [metric]: used + requested },
+    state: { ...normalizedState, [normalizedMetric]: used + requested },
   };
 }
