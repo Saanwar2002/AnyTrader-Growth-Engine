@@ -322,13 +322,13 @@ export function attributeLeadSourceCandidates(
   if (!copiedCandidates) {
     throw new Error("Lead source output must contain only indexed data properties.");
   }
-  candidates = copiedCandidates;
-  if (candidates.length > manifest.maxRecordsPerRun) {
+  const safeCandidates = copiedCandidates;
+  if (safeCandidates.length > manifest.maxRecordsPerRun) {
     throw new Error("Lead source output exceeded its configured per-run record limit.");
   }
 
   const seenSourceRecordIds = new Set<string>();
-  return candidates.map((candidate: unknown) => {
+  return safeCandidates.map((candidate: unknown) => {
     if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
       throw new Error("Lead source output contains a malformed candidate.");
     }
