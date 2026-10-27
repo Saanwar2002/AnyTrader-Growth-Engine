@@ -1,3 +1,11 @@
+## AutoPilot continuation — strict provider candidate record shapes (2026-10-27)
+
+- Hardened candidate validation to accept only plain or null-prototype records with enumerable own data properties.
+- Symbol-keyed fields, unknown fields, accessor properties, non-enumerable properties, and class/host objects are rejected; accessors are inspected by descriptor and never invoked.
+- Added regression coverage for getter non-execution, symbol-keyed data, and class instances. Validation remains provider-neutral and synthetic; no provider API/network access, live data, migration, deployment, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — enforce whole-run lead-source pagination bounds (2026-10-27)
 
 - Added a stateful per-discovery-run guard to enforce `maxRecordsPerRun` cumulatively across pages rather than treating it as a per-page limit.
