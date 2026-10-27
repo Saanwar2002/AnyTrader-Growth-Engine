@@ -1,3 +1,11 @@
+## AutoPilot continuation — strict provider candidate record shapes (2026-10-27)
+
+- Candidate validation accepts only plain or null-prototype records with enumerable own data properties.
+- Symbol-keyed fields, unknown fields, accessor properties, non-enumerable properties, and class/host objects are rejected; accessors are inspected by descriptor and never invoked.
+- Added regression coverage for getter non-execution, symbol-keyed data, and class instances. Validation remains provider-neutral and synthetic; no provider API/network access, live data, migration, deployment, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — refresh readiness evidence after source pagination hardening (2026-10-27)
 
 - Updated the dated readiness/security checkpoint to main commit `49ddb971674b2db9ea57c2712c4a0d8661687e6d`.
