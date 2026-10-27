@@ -270,19 +270,16 @@ describe("AI outreach draft validation", () => {
         .rejects.toThrow("Gemini draft content parts were malformed");
     }
   });
-  it("rejects accessor-backed provider envelope fields without invoking getters", async () => {
+  it("rejects non-Response provider values without invoking arbitrary JSON accessors", async () => {
     let getterInvoked = false;
-    const payload = Object.defineProperty({}, "candidates", {
+    const invalidResponse = Object.defineProperty({ ok: true }, "json", {
       enumerable: true,
-      get: () => { getterInvoked = true; return []; },
+      get: () => { getterInvoked = true; return async () => ({ candidates: [] }); },
     });
-    const fetcher = vi.fn<typeof fetch>(async () => ({
-      ok: true,
-      json: async () => payload,
-    } as unknown as Response));
+    const fetcher = vi.fn<typeof fetch>(async () => invalidResponse as unknown as Response);
 
     await expect(generateAiOutreachDraftSuggestion(context, { apiKey: "key", fetcher }))
-      .rejects.toThrow("Gemini response shape was invalid");
+      .rejects.toThrow("Gemini response could not be read");
     expect(getterInvoked).toBe(false);
   });
 
