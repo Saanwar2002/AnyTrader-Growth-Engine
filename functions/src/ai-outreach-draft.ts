@@ -63,7 +63,7 @@ export async function generateAiOutreachDraftSuggestion(context: AiOutreachDraft
     const candidates = (payload as Record<string, unknown>).candidates;
     if (!Array.isArray(candidates) || !candidates.length || !candidates[0] || typeof candidates[0] !== "object") throw new Error("Gemini returned no draft candidate.");
     const candidate = candidates[0] as Record<string, unknown>;
-    if (candidate.finishReason === "SAFETY" || !candidate.content || typeof candidate.content !== "object") throw new Error("Gemini did not return an eligible draft candidate.");
+    if (candidate.finishReason !== "STOP" || !candidate.content || typeof candidate.content !== "object") throw new Error("Gemini did not return an eligible draft candidate.");
     const parts = (candidate.content as Record<string, unknown>).parts;
     if (!Array.isArray(parts)) throw new Error("Gemini draft content was missing.");
     const text = parts.filter((part): part is Record<string, unknown> => Boolean(part) && typeof part === "object" && !Array.isArray(part))
