@@ -394,6 +394,32 @@ try {
   const concurrentMatches = (await callOne("listLeads", { organisationId: orgOne.organisationId }))
     .leads.filter((lead) => lead.businessName === "Synthetic Concurrent Import Ltd");
   assert.equal(concurrentMatches.length, 1, "concurrent idempotent import persists exactly one lead");
+
+  const concurrentImportDifferentKeys = await Promise.all([
+    callOne("importLeads", {
+      organisationId: orgOne.organisationId,
+      campaignId: campaignOne.campaignId,
+      idempotencyKey: "csv-import-race-different-key-0001",
+      leads: [{ businessName: "Synthetic Concurrent Different Key Ltd", category: "Painters",
+        location: "Derby", email: "concurrent-different-key@example.test" }],
+    }),
+    callOne("importLeads", {
+      organisationId: orgOne.organisationId,
+      campaignId: campaignOne.campaignId,
+      idempotencyKey: "csv-import-race-different-key-0002",
+      leads: [{ businessName: "Synthetic Concurrent Different Key Ltd", category: "Painters",
+        location: "Derby", email: "CONCURRENT-DIFFERENT-KEY@example.test" }],
+    }),
+  ]);
+  assert.equal(concurrentImportDifferentKeys.reduce((total, result) => total + result.imported, 0), 1,
+    "concurrent imports with different idempotency keys create one canonical lead");
+  assert.equal(concurrentImportDifferentKeys.reduce((total, result) => total + result.duplicatesSkipped, 0), 1,
+    "losing concurrent import reports its row as a duplicate");
+  const concurrentDifferentKeyMatches = (await callOne("listLeads", { organisationId: orgOne.organisationId }))
+    .leads.filter((lead) => lead.email === "concurrent-different-key@example.test");
+  assert.equal(concurrentDifferentKeyMatches.length, 1,
+    "different-key concurrent import race persists exactly one lead");
+
   execFileSync(process.execPath, [
     "functions/scripts/assert-emulator-audit-events.mjs",
     orgOne.organisationId,
@@ -831,6 +857,57 @@ try {
   assert.equal(afterConcurrentIdentifierList.leads.filter((lead) =>
     lead.email === "concurrent-identifier-race@example.test").length, 1,
   "only one lead is stored for a canonical identifier under concurrent writes");
+
+  const concurrentEditLeadA = await callOne("createLead", {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    idempotencyKey: "manual-lead-edit-race-a-0001",
+    businessName: "Synthetic Contact Race A Ltd",
+    category: "Painters",
+    location: "Bath",
+    email: "contact-race-a@example.test",
+  });
+  const concurrentEditLeadB = await callOne("createLead", {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    idempotencyKey: "manual-lead-edit-race-b-0001",
+    businessName: "Synthetic Contact Race B Ltd",
+    category: "Roofers",
+    location: "Exeter",
+    email: "contact-race-b@example.test",
+  });
+  const concurrentContactEditResults = await Promise.allSettled([
+    callOne("updateLeadContact", {
+      organisationId: orgOne.organisationId,
+      leadId: concurrentEditLeadA.leadId,
+      businessName: "Synthetic Contact Race A Ltd",
+      category: "Painters",
+      location: "Bath",
+      email: "shared-contact-race@example.test",
+      website: "https://contact-race-a.example.test",
+    }),
+    callOne("updateLeadContact", {
+      organisationId: orgOne.organisationId,
+      leadId: concurrentEditLeadB.leadId,
+      businessName: "Synthetic Contact Race B Ltd",
+      category: "Roofers",
+      location: "Exeter",
+      email: "SHARED-CONTACT-RACE@example.test",
+      website: "https://contact-race-b.example.test",
+    }),
+  ]);
+  assert.equal(concurrentContactEditResults.filter((result) => result.status === "fulfilled").length, 1,
+    "concurrent contact edits claiming one canonical email allow exactly one winner");
+  const concurrentContactEditFailure = concurrentContactEditResults.find((result) => result.status === "rejected");
+  assert.equal(concurrentContactEditFailure?.status, "rejected");
+  assert.equal(concurrentContactEditFailure?.reason?.code, "functions/already-exists",
+    "losing concurrent contact edit receives a duplicate conflict");
+  const afterConcurrentContactEdits = (await callOne("listLeads", { organisationId: orgOne.organisationId })).leads;
+  assert.equal(afterConcurrentContactEdits.filter((lead) => lead.email === "shared-contact-race@example.test").length, 1,
+    "only one lead stores the shared canonical email after concurrent contact edits");
+  assert.equal(afterConcurrentContactEdits.filter((lead) =>
+    [concurrentEditLeadA.leadId, concurrentEditLeadB.leadId].includes(lead.id)).length, 2,
+  "both contact-race leads remain present after one edit is rejected");
 
   const unsafeWebsiteLead = await callOne("createLead", {
     organisationId: orgOne.organisationId,
