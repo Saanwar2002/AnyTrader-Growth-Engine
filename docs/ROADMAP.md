@@ -91,6 +91,7 @@
 - [x] Harden the AI outreach draft response validator to accept only exact plain data objects with own enumerable `subject` and `body` fields, rejecting accessors, symbols, hidden/unknown fields, arrays, and class instances without invoking getters.
 - [x] Snapshot AI draft context/options through own data descriptors and reject accessor-backed, symbol/unknown, hidden, array, and class-instance input shapes before use.
 - [x] Bound AI provider response-body reads to 256 KiB, cancel oversized streams, and reject invalid UTF-8 before JSON parsing.
+- [x] Avoid unbounded `response.text()` fallback for bodyless provider responses; treat no-body responses as empty and fail closed.
 - [x] Preserve the request timeout contract when the provider response body stalls or aborts during bounded streaming reads.
 - [x] Reject oversized raw AI draft context fields before scanning or provider calls, with explicit per-field limits matching the outbound context schema.
 - [x] Snapshot AI provider response envelopes, candidates, content and text parts through plain-object data descriptors; validate dense bounded arrays and reject accessor-backed fields, symbols, and extended arrays before parsing.
