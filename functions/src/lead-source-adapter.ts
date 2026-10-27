@@ -145,9 +145,16 @@ export function attributeLeadSourceCandidates(
   manifest: LeadSourceAdapterManifest,
   candidates: unknown,
   collectedAt: string,
+  now: Date = new Date(),
 ): AttributedLeadSourceCandidate[] {
-  assertLeadSourceAdapterRunnable(manifest);
+  assertLeadSourceAdapterRunnable(manifest, now);
   if (!isIsoDate(collectedAt)) throw new Error("collectedAt must be a valid ISO-8601 timestamp.");
+  if (!(now instanceof Date) || !Number.isFinite(now.getTime())) {
+    throw new Error("Collection validation clock must be a valid date.");
+  }
+  if (Date.parse(collectedAt) > now.getTime()) {
+    throw new Error("collectedAt must not be in the future.");
+  }
   if (!Array.isArray(candidates)) throw new Error("Lead source output must be an array.");
   if (hasSparseEntries(candidates)) {
     throw new Error("Lead source output must not contain sparse entries.");

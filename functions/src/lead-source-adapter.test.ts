@@ -98,6 +98,16 @@ describe("lead source adapter permission contract", () => {
     }], "2026-10-25T10:00:00.000Z")).toThrow("outside its manifest allowlist");
   });
 
+  it("rejects a collection timestamp later than the validation clock", () => {
+    const now = new Date("2026-10-27T12:00:00.000Z");
+    expect(() => attributeLeadSourceCandidates(
+      approvedManifest(),
+      [{ businessName: "Example" }],
+      "2026-10-27T12:00:00.001Z",
+      now,
+    )).toThrow("collectedAt must not be in the future.");
+  });
+
   it("rejects malformed candidates and invalid provenance timestamps", () => {
     expect(() => attributeLeadSourceCandidates(approvedManifest(), [null], "2026-10-25T10:00:00.000Z"))
       .toThrow("malformed candidate");
