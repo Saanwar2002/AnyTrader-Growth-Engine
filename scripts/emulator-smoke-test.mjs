@@ -791,6 +791,16 @@ try {
   assert.equal(afterInvalidContactEdit?.doNotContact, true, "invalid contact edit preserves the default contact restriction");
   assert.equal(afterInvalidContactEdit?.contactReviewStatus, "pending", "invalid contact edit preserves pending review state");
 
+  await expectCallableFailure(callOne("createLead", {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    idempotencyKey: "manual-lead-duplicate-0001",
+    businessName: "Synthetic Duplicate Manual Lead Ltd",
+    category: "Painters",
+    location: "Leeds",
+    email: "BEFORE-EDIT@example.test",
+  }), "functions/already-exists", "manual lead creation rejects an existing canonical email");
+
   const unsafeWebsiteLead = await callOne("createLead", {
     organisationId: orgOne.organisationId,
     campaignId: campaignOne.campaignId,
@@ -800,6 +810,22 @@ try {
     location: "Manchester",
     website: "https://before-edit.example.test",
   });
+  const duplicateEditQuotaBefore = currentQuotaCount("updateLeadContact");
+  await expectCallableFailure(callOne("updateLeadContact", {
+    organisationId: orgOne.organisationId,
+    leadId: unsafeWebsiteLead.leadId,
+    businessName: "Synthetic Unsafe Website Guard Ltd",
+    category: "Painters",
+    location: "Manchester",
+    website: "https://before-edit.example.test",
+    email: "before-edit@example.test",
+  }), "functions/already-exists", "contact edit rejects another lead's canonical email");
+  assert.equal(currentQuotaCount("updateLeadContact"), duplicateEditQuotaBefore,
+    "duplicate contact edit does not consume contact-edit quota");
+  const afterDuplicateContactEditList = await callOne("listLeads", { organisationId: orgOne.organisationId });
+  assert.equal(afterDuplicateContactEditList.leads.find((lead) => lead.id === unsafeWebsiteLead.leadId)?.website,
+    "https://before-edit.example.test", "duplicate contact edit preserves existing website");
+
   const quotaBeforeUnsafeWebsiteEdits = currentQuotaCount("updateLeadContact");
   for (const [label, unsafeWebsite] of [
     ["javascript scheme", "javascript:alert(1)"],
@@ -2453,7 +2479,7 @@ try {
     businessName: "Synthetic Malformed Restriction Lead (edited)",
     category: "Painter and decorator",
     location: "Test location",
-    email: "review@example.test",
+    email: "review-malformed@example.test",
   });
   await callOne("updateLeadNotes", {
     organisationId: orgOne.organisationId,

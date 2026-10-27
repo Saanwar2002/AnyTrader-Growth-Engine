@@ -254,6 +254,23 @@ describe("callable security contract", () => {
     expect(callableSource).toContain("existingBusinesses.add(row.businessKey);");
   });
 
+  it("rejects duplicate identifiers on manual lead creation and contact edits using bounded tenant-scoped lookups", () => {
+    expect(callableSource).toContain("async function assertNoDuplicateLeadIdentifiers(");
+    expect(callableSource).toContain('leadsRef.where("dedupeEmailKey", "==", fields.dedupeEmailKey).limit(2)');
+    expect(callableSource).toContain('leadsRef.where("dedupeWebsiteKey", "==", fields.dedupeWebsiteKey).limit(2)');
+    expect(callableSource).toContain('leadsRef.where("dedupeBusinessLocationKey", "==", fields.dedupeBusinessLocationKey).limit(2)');
+    expect(callableSource).toContain('new HttpsError(\n      "already-exists",\n      "A lead with matching email, website, or business/location already exists in this organisation."');
+
+    const createStart = callableSource.indexOf("export const createLead = onCall(");
+    const createEnd = callableSource.indexOf("export const listLeads =", createStart);
+    expect(callableSource.slice(createStart, createEnd)).toContain("await assertNoDuplicateLeadIdentifiers(transaction, organisationRef.collection(\"leads\"), fields)");
+
+    const contactStart = callableSource.indexOf("export const updateLeadContact = onCall(");
+    const contactEnd = callableSource.indexOf("export const bulkUpdateLeadStatus =", contactStart);
+    const contactCallable = callableSource.slice(contactStart, contactEnd);
+    expect(contactCallable).toContain("await assertNoDuplicateLeadIdentifiers(transaction, leadsRef, fields, leadId)");
+  });
+
   it("keeps emulator unauthenticated coverage aligned with every callable export", () => {
     const smokeSource = readFileSync(
       fileURLToPath(new URL("../../scripts/emulator-smoke-test.mjs", import.meta.url)),
