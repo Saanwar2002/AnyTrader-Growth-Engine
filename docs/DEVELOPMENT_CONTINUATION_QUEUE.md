@@ -1,3 +1,11 @@
+## AutoPilot continuation — reject ambiguous AI draft candidates (2026-10-27)
+
+- Explicitly request one Gemini candidate and reject successful provider payloads containing zero or multiple candidates rather than silently selecting the first of an ambiguous response.
+- Added a regression that checks the outbound `candidateCount: 1` contract and confirms multi-candidate responses fail closed.
+- Synthetic provider response only; no real model call, live data, deployment, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — snapshot persisted security audit event envelopes (2026-10-27)
 
 - Validate the exact persisted audit-event key set and copy own enumerable data descriptors into a detached null-prototype snapshot before reading actor/resource/event fields.
