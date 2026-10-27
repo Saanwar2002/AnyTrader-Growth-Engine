@@ -1,3 +1,11 @@
+## AutoPilot continuation — harden audit metadata data shapes (2026-10-27)
+
+- Exact event-specific audit metadata validation now inspects own keys and data descriptors, rejecting symbols, hidden/accessor fields, class instances, and object-inspection traps without invoking getters.
+- Added regressions for hostile metadata containers; malformed shapes fail closed, preventing extra or accessor-backed fields from being treated as valid audit metadata.
+- Pure validation only; no audit data reads, writes, retention changes, or production operations.
+
+---
+
 ## AutoPilot continuation — harden persisted plan usage state shape (2026-10-27)
 
 - `resolvePlanUsageState` now snapshots exact allowed usage fields through own enumerable data descriptors, rejects symbols/hidden/accessor properties and non-plain objects, and fails closed when object inspection traps throw.
