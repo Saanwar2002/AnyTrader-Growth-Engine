@@ -16,6 +16,15 @@ export function validateAiOutreachDraftSuggestion(value: unknown): AiOutreachDra
 }
 /** Send minimal business/campaign context only; contact channels and internal notes are excluded. */
 export async function generateAiOutreachDraftSuggestion(context: AiOutreachDraftContext, options: AiOutreachDraftOptions): Promise<AiOutreachDraftSuggestion> {
+  if (!context || typeof context !== "object" || Array.isArray(context)
+    || typeof context.businessName !== "string"
+    || typeof context.category !== "string"
+    || typeof context.location !== "string"
+    || typeof context.brand !== "string"
+    || typeof context.campaignGoal !== "string"
+    || typeof context.organisationName !== "string") {
+    throw new Error("AI draft context is invalid.");
+  }
   if (typeof options.apiKey !== "string" || !options.apiKey.trim()) throw new Error("AI draft assistance is not configured.");
   const model = options.model?.trim() || "gemini-3.8-flash";
   if (!/^[A-Za-z0-9._-]{1,100}$/.test(model)) throw new Error("Configured AI model name is invalid.");
