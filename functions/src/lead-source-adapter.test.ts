@@ -241,6 +241,30 @@ describe("lead source bounded page contract", () => {
     });
   });
 
+  it("rejects unsafe request envelope shapes without invoking getters", () => {
+    let getterInvoked = false;
+    const accessorRequest = Object.defineProperty({
+      location: "Edinburgh", limit: 1,
+    }, "category", {
+      enumerable: true,
+      get: () => { getterInvoked = true; return "builders"; },
+    });
+    const symbolRequest = {
+      category: "builders", location: "Edinburgh", limit: 1, [Symbol("hidden")]: true,
+    };
+    class RequestRecord {
+      category = "builders";
+      location = "Edinburgh";
+      limit = 1;
+    }
+
+    for (const request of [accessorRequest, symbolRequest, new RequestRecord()]) {
+      expect(() => validateLeadSourcePageRequest(request, manifest, now))
+        .toThrow("page request must be a plain data object");
+    }
+    expect(getterInvoked).toBe(false);
+  });
+
   it("rejects invalid discovery criteria and page-limit bounds", () => {
     expect(() => validateLeadSourcePageRequest({
       category: "   ", location: "Edinburgh", limit: 1,
@@ -298,6 +322,33 @@ describe("lead source bounded page contract", () => {
     expect(result).toEqual({ records, nextCursor: null });
     expect(result.records).not.toBe(records);
     expect("internalDebug" in result).toBe(false);
+  });
+
+  it("rejects unsafe result envelopes and accessor-backed record arrays without invoking getters", () => {
+    let getterInvoked = false;
+    const accessorResult = Object.defineProperty({}, "records", {
+      enumerable: true,
+      get: () => { getterInvoked = true; return []; },
+    });
+    const symbolResult = { records: [], [Symbol("hidden")]: true };
+    class ResultRecord {
+      records = [];
+    }
+    const accessorRecords: unknown[] = [];
+    Object.defineProperty(accessorRecords, "0", {
+      enumerable: true,
+      configurable: true,
+      get: () => { getterInvoked = true; return { businessName: "Unexpected" }; },
+    });
+    accessorRecords.length = 1;
+
+    for (const result of [accessorResult, symbolResult, new ResultRecord()]) {
+      expect(() => validateLeadSourcePageResult(result, manifest, now))
+        .toThrow("page result must be a plain data object");
+    }
+    expect(() => validateLeadSourcePageResult({ records: accessorRecords }, manifest, now))
+      .toThrow("page records must contain only indexed data properties");
+    expect(getterInvoked).toBe(false);
   });
 
   it("rejects oversized, cyclic, lossy, and non-JSON provider next cursors", () => {
