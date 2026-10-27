@@ -17,6 +17,7 @@ import { canonicalLeadBusinessLocationKey, canonicalLeadEmailKey, canonicalLeadW
 import { getValidLeadIdentifierReservationState } from "./lead-identifier-reservation-state";
 import { snapshotPersistedSecurityAuditEvent } from "./security-audit-event-shape";
 import { getValidSecurityAuditCursorId } from "./security-audit-cursor";
+import { getValidMemberRosterCursorUid } from "./member-roster-cursor";
 import { createOffboardingPreview, OFFBOARDING_PREVIEW_CATEGORIES } from "./offboarding-preview";
 import { PILOT_PLAN, resolvePlanPolicy } from "./entitlements";
 import { currentAiUsagePeriod, reservePlanUsage, resolvePlanUsageState, type PlanUsageState } from "./usage-accounting";
@@ -925,10 +926,10 @@ export const listOrganisationMembers = onCall(callableOptions, async (request) =
   let cursorUid: string | undefined;
   if (typeof rawPageToken === "string" && rawPageToken.length > 0) {
     try {
-      const decoded = JSON.parse(Buffer.from(rawPageToken, "base64url").toString("utf8")) as Record<string, unknown>;
-      if (decoded.scope !== "organisation_member_roster" || decoded.organisationId !== organisationId
-        || !isValidDocumentId(decoded.lastUid)) throw new Error("Invalid roster cursor");
-      cursorUid = decoded.lastUid;
+      const decoded: unknown = JSON.parse(Buffer.from(rawPageToken, "base64url").toString("utf8"));
+      const validatedCursorUid = getValidMemberRosterCursorUid(decoded, organisationId);
+      if (!validatedCursorUid) throw new Error("Invalid roster cursor");
+      cursorUid = validatedCursorUid;
     } catch {
       throw new HttpsError("invalid-argument", "Member roster page token is invalid for this organisation.");
     }
