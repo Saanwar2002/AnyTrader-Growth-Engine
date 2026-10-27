@@ -1686,6 +1686,7 @@ describe("cloud authentication gate", () => {
       hasMoreOrganisations: false,
     });
     render(<CloudWorkspace />);
+    await waitFor(() => expect((screen.getByLabelText("Current organisation") as HTMLSelectElement).value).toBe("org-1"));
     fireEvent.click(await screen.findByRole("button", { name: "Load member roster" }));
     await waitFor(() => expect(mocks.api.listOrganisationMembers).toHaveBeenCalledWith({ organisationId: "org-1" }));
     const rosterTable = await screen.findByRole("table", { name: "Organisation member roster" });
@@ -1809,6 +1810,7 @@ describe("cloud authentication gate", () => {
     const confirm = vi.fn(() => true);
     vi.stubGlobal("confirm", confirm);
     render(<CloudWorkspace />);
+    await waitFor(() => expect((screen.getByLabelText("Current organisation") as HTMLSelectElement).value).toBe("org-1"));
     fireEvent.click(await screen.findByRole("button", { name: "Load member roster" }));
     await screen.findByText("member@example.test");
     fireEvent.click(screen.getByRole("button", { name: "Remove access" }));
@@ -1847,6 +1849,7 @@ describe("cloud authentication gate", () => {
         scope: "organisation_member_roster",
       });
     render(<CloudWorkspace />);
+    await waitFor(() => expect((screen.getByLabelText("Current organisation") as HTMLSelectElement).value).toBe("org-1"));
     fireEvent.click(await screen.findByRole("button", { name: "Load member roster" }));
     await screen.findByText("member@example.test");
     fireEvent.click(screen.getByRole("button", { name: "Load more members" }));
@@ -1876,6 +1879,7 @@ describe("cloud authentication gate", () => {
     mocks.api.updateOrganisationMemberRole.mockResolvedValue({ organisationId: "org-1", targetUid: "member-uid", role: "admin", changed: true });
     vi.stubGlobal("confirm", vi.fn(() => true));
     render(<CloudWorkspace />);
+    await waitFor(() => expect((screen.getByLabelText("Current organisation") as HTMLSelectElement).value).toBe("org-1"));
     fireEvent.click(await screen.findByRole("button", { name: "Load member roster" }));
     await screen.findByText("member@example.test");
     fireEvent.change(screen.getByRole("combobox", { name: "Role for member@example.test" }), { target: { value: "admin" } });
@@ -2224,6 +2228,7 @@ describe("cloud authentication gate", () => {
     vi.stubGlobal("confirm", vi.fn(() => true));
 
     render(<CloudWorkspace />);
+    await waitFor(() => expect((screen.getByLabelText("Current organisation") as HTMLSelectElement).value).toBe("org-1"));
     fireEvent.click(await screen.findByRole("button", { name: "Load member roster" }));
     fireEvent.click(await screen.findByRole("button", { name: "Remove access" }));
     await waitFor(() => expect(mocks.api.removeOrganisationMember).toHaveBeenCalledWith({ organisationId: "org-1", targetUid: "member-org-1" }));
@@ -2261,6 +2266,7 @@ describe("cloud authentication gate", () => {
     }));
 
     render(<CloudWorkspace />);
+    await waitFor(() => expect((screen.getByLabelText("Current organisation") as HTMLSelectElement).value).toBe("org-1"));
     fireEvent.click(await screen.findByRole("button", { name: "Load member roster" }));
     const roleSelect = await screen.findByRole("combobox", { name: "Role for shared@example.test" });
     fireEvent.change(roleSelect, { target: { value: "admin" } });
@@ -2284,6 +2290,7 @@ describe("cloud authentication gate", () => {
     let rejectRoster!: (reason: Error) => void;
     mocks.api.listOrganisationMembers.mockImplementation(() => new Promise((_resolve, reject) => { rejectRoster = reject; }));
     render(<CloudWorkspace />);
+    await waitFor(() => expect((screen.getByLabelText("Current organisation") as HTMLSelectElement).value).toBe("org-1"));
     fireEvent.click(await screen.findByRole("button", { name: "Load member roster" }));
     await waitFor(() => expect(mocks.api.listOrganisationMembers).toHaveBeenCalledWith({ organisationId: "org-1" }));
     fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
@@ -2368,6 +2375,7 @@ describe("cloud authentication gate", () => {
       .mockImplementationOnce(() => new Promise((resolve) => { resolveSecond = resolve; }));
 
     render(<CloudWorkspace />);
+    await waitFor(() => expect((screen.getByLabelText("Current organisation") as HTMLSelectElement).value).toBe("org-1"));
     fireEvent.click(await screen.findByRole("button", { name: "Load member roster" }));
     await waitFor(() => expect(mocks.api.listOrganisationMembers).toHaveBeenCalledWith({ organisationId: "org-1" }));
 
