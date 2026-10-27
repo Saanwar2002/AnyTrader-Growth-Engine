@@ -2273,7 +2273,8 @@ export const updateLeadContact = onCall(callableOptions, async (request) => {
   const leadId = requireDocumentId(data.leadId, "leadId");
   const fields = normaliseLeadFields(data);
   await requireLeadEditor(organisationId, uid);
-  const leadsRef = db.collection("organisations").doc(organisationId).collection("leads");
+  const organisationRef = db.collection("organisations").doc(organisationId);
+  const leadsRef = organisationRef.collection("leads");
   const leadRef = leadsRef.doc(leadId);
   const activity = db.collection("organisations").doc(organisationId).collection("leadActivities").doc();
   const completeness = calculateLeadCompleteness(fields);
