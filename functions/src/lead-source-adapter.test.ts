@@ -166,6 +166,8 @@ describe("lead source bounded page contract", () => {
       .toThrow("page result must be an object");
     expect(() => validateLeadSourcePageResult({ records: "invalid" }, manifest, now))
       .toThrow("records must be an array");
+    expect(() => validateLeadSourcePageResult({ records: Array(1) }, manifest, now))
+      .toThrow("records must not contain sparse entries");
     expect(() => validateLeadSourcePageResult({
       records: Array.from({ length: 101 }, (_, index) => ({ index })),
     }, manifest, now)).toThrow("exceeds the configured record limit");

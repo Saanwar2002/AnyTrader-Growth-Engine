@@ -232,6 +232,11 @@ export function validateLeadSourcePageResult<TRecord = unknown, TCursor = string
   if (!Array.isArray(result.records)) {
     throw new Error("Lead source page records must be an array.");
   }
+  for (let index = 0; index < result.records.length; index += 1) {
+    if (!Object.prototype.hasOwnProperty.call(result.records, index)) {
+      throw new Error("Lead source page records must not contain sparse entries.");
+    }
+  }
   if (result.records.length > manifest.maxRecordsPerRun) {
     throw new Error("Lead source page result exceeds the configured record limit.");
   }
