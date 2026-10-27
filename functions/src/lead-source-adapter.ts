@@ -273,7 +273,7 @@ export function validateLeadSourcePageRequest<TCursor = string>(
     throw new Error("Lead source page limit exceeds the configured bound.");
   }
   const hasCursor = Object.prototype.hasOwnProperty.call(request, "cursor") && request.cursor !== undefined;
-  const normalizedCursor = hasCursor ? normalizeBoundedSerializableCursor(request.cursor) : { valid: true as const };
+  const normalizedCursor: { valid: boolean; value?: unknown } = hasCursor ? normalizeBoundedSerializableCursor(request.cursor) : { valid: true };
   if (!normalizedCursor.valid) {
     throw new Error("Lead source cursor must be JSON-serializable and at most 2048 characters.");
   }
@@ -306,9 +306,9 @@ export function validateLeadSourcePageResult<TRecord = unknown, TCursor = string
     throw new Error("Lead source page result exceeds the configured record limit.");
   }
   const hasNextCursor = Object.prototype.hasOwnProperty.call(result, "nextCursor") && result.nextCursor !== undefined;
-  const normalizedNextCursor = hasNextCursor
+  const normalizedNextCursor: { valid: boolean; value?: unknown } = hasNextCursor
     ? normalizeBoundedSerializableCursor(result.nextCursor)
-    : { valid: true as const };
+    : { valid: true };
   if (!normalizedNextCursor.valid) {
     throw new Error("Lead source next cursor must be JSON-serializable and at most 2048 characters.");
   }
