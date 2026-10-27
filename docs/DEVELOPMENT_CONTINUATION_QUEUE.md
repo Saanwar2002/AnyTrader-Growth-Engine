@@ -1,3 +1,11 @@
+## AutoPilot continuation — reject future lead-source collection timestamps (2026-10-27)
+
+- Tightened the provider-neutral lead-source contract so provenance collection timestamps cannot be in the future relative to an injectable validation clock.
+- Reuses the same deterministic clock for approval validity and collection-time validation; adds a regression for a timestamp one millisecond beyond the clock.
+- Updates adapter documentation. No provider integration, network access, live source, import, production migration, deployment, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — guard frontend/backend offboarding category parity (2026-10-27)
 
 - Added a Functions source-contract regression that reads the frontend `OffboardingPreviewCategory` union and backend offboarding allow-list and asserts exact category equality.
