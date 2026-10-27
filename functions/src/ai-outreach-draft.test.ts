@@ -101,7 +101,7 @@ describe("AI outreach draft validation", () => {
       category: " Decorators ",
       location: " Edinburgh ",
       brand: " AnyTrader ",
-      campaignGoal: " Invite local providers ",
+      campaignGoal: " Invite local providers to join ",
       organisationName: " Pilot workspace ",
     }, { apiKey: "key", fetcher });
   });
