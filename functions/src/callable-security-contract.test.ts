@@ -1085,6 +1085,8 @@ describe("organisation security audit log", () => {
     expect(body).toContain('isValidFirestoreTimestamp(cursor.get("createdAt"))');
     expect(body).toContain("await requireAuditViewer();");
     expect(body).toContain("isBoundedAuditMetadata(eventType as SecurityAuditEventType");
+    expect(body).toContain("const createdAt = safeTimestampToIso(event.createdAt)");
+    expect(body).toContain("createdAt === null");
     expect(body).not.toContain("getAuth().getUser");
     expect(body).not.toContain("email:");
   });
