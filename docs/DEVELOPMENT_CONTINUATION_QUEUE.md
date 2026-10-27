@@ -1,3 +1,11 @@
+## AutoPilot continuation — recheck source approval before provider requests (2026-10-27)
+
+- The per-run guard now revalidates the detached source manifest immediately before recording each request, so approval expiry or a now-invalid review timestamp blocks the request before a provider call.
+- Added a regression proving an expired approval is rejected and does not consume the request budget.
+- Pure guard/test change only; no provider integration or network activity, persistence, migration, deployment, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — bound total lead-source requests per run (2026-10-27)
 
 - Added required maxRequestsPerRun to the reviewed source manifest, bounded to 1–1,000, so a run cannot continue forever by returning empty pages with ever-changing cursors.

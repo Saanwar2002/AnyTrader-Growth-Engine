@@ -492,6 +492,14 @@ describe("lead source bounded page contract", () => {
       .toThrow("total request limit");
   });
 
+  it("rechecks source approval before every provider request", () => {
+    const guard = new LeadSourceAdapterRunGuard<string>(manifest);
+    expect(() => guard.recordRequest(new Date("2027-01-01T00:00:00.001Z")))
+      .toThrow("Approved source permission has expired");
+    // A failed approval check must not consume the request budget.
+    expect(() => guard.recordRequest(new Date("2026-12-31T23:59:59.000Z"))).not.toThrow();
+  });
+
   it("rejects invalid or backwards request-rate validation clocks", () => {
     const guard = new LeadSourceAdapterRunGuard<string>(manifest);
     const start = new Date("2026-10-26T12:00:00.000Z");
