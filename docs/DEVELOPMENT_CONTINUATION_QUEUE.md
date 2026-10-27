@@ -1,3 +1,12 @@
+## AutoPilot continuation — use detached validated source manifest snapshots (2026-10-27)
+
+- Fixed a permission-boundary gap where a manifest could change after validation but before candidate allowlists or record limits were consumed.
+- Runnable manifest checks now return a descriptor-normalized detached snapshot; candidate attribution and page request/result bounds use that snapshot, and the run guard captures a validated snapshot at construction.
+- Added a regression that mutates the caller-owned manifest during descriptor inspection and verifies attribution uses the validated record budget.
+- Provider-neutral synthetic validation only. No provider connection, live data, persistence, migration, deployment, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — reject unsafe lead-source manifest object shapes (2026-10-27)
 
 - Hardened manifest validation to accept only plain or null-prototype data records with known own enumerable data properties.
