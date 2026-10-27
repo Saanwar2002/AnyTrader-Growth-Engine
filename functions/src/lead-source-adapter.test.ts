@@ -125,6 +125,12 @@ describe("lead source bounded page contract", () => {
   const now = new Date("2026-10-26T12:00:00.000Z");
   const manifest = approvedManifest();
 
+  it("rejects an approval review timestamp in the future", () => {
+    const futureReviewedAt = { ...manifest, reviewedAt: "2026-10-26T12:00:01.000Z", approvalExpiresAt: "2027-01-01T00:00:00.000Z" };
+    expect(validateLeadSourceManifest(futureReviewedAt, now)).toContain("reviewedAt must not be in the future.");
+    expect(() => assertLeadSourceAdapterRunnable(futureReviewedAt, now)).toThrow("manifest is invalid");
+  });
+
   it("requires time-bounded approval and rejects expired permission", () => {
     expect(validateLeadSourceManifest({
       ...manifest, approvalExpiresAt: "2026-10-26T11:59:59.000Z",
