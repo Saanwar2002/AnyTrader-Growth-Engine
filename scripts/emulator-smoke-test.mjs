@@ -3355,6 +3355,42 @@ try {
     leadIds: [leadOne.leadId, leadOne.leadId],
     idempotencyKey: "bulk-lead-status-duplicate-0001",
   }), "functions/invalid-argument", "bulk status update rejects duplicate lead IDs");
+  const auditLeadPageBefore = await callOne("listLeads", { organisationId: orgOne.organisationId });
+  const reservationAuditOutput = execFileSync(process.execPath, [
+    "functions/scripts/audit-lead-identifier-reservations.mjs",
+    "--organisation-id", orgOne.organisationId,
+    "--page-size", "50",
+    "--max-records", "5000",
+  ], { encoding: "utf8" });
+  const reservationAudit = JSON.parse(reservationAuditOutput);
+  assert.equal(reservationAudit.mode, "read-only");
+  assert.equal(reservationAudit.complete, true, "reservation audit only reports findings for complete bounded scans");
+  assert.equal(reservationAudit.writePerformed, false);
+  assert.equal(reservationAudit.rawContactValuesIncluded, false);
+  assert.ok(reservationAudit.findings.scannedLeadCount > 0, "reservation audit scanned synthetic tenant leads");
+  assert.ok(reservationAudit.findings.scannedReservationCount > 0, "reservation audit scanned reservation documents");
+  const auditJson = JSON.stringify(reservationAudit);
+  for (const rawContactValue of [
+    "concurrent-import@example.test",
+    "cross-path-reservation@example.test",
+    "reservation-new@example.test",
+    "Sales@Example.com",
+  ]) {
+    assert.equal(auditJson.includes(rawContactValue), false,
+      "reservation audit output must not include raw contact identifiers");
+  }
+  const repeatedReservationAudit = JSON.parse(execFileSync(process.execPath, [
+    "functions/scripts/audit-lead-identifier-reservations.mjs",
+    "--organisation-id", orgOne.organisationId,
+    "--page-size", "50",
+    "--max-records", "5000",
+  ], { encoding: "utf8" }));
+  assert.deepEqual(repeatedReservationAudit, reservationAudit,
+    "re-running the read-only reservation audit produces identical findings");
+  const auditLeadPageAfter = await callOne("listLeads", { organisationId: orgOne.organisationId });
+  assert.deepEqual(auditLeadPageAfter.leads.map((lead) => lead.id), auditLeadPageBefore.leads.map((lead) => lead.id),
+    "reservation audit leaves the lead inventory unchanged");
+
   await signOut(first.auth);
   await signOut(first.auth);
   const unauthenticatedCallableNames = [
