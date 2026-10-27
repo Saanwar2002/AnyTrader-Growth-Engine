@@ -75,6 +75,7 @@
 - [x] Enforce a cumulative per-run request budget in the approved manifest to bound empty-page pagination across multiple rolling windows.
 - [x] Revalidate the approved manifest immediately before each provider request so an approval that expires during a run is blocked before network access.
 - [x] Require the per-run guard to associate each accepted page with exactly one recorded provider request and provide explicit resolution for failed calls.
+- [x] Provide guarded page-fetch orchestration that validates requests and consumes budgets before provider callbacks, resolves failed callbacks without refunding budgets, and revalidates approval when responses arrive.
 - [x] Add a stateful per-run guard that enforces the total record budget across pages and rejects repeated next cursors or duplicate provider record IDs across pages; rejected pages do not mutate accepted-run state.
 - [x] Provide a single pure helper that validates each bounded adapter page and cursor, validates/maps every candidate against the approved manifest, and attaches provenance before returning the page; regression tests cover valid normalization and malformed/disallowed records.
 - [x] Validate bounded page cursors as strict JSON-safe values and pass adapters detached normalized cursor values; regression tests reject lossy, cyclic, sparse, and non-plain cursor data. This contract does not approve or connect any provider.
