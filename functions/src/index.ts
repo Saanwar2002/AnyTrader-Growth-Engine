@@ -2290,7 +2290,6 @@ export const updateLeadContact = onCall(callableOptions, async (request) => {
     await assertNoDuplicateLeadIdentifiers(transaction, leadsRef, fields, leadId);
     const now = FieldValue.serverTimestamp();
     const existingLead = leadSnapshot.data() ?? {};
-    await assertNoDuplicateLeadIdentifiers(transaction, leadsRef, fields, leadId);
     const oldReservationEntries = leadIdentifierReservationEntries(organisationRef, persistedLeadIdentifierKeys(existingLead));
     const newReservationEntries = leadIdentifierReservationEntries(organisationRef, fields);
     const combinedReservationEntries = [...new Map(
