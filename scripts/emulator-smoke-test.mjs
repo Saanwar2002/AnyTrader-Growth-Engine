@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { initializeApp, deleteApp } from "firebase/app";
 import { connectAuthEmulator, createUserWithEmailAndPassword, getAuth, signOut } from "firebase/auth";
 import { connectFunctionsEmulator, getFunctions, httpsCallable } from "firebase/functions";
@@ -3378,6 +3378,23 @@ try {
     assert.equal(auditJson.includes(rawContactValue), false,
       "reservation audit output must not include raw contact identifiers");
   }
+  const truncatedReservationAudit = spawnSync(process.execPath, [
+    "functions/scripts/audit-lead-identifier-reservations.mjs",
+    "--organisation-id", orgOne.organisationId,
+    "--page-size", "1",
+    "--max-records", "1",
+  ], { encoding: "utf8", timeout: 10000 });
+  assert.equal(truncatedReservationAudit.error, undefined,
+    "truncated audit subprocess starts successfully");
+  assert.equal(truncatedReservationAudit.status, 2,
+    "audit exits with the documented incomplete-scan status when its record budget is reached");
+  const truncatedReservationReport = JSON.parse(truncatedReservationAudit.stdout);
+  assert.equal(truncatedReservationReport.complete, false);
+  assert.equal(truncatedReservationReport.leadScan.truncated, true);
+  assert.equal(truncatedReservationReport.reservationScan.truncated, true);
+  assert.equal(truncatedReservationReport.findings, null,
+    "incomplete scans must not produce cross-inventory findings");
+
   const repeatedReservationAudit = JSON.parse(execFileSync(process.execPath, [
     "functions/scripts/audit-lead-identifier-reservations.mjs",
     "--organisation-id", orgOne.organisationId,
