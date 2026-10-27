@@ -221,22 +221,34 @@ export function isValidOrganisationPageToken(value: unknown, uid: string): value
 }
 
 
-export function isValidMembershipRecord(value: unknown, expectedUid: string): boolean {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+interface MembershipIdentitySnapshot {
+  uid: unknown;
+  role: unknown;
+}
+
+/** Snapshot authorization-critical membership fields without evaluating getters. */
+function snapshotMembershipIdentity(value: unknown): MembershipIdentitySnapshot | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   try {
-    const record = value as Record<string, unknown>;
-    // Membership identity and role must be stored on the record itself; inherited
-    // properties are not authoritative persisted membership fields.
-    if (!Object.prototype.hasOwnProperty.call(record, "uid")
-      || !Object.prototype.hasOwnProperty.call(record, "role")) return false;
-    // Malformed accessors must not turn a legacy membership read into an exception.
-    const uid = record.uid;
-    const role = record.role;
-    const validRole = role === "owner" || role === "admin" || role === "member" || role === "viewer";
-    return uid === expectedUid && validRole;
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) return null;
+    const uidDescriptor = Object.getOwnPropertyDescriptor(value, "uid");
+    const roleDescriptor = Object.getOwnPropertyDescriptor(value, "role");
+    if (!uidDescriptor || !uidDescriptor.enumerable || !("value" in uidDescriptor)
+      || !roleDescriptor || !roleDescriptor.enumerable || !("value" in roleDescriptor)) return null;
+    return { uid: uidDescriptor.value, role: roleDescriptor.value };
   } catch {
-    return false;
+    return null;
   }
+}
+
+function isMembershipRole(value: unknown): value is OrganisationRole {
+  return value === "owner" || value === "admin" || value === "member" || value === "viewer";
+}
+
+export function isValidMembershipRecord(value: unknown, expectedUid: string): boolean {
+  const snapshot = snapshotMembershipIdentity(value);
+  return snapshot !== null && snapshot.uid === expectedUid && isMembershipRole(snapshot.role);
 }
 
 /** Validates membership role integrity against the parent organisation record. */
@@ -245,17 +257,12 @@ export function isValidMembershipForOrganisation(
   expectedUid: string,
   organisationOwnerUid: unknown,
 ): boolean {
-  if (!isValidMembershipRecord(value, expectedUid)) return false;
-  try {
-    const record = value as Record<string, unknown>;
-    // Owner-role membership must match the organisation's authoritative ownerUid.
-    // Missing or conflicting ownership metadata must not silently grant owner powers.
-    // Read role defensively again: hostile getters can change or throw between reads.
-    if (record.role === "owner") return typeof organisationOwnerUid === "string" && organisationOwnerUid === expectedUid;
-    return true;
-  } catch {
-    return false;
-  }
+  const snapshot = snapshotMembershipIdentity(value);
+  if (!snapshot || snapshot.uid !== expectedUid || !isMembershipRole(snapshot.role)) return false;
+  // Use the same descriptor snapshot for authorization and owner consistency;
+  // never re-read a caller-controlled role accessor between checks.
+  if (snapshot.role === "owner") return typeof organisationOwnerUid === "string" && organisationOwnerUid === expectedUid;
+  return true;
 }
 
 export function isValidOrganisationCollectionPageToken(value: unknown, organisationId: string, collectionName: "campaigns" | "leads" | "outreachDrafts"): value is string {
