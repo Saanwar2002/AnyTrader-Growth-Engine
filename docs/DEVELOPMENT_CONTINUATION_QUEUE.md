@@ -1,3 +1,12 @@
+## AutoPilot continuation — reservation audit emulator integration (2026-10-27)
+
+- Added an end-to-end emulator smoke check for the bounded reservation integrity CLI against the synthetic organisation created by the existing smoke suite.
+- Asserted complete bounded scans, non-empty lead/reservation inventories, explicit read-only flags, no raw contact values, deterministic repeated reports, and unchanged first-page lead IDs.
+- No production data, repair writes, deployment, billing changes, or outreach.
+- Next: verify exact-head CI, fix any emulator integration failures, review, merge when safe, and confirm post-merge main CI.
+
+---
+
 ## AutoPilot continuation — bounded read-only reservation integrity audit (2026-10-27)
 
 - Added a pure analyzer comparing canonical identifiers from a complete tenant lead inventory with its hashed reservation documents.
