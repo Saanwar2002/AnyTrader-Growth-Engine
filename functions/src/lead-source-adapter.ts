@@ -302,10 +302,27 @@ export function attributeLeadSourceCandidates(
   if (Date.parse(collectedAt) > now.getTime()) {
     throw new Error("collectedAt must not be in the future.");
   }
-  if (!Array.isArray(candidates)) throw new Error("Lead source output must be an array.");
-  if (hasSparseEntries(candidates)) {
+  let isCandidateArray = false;
+  try {
+    isCandidateArray = Array.isArray(candidates);
+  } catch {
+    // Revoked proxies are invalid arrays.
+  }
+  if (!isCandidateArray) throw new Error("Lead source output must be an array.");
+  let sparseCandidates = false;
+  try {
+    sparseCandidates = hasSparseEntries(candidates);
+  } catch {
+    throw new Error("Lead source output must contain only indexed data properties.");
+  }
+  if (sparseCandidates) {
     throw new Error("Lead source output must not contain sparse entries.");
   }
+  const copiedCandidates = copyDenseDataArray(candidates);
+  if (!copiedCandidates) {
+    throw new Error("Lead source output must contain only indexed data properties.");
+  }
+  candidates = copiedCandidates;
   if (candidates.length > manifest.maxRecordsPerRun) {
     throw new Error("Lead source output exceeded its configured per-run record limit.");
   }
