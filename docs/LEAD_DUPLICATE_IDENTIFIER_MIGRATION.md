@@ -4,7 +4,7 @@
 
 Lead writes normalize email addresses to lowercase, normalize website scheme/host while preserving URL path casing, and canonicalize the business-name/location pair. They persist `dedupeEmailKey`, `dedupeWebsiteKey`, and `dedupeBusinessLocationKey` alongside user-facing contact fields. Manual lead creation, CSV import, and contact edits all use `normaliseLeadFields`, so the keys are maintained by the shared normalization path.
 
-CSV import uses tenant-scoped, bounded equality queries against canonical email, website, and business/location keys and exact-value fallbacks against legacy contact fields and the business-name/location pair. It does not scan the organisation's entire lead collection. Single-field Firestore indexes are expected to serve canonical-key equality queries; the legacy business-name/location fallback is a bounded compound equality query.
+CSV import uses tenant-scoped, bounded equality queries against canonical email, website, and business/location keys and exact-value fallbacks against legacy contact fields and the business-name/location pair. It does not scan the organisation's entire lead collection. Single-field Firestore indexes are expected to serve canonical-key equality queries; the legacy business-name/location fallback is a bounded compound equality query. Manual lead creation and contact edits now use the same shared guard: bounded, organisation-scoped canonical-key queries plus exact-value legacy fallbacks. Contact edits exclude the current lead from conflict results and reject conflicts before mutating contact fields, review state, activity, audit events, or quota.
 
 ## Important legacy limitation
 
