@@ -132,7 +132,7 @@ function copyDenseDataArray(value: unknown): unknown[] | null {
     if (!Array.isArray(value) || Object.getPrototypeOf(value) !== Array.prototype || hasSparseEntries(value)) return null;
     const ownKeys = Reflect.ownKeys(value);
     if (ownKeys.some((key) => key !== "length"
-      && (typeof key !== "string" || !/^(0|[1-9]\\d*)$/.test(key) || Number(key) >= value.length))) return null;
+      && (typeof key !== "string" || !/^(0|[1-9]\d*)$/.test(key) || Number(key) >= value.length))) return null;
     const copied: unknown[] = [];
     for (let index = 0; index < value.length; index += 1) {
       const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
