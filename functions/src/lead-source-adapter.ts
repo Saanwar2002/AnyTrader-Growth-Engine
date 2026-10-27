@@ -77,7 +77,7 @@ function normalizeBoundedSerializableCursor(value: unknown): { valid: boolean; v
       if (hasSparseEntries(candidate)) return false;
       const ownKeys = Reflect.ownKeys(candidate);
       if (ownKeys.some((key) => key !== "length"
-        && (typeof key !== "string" || !/^(0|[1-9]\\d*)$/.test(key) || Number(key) >= candidate.length))) return false;
+        && (typeof key !== "string" || !/^(0|[1-9]\d*)$/.test(key) || Number(key) >= candidate.length))) return false;
       for (let index = 0; index < candidate.length; index += 1) {
         if (!isJsonSafe(candidate[index])) return false;
       }
@@ -96,8 +96,8 @@ function normalizeBoundedSerializableCursor(value: unknown): { valid: boolean; v
     return true;
   };
 
-  if (!isJsonSafe(value)) return { valid: false };
   try {
+    if (!isJsonSafe(value)) return { valid: false };
     const serialized = JSON.stringify(value);
     if (typeof serialized !== "string" || serialized.length > 2048) return { valid: false };
     return { valid: true, value: JSON.parse(serialized) as unknown };
