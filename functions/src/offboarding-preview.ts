@@ -70,7 +70,7 @@ function snapshotOffboardingPageIds(value: unknown, requested: number): string[]
     const arrayKeys = Reflect.ownKeys(ids);
     if (arrayKeys.length !== ids.length + 1
       || arrayKeys.some((key) => key !== "length"
-        && (typeof key !== "string" || !/^(0|[1-9]\\d*)$/.test(key) || Number(key) >= ids.length))) throw new Error();
+        && (typeof key !== "string" || !/^(0|[1-9]\d*)$/.test(key) || Number(key) >= ids.length))) throw new Error();
 
     const copied: string[] = [];
     for (let index = 0; index < ids.length; index += 1) {
