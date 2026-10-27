@@ -1,3 +1,11 @@
+## AutoPilot continuation — reservation audit truncated-scan guard (2026-10-27)
+
+- Added emulator smoke coverage that runs the read-only reservation audit with a one-record budget and verifies exit code 2, both collection scans marked truncated, and no cross-inventory findings emitted.
+- The test uses the local synthetic emulator only and does not consume callable quotas or mutate records.
+- No cloud access, production migration, deployment, billing change, or outreach.
+
+---
+
 ## AutoPilot continuation — reservation audit CLI argument validation (2026-10-27)
 
 - Extended subprocess regression coverage to reject invalid organisation IDs, page sizes above 200, and record budgets above 20,000 before any Firestore initialization.
