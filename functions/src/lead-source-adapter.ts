@@ -362,8 +362,13 @@ export class LeadSourceAdapterRunGuard<TCursor = string> {
   private acceptedRecordCount = 0;
   private readonly seenSourceRecordIds = new Set<string>();
   private readonly seenNextCursors = new Set<string>();
+  private readonly manifest: LeadSourceAdapterManifest;
 
-  constructor(private readonly manifest: LeadSourceAdapterManifest) {}
+  constructor(manifest: LeadSourceAdapterManifest) {
+    // A caller must not be able to expand permissions or limits mid-run by
+    // mutating the manifest object or its allowedFields array.
+    this.manifest = { ...manifest, allowedFields: [...manifest.allowedFields] };
+  }
 
   get recordsAccepted(): number {
     return this.acceptedRecordCount;
