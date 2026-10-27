@@ -36,6 +36,21 @@ describe("AI outreach draft validation", () => {
       expect(fetcher).not.toHaveBeenCalled();
     },
   );
+  it("caps an oversized configured timeout to 60 seconds", async () => {
+    const timerSpy = vi.spyOn(globalThis, "setTimeout");
+    try {
+      const fetcher = vi.fn<typeof fetch>(async () =>
+        okResponse(JSON.stringify({ subject: "Join the network?", body: "May we share details?" })));
+      await generateAiOutreachDraftSuggestion(context, {
+        apiKey: "key",
+        timeoutMs: Number.MAX_SAFE_INTEGER,
+        fetcher,
+      });
+      expect(timerSpy).toHaveBeenCalledWith(expect.any(Function), 60000);
+    } finally {
+      timerSpy.mockRestore();
+    }
+  });
   it("fails closed for missing keys, invalid model names, provider errors, and malformed JSON", async () => {
     await expect(generateAiOutreachDraftSuggestion(context, { apiKey: "" })).rejects.toThrow("not configured");
     await expect(generateAiOutreachDraftSuggestion(context, { apiKey: "key", model: "../unsafe" })).rejects.toThrow("model name is invalid");
