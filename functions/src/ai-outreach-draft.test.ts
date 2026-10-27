@@ -75,6 +75,19 @@ describe("AI outreach draft validation", () => {
         .rejects.toThrow("eligible draft candidate");
     },
   );
+  it("sanitizes transport failures and reports timeouts without raw provider errors", async () => {
+    const networkFailure = vi.fn<typeof fetch>(async () => {
+      throw new Error("sensitive DNS and endpoint details");
+    });
+    await expect(generateAiOutreachDraftSuggestion(context, { apiKey: "key", fetcher: networkFailure }))
+      .rejects.toThrowError(new Error("Gemini API request failed."));
+
+    const timeoutFetcher = vi.fn<typeof fetch>(async (_input, init) => new Promise((_resolve, reject) => {
+      init?.signal?.addEventListener("abort", () => reject(new Error("raw transport abort details")), { once: true });
+    }));
+    await expect(generateAiOutreachDraftSuggestion(context, { apiKey: "key", timeoutMs: 1, fetcher: timeoutFetcher }))
+      .rejects.toThrowError(new Error("Gemini API request timed out."));
+  });
   it("rejects provider safety blocks", async () => {
     const fetcher = vi.fn<typeof fetch>(async () => new Response(JSON.stringify({ candidates: [{ finishReason: "SAFETY", content: { parts: [{ text: "{}" }] } }] }), { status: 200 }));
     await expect(generateAiOutreachDraftSuggestion(context, { apiKey: "key", fetcher })).rejects.toThrow("eligible draft candidate");
