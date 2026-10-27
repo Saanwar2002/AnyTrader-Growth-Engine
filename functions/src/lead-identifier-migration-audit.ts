@@ -33,6 +33,57 @@ export interface LeadIdentifierAuditReport {
   businessLocationCollisions: IdentifierCollision[];
 }
 
+const LEGACY_LEAD_AUDIT_RECORD_KEYS = new Set([
+  "id", "email", "website", "businessName", "location",
+  "dedupeEmailKey", "dedupeWebsiteKey", "dedupeBusinessLocationKey",
+]);
+
+function snapshotLegacyLeadAuditRecord(value: unknown): LegacyLeadRecord {
+  try {
+    if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error();
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) throw new Error();
+    const keys = Reflect.ownKeys(value);
+    if (keys.some((key) => typeof key !== "string" || !LEGACY_LEAD_AUDIT_RECORD_KEYS.has(key))) throw new Error();
+    const snapshot = Object.create(null) as Record<string, unknown>;
+    for (const key of keys) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      if (!descriptor || !descriptor.enumerable || !("value" in descriptor)) throw new Error();
+      snapshot[key as string] = descriptor.value;
+    }
+    return snapshot as unknown as LegacyLeadRecord;
+  } catch {
+    throw new Error("Lead identifier audit received a malformed record.");
+  }
+}
+
+function snapshotLegacyLeadAuditRecords(records: readonly LegacyLeadRecord[]): LegacyLeadRecord[] {
+  if (!Array.isArray(records)) {
+    throw new Error("Lead identifier audit requires an array of records.");
+  }
+  try {
+    if (Object.getPrototypeOf(records) !== Array.prototype) throw new Error();
+    const keys = Reflect.ownKeys(records);
+    const lengthDescriptor = Object.getOwnPropertyDescriptor(records, "length");
+    if (!lengthDescriptor || !("value" in lengthDescriptor)
+      || !Number.isSafeInteger(lengthDescriptor.value) || lengthDescriptor.value < 0
+      || keys.length !== lengthDescriptor.value + 1
+      || keys.some((key) => typeof key !== "string" || (key !== "length" && !/^(0|[1-9]\\d*)$/.test(key)))) {
+      throw new Error();
+    }
+    const snapshot: LegacyLeadRecord[] = [];
+    for (let index = 0; index < lengthDescriptor.value; index += 1) {
+      const descriptor = Object.getOwnPropertyDescriptor(records, String(index));
+      if (!descriptor || !descriptor.enumerable || !("value" in descriptor)) throw new Error();
+      snapshot.push(snapshotLegacyLeadAuditRecord(descriptor.value));
+    }
+    return snapshot;
+  } catch (error) {
+    if (error instanceof Error && error.message === "Lead identifier audit received a malformed record.") throw error;
+    throw new Error("Lead identifier audit received a malformed records array.");
+  }
+}
+
 /**
  * Build a read-only audit report for a bounded page set of lead records.
  *
@@ -46,11 +97,9 @@ export function auditLeadIdentifierRecords(records: readonly LegacyLeadRecord[])
   // pagination coordinator. Firestore adapters and test fixtures are runtime
   // boundaries, so malformed records must fail closed rather than produce a
   // misleading report or crash partway through analysis.
-  if (!Array.isArray(records)) {
-    throw new Error("Lead identifier audit requires an array of records.");
-  }
+  const safeRecords = snapshotLegacyLeadAuditRecords(records);
   const seenIds = new Set<string>();
-  for (const record of records as readonly unknown[]) {
+  for (const record of safeRecords as readonly unknown[]) {
     if (!record || typeof record !== "object" || Array.isArray(record)) {
       throw new Error("Lead identifier audit received a malformed record.");
     }
@@ -65,7 +114,7 @@ export function auditLeadIdentifierRecords(records: readonly LegacyLeadRecord[])
   }
 
   const report: LeadIdentifierAuditReport = {
-    scannedRecords: records.length,
+    scannedRecords: safeRecords.length,
     missingEmailKeys: [],
     staleEmailKeys: [],
     missingWebsiteKeys: [],
@@ -87,7 +136,7 @@ export function auditLeadIdentifierRecords(records: readonly LegacyLeadRecord[])
     else groups.set(key, [id]);
   };
 
-  for (const record of records) {
+  for (const record of safeRecords) {
     const id = record.id;
     const email = typeof record.email === "string" ? record.email.trim() : "";
     const website = typeof record.website === "string" ? record.website.trim() : "";
