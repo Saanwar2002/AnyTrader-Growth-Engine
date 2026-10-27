@@ -9,6 +9,7 @@ export const OFFBOARDING_PREVIEW_CATEGORIES = [
   "members",
   "campaigns",
   "leads",
+  "leadIdentifierReservations",
   "leadActivities",
   "outreachDrafts",
   "securityAuditEvents",
