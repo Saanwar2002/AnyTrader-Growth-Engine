@@ -37,13 +37,10 @@ const MAX_AI_PROVIDER_RESPONSE_BYTES = 256 * 1024;
 
 async function readBoundedAiProviderResponse(response: Response): Promise<string> {
   const body = response.body;
-  if (!body) {
-    const text = await response.text();
-    if (new TextEncoder().encode(text).byteLength > MAX_AI_PROVIDER_RESPONSE_BYTES) {
-      throw new Error("Gemini response exceeded the allowed size.");
-    }
-    return text;
-  }
+  // A standards-compliant Response with no body has no bytes to parse.
+  // Do not fall back to response.text(), which can buffer an unbounded custom
+  // fetcher's body before a post-hoc size check.
+  if (!body) return "";
 
   const reader = body.getReader();
   const chunks: Uint8Array[] = [];

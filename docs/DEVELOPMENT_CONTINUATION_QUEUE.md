@@ -1,3 +1,11 @@
+## AutoPilot continuation — keep bodyless AI responses bounded (2026-10-27)
+
+- Treat a response with no readable body stream as empty instead of calling `response.text()` and checking its size afterward. The fallback could buffer an unbounded custom response before the limit was enforced.
+- Added a synthetic regression proving the bodyless path does not evaluate a `text` accessor and fails with the existing sanitized malformed-JSON error.
+- No real model calls, live data, deployment, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — fix multi-digit AI provider array indices (2026-10-27)
 
 - Corrected the dense-array own-index validation expression so valid numeric indices with two or more digits are accepted, consistent with the 2,048-item bound.
