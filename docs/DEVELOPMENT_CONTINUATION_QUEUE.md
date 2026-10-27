@@ -1,3 +1,12 @@
+## AutoPilot continuation — refresh production-readiness evidence after offboarding authorization/quota tests (2026-10-27)
+
+- Updated the dated production-readiness audit and security gate to the current main commit `cffd4f3b808695e70420a795d041825c0e58863` and successful post-merge CI run `40493742548`.
+- Recorded PR #235's owner-only offboarding denial/quota regression and PR #232's separation of implemented capabilities from pending legacy-data work.
+- Production readiness remains blocked by dedicated Firebase project/live App Check verification, privacy/retention approvals, monitoring/budget alerts, backup/recovery, approved data-source configuration, and reviewed legacy-data work.
+- Documentation-only; no cloud configuration, production migration, deployment, billing changes, or outreach.
+
+---
+
 ## AutoPilot continuation — denied offboarding previews do not consume quota (2026-10-27)
 
 - First exact-head CI run exposed that the emulator quota-count helper's operation allow-list lagged behind the existing `previewOrganisationOffboarding` read-rate-limit operation. Added that operation to the helper's validation and usage message; rerun exact-head CI to verify the new no-quota-on-denial assertions.
