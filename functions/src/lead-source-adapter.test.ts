@@ -77,6 +77,17 @@ describe("lead source adapter permission contract", () => {
     }]);
   });
 
+  it("rejects duplicate provider record identifiers after trimming", () => {
+    expect(() => attributeLeadSourceCandidates(
+      approvedManifest(),
+      [
+        { businessName: "Example One", sourceRecordId: " provider-42 " },
+        { businessName: "Example Two", sourceRecordId: "provider-42" },
+      ],
+      "2026-10-25T10:00:00.000Z",
+    )).toThrow("duplicate sourceRecordId values");
+  });
+
   it("rejects candidate output over the configured run limit", () => {
     expect(() => attributeLeadSourceCandidates({
       ...approvedManifest(), maxRecordsPerRun: 1,
