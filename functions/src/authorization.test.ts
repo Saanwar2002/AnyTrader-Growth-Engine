@@ -426,6 +426,29 @@ describe("malformed membership accessors", () => {
     expect(isValidMembershipRecord(throwingRole, "user-1")).toBe(false);
   });
 
+  it("rejects own and inherited membership accessors without executing them", () => {
+    let getterInvoked = false;
+    const ownAccessor = Object.defineProperty({ uid: "user-1" }, "role", {
+      enumerable: true,
+      get() {
+        getterInvoked = true;
+        return "member";
+      },
+    });
+    expect(isValidMembershipRecord(ownAccessor, "user-1")).toBe(false);
+    expect(isValidMembershipForOrganisation(ownAccessor, "user-1", "different-owner")).toBe(false);
+    expect(getterInvoked).toBe(false);
+
+    const prototype = Object.defineProperty({}, "role", {
+      get() {
+        getterInvoked = true;
+        return "member";
+      },
+    });
+    expect(isValidMembershipRecord(Object.assign(Object.create(prototype), { uid: "user-1" }), "user-1")).toBe(false);
+    expect(getterInvoked).toBe(false);
+  });
+
   it("fails closed when a legacy membership proxy throws during own-field inspection", () => {
     const hostileRecord = new Proxy({ uid: "user-1", role: "owner" }, {
       getOwnPropertyDescriptor() {
