@@ -58,7 +58,7 @@ export function isPersistedLeadCreationReplayAvailable(
   expected: Pick<ExpectedLeadCreationReplay, "actorUid" | "campaignId" | "businessName" | "category" | "location" | "website" | "email" | "phone" | "dedupeEmailKey" | "dedupeWebsiteKey" | "dedupeBusinessLocationKey" | "sourceRecordId">,
   result: Pick<ValidLeadCreationReplayResult, "score" | "scoreReasons">,
 ): boolean {
-  if (!isRecord(value) || !Array.isArray(value.scoreReasons)) return false;
+  if (!isRecord(value) || !isDenseStringArray(value.scoreReasons)) return false;
   return value.createdBy === expected.actorUid && value.campaignId === expected.campaignId
     && value.businessName === expected.businessName && value.category === expected.category
     && value.location === expected.location && value.website === expected.website
