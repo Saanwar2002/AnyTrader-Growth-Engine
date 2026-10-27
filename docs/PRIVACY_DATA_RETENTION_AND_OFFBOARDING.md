@@ -39,6 +39,7 @@ The following collection paths were verified in `functions/src/index.ts` on `mai
 | `organisations/{organisationId}/members/{uid}` | Tenant membership and role records; final-owner transfer/removal must be explicit. |
 | `organisations/{organisationId}/campaigns/{campaignId}` | Campaign setup and state. |
 | `organisations/{organisationId}/leads/{leadId}` | Lead records, potentially including business contact details, notes, suppression and review fields. |
+| `organisations/{organisationId}/leadIdentifierReservations/{reservationId}` | Hashed identifier reservation IDs and owning lead IDs used to serialize duplicate-sensitive writes. Do not store raw contact identifiers in reservation documents; include this collection in offboarding inventory and retention review. |
 | `organisations/{organisationId}/leadActivities/{activityId}` | Product activity history; may contain resource identifiers and must be inspected for user-entered or identifying fields before retention decisions. |
 | `organisations/{organisationId}/outreachDrafts/{draftId}` | Unsent outreach drafts; draft bodies may contain personal/business data. Deletion must never send drafts. |
 | `organisations/{organisationId}/securityAuditEvents/{eventId}` | Minimal server-generated security audit events; retention/legal-hold rules must be decided separately from tenant content deletion. |
