@@ -1,3 +1,11 @@
+## AutoPilot continuation — refresh production-readiness evidence (2026-10-27)
+
+- Added a dated addendum to the production-readiness audit with current main checkpoint `341e475f3e50ee3f1b4759108378a1ec83afd1fb` and successful CI run `40590982304`, including emulator smoke tests.
+- Summarized repository-only hardening since the previous audit checkpoint while explicitly preserving the NOT PRODUCTION READY decision and external release blockers.
+- Evidence-only documentation change. No deployment, live data, migration, billing activation, provider connection, or outreach.
+
+---
+
 ## AutoPilot continuation — validate security audit cursor payloads (2026-10-27)
 
 - Security audit pagination now validates decoded cursor payloads against an exact three-field schema, the expected organisation ID, the expected scope, and a safe event document ID before querying Firestore.
