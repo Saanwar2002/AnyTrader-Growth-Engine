@@ -81,6 +81,11 @@ describe("AI outreach draft validation", () => {
     await expect(generateAiOutreachDraftSuggestion(context, { apiKey: "key", fetcher: vi.fn<typeof fetch>(async () => new Response("{}", { status: 503 })) })).rejects.toThrow("API request failed");
     await expect(generateAiOutreachDraftSuggestion(context, { apiKey: "key", fetcher: vi.fn<typeof fetch>(async () => okResponse("not json")) })).rejects.toThrow("valid JSON");
   });
+  it("sanitizes malformed JSON in a successful provider HTTP response", async () => {
+    const fetcher = vi.fn<typeof fetch>(async () => new Response("raw provider response details", { status: 200 }));
+    await expect(generateAiOutreachDraftSuggestion(context, { apiKey: "key", fetcher }))
+      .rejects.toThrowError(new Error("Gemini response was not valid JSON."));
+  });
   it.each(["MAX_TOKENS", "RECITATION", "OTHER", undefined])(
     "rejects a candidate with incomplete finish reason %s",
     async (finishReason) => {
