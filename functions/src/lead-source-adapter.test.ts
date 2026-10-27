@@ -6,6 +6,7 @@ import {
   validateLeadSourcePageRequest,
   validateLeadSourcePageResult,
   validateAndAttributeLeadSourcePage,
+  fetchGuardedLeadSourcePage,
   LeadSourceAdapterRunGuard,
   type LeadSourceAdapterManifest,
 } from "./lead-source-adapter";
@@ -526,6 +527,56 @@ describe("lead source bounded page contract", () => {
       .toThrow("request validation clock must be a valid date");
     expect(() => guard.recordRequest(new Date(start.getTime() - 1)))
       .toThrow("request validation clock must not move backwards");
+  });
+
+  it("fetches a page through the guarded request-to-attribution sequence", async () => {
+    const guard = new LeadSourceAdapterRunGuard<string>(manifest);
+    const clock = () => new Date("2026-10-26T12:00:00.000Z");
+    const discoverPage = async (request: { category: string; location: string; limit: number; cursor?: string }) => {
+      expect(request).toEqual({ category: "builders", location: "Edinburgh", limit: 5 });
+      return { records: [{ businessName: "Example Builder", sourceRecordId: "provider-1" }], nextCursor: "page-2" };
+    };
+
+    const page = await fetchGuardedLeadSourcePage(
+      { category: " builders ", location: " Edinburgh ", limit: 5 },
+      guard,
+      discoverPage,
+      "2026-10-26T11:59:00.000Z",
+      clock,
+    );
+
+    expect(page.records).toHaveLength(1);
+    expect(page.records[0].candidate.businessName).toBe("Example Builder");
+    expect(page.nextCursor).toBe("page-2");
+    expect(guard.recordsAccepted).toBe(1);
+  });
+
+  it("resolves failed provider callbacks and preserves request budgets for the next attempt", async () => {
+    const guard = new LeadSourceAdapterRunGuard<string>(manifest);
+    const start = new Date("2026-10-26T12:00:00.000Z").getTime();
+    const times = [start, start + 1_000, start + 2_000];
+    let clockIndex = 0;
+    const clock = () => new Date(times[clockIndex++] ?? start + 2_000);
+    const request = { category: "builders", location: "Edinburgh", limit: 5 };
+    const collectedAt = "2026-10-26T11:59:00.000Z";
+
+    await expect(fetchGuardedLeadSourcePage(
+      request,
+      guard,
+      async () => { throw new Error("synthetic provider failure"); },
+      collectedAt,
+      clock,
+    )).rejects.toThrow("synthetic provider failure");
+
+    const page = await fetchGuardedLeadSourcePage(
+      request,
+      guard,
+      async () => ({ records: [{ businessName: "Recovered Builder" }] }),
+      collectedAt,
+      clock,
+    );
+    expect(page.records[0].candidate.businessName).toBe("Recovered Builder");
+    expect(guard.recordsAccepted).toBe(1);
   });
 
   it("requires one recorded request per accepted page and resolves failed calls", () => {
