@@ -65,15 +65,19 @@ function snapshotOffboardingPageIds(value: unknown, requested: number): string[]
     if (!idsDescriptor || !idsDescriptor.enumerable || !("value" in idsDescriptor)) throw new Error();
 
     const ids = idsDescriptor.value;
-    if (!Array.isArray(ids) || Object.getPrototypeOf(ids) !== Array.prototype
-      || !Number.isSafeInteger(ids.length) || ids.length > requested) throw new Error();
+    if (!Array.isArray(ids) || Object.getPrototypeOf(ids) !== Array.prototype) throw new Error();
+    const lengthDescriptor = Object.getOwnPropertyDescriptor(ids, "length");
+    if (!lengthDescriptor || !("value" in lengthDescriptor)
+      || !Number.isSafeInteger(lengthDescriptor.value) || lengthDescriptor.value < 0
+      || lengthDescriptor.value > requested) throw new Error();
+    const idsLength = lengthDescriptor.value as number;
     const arrayKeys = Reflect.ownKeys(ids);
-    if (arrayKeys.length !== ids.length + 1
+    if (arrayKeys.length !== idsLength + 1
       || arrayKeys.some((key) => key !== "length"
-        && (typeof key !== "string" || !/^(0|[1-9]\d*)$/.test(key) || Number(key) >= ids.length))) throw new Error();
+        && (typeof key !== "string" || !/^(0|[1-9]\d*)$/.test(key) || Number(key) >= idsLength))) throw new Error();
 
     const copied: string[] = [];
-    for (let index = 0; index < ids.length; index += 1) {
+    for (let index = 0; index < idsLength; index += 1) {
       const descriptor = Object.getOwnPropertyDescriptor(ids, String(index));
       if (!descriptor || !descriptor.enumerable || !("value" in descriptor)
         || typeof descriptor.value !== "string" || descriptor.value.length === 0 || descriptor.value.length > 1500) {
