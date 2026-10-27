@@ -29,7 +29,9 @@ export async function generateAiOutreachDraftSuggestion(context: AiOutreachDraft
   const model = options.model?.trim() || "gemini-3.8-flash";
   if (!/^[A-Za-z0-9._-]{1,100}$/.test(model)) throw new Error("Configured AI model name is invalid.");
   const fetcher = options.fetcher ?? fetch;
-  const timeoutMs = Number.isSafeInteger(options.timeoutMs) && (options.timeoutMs ?? 0) > 0 ? options.timeoutMs! : 15000;
+  const requestedTimeoutMs = Number.isSafeInteger(options.timeoutMs) && (options.timeoutMs ?? 0) > 0 ? options.timeoutMs! : 15000;
+  // Node timers overflow for delays above 2^31-1; cap provider waits to a practical maximum.
+  const timeoutMs = Math.min(requestedTimeoutMs, 60000);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   const systemInstruction = [
