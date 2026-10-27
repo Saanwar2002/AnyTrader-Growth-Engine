@@ -1,3 +1,12 @@
+## AutoPilot continuation — refresh readiness evidence after source pagination hardening (2026-10-27)
+
+- Updated the dated readiness/security checkpoint to main commit `49ddb971674b2db9ea57c2712c4a0d8661687e6d`.
+- Verified post-merge main CI run `40528132846`: Functions tests/build and frontend typecheck/tests/build/emulator smoke tests passed.
+- Recorded PRs #263–#266: strict JSON-safe cursor normalization, accessor-backed cursor rejection, combined page/candidate/provenance validation, and cumulative pagination-run bounds with cross-page duplicate/cycle guards.
+- Production remains blocked on dedicated Firebase/App Check verification, privacy/retention approvals, monitoring/budget alerts, backup/recovery, approved source-provider configuration, and legacy identifier reconciliation. No deployment, live migration, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — enforce whole-run lead-source pagination bounds (2026-10-27)
 
 - Added a stateful per-discovery-run guard to enforce `maxRecordsPerRun` cumulatively across pages rather than treating it as a per-page limit.
