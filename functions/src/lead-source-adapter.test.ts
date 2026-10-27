@@ -167,6 +167,31 @@ describe("lead source adapter permission contract", () => {
       .toThrow("exceeded its configured per-run record limit");
   });
 
+  it("rejects accessor, symbol, and overridden-method candidate batches without invoking getters", () => {
+    let getterInvoked = false;
+    const accessorBatch: unknown[] = [];
+    Object.defineProperty(accessorBatch, "0", {
+      enumerable: true,
+      configurable: true,
+      get: () => { getterInvoked = true; return { businessName: "Unexpected Builder" }; },
+    });
+    accessorBatch.length = 1;
+    const symbolBatch = [{ businessName: "Symbol Builder" }] as unknown[] & { [key: symbol]: unknown };
+    Object.defineProperty(symbolBatch, Symbol("hidden"), { value: true, enumerable: true });
+    const overriddenMapBatch = [{ businessName: "Original Builder" }] as unknown[] & { map: unknown };
+    overriddenMapBatch.map = () => [{ businessName: "Bypass Builder" }];
+
+    for (const candidates of [accessorBatch, symbolBatch, overriddenMapBatch]) {
+      expect(() => attributeLeadSourceCandidates(
+        approvedManifest(),
+        candidates,
+        "2026-10-25T10:00:00.000Z",
+        new Date("2026-10-25T12:00:00.000Z"),
+      )).toThrow("only indexed data properties");
+    }
+    expect(getterInvoked).toBe(false);
+  });
+
   it("rejects sparse provider result arrays instead of silently skipping missing rows", () => {
     expect(() => attributeLeadSourceCandidates(
       approvedManifest(),
