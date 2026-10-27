@@ -76,7 +76,12 @@ export async function generateAiOutreachDraftSuggestion(context: AiOutreachDraft
       throw new Error("Gemini API request failed.");
     }
     if (!response.ok) throw new Error("Gemini API request failed.");
-    const payload: unknown = await response.json();
+    let payload: unknown;
+    try {
+      payload = await response.json();
+    } catch {
+      throw new Error("Gemini response was not valid JSON.");
+    }
     if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new Error("Gemini response shape was invalid.");
     const candidates = (payload as Record<string, unknown>).candidates;
     if (!Array.isArray(candidates) || !candidates.length || !candidates[0] || typeof candidates[0] !== "object") throw new Error("Gemini returned no draft candidate.");
