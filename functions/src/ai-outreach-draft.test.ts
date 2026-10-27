@@ -13,6 +13,20 @@ describe("AI outreach draft validation", () => {
     expect(() => validateAiOutreachDraftSuggestion({ subject: "Hello", body: "<script>alert(1)</script>" })).toThrow("plain-text");
     expect(() => validateAiOutreachDraftSuggestion({ subject: "S", body: "x".repeat(10000) })).toThrow("allowed length");
   });
+  it("rejects bidirectional override controls and non-whitespace control characters", () => {
+    expect(() => validateAiOutreachDraftSuggestion({
+      subject: "Provider invitation \\u202Etxt",
+      body: "May we share details?",
+    })).toThrow("subject");
+    expect(() => validateAiOutreachDraftSuggestion({
+      subject: "Provider invitation",
+      body: "Please review this draft \\u2066with hidden direction controls\\u2069.",
+    })).toThrow("plain-text");
+    expect(() => validateAiOutreachDraftSuggestion({
+      subject: "Provider invitation",
+      body: "Please review this draft\\u001B[31m.",
+    })).toThrow("plain-text");
+  });
   it("uses a server-only key and schema-constrained output with minimal context", async () => {
     const fetcher = vi.fn<typeof fetch>(async (_input, init) => {
       const request = JSON.parse(String(init?.body));
