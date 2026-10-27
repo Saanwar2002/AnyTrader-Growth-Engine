@@ -10,9 +10,9 @@ This is an evidence-based repository audit, not a certification that any externa
 
 - Repository: `Saanwar2002/AnyTrader-Growth-Engine`
 - Branch: `main`
-- Audited commit: `637d60cee39f49b2bbfdbb5c4cdd87b6cf7b98ff`
-- PR #218 merged: [Reject duplicate identifiers on manual lead writes](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/pull/218)
-- Exact-head post-merge CI: [run 40475093576](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40475093576) — **success**. Both Functions tests/build and frontend typecheck/tests/build/emulator integration jobs passed.
+- Audited commit: `4dda223b1991ef04a932b5c44e34e56cfafb7a6d`
+- Recent merged hardening: PR #218 (manual lead duplicate checks), PR #220 (concurrent canonical identifier reservations), PR #222 (concurrent contact-edit race coverage), PR #223 (identifier reservation lifecycle), and PR #226 (reservation audit CLI safety and emulator behavior).
+- Exact-head post-merge CI: [run 40485506685](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40485506685) — **success** on commit `4dda223b1991ef04a932b5c44e34e56cfafb7a6d`. Both Functions tests/build and frontend typecheck/tests/build/emulator integration jobs passed, including reservation audit CLI guard checks and emulator smoke tests.
 - No production deployment or live migration was performed.
 
 ## Readiness scorecard
@@ -24,14 +24,15 @@ Status meanings:
 
 | Area | Status | Evidence and remaining work |
 |---|---|---|
-| Build and automated regression suite | **PASS — repository evidence** | Exact post-merge main CI run 40475093576 passed both jobs, including typecheck, unit tests, build, dependency audits, Functions tests/build, and Firebase emulator smoke tests. Repeat against the exact release candidate before every release. |
+| Build and automated regression suite | **PASS — repository evidence** | Exact post-merge main CI run 40485506685 passed both jobs on commit `4dda223b1991ef04a932b5c44e34e56cfafb7a6d`, including typecheck, unit tests, build, dependency audits, Functions tests/build, CLI guard checks, and Firebase emulator smoke tests. Repeat against the exact release candidate before every release. |
 | Tenant authorization | **PASS — development only** | Callable handlers enforce Firebase Auth and organisation membership/roles; emulator tests cover cross-tenant denial. Still require project-specific security review and production-like verification. |
 | Direct Firestore client access | **PASS — repository evidence** | `firestore.rules` denies direct client reads/writes. Keep this default until narrowly scoped rules are independently reviewed. |
 | Callable App Check enforcement | **PARTIAL** | Deployed callable options enforce App Check; the bypass is explicitly limited to the Functions emulator. The frontend requires a public site key. A live project/provider/token flow has not been verified. |
 | Dedicated Growth Engine Firebase project | **BLOCKED** | `.env.example` is blank and repository documentation states no dedicated project has been configured/deployed. Create a separate project; never use production AnyTrader. |
 | Deployment target guard | **PARTIAL** | `scripts/guard-firebase-deploy.mjs` requires an explicit `GROWTH_ENGINE_FIREBASE_PROJECT_ID` equal to `GCLOUD_PROJECT` and rejects demo projects. The actual allow-list value and target project have not been configured or independently verified. |
 | Lead canonical identifiers | **PASS — code; PARTIAL for legacy data** | CSV import, manual creation, and contact edits persist canonical email, website, and business/location keys and use bounded tenant-scoped duplicate lookups. PR #218 added duplicate rejection to manual creation and edits; emulator tests pass. Legacy records with different historical casing/spacing can still evade exact-value fallback until a complete backfill is reviewed and verified. See `docs/LEAD_DUPLICATE_IDENTIFIER_MIGRATION.md`. |
-| Legacy identifier migration | **BLOCKED for production** | Available backfill harness is intentionally local-emulator-only and refuses cloud targets. No production adapter, live backfill, or pre/post migration evidence exists. |
+| Reservation integrity audit | **PASS — repository evidence; diagnostic only** | A bounded read-only analyzer and emulator-only CLI report missing/orphan/mismatched/malformed/unverifiable reservations and duplicate canonical identifiers without raw contact values. The CLI refuses cloud Firestore targets, and CI covers its guard and emulator behavior. Findings do not authorize repairs or migration. |
+| Legacy identifier migration | **BLOCKED for production** | Available backfill harness is intentionally local-emulator-only and refuses cloud targets. The reservation audit is also emulator-only. No production adapter, live backfill, or pre/post migration evidence exists. |
 | Approved source integrations | **BLOCKED** | Current acquisition entry points include manual search shortcuts and user-supplied CSV. No approved live source-provider integration is connected. Review source terms, permissions, rate limits, and privacy obligations before building or enabling adapters. |
 | Outreach and consent | **PARTIAL — safe default** | The app is draft-only and has no send action. Leads default to Do Not Contact/pending review; a cleared internal review is not proof of consent or lawful basis. Keep outreach disabled until legal and operational review is complete. |
 | Privacy, retention, and deletion | **BLOCKED** | Privacy/offboarding documentation is a specification and the offboarding callable is a bounded, read-only preview. Destructive deletion, account deletion, and production retention/TTL policy are not implemented or authorized. Complete the data inventory and approve retention/legal-hold policy before implementing deletion. |
