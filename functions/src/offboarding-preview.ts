@@ -50,6 +50,43 @@ export type OffboardingPreviewPageReader = (
 const DEFAULT_MAX_RECORDS_PER_CATEGORY = 1000;
 const DEFAULT_PAGE_SIZE = 100;
 
+/**
+ * Snapshot the injected page-reader result using own data descriptors only.
+ * The preview must never execute getters or trust a malformed adapter envelope.
+ */
+function snapshotOffboardingPageIds(value: unknown, requested: number): string[] {
+  try {
+    if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error();
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) throw new Error();
+    const keys = Reflect.ownKeys(value);
+    if (keys.length !== 1 || keys[0] !== "ids") throw new Error();
+    const idsDescriptor = Object.getOwnPropertyDescriptor(value, "ids");
+    if (!idsDescriptor || !idsDescriptor.enumerable || !("value" in idsDescriptor)) throw new Error();
+
+    const ids = idsDescriptor.value;
+    if (!Array.isArray(ids) || Object.getPrototypeOf(ids) !== Array.prototype
+      || !Number.isSafeInteger(ids.length) || ids.length > requested) throw new Error();
+    const arrayKeys = Reflect.ownKeys(ids);
+    if (arrayKeys.length !== ids.length + 1
+      || arrayKeys.some((key) => key !== "length"
+        && (typeof key !== "string" || !/^(0|[1-9]\\d*)$/.test(key) || Number(key) >= ids.length))) throw new Error();
+
+    const copied: string[] = [];
+    for (let index = 0; index < ids.length; index += 1) {
+      const descriptor = Object.getOwnPropertyDescriptor(ids, String(index));
+      if (!descriptor || !descriptor.enumerable || !("value" in descriptor)
+        || typeof descriptor.value !== "string" || descriptor.value.length === 0 || descriptor.value.length > 1500) {
+        throw new Error();
+      }
+      copied.push(descriptor.value);
+    }
+    return copied;
+  } catch {
+    throw new Error("Malformed page result.");
+  }
+}
+
 export async function createOffboardingPreview(
   readPage: OffboardingPreviewPageReader,
   options: { maxRecordsPerCategory?: number; pageSize?: number } = {},
@@ -71,36 +108,33 @@ export async function createOffboardingPreview(
         // detected rather than falsely reported as an exact count.
         const remaining = maxRecords - observedCount;
         const requested = Math.min(pageSize, remaining + 1);
-        const page = await readPage(category, afterId, requested);
-        if (!Array.isArray(page.ids) || page.ids.some((id) => typeof id !== "string" || id.length === 0)) {
-          throw new Error("Malformed page result.");
-        }
-        if (page.ids.length > requested) throw new Error("Reader exceeded requested page bound.");
+        const rawPage: unknown = await readPage(category, afterId, requested);
+        const pageIds = snapshotOffboardingPageIds(rawPage, requested);
         // The Firestore adapter orders by document ID. Require strictly
         // increasing cursors and no duplicates so a faulty reader cannot loop
         // forever or inflate a count with repeated records.
-        for (let index = 1; index < page.ids.length; index += 1) {
-          if (page.ids[index] <= page.ids[index - 1]) {
+        for (let index = 1; index < pageIds.length; index += 1) {
+          if (pageIds[index] <= pageIds[index - 1]) {
             throw new Error("Page document IDs are not strictly ordered.");
           }
         }
-        if (afterId !== null && page.ids.length > 0 && page.ids[0] <= afterId) {
+        if (afterId !== null && pageIds.length > 0 && pageIds[0] <= afterId) {
           throw new Error("Pagination cursor did not advance.");
         }
-        if (page.ids.length > remaining) {
+        if (pageIds.length > remaining) {
           categories.push({ category, status: "limit_reached", exactCount: null, observedCount: maxRecords });
           break;
         }
-        observedCount += page.ids.length;
-        if (page.ids.length < requested) {
+        observedCount += pageIds.length;
+        if (pageIds.length < requested) {
           categories.push({ category, status: "complete", exactCount: observedCount, observedCount });
           break;
         }
-        if (page.ids.length === 0) {
+        if (pageIds.length === 0) {
           categories.push({ category, status: "complete", exactCount: observedCount, observedCount });
           break;
         }
-        const lastId = page.ids[page.ids.length - 1];
+        const lastId = pageIds[pageIds.length - 1];
         if (afterId !== null && lastId === afterId) {
           throw new Error("Pagination cursor did not advance.");
         }
