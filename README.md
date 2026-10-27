@@ -102,7 +102,7 @@ The local demo is not a secure multi-user service. It uses browser localStorage,
 
 ## Cloud release readiness
 
-Before enabling cloud mode or deploying Firebase resources, complete the [Cloud Release Readiness Gate](docs/CLOUD_RELEASE_READINESS_GATE.md). A green CI run is necessary but does not prove that a real Firebase project, App Check, privacy controls, or recovery procedures are ready. Keep cloud mode disabled until the dedicated Growth Engine Firebase project is created and verified.
+Before enabling cloud mode or deploying Firebase resources, complete the [Cloud Release Readiness Gate](docs/CLOUD_RELEASE_READINESS_GATE.md). A green CI run is necessary but does not prove that a real Firebase project, App Check, privacy controls, or recovery procedures are ready. Keep cloud mode disabled until the dedicated Growth Engine Firebase project is created and verified. See the [evidence-based Production Readiness Audit for 27 October 2026](docs/PRODUCTION_READINESS_AUDIT_2026-10-27.md) for the current main SHA, exact post-merge CI result, and remaining blockers.
 
 ## Safety and privacy principles
 
