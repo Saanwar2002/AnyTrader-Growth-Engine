@@ -1,3 +1,11 @@
+## AutoPilot continuation — successful owner offboarding preview consumes one quota (2026-10-27)
+
+- Extended the synthetic emulator smoke test to assert a successful owner-only `previewOrganisationOffboarding` call increments the owner's read-rate-limit count by exactly one.
+- Complements PR #235's admin/member/viewer denial assertions that confirm rejected calls consume no quota, covering both sides of authorization-before-quota ordering.
+- Local emulator only; no cloud access, production migration, deployment, billing change, or outreach.
+
+---
+
 ## AutoPilot continuation — refresh production-readiness evidence after offboarding authorization/quota tests (2026-10-27)
 
 - Updated the dated production-readiness audit and security gate to the current main commit `cffd4f3b808695e70420a795d041825c0e58863` and successful post-merge CI run `40493742548`.
