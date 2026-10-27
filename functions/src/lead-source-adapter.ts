@@ -202,10 +202,24 @@ export function attributeLeadSourceCandidates(
     if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
       throw new Error("Lead source output contains a malformed candidate.");
     }
-    const record = candidate as Record<string, unknown>;
+    const prototype = Object.getPrototypeOf(candidate);
+    if (prototype !== Object.prototype && prototype !== null) {
+      throw new Error("Lead source output contains a malformed candidate.");
+    }
     const allowedKeys = new Set<string>([...manifest.allowedFields, "sourceRecordId"]);
-    if (Object.keys(record).some((key) => !allowedKeys.has(key))) {
-      throw new Error("Lead source output contains a field outside its manifest allowlist.");
+    const record = Object.create(null) as Record<string, unknown>;
+    for (const key of Reflect.ownKeys(candidate)) {
+      if (typeof key !== "string") {
+        throw new Error("Lead source output contains a field outside its manifest allowlist.");
+      }
+      if (!allowedKeys.has(key)) {
+        throw new Error("Lead source output contains a field outside its manifest allowlist.");
+      }
+      const descriptor = Object.getOwnPropertyDescriptor(candidate, key);
+      if (!descriptor || !descriptor.enumerable || !("value" in descriptor)) {
+        throw new Error("Lead source output contains a malformed candidate.");
+      }
+      record[key] = descriptor.value;
     }
     for (const field of manifest.allowedFields) {
       if (field === "businessName") continue;
