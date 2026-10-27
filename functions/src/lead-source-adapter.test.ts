@@ -5,6 +5,7 @@ import {
   attributeLeadSourceCandidates,
   validateLeadSourcePageRequest,
   validateLeadSourcePageResult,
+  validateAndAttributeLeadSourcePage,
   type LeadSourceAdapterManifest,
 } from "./lead-source-adapter";
 const approvedManifest = (): LeadSourceAdapterManifest => ({
@@ -259,6 +260,41 @@ describe("lead source bounded page contract", () => {
     nextCursor.nested[0] = "mutated";
     expect(result.nextCursor).toEqual({ page: 3, nested: ["next"] });
     expect(result.nextCursor).not.toBe(nextCursor);
+  });
+
+  it("validates and attributes every provider record before returning a page", () => {
+    const result = validateAndAttributeLeadSourcePage({
+      records: [
+        { businessName: "  Example Builder ", category: " Builder ", sourceRecordId: " provider-1 " },
+      ],
+      nextCursor: { page: 2 },
+      internalDebug: "drop",
+    }, manifest, "2026-10-26T11:00:00.000Z", now);
+
+    expect(result).toEqual({
+      records: [{
+        candidate: { businessName: "Example Builder", category: "Builder", sourceRecordId: "provider-1" },
+        provenance: {
+          sourceId: manifest.sourceId,
+          sourceName: manifest.displayName,
+          termsUrl: manifest.termsUrl,
+          collectedAt: "2026-10-26T11:00:00.000Z",
+          sourceRecordId: "provider-1",
+        },
+      }],
+      nextCursor: { page: 2 },
+    });
+    expect("internalDebug" in result).toBe(false);
+  });
+
+  it("rejects malformed provider candidates before returning an attributed page", () => {
+    expect(() => validateAndAttributeLeadSourcePage({
+      records: [{ businessName: "Example Builder", internalNote: "must not pass" }],
+    }, manifest, "2026-10-26T11:00:00.000Z", now)).toThrow("outside its manifest allowlist");
+
+    expect(() => validateAndAttributeLeadSourcePage({
+      records: [{ businessName: "   " }],
+    }, manifest, "2026-10-26T11:00:00.000Z", now)).toThrow("requires a valid businessName");
   });
 
   it("rejects malformed and oversized page results", () => {

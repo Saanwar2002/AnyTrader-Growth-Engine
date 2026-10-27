@@ -318,3 +318,22 @@ export function validateLeadSourcePageResult<TRecord = unknown, TCursor = string
     ...(hasNextCursor ? { nextCursor: normalizedNextCursor.value as TCursor | null } : {}),
   };
 }
+
+
+/**
+ * Validate a provider page envelope and every candidate before exposing the page
+ * to an import workflow. This is pure validation/mapping; it performs no I/O.
+ */
+export function validateAndAttributeLeadSourcePage<TCursor = string>(
+  value: unknown,
+  manifest: LeadSourceAdapterManifest,
+  collectedAt: string,
+  now: Date = new Date(),
+): LeadSourcePage<AttributedLeadSourceCandidate, TCursor> {
+  const page = validateLeadSourcePageResult<unknown, TCursor>(value, manifest, now);
+  const records = attributeLeadSourceCandidates(manifest, page.records, collectedAt, now);
+  return {
+    records,
+    ...(Object.prototype.hasOwnProperty.call(page, "nextCursor") ? { nextCursor: page.nextCursor } : {}),
+  };
+}

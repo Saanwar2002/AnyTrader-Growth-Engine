@@ -1,3 +1,11 @@
+## AutoPilot continuation — validate and attribute source pages as one boundary (2026-10-27)
+
+- Added `validateAndAttributeLeadSourcePage` to validate the bounded page envelope and cursor, validate every candidate against the approved manifest allowlist and record limits, normalize candidate fields, and attach provenance before returning any records.
+- Added positive coverage for normalized records/provenance/cursor preservation and negative coverage for disallowed fields and malformed business names.
+- The helper is pure and provider-neutral; no network access, live data, import persistence, migration, deployment, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — reject accessor-backed lead-source cursors (2026-10-27)
 
 - Closed a strict-JSON edge case in array cursors: validation now inspects each own index descriptor and rejects getter-backed or non-enumerable values without invoking accessors.
