@@ -61,6 +61,52 @@ describe("lead source adapter permission contract", () => {
     expect(issues).toContain("displayName must contain 2–100 characters.");
   });
 
+  it("rejects unsafe manifest shapes without invoking accessors", () => {
+    let getterInvoked = false;
+    const accessorManifest = Object.defineProperty(approvedManifest(), "sourceId", {
+      enumerable: true,
+      configurable: true,
+      get: () => { getterInvoked = true; return "directory-api-v1"; },
+    });
+    const symbolManifest = { ...approvedManifest(), [Symbol("hidden")]: "unexpected" };
+    const unknownFieldManifest = { ...approvedManifest(), internalOverride: true };
+    class ManifestRecord {
+      sourceId = "directory-api-v1";
+    }
+
+    for (const candidate of [
+      accessorManifest,
+      symbolManifest,
+      unknownFieldManifest,
+      new ManifestRecord(),
+    ]) {
+      expect(validateLeadSourceManifest(candidate as unknown as LeadSourceAdapterManifest))
+        .toContain("A source adapter manifest must be a plain data object with only supported own fields.");
+    }
+    expect(getterInvoked).toBe(false);
+  });
+
+  it("rejects accessor-backed and symbol-extended allowedFields arrays without invoking getters", () => {
+    let getterInvoked = false;
+    const accessorFields: unknown[] = [];
+    Object.defineProperty(accessorFields, "0", {
+      enumerable: true,
+      configurable: true,
+      get: () => { getterInvoked = true; return "businessName"; },
+    });
+    accessorFields.length = 1;
+    const symbolFields = ["businessName", "category"] as unknown as LeadSourceAdapterManifest["allowedFields"];
+    Object.defineProperty(symbolFields, Symbol("hidden"), { value: true, enumerable: true });
+
+    expect(validateLeadSourceManifest({
+      ...approvedManifest(), allowedFields: accessorFields as LeadSourceAdapterManifest["allowedFields"],
+    })).toContain("A source adapter manifest must be a plain data object with only supported own fields.");
+    expect(validateLeadSourceManifest({
+      ...approvedManifest(), allowedFields: symbolFields,
+    })).toContain("A source adapter manifest must be a plain data object with only supported own fields.");
+    expect(getterInvoked).toBe(false);
+  });
+
   it("attaches reviewed provenance and trims allowlisted candidate fields", () => {
     const result = attributeLeadSourceCandidates(approvedManifest(), [{
       businessName: "  Example Builder  ", category: "  Builder ", location: "  Edinburgh ",
