@@ -96,6 +96,7 @@
 - [x] Reject oversized raw AI draft context fields before scanning or provider calls, with explicit per-field limits matching the outbound context schema.
 - [x] Snapshot AI provider response envelopes, candidates, content and text parts through plain-object data descriptors; validate dense bounded arrays and reject accessor-backed fields, symbols, and extended arrays before parsing.
 - [x] Accept valid multi-digit dense-array indices in AI provider response validation, with regression coverage for eleven text parts.
+- [x] Request exactly one AI draft candidate and reject ambiguous multi-candidate responses instead of silently choosing the first.
 - Server-side Gemini classification and draft generation with schema validation.
 - Prompt-injection protections, per-organisation usage limits, and human approval.
 - No automated outreach sending in the MVP.
