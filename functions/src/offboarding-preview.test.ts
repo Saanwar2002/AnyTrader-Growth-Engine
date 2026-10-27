@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   createOffboardingPreview,
@@ -30,6 +32,17 @@ describe("non-destructive tenant offboarding preview", () => {
 
   it("includes organisation-scoped member-addition idempotency records in the inventory", () => {
     expect(OFFBOARDING_PREVIEW_CATEGORIES).toContain("memberAdditionIdempotency");
+  });
+
+  it("keeps every offboarding category in the schema-backed privacy inventory", () => {
+    const privacyInventory = readFileSync(
+      fileURLToPath(new URL("../../docs/PRIVACY_DATA_RETENTION_AND_OFFBOARDING.md", import.meta.url)),
+      "utf8",
+    );
+    for (const category of OFFBOARDING_PREVIEW_CATEGORIES) {
+      expect(privacyInventory, `privacy inventory includes ${category}`)
+        .toContain(`organisations/{organisationId}/${category}/`);
+    }
   });
 
   it("includes canonical lead identifier reservations in the explicit tenant inventory", () => {
