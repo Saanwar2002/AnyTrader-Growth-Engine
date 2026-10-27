@@ -1,3 +1,11 @@
+## AutoPilot continuation — denied offboarding previews do not consume quota (2026-10-27)
+
+- Extended the emulator regression to assert admin, member, and viewer attempts to access owner-only offboarding preview leave each caller's read-rate-limit count unchanged.
+- Protects the authorization-before-quota ordering; owner preview remains read-only and no deletion workflow is introduced.
+- Synthetic emulator data only. No production migration, deployment, billing changes, production data, or outreach.
+
+---
+
 ## AutoPilot continuation — offboarding preview owner-only role coverage (2026-10-27)
 
 - Added emulator assertions that admin, member, and viewer roles are denied access to the owner-only `previewOrganisationOffboarding` callable.
