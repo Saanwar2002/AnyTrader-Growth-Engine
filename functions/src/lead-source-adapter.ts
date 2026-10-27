@@ -536,6 +536,7 @@ export class LeadSourceAdapterRunGuard<TCursor = string> {
   private lastRequestTimestamp: number | null = null;
   private requestCount = 0;
   private requestAwaitingResult = false;
+  private pendingRequestCursorKey: string | undefined;
 
   constructor(manifest: LeadSourceAdapterManifest) {
     // A caller must not be able to expand permissions or limits mid-run by
@@ -551,7 +552,7 @@ export class LeadSourceAdapterRunGuard<TCursor = string> {
    * Record a provider request immediately before issuing it. Reuse the same
    * guard for the whole discovery run; this method performs no network I/O.
    */
-  recordRequest(now: Date = new Date()): void {
+  recordRequest(now: Date = new Date(), requestCursor?: unknown): void {
     if (!(now instanceof Date) || !Number.isFinite(now.getTime())) {
       throw new Error("Lead source request validation clock must be a valid date.");
     }
@@ -564,6 +565,17 @@ export class LeadSourceAdapterRunGuard<TCursor = string> {
     const timestamp = now.getTime();
     if (this.lastRequestTimestamp !== null && timestamp < this.lastRequestTimestamp) {
       throw new Error("Lead source request validation clock must not move backwards.");
+    }
+    let requestCursorKey: string | undefined;
+    if (requestCursor !== undefined && requestCursor !== null) {
+      const normalizedCursor = normalizeBoundedSerializableCursor(requestCursor);
+      if (!normalizedCursor.valid) {
+        throw new Error("Lead source request cursor must be JSON-serializable and at most 2048 characters.");
+      }
+      requestCursorKey = serializeCursorForCycleDetection(normalizedCursor.value);
+      if (typeof requestCursorKey !== "string") {
+        throw new Error("Lead source request cursor is not serializable.");
+      }
     }
     this.lastRequestTimestamp = timestamp;
 
@@ -580,6 +592,7 @@ export class LeadSourceAdapterRunGuard<TCursor = string> {
     this.requestTimestamps.push(timestamp);
     this.requestCount += 1;
     this.requestAwaitingResult = true;
+    this.pendingRequestCursorKey = requestCursorKey;
   }
 
   /** Mark a failed provider call so the next bounded request can be attempted. */
@@ -588,6 +601,7 @@ export class LeadSourceAdapterRunGuard<TCursor = string> {
       throw new Error("Lead source run has no outstanding provider request to resolve.");
     }
     this.requestAwaitingResult = false;
+    this.pendingRequestCursorKey = undefined;
   }
 
   /**
@@ -607,7 +621,7 @@ export class LeadSourceAdapterRunGuard<TCursor = string> {
     }
     const requestedAt = clock();
     const validatedRequest = validateLeadSourcePageRequest<TCursor>(request, this.manifest, requestedAt);
-    this.recordRequest(requestedAt);
+    this.recordRequest(requestedAt, validatedRequest.cursor);
 
     let response: unknown;
     try {
@@ -636,6 +650,9 @@ export class LeadSourceAdapterRunGuard<TCursor = string> {
     // The provider response consumes the outstanding request even if its page
     // later fails validation; callers must not reuse one request for two pages.
     this.requestAwaitingResult = false;
+    // Consume the cursor association even when the response later fails validation.
+    const requestCursorKey = this.pendingRequestCursorKey;
+    this.pendingRequestCursorKey = undefined;
     const page = validateAndAttributeLeadSourcePage<TCursor>(value, this.manifest, collectedAt, now);
     if (this.acceptedRecordCount + page.records.length > this.manifest.maxRecordsPerRun) {
       throw new Error("Lead source run exceeded its configured total record limit.");
@@ -656,7 +673,7 @@ export class LeadSourceAdapterRunGuard<TCursor = string> {
       const serializedCursor = serializeCursorForCycleDetection(page.nextCursor);
       if (typeof serializedCursor !== "string") throw new Error("Lead source next cursor is not serializable.");
       nextCursorKey = serializedCursor;
-      if (this.seenNextCursors.has(nextCursorKey)) {
+      if (nextCursorKey === requestCursorKey || this.seenNextCursors.has(nextCursorKey)) {
         throw new Error("Lead source pagination repeated a next cursor.");
       }
     }

@@ -80,6 +80,7 @@
 - [x] Provide a single pure helper that validates each bounded adapter page and cursor, validates/maps every candidate against the approved manifest, and attaches provenance before returning the page; regression tests cover valid normalization and malformed/disallowed records.
 - [x] Validate bounded page cursors as strict JSON-safe values and pass adapters detached normalized cursor values; regression tests reject lossy, cyclic, sparse, and non-plain cursor data. This contract does not approve or connect any provider.
 - [x] Canonicalize normalized pagination cursor keys recursively so equivalent JSON object cursors with different property order cannot bypass repeat-cursor detection.
+- [x] Reject stalled pagination when a provider returns the same normalized cursor it was given, including object cursors with reordered keys.
 - Provider-neutral adapter interface and provenance for each record.
 - Only APIs/providers whose terms permit the intended use.
 - Document permissions, rate limits, lawful basis/review status, and retention for each source.
