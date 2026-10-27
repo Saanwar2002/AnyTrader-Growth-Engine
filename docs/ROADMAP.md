@@ -147,6 +147,7 @@
 - [x] Harden organisation-creation idempotency replay responses with an exact key set, original actor/request/name binding, and a re-check of persisted owner membership and organisation name.
 - [x] Harden lead-creation idempotency replay responses with an exact key set and original actor/request/payload binding; compare persisted score, score reasons, contact-safety flags, and creation fields before replay.
 - [x] Validate persisted lead-identifier reservation schema version, identifier type, lead ID, and allowed data-descriptor shape before using reservation state for duplicate/conflict decisions.
+- [x] Snapshot persisted security audit event envelopes through exact own data descriptors before reading authorization/audit fields; normalize metadata before returning audit pages.
 - [x] Snapshot lead-creation replay envelopes, results, persisted records and bounded score-reason arrays via own data descriptors; reject accessor-backed, symbol, hidden, sparse, extended-array and non-plain shapes without executing getters.
 - [x] Harden CSV-import idempotency replay with an exact bounded response shape, unique lead IDs, consistent import totals, and tenant/campaign/creator/contact-suppression checks against persisted imported leads.
 - [x] Make repeated lead-status updates retry-safe no-ops after authorization, contact-restriction, campaign and status validation, preventing duplicate activity/audit events and unnecessary quota consumption.
