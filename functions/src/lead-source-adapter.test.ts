@@ -154,6 +154,18 @@ describe("lead source bounded page contract", () => {
     }, manifest, now)).toThrow("page limit exceeds the configured bound");
   });
 
+  it("rejects oversized and non-serializable page cursors", () => {
+    expect(() => validateLeadSourcePageRequest({
+      category: "builders", location: "Edinburgh", limit: 1, cursor: "x".repeat(2049),
+    }, manifest, now)).toThrow("cursor must be JSON-serializable and at most 2048 characters");
+
+    const circular: Record<string, unknown> = {};
+    circular.self = circular;
+    expect(() => validateLeadSourcePageRequest({
+      category: "builders", location: "Edinburgh", limit: 1, cursor: circular,
+    }, manifest, now)).toThrow("cursor must be JSON-serializable and at most 2048 characters");
+  });
+
   it("copies bounded page results and allowlists the cursor field", () => {
     const records = [{ businessName: "A" }, { businessName: "B" }];
     const result = validateLeadSourcePageResult({
