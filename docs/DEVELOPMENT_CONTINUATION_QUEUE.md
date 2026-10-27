@@ -1,3 +1,11 @@
+## AutoPilot continuation — refresh production-readiness evidence (2026-10-27)
+
+- Added a dated addendum to the production-readiness audit with the current main checkpoint and the latest green post-merge CI run, including emulator smoke tests.
+- Summarized repository-only hardening since the previous audit checkpoint while explicitly preserving the NOT PRODUCTION READY decision and external release blockers.
+- Evidence-only documentation change. No deployment, live data, migration, billing activation, provider connection, or outreach.
+
+---
+
 ## AutoPilot continuation — reject ambiguous AI draft candidates (2026-10-27)
 
 - Explicitly request one Gemini candidate and reject successful provider payloads containing zero or multiple candidates rather than silently selecting the first of an ambiguous response.
