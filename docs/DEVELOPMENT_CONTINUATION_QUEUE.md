@@ -1,3 +1,11 @@
+## AutoPilot continuation — snapshot membership authorization fields (2026-10-27)
+
+- Membership UID/role validation now reads both authorization-critical values from own enumerable data descriptors and rejects accessor-backed or non-plain membership records without invoking getters.
+- Owner-role consistency checks use the same snapshot rather than re-reading `role`, closing time-of-check/time-of-use behavior from unstable getters.
+- Added own/inherited accessor non-execution regressions. No production membership records were changed; no deployment, migration, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — harden rate-limit persisted state shapes (2026-10-27)
 
 - `evaluateRateLimit` now accepts only plain/null-prototype state records with required `windowStartedAtMs`/`count` and optional known Firestore `updatedAt`/`expireAt` metadata; every present field must be an enumerable own data property.
