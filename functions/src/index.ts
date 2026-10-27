@@ -719,7 +719,8 @@ export const listOrganisationSecurityAuditEvents = onCall(callableOptions, async
     const resourceType = event.resourceType;
     const metadata = event.metadata;
     const createdAt = safeTimestampToIso(event.createdAt);
-    if (event.organisationId !== organisationId
+    if (event.schemaVersion !== 1
+      || event.organisationId !== organisationId
       || typeof event.actorUid !== "string" || !isValidDocumentId(event.actorUid)
       || typeof event.resourceId !== "string" || !isValidDocumentId(event.resourceId)
       || typeof eventType !== "string" || !Object.prototype.hasOwnProperty.call(AUDIT_EVENT_RESOURCE_TYPES, eventType)
