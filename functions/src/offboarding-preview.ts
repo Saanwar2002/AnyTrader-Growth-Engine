@@ -14,6 +14,7 @@ export const OFFBOARDING_PREVIEW_CATEGORIES = [
   "outreachDrafts",
   "securityAuditEvents",
   "campaignCreationIdempotency",
+  "memberAdditionIdempotency",
   "importIdempotency",
   "leadCreationIdempotency",
   "leadBulkStatusIdempotency",
