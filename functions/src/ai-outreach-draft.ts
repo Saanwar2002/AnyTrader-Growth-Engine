@@ -42,7 +42,11 @@ export async function generateAiOutreachDraftSuggestion(context: AiOutreachDraft
   if (!options || typeof options !== "object" || Array.isArray(options)) {
     throw new Error("AI draft options are invalid.");
   }
-  if (typeof options.apiKey !== "string" || !options.apiKey.trim()) throw new Error("AI draft assistance is not configured.");
+  if (typeof options.apiKey !== "string") throw new Error("AI draft assistance is not configured.");
+  const apiKey = options.apiKey.trim();
+  if (!apiKey || /[\u0000-\u0020\u007F]/.test(apiKey)) {
+    throw new Error("AI draft assistance is not configured.");
+  }
   if (options.model !== undefined && typeof options.model !== "string") {
     throw new Error("Configured AI model name is invalid.");
   }
@@ -75,7 +79,7 @@ export async function generateAiOutreachDraftSuggestion(context: AiOutreachDraft
     let response: Response;
     try {
       response = await fetcher(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-        method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": options.apiKey },
+        method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": apiKey },
         signal: controller.signal,
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: systemInstruction }] },
