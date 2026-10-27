@@ -41,6 +41,24 @@ describe("non-destructive tenant offboarding preview", () => {
     ]));
   });
 
+
+  it("keeps frontend and backend offboarding category inventories exactly aligned", () => {
+    const frontendSource = readFileSync(new URL("../../src/backendApi.ts", import.meta.url), "utf8");
+    const backendSource = readFileSync(new URL("./offboarding-preview.ts", import.meta.url), "utf8");
+
+    const frontendMatch = frontendSource.match(/export type OffboardingPreviewCategory = ([^;]+);/);
+    const backendMatch = backendSource.match(/export const OFFBOARDING_PREVIEW_CATEGORIES = \[([\s\S]*?)\] as const;/);
+    expect(frontendMatch, "frontend offboarding category type exists").not.toBeNull();
+    expect(backendMatch, "backend offboarding category allow-list exists").not.toBeNull();
+
+    const frontendCategories = [...frontendMatch![1].matchAll(/"([^"]+)"/g)].map((match) => match[1]).sort();
+    const backendCategories = [...backendMatch![1].matchAll(/"([^"]+)"/g)].map((match) => match[1]).sort();
+
+    expect(new Set(frontendCategories).size, "frontend category names are unique").toBe(frontendCategories.length);
+    expect(new Set(backendCategories).size, "backend category names are unique").toBe(backendCategories.length);
+    expect(frontendCategories).toEqual(backendCategories);
+  });
+
   it("keeps every offboarding category in the schema-backed privacy inventory", () => {
     const privacyInventory = readFileSync(
       fileURLToPath(new URL("../../docs/PRIVACY_DATA_RETENTION_AND_OFFBOARDING.md", import.meta.url)),

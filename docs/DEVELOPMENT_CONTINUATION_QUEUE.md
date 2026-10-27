@@ -1,3 +1,11 @@
+## AutoPilot continuation — guard frontend/backend offboarding category parity (2026-10-27)
+
+- Added a Functions source-contract regression that reads the frontend `OffboardingPreviewCategory` union and backend offboarding allow-list and asserts exact category equality.
+- The test rejects duplicate category names on either side so additions, removals, or duplicates are caught in CI even if fixtures do not exercise the affected category.
+- Test-only change; no production configuration, deployment, migration, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — preserve partial offboarding preview counts on read failure (2026-10-27)
 
 - Fixed the preview's failure path so an error on a later page retains the number of records already observed instead of resetting the display count to zero.
