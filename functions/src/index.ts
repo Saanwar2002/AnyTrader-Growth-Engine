@@ -718,6 +718,7 @@ export const listOrganisationSecurityAuditEvents = onCall(callableOptions, async
     const eventType = event.eventType;
     const resourceType = event.resourceType;
     const metadata = event.metadata;
+    const createdAt = safeTimestampToIso(event.createdAt);
     if (event.organisationId !== organisationId
       || typeof event.actorUid !== "string" || !isValidDocumentId(event.actorUid)
       || typeof event.resourceId !== "string" || !isValidDocumentId(event.resourceId)
@@ -727,7 +728,7 @@ export const listOrganisationSecurityAuditEvents = onCall(callableOptions, async
       || event.outcome !== "success"
       || !metadata || typeof metadata !== "object" || Array.isArray(metadata)
       || !isBoundedAuditMetadata(eventType as SecurityAuditEventType, metadata as SecurityAuditEventMetadata)
-      || !event.createdAt || typeof event.createdAt.toDate !== "function") {
+      || createdAt === null) {
       throw new HttpsError("failed-precondition", "A security audit event is invalid and requires operator review.");
     }
     return {
@@ -738,7 +739,7 @@ export const listOrganisationSecurityAuditEvents = onCall(callableOptions, async
       resourceId: event.resourceId,
       outcome: "success" as const,
       metadata: metadata as SecurityAuditEventMetadata,
-      createdAt: safeTimestampToIso(event.createdAt),
+      createdAt,
     };
   });
 
