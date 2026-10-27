@@ -15,6 +15,7 @@ import { getValidImportReplayResult, isPersistedImportedLeadReplayAvailable } fr
 import * as logger from "firebase-functions/logger";
 import { canonicalLeadBusinessLocationKey, canonicalLeadEmailKey, canonicalLeadWebsiteKey } from "./lead-identifiers";
 import { getValidLeadIdentifierReservationState } from "./lead-identifier-reservation-state";
+import { snapshotPersistedSecurityAuditEvent } from "./security-audit-event-shape";
 import { createOffboardingPreview, OFFBOARDING_PREVIEW_CATEGORIES } from "./offboarding-preview";
 import { PILOT_PLAN, resolvePlanPolicy } from "./entitlements";
 import { currentAiUsagePeriod, reservePlanUsage, resolvePlanUsageState, type PlanUsageState } from "./usage-accounting";
@@ -864,10 +865,16 @@ export const listOrganisationSecurityAuditEvents = onCall(callableOptions, async
   const page = await query.limit(51).get();
   const eventDocuments = page.docs.slice(0, 50);
   const events = eventDocuments.map((document) => {
-    const event = document.data() ?? {};
+    const event = snapshotPersistedSecurityAuditEvent(document.data());
+    if (!event) {
+      throw new HttpsError("failed-precondition", "A security audit event is invalid and requires operator review.");
+    }
     const eventType = event.eventType;
     const resourceType = event.resourceType;
-    const metadata = event.metadata;
+    const normalizedMetadata = typeof eventType === "string"
+      && Object.prototype.hasOwnProperty.call(AUDIT_EVENT_RESOURCE_TYPES, eventType)
+      ? normalizeBoundedAuditMetadata(eventType as SecurityAuditEventType, event.metadata as SecurityAuditEventMetadata)
+      : null;
     const createdAt = safeTimestampToIso(event.createdAt);
     if (event.schemaVersion !== 1
       || event.organisationId !== organisationId
@@ -877,8 +884,7 @@ export const listOrganisationSecurityAuditEvents = onCall(callableOptions, async
       || typeof resourceType !== "string"
       || AUDIT_EVENT_RESOURCE_TYPES[eventType as SecurityAuditEventType] !== resourceType
       || event.outcome !== "success"
-      || !metadata || typeof metadata !== "object" || Array.isArray(metadata)
-      || !isBoundedAuditMetadata(eventType as SecurityAuditEventType, metadata as SecurityAuditEventMetadata)
+      || !normalizedMetadata
       || createdAt === null) {
       throw new HttpsError("failed-precondition", "A security audit event is invalid and requires operator review.");
     }
@@ -889,7 +895,7 @@ export const listOrganisationSecurityAuditEvents = onCall(callableOptions, async
       resourceType,
       resourceId: event.resourceId,
       outcome: "success" as const,
-      metadata: metadata as SecurityAuditEventMetadata,
+      metadata: normalizedMetadata,
       createdAt,
     };
   });
