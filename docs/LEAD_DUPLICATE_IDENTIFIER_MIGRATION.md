@@ -74,3 +74,17 @@ Apply mode fails closed when the scan reaches its record budget, any malformed s
 `functions/scripts/seed-emulator-legacy-lead.mjs` creates a synthetic mixed-case legacy record for the emulator smoke suite. CI seeds it, runs the backfill harness, and verifies a subsequent import skips it through canonical indexed lookups.
 
 **This is not a production migration tool.** Legacy cloud records remain only partially covered until a separately reviewed, project-specific migration adapter is approved, run with least-privilege credentials, and verified against a complete pre/post audit. No live database migration or production rollout is authorized by this harness.
+
+
+## Read-only reservation integrity audit
+
+`functions/src/lead-identifier-reservation-audit.ts` compares a complete lead inventory with the organisation's `leadIdentifierReservations` documents. It reports missing, orphaned, mismatched, malformed and unverifiable reservations plus duplicate canonical identifier groups. Output includes document IDs and SHA-256 fingerprints only; it never emits raw contact values. Reservations linked to malformed lead records are marked unverifiable rather than falsely labelled orphaned.
+
+The CLI `functions/scripts/audit-lead-identifier-reservations.mjs` is bounded and deliberately **local-emulator-only**. It refuses cloud Firestore targets and performs no writes. Run from the repository root after building Functions and starting the local Firestore emulator:
+
+```bash
+npm --prefix functions run build
+node functions/scripts/audit-lead-identifier-reservations.mjs --organisation-id <organisationId> --page-size 100 --max-records 5000
+```
+
+The lead scan is capped at `--max-records`; the reservation scan is capped at three times that budget. A full final page is conservatively treated as truncated. If either scan is incomplete, the tool emits no cross-inventory findings and exits with code 2; increase the budget and rerun. Findings are diagnostic only and never authorize repair, deletion, backfill, production access, or outreach.
