@@ -75,6 +75,36 @@ describe("AI outreach draft validation", () => {
       expect(fetcher).not.toHaveBeenCalled();
     },
   );
+  it("rejects blank context fields and trims surrounding whitespace before sending", async () => {
+    for (const field of ["businessName", "category", "location", "brand", "campaignGoal", "organisationName"] as const) {
+      const malformed = { ...context, [field]: "   " };
+      const fetcher = vi.fn<typeof fetch>();
+      await expect(generateAiOutreachDraftSuggestion(malformed, { apiKey: "key", fetcher }))
+        .rejects.toThrow("context fields must not be blank");
+      expect(fetcher).not.toHaveBeenCalled();
+    }
+
+    const fetcher = vi.fn<typeof fetch>(async (_input, init) => {
+      const request = JSON.parse(String(init?.body));
+      expect(JSON.parse(request.contents[0].parts[0].text)).toEqual({
+        businessName: context.businessName,
+        category: context.category,
+        location: context.location,
+        brand: context.brand,
+        campaignGoal: context.campaignGoal,
+        organisationName: context.organisationName,
+      });
+      return okResponse(JSON.stringify({ subject: "Provider invitation", body: "May we share details?" }));
+    });
+    await generateAiOutreachDraftSuggestion({
+      businessName: " North Star Decorators ",
+      category: " Decorators ",
+      location: " Edinburgh ",
+      brand: " AnyTrader ",
+      campaignGoal: " Invite local providers to join ",
+      organisationName: " Pilot workspace ",
+    }, { apiKey: "key", fetcher });
+  });
   it("rejects deceptive control characters in context before calling the provider", async () => {
     for (const field of ["businessName", "category", "location", "brand", "campaignGoal", "organisationName"] as const) {
       const malformed = { ...context, [field]: `unsafe \u202E text` };

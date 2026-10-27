@@ -32,8 +32,11 @@ export async function generateAiOutreachDraftSuggestion(context: AiOutreachDraft
     || typeof context.organisationName !== "string") {
     throw new Error("AI draft context is invalid.");
   }
-  if ([context.businessName, context.category, context.location, context.brand, context.campaignGoal, context.organisationName]
-    .some((value) => UNSAFE_CONTEXT_CONTROLS.test(value))) {
+  const contextValues = [context.businessName, context.category, context.location, context.brand, context.campaignGoal, context.organisationName];
+  if (contextValues.some((value) => !value.trim())) {
+    throw new Error("AI draft context fields must not be blank.");
+  }
+  if (contextValues.some((value) => UNSAFE_CONTEXT_CONTROLS.test(value))) {
     throw new Error("AI draft context contains unsupported control characters.");
   }
   if (!options || typeof options !== "object" || Array.isArray(options)) {
@@ -64,9 +67,9 @@ export async function generateAiOutreachDraftSuggestion(context: AiOutreachDraft
     "Return plain-text subject and body in the required JSON schema. Do not send or schedule any message.",
   ].join(" ");
   const safeContext = {
-    businessName: context.businessName.slice(0, 160), category: context.category.slice(0, 100),
-    location: context.location.slice(0, 160), brand: context.brand.slice(0, 100),
-    campaignGoal: context.campaignGoal.slice(0, 300), organisationName: context.organisationName.slice(0, 100),
+    businessName: context.businessName.trim().slice(0, 160), category: context.category.trim().slice(0, 100),
+    location: context.location.trim().slice(0, 160), brand: context.brand.trim().slice(0, 100),
+    campaignGoal: context.campaignGoal.trim().slice(0, 300), organisationName: context.organisationName.trim().slice(0, 100),
   };
   try {
     let response: Response;
