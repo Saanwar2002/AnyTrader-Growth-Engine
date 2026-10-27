@@ -1,3 +1,12 @@
+## AutoPilot continuation — preserve partial offboarding preview counts on read failure (2026-10-27)
+
+- Fixed the preview's failure path so an error on a later page retains the number of records already observed instead of resetting the display count to zero.
+- Added a regression where the first page succeeds and the second page fails; the category remains `unavailable` with `exactCount: null` and the partial observed count preserved. The overall preview still fails closed as incomplete.
+- Based on verified main checkpoint `49bc8e6c98fe416f7cb4bf6bea6a827a47f65c6c`, whose post-merge CI run `40508525068` passed both jobs.
+- No deletion, production migration, deployment, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — refresh readiness checkpoint after frontend offboarding contract fix (2026-10-27)
 
 - Updated the production-readiness audit and security gate to `73e3b04fb05c3ea18aaf1de49edd9ee3980b7160`.
