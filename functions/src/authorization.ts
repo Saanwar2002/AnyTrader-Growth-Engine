@@ -305,15 +305,25 @@ export function evaluateRateLimit(state: unknown, nowMs: number, maxRequests: nu
   }
   if (typeof state !== "object" || Array.isArray(state)) return { allowed: false, invalidState: true, nextState: null, retryAfterMs: 0 };
   try {
-    const value = state as Record<string, unknown>;
-    // Persisted quota fields must be explicit record fields, not inherited values.
-    if (!Object.prototype.hasOwnProperty.call(value, "windowStartedAtMs")
-      || !Object.prototype.hasOwnProperty.call(value, "count")) {
+    const prototype = Object.getPrototypeOf(state);
+    if (prototype !== Object.prototype && prototype !== null) {
       return { allowed: false, invalidState: true, nextState: null, retryAfterMs: 0 };
     }
-    // Treat hostile/malformed accessors like any other invalid persisted state.
-    const started = value.windowStartedAtMs;
-    const count = value.count;
+    const keys = Reflect.ownKeys(state);
+    if (keys.length !== 2 || keys.some((key) => key !== "windowStartedAtMs" && key !== "count")) {
+      return { allowed: false, invalidState: true, nextState: null, retryAfterMs: 0 };
+    }
+    // Read persisted quota state only through enumerable own data descriptors.
+    // This rejects getters, symbols, hidden/extra fields, class instances, and
+    // proxy traps without evaluating caller-controlled property accessors.
+    const startedDescriptor = Object.getOwnPropertyDescriptor(state, "windowStartedAtMs");
+    const countDescriptor = Object.getOwnPropertyDescriptor(state, "count");
+    if (!startedDescriptor || !startedDescriptor.enumerable || !("value" in startedDescriptor)
+      || !countDescriptor || !countDescriptor.enumerable || !("value" in countDescriptor)) {
+      return { allowed: false, invalidState: true, nextState: null, retryAfterMs: 0 };
+    }
+    const started = startedDescriptor.value;
+    const count = countDescriptor.value;
     if (typeof started !== "number" || !Number.isSafeInteger(started) || started < 0 || typeof count !== "number" || !Number.isSafeInteger(count) || count < 1 || count > maxRequests) {
       return { allowed: false, invalidState: true, nextState: null, retryAfterMs: 0 };
     }
