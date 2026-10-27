@@ -1,3 +1,11 @@
+## AutoPilot continuation — fix multi-digit AI provider array indices (2026-10-27)
+
+- Corrected the dense-array own-index validation expression so valid numeric indices with two or more digits are accepted, consistent with the 2,048-item bound.
+- Added a synthetic regression with eleven provider text parts, exercising index `10` while verifying the combined draft still validates.
+- No real model calls, live data, deployment, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — report AI provider body-read timeouts accurately (2026-10-27)
 
 - If the shared AbortController fires while streaming the Gemini response body, report the same sanitized timeout error used for stalled request establishment instead of misclassifying it as a generic body-read failure.
