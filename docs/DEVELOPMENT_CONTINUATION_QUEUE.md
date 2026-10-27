@@ -1,3 +1,11 @@
+## AutoPilot continuation — reject duplicate provider record identifiers (2026-10-27)
+
+- Added a bounded in-memory uniqueness check for optional provider `sourceRecordId` values within one attribution batch.
+- Compare trimmed IDs so whitespace variants cannot represent the same external record twice; added regression coverage and documented the contract.
+- Pure contract change only. No provider integration, network access, live source, import, production migration, deployment, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — reject future lead-source collection timestamps (2026-10-27)
 
 - Tightened the provider-neutral lead-source contract so provenance collection timestamps cannot be in the future relative to an injectable validation clock.
