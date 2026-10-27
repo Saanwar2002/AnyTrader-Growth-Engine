@@ -214,6 +214,17 @@ export function validateLeadSourcePageRequest<TCursor = string>(
     || (request.limit as number) > manifest.maxRecordsPerRun) {
     throw new Error("Lead source page limit exceeds the configured bound.");
   }
+  if (Object.prototype.hasOwnProperty.call(request, "cursor") && request.cursor !== undefined) {
+    let serializedCursor: string | undefined;
+    try {
+      serializedCursor = JSON.stringify(request.cursor);
+    } catch {
+      throw new Error("Lead source cursor must be JSON-serializable and at most 2048 characters.");
+    }
+    if (typeof serializedCursor !== "string" || serializedCursor.length > 2048) {
+      throw new Error("Lead source cursor must be JSON-serializable and at most 2048 characters.");
+    }
+  }
   return {
     category: request.category.trim(),
     location: request.location.trim(),
