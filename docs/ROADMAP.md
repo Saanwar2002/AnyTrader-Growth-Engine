@@ -139,6 +139,7 @@
 - [x] Require the exact event-specific security-audit metadata key set when writing and reading persisted events; reject missing required flags as well as unexpected keys and malformed containers.
 - [x] Reject accessor-backed, symbol/hidden-field, class-instance, and hostile-proxy audit metadata containers through own data-descriptor validation without invoking getters.
 - [x] Serialize persisted timestamp-like values without invoking accessor-backed `toDate` properties; resolve inherited data methods safely and use intrinsic Date serialization methods.
+- [x] Validate persisted rate-limit state through own enumerable data descriptors; require counter fields, allow only known `updatedAt`/`expireAt` persistence metadata, and reject accessors, symbols, hidden/unknown keys, class instances, and hostile inspection traps without invoking getters.
 - [x] Validate Firestore cursor timestamp `toMillis` methods through data descriptors across the prototype chain, rejecting own or inherited accessors without executing them.
 - [x] Harden campaign-creation idempotency replay records: require the exact saved response shape, original actor/request fingerprint and payload, then re-check persisted tenant-contained campaign ownership and immutable creation fields.
 - [x] Harden organisation-creation idempotency replay responses with an exact key set, original actor/request/name binding, and a re-check of persisted owner membership and organisation name.

@@ -305,15 +305,34 @@ export function evaluateRateLimit(state: unknown, nowMs: number, maxRequests: nu
   }
   if (typeof state !== "object" || Array.isArray(state)) return { allowed: false, invalidState: true, nextState: null, retryAfterMs: 0 };
   try {
-    const value = state as Record<string, unknown>;
-    // Persisted quota fields must be explicit record fields, not inherited values.
-    if (!Object.prototype.hasOwnProperty.call(value, "windowStartedAtMs")
-      || !Object.prototype.hasOwnProperty.call(value, "count")) {
+    const prototype = Object.getPrototypeOf(state);
+    if (prototype !== Object.prototype && prototype !== null) {
       return { allowed: false, invalidState: true, nextState: null, retryAfterMs: 0 };
     }
-    // Treat hostile/malformed accessors like any other invalid persisted state.
-    const started = value.windowStartedAtMs;
-    const count = value.count;
+    const keys = Reflect.ownKeys(state);
+    const allowedKeys = new Set(["windowStartedAtMs", "count", "updatedAt", "expireAt"]);
+    if (keys.length < 2 || keys.length > allowedKeys.size
+      || keys.some((key) => typeof key !== "string" || !allowedKeys.has(key))
+      || !keys.includes("windowStartedAtMs") || !keys.includes("count")) {
+      return { allowed: false, invalidState: true, nextState: null, retryAfterMs: 0 };
+    }
+    // Firestore persistence adds updatedAt/expireAt metadata. Permit only
+    // those known fields, and require every present field to be an enumerable
+    // own data property so getters, symbols, hidden/extra keys, and proxies fail closed.
+    for (const key of keys) {
+      const descriptor = Object.getOwnPropertyDescriptor(state, key);
+      if (!descriptor || !descriptor.enumerable || !("value" in descriptor)) {
+        return { allowed: false, invalidState: true, nextState: null, retryAfterMs: 0 };
+      }
+    }
+    const startedDescriptor = Object.getOwnPropertyDescriptor(state, "windowStartedAtMs");
+    const countDescriptor = Object.getOwnPropertyDescriptor(state, "count");
+    if (!startedDescriptor || !("value" in startedDescriptor)
+      || !countDescriptor || !("value" in countDescriptor)) {
+      return { allowed: false, invalidState: true, nextState: null, retryAfterMs: 0 };
+    }
+    const started = startedDescriptor.value;
+    const count = countDescriptor.value;
     if (typeof started !== "number" || !Number.isSafeInteger(started) || started < 0 || typeof count !== "number" || !Number.isSafeInteger(count) || count < 1 || count > maxRequests) {
       return { allowed: false, invalidState: true, nextState: null, retryAfterMs: 0 };
     }

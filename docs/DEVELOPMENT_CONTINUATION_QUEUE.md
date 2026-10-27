@@ -1,3 +1,11 @@
+## AutoPilot continuation — harden rate-limit persisted state shapes (2026-10-27)
+
+- `evaluateRateLimit` now accepts only plain/null-prototype state records with required `windowStartedAtMs`/`count` and optional known Firestore `updatedAt`/`expireAt` metadata; every present field must be an enumerable own data property.
+- Accessors are rejected without execution; symbols, hidden/unknown keys, class instances, and hostile object-inspection traps fail closed as invalid persisted state. A regression also verifies known timestamp metadata is tolerated but never used for quota math.
+- Added synthetic regression coverage. No production quota records were read or changed; no deployment, billing activation, migration, or outreach.
+
+---
+
 ## AutoPilot continuation — avoid Firestore cursor timestamp accessor execution (2026-10-27)
 
 - Reuse descriptor-only prototype-chain lookup for both `toDate` and `toMillis`, preserving inherited SDK methods while rejecting accessor-backed conversion properties without executing getters.
