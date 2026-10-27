@@ -1,3 +1,11 @@
+## AutoPilot continuation — harden AI draft response object shapes (2026-10-27)
+
+- The exported AI draft validator now snapshots subject/body through own enumerable data descriptors and rejects accessors, symbol keys, unknown fields, hidden properties, arrays, and class instances without invoking getters.
+- Added synthetic regressions for unsafe response objects while preserving the existing subject/body text, HTML/control-character, length, and draft-only-marker checks.
+- No real model calls or live data; no deployment, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — verify approval expiry during in-flight source requests (2026-10-27)
 
 - Added a regression where a source is approved when the provider request starts but its approval expires before the response arrives.

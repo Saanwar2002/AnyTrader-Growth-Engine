@@ -28,6 +28,35 @@ describe("AI outreach draft validation", () => {
     expect(() => validateAiOutreachDraftSuggestion({ subject: "Hello", body: "<script>alert(1)</script>" })).toThrow("plain-text");
     expect(() => validateAiOutreachDraftSuggestion({ subject: "S", body: "x".repeat(10000) })).toThrow("allowed length");
   });
+  it("rejects unsafe AI response shapes without invoking accessors", () => {
+    let getterInvoked = false;
+    const accessorResponse = Object.defineProperty({ body: "May we share details?" }, "subject", {
+      enumerable: true,
+      get: () => { getterInvoked = true; return "Provider invitation"; },
+    });
+    const symbolResponse = {
+      subject: "Provider invitation", body: "May we share details?", [Symbol("hidden")]: true,
+    };
+    const unknownFieldResponse = {
+      subject: "Provider invitation", body: "May we share details?", internalReasoning: "hidden",
+    };
+    const nonEnumerableResponse = { body: "May we share details?" };
+    Object.defineProperty(nonEnumerableResponse, "subject", {
+      value: "Provider invitation", enumerable: false,
+    });
+    class DraftResponse {
+      subject = "Provider invitation";
+      body = "May we share details?";
+    }
+
+    for (const response of [
+      accessorResponse, symbolResponse, unknownFieldResponse, nonEnumerableResponse, new DraftResponse(),
+    ]) {
+      expect(() => validateAiOutreachDraftSuggestion(response)).toThrow("plain draft object");
+    }
+    expect(getterInvoked).toBe(false);
+  });
+
   it("rejects bidirectional override controls and non-whitespace control characters", () => {
     expect(() => validateAiOutreachDraftSuggestion({
       subject: "Provider invitation \u202Etxt",

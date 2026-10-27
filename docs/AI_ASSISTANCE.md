@@ -8,6 +8,7 @@ The authenticated `suggestOutreachDraft` callable requests a draft suggestion fr
 - Lead email, phone, internal notes, and other contact channels are not included in the model request.
 - Prompt instructions treat all supplied fields as untrusted reference data, not instructions.
 - Responses are constrained to a JSON subject/body schema and validated server-side as plain text and within the existing draft length limits.
+- The server-side validator accepts only a plain data object with the exact `subject` and `body` keys; accessor-backed, symbol-keyed, hidden, unknown-field, array, and class-instance responses are rejected without invoking getters.
 - A `DRAFT ONLY — NOT SENT.` marker is enforced.
 - The callable requires an authenticated lead editor, an existing campaign, an eligible lead that is not suppressed or awaiting contact review, and App Check outside the Functions emulator.
 - Requests are rate-limited to 10 per user per organisation per minute. Provider timeouts are bounded.

@@ -4,9 +4,26 @@ export interface AiOutreachDraftOptions { apiKey: string; model?: string; fetche
 const DRAFT_MARKER = "DRAFT ONLY — NOT SENT.";
 const UNSAFE_BIDI_CONTROLS = /[\u202A-\u202E\u2066-\u2069]/;
 const UNSAFE_CONTEXT_CONTROLS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F\u202A-\u202E\u2066-\u2069]/;
+function normalizeAiOutreachDraftResponse(value: unknown): Record<string, unknown> {
+  try {
+    if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error();
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) throw new Error();
+    const record = Object.create(null) as Record<string, unknown>;
+    for (const key of Reflect.ownKeys(value)) {
+      if (typeof key !== "string" || (key !== "subject" && key !== "body")) throw new Error();
+      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      if (!descriptor || !descriptor.enumerable || !("value" in descriptor)) throw new Error();
+      record[key] = descriptor.value;
+    }
+    return record;
+  } catch {
+    throw new Error("AI response was not a valid plain draft object.");
+  }
+}
+
 export function validateAiOutreachDraftSuggestion(value: unknown): AiOutreachDraftSuggestion {
-  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("AI response was not a draft object.");
-  const record = value as Record<string, unknown>;
+  const record = normalizeAiOutreachDraftResponse(value);
   if (typeof record.subject !== "string" || typeof record.body !== "string") throw new Error("AI response must include a subject and body.");
   const subject = record.subject.trim();
   let body = record.body.trim();
