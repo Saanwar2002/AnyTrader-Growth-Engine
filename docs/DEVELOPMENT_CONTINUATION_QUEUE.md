@@ -1,3 +1,11 @@
+## AutoPilot continuation — reject malformed offboarding preview organisation IDs (2026-10-27)
+
+- Added emulator regressions for empty, slash-containing, and traversal-like organisation identifiers sent to the owner-only offboarding preview callable.
+- Assert each invalid input fails with `invalid-argument` and leaves the owner read quota unchanged, proving validation fails before bounded inventory reads/quota consumption.
+- Synthetic emulator only. No cloud access, production migration, deployment, billing change, or outreach.
+
+---
+
 ## AutoPilot continuation — offboarding preview exhausted read quota coverage (2026-10-27)
 
 - Extended the emulator-only rate-limit seeder's operation allow-list and usage text for `previewOrganisationOffboarding`; its exhausted fixture now matches the callable's 10-request per-user/organisation ceiling.
