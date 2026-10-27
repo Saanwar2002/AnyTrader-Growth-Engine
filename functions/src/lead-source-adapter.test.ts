@@ -563,6 +563,32 @@ describe("lead source bounded page contract", () => {
     expect(callbackCalls).toBe(2);
   });
 
+  it("rejects a provider response if source approval expires while the request is in flight", async () => {
+    const expiringManifest = {
+      ...manifest,
+      approvalExpiresAt: "2027-01-01T00:00:00.000Z",
+    };
+    const guard = new LeadSourceAdapterRunGuard<string>(expiringManifest);
+    const times = [
+      new Date("2026-12-31T23:59:59.000Z"),
+      new Date("2027-01-01T00:00:01.000Z"),
+    ];
+    let clockCalls = 0;
+    let callbackCalls = 0;
+    const clock = () => times[Math.min(clockCalls++, times.length - 1)];
+    const fetchPage = async () => {
+      callbackCalls += 1;
+      return { records: [{ businessName: "Example Roofer" }], nextCursor: null };
+    };
+
+    await expect(guard.requestAndAcceptPage({
+      category: "roofers", location: "Edinburgh", limit: 1,
+    }, fetchPage, "2026-12-31T23:59:59.000Z", clock))
+      .rejects.toThrow("Approved source permission has expired");
+    expect(callbackCalls).toBe(1);
+    expect(guard.recordsAccepted).toBe(0);
+  });
+
   it("requires one recorded request per accepted page and resolves failed calls", () => {
     const guard = new LeadSourceAdapterRunGuard<string>(manifest);
     const start = new Date("2026-10-26T12:00:00.000Z");
