@@ -724,6 +724,13 @@ try {
     "importLeads",
     "expired",
   ], { stdio: "inherit" });
+  execFileSync(process.execPath, [
+    "functions/scripts/seed-emulator-rate-limit.mjs",
+    orgOne.organisationId,
+    first.auth.currentUser.uid,
+    "importLeads",
+    "reset",
+  ], { stdio: "inherit" });
   const differentKeyImportPayloads = [
     {
       organisationId: orgOne.organisationId,
