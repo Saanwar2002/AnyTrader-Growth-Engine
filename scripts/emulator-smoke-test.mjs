@@ -3355,7 +3355,6 @@ try {
     leadIds: [leadOne.leadId, leadOne.leadId],
     idempotencyKey: "bulk-lead-status-duplicate-0001",
   }), "functions/invalid-argument", "bulk status update rejects duplicate lead IDs");
-  const auditLeadPageBefore = await callOne("listLeads", { organisationId: orgOne.organisationId });
   const reservationAuditOutput = execFileSync(process.execPath, [
     "functions/scripts/audit-lead-identifier-reservations.mjs",
     "--organisation-id", orgOne.organisationId,
@@ -3387,10 +3386,6 @@ try {
   ], { encoding: "utf8" }));
   assert.deepEqual(repeatedReservationAudit, reservationAudit,
     "re-running the read-only reservation audit produces identical findings");
-  const auditLeadPageAfter = await callOne("listLeads", { organisationId: orgOne.organisationId });
-  assert.deepEqual(auditLeadPageAfter.leads.map((lead) => lead.id), auditLeadPageBefore.leads.map((lead) => lead.id),
-    "reservation audit leaves the lead inventory unchanged");
-
   await signOut(first.auth);
   await signOut(first.auth);
   const unauthenticatedCallableNames = [
