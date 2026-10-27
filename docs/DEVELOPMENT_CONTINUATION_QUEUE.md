@@ -1,3 +1,11 @@
+## AutoPilot continuation — require explicit client-side Growth Engine project allow-list (2026-10-27)
+
+- Added `VITE_GROWTH_ENGINE_FIREBASE_PROJECT_ID` as a separately declared client-side project allow-list and fail closed to demo mode when it is missing or differs from `VITE_FIREBASE_PROJECT_ID`.
+- Updated `.env.example`, README setup instructions, and the cloud release gate; added regression tests for missing, mismatched, and matching IDs.
+- This reduces accidental project-target misconfiguration but does not replace live project/App Check verification or the server-side deployment guard. No cloud configuration, deployment, migration, billing change, or outreach.
+
+---
+
 ## AutoPilot continuation — refresh production-readiness evidence after offboarding quota hardening (2026-10-27)
 
 - Updated the audit and security-gate checkpoint to `c9c63c37e63b213e05d32026668760e104ca1ea5` and recorded successful exact-PR and post-merge CI runs.
