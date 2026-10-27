@@ -15,16 +15,16 @@ describe("AI outreach draft validation", () => {
   });
   it("rejects bidirectional override controls and non-whitespace control characters", () => {
     expect(() => validateAiOutreachDraftSuggestion({
-      subject: "Provider invitation \\u202Etxt",
+      subject: "Provider invitation \u202Etxt",
       body: "May we share details?",
     })).toThrow("subject");
     expect(() => validateAiOutreachDraftSuggestion({
       subject: "Provider invitation",
-      body: "Please review this draft \\u2066with hidden direction controls\\u2069.",
+      body: "Please review this draft \u2066with hidden direction controls\u2069.",
     })).toThrow("plain-text");
     expect(() => validateAiOutreachDraftSuggestion({
       subject: "Provider invitation",
-      body: "Please review this draft\\u001B[31m.",
+      body: "Please review this draft\u001B[31m.",
     })).toThrow("plain-text");
   });
   it("uses a server-only key and schema-constrained output with minimal context", async () => {
