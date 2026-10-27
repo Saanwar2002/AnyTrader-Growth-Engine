@@ -1,3 +1,11 @@
+## AutoPilot continuation — centralize guarded lead-source page fetches (2026-10-27)
+
+- Added `requestAndAcceptPage` on the per-run guard to validate and detach the request, consume both request budgets, invoke the supplied provider callback, and validate/accept the response in one controlled sequence.
+- Invalid requests fail before callback invocation; attempted provider calls consume budget even if the callback fails or returns invalid data.
+- Regression tests verify callback ordering and that exhausted budgets prevent additional provider calls. The helper itself has no provider credentials or built-in network integration.
+
+---
+
 ## AutoPilot continuation — recheck source approval before provider requests (2026-10-27)
 
 - The per-run guard now revalidates the detached source manifest immediately before recording each request, so approval expiry or a now-invalid review timestamp blocks the request before a provider call.
