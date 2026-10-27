@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createGrowthEngineApi, type CallableInvoker } from "./backendApi";
+import { createGrowthEngineApi, type CallableInvoker, type OffboardingPreviewCategory } from "./backendApi";
 
 function makeInvoker(responses: unknown[] = []) {
   const calls: Array<{ name: string; payload: unknown }> = [];
@@ -197,6 +197,7 @@ it("requests complete server-side lead source attribution for the selected organ
 
 
 it("requests a read-only organisation offboarding inventory for the selected tenant", async () => {
+  const membershipRetryCategory: OffboardingPreviewCategory = "memberAdditionIdempotency";
   const response = {
     complete: false,
     destructiveActionPerformed: false as const,
@@ -204,6 +205,7 @@ it("requests a read-only organisation offboarding inventory for the selected ten
     categories: [
       { category: "leads" as const, status: "limit_reached" as const, exactCount: null, observedCount: 1000 },
       { category: "securityAuditEvents" as const, status: "unavailable" as const, exactCount: null, observedCount: 2 },
+      { category: membershipRetryCategory, status: "complete" as const, exactCount: 0, observedCount: 0 },
     ],
   };
   const { invoke, calls } = makeInvoker([response]);
