@@ -298,6 +298,25 @@ describe("lead source bounded page contract", () => {
     }, manifest, "2026-10-26T11:00:00.000Z", now)).toThrow("requires a valid businessName");
   });
 
+  it("rejects accessor, symbol-keyed, and non-plain provider candidate records without invoking getters", () => {
+    let getterInvoked = false;
+    const accessorCandidate = Object.defineProperty({}, "businessName", {
+      enumerable: true,
+      get: () => { getterInvoked = true; return "Unexpected Builder"; },
+    });
+    const symbolCandidate = { businessName: "Symbol Builder", [Symbol("hidden")]: "unexpected" };
+    class CandidateRecord {
+      businessName = "Class Builder";
+    }
+
+    for (const candidate of [accessorCandidate, symbolCandidate, new CandidateRecord()]) {
+      expect(() => validateAndAttributeLeadSourcePage({
+        records: [candidate],
+      }, manifest, "2026-10-26T11:00:00.000Z", now)).toThrow();
+    }
+    expect(getterInvoked).toBe(false);
+  });
+
   it("enforces the total record budget across pages in one run", () => {
     const guard = new LeadSourceAdapterRunGuard<string>({ ...manifest, maxRecordsPerRun: 2 });
     expect(guard.acceptPage({
