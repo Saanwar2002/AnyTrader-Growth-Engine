@@ -6,8 +6,8 @@ import { dirname, resolve } from "node:path";
 const here = dirname(fileURLToPath(import.meta.url));
 const cli = resolve(here, "audit-lead-identifier-reservations.mjs");
 
-function assertRefused(label, environment, expectedMessage) {
-  const result = spawnSync(process.execPath, [cli, "--organisation-id", "synthetic-org"], {
+function assertRefused(label, environment, expectedMessage, args = ["--organisation-id", "synthetic-org"]) {
+  const result = spawnSync(process.execPath, [cli, ...args], {
     encoding: "utf8",
     env: {
       ...process.env,
@@ -39,5 +39,24 @@ assertRefused(
   { projectId: "demo-growth-engine-test", emulatorHost: "firestore.example.com:8080" },
   /refuses all cloud Firestore projects/,
 );
+const safeEmulator = { projectId: "demo-growth-engine-test", emulatorHost: "127.0.0.1:8080" };
+assertRefused(
+  "invalid organisation ID",
+  safeEmulator,
+  /Usage: node functions\/scripts\/audit-lead-identifier-reservations\.mjs/,
+  ["--organisation-id", "bad/organisation"],
+);
+assertRefused(
+  "page size above the configured maximum",
+  safeEmulator,
+  /--page-size must be an integer from 1 to 200/,
+  ["--organisation-id", "synthetic-org", "--page-size", "201"],
+);
+assertRefused(
+  "record budget above the configured maximum",
+  safeEmulator,
+  /--max-records must be an integer from 1 to 20000/,
+  ["--organisation-id", "synthetic-org", "--max-records", "20001"],
+);
 
-console.log("Reservation audit CLI cloud-target guard tests passed.");
+console.log("Reservation audit CLI guard and argument validation tests passed.");
