@@ -17,7 +17,8 @@ export function validateAiOutreachDraftSuggestion(value: unknown): AiOutreachDra
     throw new Error("AI response body failed plain-text validation.");
   }
   const bodyWithoutMarker = body.replaceAll(DRAFT_MARKER, "").trim();
-  body = bodyWithoutMarker ? `${bodyWithoutMarker}\n\n${DRAFT_MARKER}` : DRAFT_MARKER;
+  if (!bodyWithoutMarker) throw new Error("AI response body must contain message text.");
+  body = `${bodyWithoutMarker}\n\n${DRAFT_MARKER}`;
   if (body.length > 10000) throw new Error("AI response body exceeds the allowed length.");
   return { subject, body };
 }
