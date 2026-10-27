@@ -98,7 +98,7 @@ function snapshotAiProviderArray(value: unknown, errorMessage: string): unknown[
   try {
     if (!Array.isArray(value) || Object.getPrototypeOf(value) !== Array.prototype) throw new Error();
     const keys = Reflect.ownKeys(value);
-    if (keys.some((key) => typeof key !== "string" || (key !== "length" && !/^(0|[1-9]\\d*)$/.test(key)))) throw new Error();
+    if (keys.some((key) => typeof key !== "string" || (key !== "length" && !/^(0|[1-9]\d*)$/.test(key)))) throw new Error();
     const lengthDescriptor = Object.getOwnPropertyDescriptor(value, "length");
     if (!lengthDescriptor || !("value" in lengthDescriptor) || !Number.isSafeInteger(lengthDescriptor.value)
       || lengthDescriptor.value < 0 || lengthDescriptor.value > 2048) throw new Error();
