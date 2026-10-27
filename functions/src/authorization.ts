@@ -3,25 +3,29 @@ import { createHash } from "node:crypto";
 export type OrganisationRole = "owner" | "admin" | "member" | "viewer";
 
 /**
+ * Resolve a property through the prototype chain using data descriptors only.
+ * This preserves SDK prototype methods without executing attacker-controlled
+ * getters on untrusted timestamp-like objects.
+ */
+function getDataPropertyWithoutAccessors(value: object, key: PropertyKey): unknown {
+  let current: object | null = value;
+  while (current !== null) {
+    const descriptor = Object.getOwnPropertyDescriptor(current, key);
+    if (descriptor) return "value" in descriptor ? descriptor.value : undefined;
+    current = Object.getPrototypeOf(current) as object | null;
+  }
+  return undefined;
+}
+
+/**
  * Safely serialize untrusted persisted timestamp-like values.
  * Malformed legacy records must not break an entire list response.
  */
 export function safeTimestampToIso(value: unknown): string | null {
   if (value === null || value === undefined || typeof value !== "object") return null;
   try {
-    // Firestore Timestamp exposes toDate on its prototype. Resolve data
-    // descriptors only so a persisted own/prototype accessor cannot execute.
-    let current: object | null = value;
-    let toDate: unknown;
-    while (current !== null) {
-      const descriptor = Object.getOwnPropertyDescriptor(current, "toDate");
-      if (descriptor) {
-        if (!("value" in descriptor)) return null;
-        toDate = descriptor.value;
-        break;
-      }
-      current = Object.getPrototypeOf(current) as object | null;
-    }
+    // Firestore Timestamp exposes toDate on its prototype; do not execute accessors.
+    const toDate = getDataPropertyWithoutAccessors(value, "toDate");
     if (typeof toDate !== "function") return null;
     const date: unknown = toDate.call(value);
     if (!(date instanceof Date)) return null;
@@ -269,8 +273,7 @@ export function isValidOrganisationCollectionPageToken(value: unknown, organisat
 export function isValidFirestoreTimestamp(value: unknown): boolean {
   if (!value || typeof value !== "object") return false;
   try {
-    const timestamp = value as { toMillis?: unknown };
-    const toMillis = timestamp.toMillis;
+    const toMillis = getDataPropertyWithoutAccessors(value, "toMillis");
     if (typeof toMillis !== "function") return false;
     const milliseconds = (toMillis as () => unknown).call(value);
     // Firestore timestamps retain nanosecond precision, so toMillis() may legitimately
