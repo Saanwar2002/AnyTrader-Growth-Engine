@@ -83,13 +83,16 @@ describe("read-only lead identifier reservation audit", () => {
     expect(report.mismatchedReservationIds).toEqual([]);
   });
 
-  it("marks malformed leads and malformed reservation envelopes without throwing", () => {
+  it("marks malformed leads and avoids calling their unverifiable reservations orphaned", () => {
+    const invalidEmailReservationId = reservationId("email", "not-an-email");
     const report = auditLeadIdentifierReservations([
       { id: "lead-valid", businessName: "Valid Business", location: "" },
       { id: "lead-malformed", email: "not-an-email", businessName: "Broken Business", location: "Leeds" },
-    ], []);
+    ], [reservation(invalidEmailReservationId, "email", "lead-malformed")]);
     expect(report.malformedLeadIds).toEqual(["lead-malformed"]);
-    expect(report.missingReservationIds).toHaveLength(1);
+    expect(report.missingReservationIds).toHaveLength(2);
+    expect(report.orphanReservationIds).toEqual([]);
+    expect(report.unverifiableReservationIds).toEqual([invalidEmailReservationId]);
     expect(() => auditLeadIdentifierReservations([null] as never, [])).toThrow("malformed lead record");
     expect(() => auditLeadIdentifierReservations([{ id: "same" }, { id: "same" }], [])).toThrow("duplicate lead ID");
     expect(() => auditLeadIdentifierReservations([], [{ id: "same" }, { id: "same" }])).toThrow("duplicate reservation ID");
