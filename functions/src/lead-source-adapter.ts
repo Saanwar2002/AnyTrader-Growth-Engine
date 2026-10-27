@@ -105,6 +105,8 @@ export function validateLeadSourceManifest(manifest: LeadSourceAdapterManifest, 
   }
   if (manifest.reviewStatus === "approved") {
     if (!isIsoDate(manifest.reviewedAt)) issues.push("Approved sources require a valid ISO-8601 reviewedAt timestamp.");
+    else if (!(now instanceof Date) || !Number.isFinite(now.getTime())) issues.push("Approval validation clock must be a valid date.");
+    else if (Date.parse(manifest.reviewedAt) > now.getTime()) issues.push("reviewedAt must not be in the future.");
     if (typeof manifest.reviewedBy !== "string" || !manifest.reviewedBy.trim()) issues.push("Approved sources require a reviewer reference.");
     if (!isIsoDate(manifest.approvalExpiresAt)) {
       issues.push("Approved sources require a valid ISO-8601 approvalExpiresAt timestamp.");
