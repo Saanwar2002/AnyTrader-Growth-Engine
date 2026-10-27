@@ -1,3 +1,12 @@
+## AutoPilot continuation — refresh readiness evidence after offboarding parity guard (2026-10-27)
+
+- Updated the production-readiness audit and security gate to current `main` checkpoint `283f30a721f9e0171d805fd4a3be1284b8572671` after PR #256 merged.
+- Recorded exact-head PR CI run `40510661633` and post-merge main CI run `40511378412`, both successful for Functions and frontend/emulator jobs.
+- Production status remains **NOT READY**: live Firebase/App Check, privacy/retention decisions, monitoring/budget alerts, backup/recovery, approved data-source configuration, and legacy reconciliation are still unverified or blocked.
+- Documentation-only. No deployment, production migration, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — guard frontend/backend offboarding category parity (2026-10-27)
 
 - Added a Functions source-contract regression that reads the frontend `OffboardingPreviewCategory` union and backend offboarding allow-list and asserts exact category equality.
