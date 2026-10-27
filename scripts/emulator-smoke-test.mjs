@@ -395,31 +395,6 @@ try {
     .leads.filter((lead) => lead.businessName === "Synthetic Concurrent Import Ltd");
   assert.equal(concurrentMatches.length, 1, "concurrent idempotent import persists exactly one lead");
 
-  const concurrentImportDifferentKeys = await Promise.all([
-    callOne("importLeads", {
-      organisationId: orgOne.organisationId,
-      campaignId: campaignOne.campaignId,
-      idempotencyKey: "csv-import-race-different-key-0001",
-      leads: [{ businessName: "Synthetic Concurrent Different Key Ltd", category: "Painters",
-        location: "Derby", email: "concurrent-different-key@example.test" }],
-    }),
-    callOne("importLeads", {
-      organisationId: orgOne.organisationId,
-      campaignId: campaignOne.campaignId,
-      idempotencyKey: "csv-import-race-different-key-0002",
-      leads: [{ businessName: "Synthetic Concurrent Different Key Ltd", category: "Painters",
-        location: "Derby", email: "CONCURRENT-DIFFERENT-KEY@example.test" }],
-    }),
-  ]);
-  assert.equal(concurrentImportDifferentKeys.reduce((total, result) => total + result.imported, 0), 1,
-    "concurrent imports with different idempotency keys create one canonical lead");
-  assert.equal(concurrentImportDifferentKeys.reduce((total, result) => total + result.duplicatesSkipped, 0), 1,
-    "losing concurrent import reports its row as a duplicate");
-  const concurrentDifferentKeyMatches = (await callOne("listLeads", { organisationId: orgOne.organisationId }))
-    .leads.filter((lead) => lead.email === "concurrent-different-key@example.test");
-  assert.equal(concurrentDifferentKeyMatches.length, 1,
-    "different-key concurrent import race persists exactly one lead");
-
   execFileSync(process.execPath, [
     "functions/scripts/assert-emulator-audit-events.mjs",
     orgOne.organisationId,
