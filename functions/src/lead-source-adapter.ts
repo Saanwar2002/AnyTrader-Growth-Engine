@@ -106,10 +106,60 @@ function normalizeBoundedSerializableCursor(value: unknown): { valid: boolean; v
     return { valid: false };
   }
 }
+const MANIFEST_KEYS = new Set([
+  "sourceId", "displayName", "termsUrl", "reviewStatus", "reviewedAt", "reviewedBy",
+  "approvalExpiresAt", "permittedPurpose", "maxRequestsPerMinute", "maxRecordsPerRun", "allowedFields",
+]);
+
+/**
+ * Copy a manifest using own property descriptors only. This prevents getters,
+ * inherited values, symbols, and unexpected properties from influencing a
+ * permission decision. Proxy traps that throw are treated as invalid input.
+ */
+function normalizeLeadSourceManifest(value: unknown): LeadSourceAdapterManifest | null {
+  try {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) return null;
+    const normalized = Object.create(null) as Record<string, unknown>;
+    for (const key of Reflect.ownKeys(value)) {
+      if (typeof key !== "string" || !MANIFEST_KEYS.has(key)) return null;
+      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      if (!descriptor || !descriptor.enumerable || !("value" in descriptor)) return null;
+      normalized[key] = descriptor.value;
+    }
+
+    const fields = normalized.allowedFields;
+    if (!Array.isArray(fields)) return normalized as unknown as LeadSourceAdapterManifest;
+    if (Object.getPrototypeOf(fields) !== Array.prototype) return null;
+    // Preserve sparse arrays for the existing semantic validator to report
+    // the specific allowedFields defect; checking for holes reads no values.
+    if (hasSparseEntries(fields)) {
+      normalized.allowedFields = fields;
+      return normalized as unknown as LeadSourceAdapterManifest;
+    }
+    const fieldKeys = Reflect.ownKeys(fields);
+    if (fieldKeys.some((key) => key !== "length"
+      && (typeof key !== "string" || !/^(0|[1-9]\d*)$/.test(key) || Number(key) >= fields.length))) return null;
+    const copiedFields: unknown[] = [];
+    for (let index = 0; index < fields.length; index += 1) {
+      const descriptor = Object.getOwnPropertyDescriptor(fields, String(index));
+      if (!descriptor || !descriptor.enumerable || !("value" in descriptor)) return null;
+      copiedFields.push(descriptor.value);
+    }
+    normalized.allowedFields = copiedFields;
+    return normalized as unknown as LeadSourceAdapterManifest;
+  } catch {
+    return null;
+  }
+}
+
 /** Return manifest defects; never infer permission or source scope. */
 export function validateLeadSourceManifest(manifest: LeadSourceAdapterManifest, now: Date = new Date()): string[] {
   const issues: string[] = [];
-  if (!manifest || typeof manifest !== "object" || Array.isArray(manifest)) return ["A source adapter manifest is required."];
+  const normalized = normalizeLeadSourceManifest(manifest);
+  if (!normalized) return ["A source adapter manifest must be a plain data object with only supported own fields."];
+  manifest = normalized;
   if (typeof manifest.sourceId !== "string" || !/^[a-z0-9][a-z0-9._-]{1,63}$/.test(manifest.sourceId)) {
     issues.push("sourceId must be a stable 2–64 character lowercase identifier.");
   }
