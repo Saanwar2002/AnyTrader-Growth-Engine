@@ -6,6 +6,7 @@ import {
   validateLeadSourcePageRequest,
   validateLeadSourcePageResult,
   validateAndAttributeLeadSourcePage,
+  LeadSourceAdapterRunGuard,
   type LeadSourceAdapterManifest,
 } from "./lead-source-adapter";
 const approvedManifest = (): LeadSourceAdapterManifest => ({
@@ -295,6 +296,43 @@ describe("lead source bounded page contract", () => {
     expect(() => validateAndAttributeLeadSourcePage({
       records: [{ businessName: "   " }],
     }, manifest, "2026-10-26T11:00:00.000Z", now)).toThrow("requires a valid businessName");
+  });
+
+  it("enforces the total record budget across pages in one run", () => {
+    const guard = new LeadSourceAdapterRunGuard<string>({ ...manifest, maxRecordsPerRun: 2 });
+    expect(guard.acceptPage({
+      records: [{ businessName: "One", sourceRecordId: "one" }], nextCursor: "page-2",
+    }, "2026-10-26T11:00:00.000Z", now).records).toHaveLength(1);
+    expect(guard.acceptPage({
+      records: [{ businessName: "Two", sourceRecordId: "two" }], nextCursor: "page-3",
+    }, "2026-10-26T11:00:00.000Z", now).records).toHaveLength(1);
+    expect(guard.recordsAccepted).toBe(2);
+    expect(() => guard.acceptPage({
+      records: [{ businessName: "Three", sourceRecordId: "three" }], nextCursor: null,
+    }, "2026-10-26T11:00:00.000Z", now)).toThrow("total record limit");
+    expect(guard.recordsAccepted).toBe(2);
+  });
+
+  it("rejects duplicate provider record IDs across pages without accepting the page", () => {
+    const guard = new LeadSourceAdapterRunGuard<string>(manifest);
+    guard.acceptPage({
+      records: [{ businessName: "First", sourceRecordId: "provider-1" }], nextCursor: "page-2",
+    }, "2026-10-26T11:00:00.000Z", now);
+    expect(() => guard.acceptPage({
+      records: [{ businessName: "Duplicate", sourceRecordId: "provider-1" }], nextCursor: null,
+    }, "2026-10-26T11:00:00.000Z", now)).toThrow("duplicate sourceRecordId values across pages");
+    expect(guard.recordsAccepted).toBe(1);
+  });
+
+  it("rejects repeated pagination cursors without accepting the repeated page", () => {
+    const guard = new LeadSourceAdapterRunGuard<string>(manifest);
+    guard.acceptPage({
+      records: [{ businessName: "First" }], nextCursor: "page-2",
+    }, "2026-10-26T11:00:00.000Z", now);
+    expect(() => guard.acceptPage({
+      records: [{ businessName: "Second" }], nextCursor: "page-2",
+    }, "2026-10-26T11:00:00.000Z", now)).toThrow("repeated a next cursor");
+    expect(guard.recordsAccepted).toBe(1);
   });
 
   it("rejects malformed and oversized page results", () => {
