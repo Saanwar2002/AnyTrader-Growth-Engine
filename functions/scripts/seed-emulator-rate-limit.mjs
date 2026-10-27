@@ -11,10 +11,11 @@ if (projectId !== "demo-growth-engine-test" || !emulatorHost || !/^(127\.0\.0\.1
 const [organisationId, uid, operation, state = "exhausted"] = process.argv.slice(2);
 if (!(organisationId === "global" || /^[A-Za-z0-9_-]{1,128}$/.test(organisationId ?? ""))
   || !/^[A-Za-z0-9_-]{1,128}$/.test(uid ?? "")
-  || !["createOrganisation", "updateLeadNotes", "updateOutreachDraft", "listLeads", "listCampaigns", "listOutreachDrafts", "listMyOrganisations"].includes(operation)
-  || !["exhausted", "invalid", "boundary", "expired"].includes(state)
-  || (state === "expired" && !["createOrganisation", "listMyOrganisations"].includes(operation))) {
-  throw new Error("Usage: node seed-emulator-rate-limit.mjs <organisation-id|global> <authenticated-uid> <createOrganisation|updateLeadNotes|updateOutreachDraft|listLeads|listCampaigns|listOutreachDrafts|listMyOrganisations> [exhausted|invalid|boundary|expired]");
+  || !["createOrganisation", "updateLeadNotes", "updateOutreachDraft", "importLeads", "listLeads", "listCampaigns", "listOutreachDrafts", "listMyOrganisations"].includes(operation)
+  || !["exhausted", "invalid", "boundary", "expired", "reset"].includes(state)
+  || (state === "expired" && !["createOrganisation", "listMyOrganisations"].includes(operation))
+  || (state === "reset" && !["importLeads", "listLeads", "listCampaigns", "listOutreachDrafts"].includes(operation))) {
+  throw new Error("Usage: node seed-emulator-rate-limit.mjs <organisation-id|global> <authenticated-uid> <createOrganisation|updateLeadNotes|updateOutreachDraft|listLeads|listCampaigns|listOutreachDrafts|listMyOrganisations> [exhausted|invalid|boundary|expired|reset]");
 }
 initializeApp({ projectId });
 const db = getFirestore();
@@ -24,7 +25,11 @@ const windowMs = operation === "createOrganisation" ? 60 * 60_000 : 60_000;
 const windowStartedAtMs = state === "expired" ? now - windowMs - 1000 : now;
 await db.collection("rateLimits").doc(key).set({
   windowStartedAtMs,
-  count: state === "exhausted" ? (operation === "createOrganisation" ? 5 : operation === "updateLeadNotes" ? 240 : operation === "updateOutreachDraft" ? 120 : operation === "listOutreachDrafts" ? 60 : 120) : state === "boundary" ? (operation === "updateLeadNotes" ? 239 : operation === "updateOutreachDraft" ? 119 : operation === "listOutreachDrafts" ? 59 : 119) : state === "expired" ? (operation === "createOrganisation" ? 5 : 120) : "corrupt",
+  count: state === "reset" ? 0 : state === "invalid" ? "corrupt" : state === "exhausted"
+    ? (operation === "createOrganisation" ? 5 : operation === "updateLeadNotes" ? 240 : operation === "updateOutreachDraft" ? 120 : operation === "listOutreachDrafts" ? 60 : operation === "importLeads" ? 10 : 120)
+    : state === "boundary"
+      ? (operation === "createOrganisation" ? 4 : operation === "updateLeadNotes" ? 239 : operation === "updateOutreachDraft" ? 119 : operation === "listOutreachDrafts" ? 59 : operation === "importLeads" ? 9 : 119)
+      : (operation === "createOrganisation" ? 5 : operation === "importLeads" ? 10 : 120),
   updatedAt: new Date(now),
   expireAt: new Date(windowStartedAtMs + windowMs + 5 * 60_000),
 });
