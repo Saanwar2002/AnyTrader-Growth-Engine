@@ -73,6 +73,7 @@
 - [x] Copy candidate batches from dense indexed data descriptors before iteration; reject accessor indices, symbols/extra array properties, subclasses, and overridden iteration methods without invoking getters.
 - [x] Enforce the approved manifest's rolling per-minute provider request budget in the per-run guard, with an injectable clock and backwards-clock rejection; adapters must record each request before issuing it.
 - [x] Enforce a cumulative per-run request budget in the approved manifest to bound empty-page pagination across multiple rolling windows.
+- [x] Provide a guarded page-fetch orchestration method that validates requests and consumes budgets before invoking a caller-supplied provider callback, then validates/accepts its response; rejected requests never invoke the callback.
 - [x] Add a stateful per-run guard that enforces the total record budget across pages and rejects repeated next cursors or duplicate provider record IDs across pages; rejected pages do not mutate accepted-run state.
 - [x] Provide a single pure helper that validates each bounded adapter page and cursor, validates/maps every candidate against the approved manifest, and attaches provenance before returning the page; regression tests cover valid normalization and malformed/disallowed records.
 - [x] Validate bounded page cursors as strict JSON-safe values and pass adapters detached normalized cursor values; regression tests reject lossy, cyclic, sparse, and non-plain cursor data. This contract does not approve or connect any provider.
