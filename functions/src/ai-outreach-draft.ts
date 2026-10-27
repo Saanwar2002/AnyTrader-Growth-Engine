@@ -32,6 +32,46 @@ const AI_DRAFT_CONTEXT_KEYS = new Set([
 ]);
 const AI_DRAFT_OPTION_KEYS = new Set(["apiKey", "model", "fetcher", "timeoutMs"]);
 
+function snapshotAiProviderObject(value: unknown, errorMessage: string): Record<string, unknown> {
+  try {
+    if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error();
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) throw new Error();
+    const record = Object.create(null) as Record<string, unknown>;
+    for (const key of Reflect.ownKeys(value)) {
+      if (typeof key !== "string") throw new Error();
+      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      if (!descriptor || !descriptor.enumerable || !("value" in descriptor)) throw new Error();
+      record[key] = descriptor.value;
+    }
+    return record;
+  } catch {
+    throw new Error(errorMessage);
+  }
+}
+
+function snapshotAiProviderArray(value: unknown, errorMessage: string): unknown[] {
+  try {
+    if (!Array.isArray(value) || Object.getPrototypeOf(value) !== Array.prototype) throw new Error();
+    const keys = Reflect.ownKeys(value);
+    if (keys.some((key) => typeof key !== "string" || (key !== "length" && !/^(0|[1-9]\\d*)$/.test(key)))) throw new Error();
+    const lengthDescriptor = Object.getOwnPropertyDescriptor(value, "length");
+    if (!lengthDescriptor || !("value" in lengthDescriptor) || !Number.isSafeInteger(lengthDescriptor.value)
+      || lengthDescriptor.value < 0 || lengthDescriptor.value > 2048) throw new Error();
+    const length = lengthDescriptor.value as number;
+    if (keys.length !== length + 1) throw new Error();
+    const copy: unknown[] = [];
+    for (let index = 0; index < length; index += 1) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+      if (!descriptor || !descriptor.enumerable || !("value" in descriptor)) throw new Error();
+      copy.push(descriptor.value);
+    }
+    return copy;
+  } catch {
+    throw new Error(errorMessage);
+  }
+}
+
 function normalizeAiOutreachDraftResponse(value: unknown): Record<string, unknown> {
   return snapshotAiPlainDataObject(value, AI_DRAFT_RESPONSE_KEYS, "AI response was not a valid plain draft object.");
 }
@@ -135,24 +175,20 @@ export async function generateAiOutreachDraftSuggestion(context: AiOutreachDraft
     } catch {
       throw new Error("Gemini response was not valid JSON.");
     }
-    if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new Error("Gemini response shape was invalid.");
-    const candidates = (payload as Record<string, unknown>).candidates;
-    if (!Array.isArray(candidates) || !candidates.length || !candidates[0] || typeof candidates[0] !== "object") throw new Error("Gemini returned no draft candidate.");
-    const candidate = candidates[0] as Record<string, unknown>;
-    if (candidate.finishReason !== "STOP" || !candidate.content || typeof candidate.content !== "object") throw new Error("Gemini did not return an eligible draft candidate.");
-    const parts = (candidate.content as Record<string, unknown>).parts;
-    if (!Array.isArray(parts)) throw new Error("Gemini draft content was missing.");
-    for (let index = 0; index < parts.length; index += 1) {
-      if (!Object.prototype.hasOwnProperty.call(parts, index)) {
-        throw new Error("Gemini draft content parts were malformed.");
-      }
-      const part: unknown = parts[index];
-      if (!part || typeof part !== "object" || Array.isArray(part)
-        || typeof (part as Record<string, unknown>).text !== "string") {
-        throw new Error("Gemini draft content parts were malformed.");
-      }
+    const payloadRecord = snapshotAiProviderObject(payload, "Gemini response shape was invalid.");
+    const candidates = snapshotAiProviderArray(payloadRecord.candidates, "Gemini returned no draft candidate.");
+    if (!candidates.length) throw new Error("Gemini returned no draft candidate.");
+    const candidate = snapshotAiProviderObject(candidates[0], "Gemini returned no draft candidate.");
+    if (candidate.finishReason !== "STOP") throw new Error("Gemini did not return an eligible draft candidate.");
+    const content = snapshotAiProviderObject(candidate.content, "Gemini draft content was missing.");
+    const parts = snapshotAiProviderArray(content.parts, "Gemini draft content was missing.");
+    const textParts: string[] = [];
+    for (const value of parts) {
+      const part = snapshotAiProviderObject(value, "Gemini draft content parts were malformed.");
+      if (typeof part.text !== "string") throw new Error("Gemini draft content parts were malformed.");
+      textParts.push(part.text);
     }
-    const text = (parts as Array<{ text: string }>).map((part) => part.text).join("").trim();
+    const text = textParts.join("").trim();
     if (!text) throw new Error("Gemini draft content was empty.");
     let parsed: unknown;
     try { parsed = JSON.parse(text); } catch { throw new Error("Gemini draft was not valid JSON."); }

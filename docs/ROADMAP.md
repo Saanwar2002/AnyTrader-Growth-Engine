@@ -90,6 +90,7 @@
 
 - [x] Harden the AI outreach draft response validator to accept only exact plain data objects with own enumerable `subject` and `body` fields, rejecting accessors, symbols, hidden/unknown fields, arrays, and class instances without invoking getters.
 - [x] Snapshot AI draft context/options through own data descriptors and reject accessor-backed, symbol/unknown, hidden, array, and class-instance input shapes before use.
+- [x] Snapshot AI provider response envelopes, candidates, content and text parts through plain-object data descriptors; validate dense bounded arrays and reject accessor-backed fields, symbols, and extended arrays before parsing.
 - Server-side Gemini classification and draft generation with schema validation.
 - Prompt-injection protections, per-organisation usage limits, and human approval.
 - No automated outreach sending in the MVP.

@@ -1,3 +1,11 @@
+## AutoPilot continuation — harden AI provider response envelopes (2026-10-27)
+
+- Snapshot the Gemini response envelope, candidate, content and text parts through plain-object own data descriptors; accessor-backed values are rejected without executing getters.
+- Snapshot arrays by verifying their native prototype, dense own indices, bounded length, and absence of symbols/extra properties before iterating. This prevents custom fetcher responses from smuggling accessor or overridden-array behavior into parsing.
+- Added synthetic regressions for accessor-backed payload/candidate fields and extended arrays. No real model calls, live data, deployment, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — harden AI draft generation inputs (2026-10-27)
 
 - AI generation context and options are copied from plain objects using own enumerable data descriptors before validation or use, preventing getter execution and validate-then-reread inconsistencies.
