@@ -1,3 +1,11 @@
+## AutoPilot continuation — reject accessor-backed lead-source cursors (2026-10-27)
+
+- Closed a strict-JSON edge case in array cursors: validation now inspects each own index descriptor and rejects getter-backed or non-enumerable values without invoking accessors.
+- Added request/result cursor regressions for accessor properties and symbol-keyed properties, complementing the prior lossy-value and detached-normalization tests.
+- Provider-neutral boundary hardening only; no provider connection, network access, live data, migration, deployment, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — strict JSON-safe lead-source cursors (2026-10-27)
 
 - Hardened incoming and outgoing adapter cursors to reject lossy JSON values (including undefined properties, non-finite numbers, sparse arrays, cycles, symbols/accessors, and non-plain objects) rather than silently changing cursor meaning during serialization.
