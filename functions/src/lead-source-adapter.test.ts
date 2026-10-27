@@ -182,12 +182,20 @@ describe("lead source bounded page contract", () => {
   });
 
   it("rejects oversized, cyclic, lossy, and non-JSON page cursors", () => {
+    const accessorCursor = Object.defineProperty({}, "token", { enumerable: true, get: () => "next" });
+    const symbolCursor = { token: "next", [Symbol("hidden")]: true };
+    const accessorArray: unknown[] = [];
+    Object.defineProperty(accessorArray, "0", { enumerable: true, configurable: true, get: () => "next" });
+    accessorArray.length = 1;
     const invalidCursors: unknown[] = [
       "x".repeat(2049),
       { token: undefined },
       { token: Number.NaN },
       new Date("2026-10-27T00:00:00.000Z"),
       Array(1),
+      accessorCursor,
+      symbolCursor,
+      accessorArray,
     ];
     const circular: Record<string, unknown> = {};
     circular.self = circular;
@@ -221,6 +229,11 @@ describe("lead source bounded page contract", () => {
   });
 
   it("rejects oversized, cyclic, lossy, and non-JSON provider next cursors", () => {
+    const accessorCursor = Object.defineProperty({}, "token", { enumerable: true, get: () => "next" });
+    const symbolCursor = { token: "next", [Symbol("hidden")]: true };
+    const accessorArray: unknown[] = [];
+    Object.defineProperty(accessorArray, "0", { enumerable: true, configurable: true, get: () => "next" });
+    accessorArray.length = 1;
     const circular: Record<string, unknown> = {};
     circular.self = circular;
     for (const nextCursor of [
@@ -229,6 +242,9 @@ describe("lead source bounded page contract", () => {
       { token: Number.POSITIVE_INFINITY },
       new Date("2026-10-27T00:00:00.000Z"),
       Array(1),
+      accessorCursor,
+      symbolCursor,
+      accessorArray,
       circular,
     ]) {
       expect(() => validateLeadSourcePageResult({
