@@ -529,6 +529,9 @@ export class LeadSourceAdapterRunGuard<TCursor = string> {
     if (!(now instanceof Date) || !Number.isFinite(now.getTime())) {
       throw new Error("Lead source request validation clock must be a valid date.");
     }
+    // Approval can expire after guard construction; recheck before every
+    // request so an expired source is blocked before any provider call.
+    requireRunnableLeadSourceManifest(this.manifest, now);
     const timestamp = now.getTime();
     if (this.lastRequestTimestamp !== null && timestamp < this.lastRequestTimestamp) {
       throw new Error("Lead source request validation clock must not move backwards.");
