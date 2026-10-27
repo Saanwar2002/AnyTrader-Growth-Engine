@@ -481,6 +481,31 @@ describe("lead source bounded page contract", () => {
     expect(() => guard.recordRequest(new Date(start.getTime() + 60_000))).not.toThrow();
   });
 
+  it("validates page requests and consumes budget before invoking the provider callback", async () => {
+    const limitedManifest = { ...manifest, maxRequestsPerRun: 1 };
+    const guard = new LeadSourceAdapterRunGuard<string>(limitedManifest);
+    const request = { category: "roofers", location: "Edinburgh", limit: 1 };
+    const collectedAt = "2026-10-26T12:00:00.000Z";
+    let callbackCalls = 0;
+    const fetchPage = async () => {
+      callbackCalls += 1;
+      return { records: [{ businessName: "Example Roofer", sourceRecordId: "roofer-1" }], nextCursor: null };
+    };
+
+    await expect(guard.requestAndAcceptPage(
+      { ...request, category: " " }, fetchPage, collectedAt, now,
+    )).rejects.toThrow("category must contain 1 to 120 characters");
+    expect(callbackCalls).toBe(0);
+
+    const page = await guard.requestAndAcceptPage(request, fetchPage, collectedAt, now);
+    expect(page.records).toHaveLength(1);
+    expect(callbackCalls).toBe(1);
+
+    await expect(guard.requestAndAcceptPage(request, fetchPage, collectedAt, now))
+      .rejects.toThrow("total request limit");
+    expect(callbackCalls).toBe(1);
+  });
+
   it("enforces the manifest's total request budget even across multiple rolling windows", () => {
     const limitedManifest = { ...manifest, maxRequestsPerMinute: 2, maxRequestsPerRun: 3 };
     const guard = new LeadSourceAdapterRunGuard<string>(limitedManifest);
