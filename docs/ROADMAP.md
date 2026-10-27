@@ -74,6 +74,7 @@
 - [x] Enforce the approved manifest's rolling per-minute provider request budget in the per-run guard, with an injectable clock and backwards-clock rejection; adapters must record each request before issuing it.
 - [x] Enforce a cumulative per-run request budget in the approved manifest to bound empty-page pagination across multiple rolling windows.
 - [x] Revalidate the approved manifest immediately before each provider request so an approval that expires during a run is blocked before network access.
+- [x] Verify that approval expiring during an in-flight provider request blocks the returned page and leaves accepted-record state unchanged.
 - [x] Require the per-run guard to associate each accepted page with exactly one recorded provider request and provide explicit resolution for failed calls.
 - [x] Provide guarded page-fetch orchestration that validates requests and consumes budgets before provider callbacks, resolves failed callbacks without refunding budgets, and revalidates approval when responses arrive.
 - [x] Add a stateful per-run guard that enforces the total record budget across pages and rejects repeated next cursors or duplicate provider record IDs across pages; rejected pages do not mutate accepted-run state.
