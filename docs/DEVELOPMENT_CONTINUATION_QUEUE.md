@@ -1,3 +1,11 @@
+## AutoPilot continuation — validate security audit cursor payloads (2026-10-27)
+
+- Security audit pagination now validates decoded cursor payloads against an exact three-field schema, the expected organisation ID, the expected scope, and a safe event document ID before querying Firestore.
+- Added descriptor-only validation and regression tests for extra/missing fields, wrong tenant/scope, invalid IDs, class instances, accessor non-execution, and hostile inspection traps.
+- Synthetic cursor validation only; no audit records were read or changed, and no migration, deployment, billing activation, or outreach occurred.
+
+---
+
 ## AutoPilot continuation — reject ambiguous AI draft candidates (2026-10-27)
 
 - Explicitly request one Gemini candidate and reject successful provider payloads containing zero or multiple candidates rather than silently selecting the first of an ambiguous response.
