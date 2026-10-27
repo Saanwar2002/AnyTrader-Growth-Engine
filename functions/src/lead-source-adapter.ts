@@ -498,6 +498,31 @@ export function validateAndAttributeLeadSourcePage<TCursor = string>(
 
 
 /**
+ * Produce a deterministic JSON key for an already-normalized, JSON-safe
+ * cursor. Object key insertion order must not let equivalent cursors evade
+ * pagination-cycle detection.
+ */
+function serializeCursorForCycleDetection(value: unknown): string | undefined {
+  const canonicalize = (candidate: unknown): unknown => {
+    if (Array.isArray(candidate)) return candidate.map(canonicalize);
+    if (candidate !== null && typeof candidate === "object") {
+      const output = Object.create(null) as Record<string, unknown>;
+      for (const key of Object.keys(candidate).sort()) {
+        output[key] = canonicalize((candidate as Record<string, unknown>)[key]);
+      }
+      return output;
+    }
+    return candidate;
+  };
+  try {
+    const serialized = JSON.stringify(canonicalize(value));
+    return typeof serialized === "string" ? serialized : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Stateful guard to reuse for every page in one discovery run. Enforces the
  * manifest's total run budget and prevents duplicate provider IDs or cursor
  * cycles from being accepted across pages. Instantiate one guard per run.
@@ -628,7 +653,7 @@ export class LeadSourceAdapterRunGuard<TCursor = string> {
 
     let nextCursorKey: string | undefined;
     if (page.nextCursor !== undefined && page.nextCursor !== null) {
-      const serializedCursor = JSON.stringify(page.nextCursor);
+      const serializedCursor = serializeCursorForCycleDetection(page.nextCursor);
       if (typeof serializedCursor !== "string") throw new Error("Lead source next cursor is not serializable.");
       nextCursorKey = serializedCursor;
       if (this.seenNextCursors.has(nextCursorKey)) {
