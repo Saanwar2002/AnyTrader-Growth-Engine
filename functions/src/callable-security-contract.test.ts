@@ -1038,7 +1038,7 @@ describe("organisation member roster", () => {
     expect(body).toContain("getAuth().getUser(document.id)");
     expect(body).toContain("const hasMoreMembers = page.docs.length > 20");
     expect(body).toContain('scope: "organisation_member_roster"');
-    expect(body).toContain('decoded.scope !== "organisation_member_roster"');
+    expect(body).toContain("getValidMemberRosterCursorUid(decoded, organisationId)");
     expect(body).toContain("decoded.organisationId !== organisationId");
     expect(body).toContain("membersQuery.startAfter(cursorUid)");
     expect(body).toContain("nextPageToken: hasMoreMembers");
