@@ -64,12 +64,45 @@ function hasSparseEntries(value: unknown): boolean {
   }
   return false;
 }
-function isBoundedSerializableCursor(value: unknown): boolean {
+function normalizeBoundedSerializableCursor(value: unknown): { valid: boolean; value?: unknown } {
+  const seen = new Set<object>();
+  const isJsonSafe = (candidate: unknown): boolean => {
+    if (candidate === null || typeof candidate === "string" || typeof candidate === "boolean") return true;
+    if (typeof candidate === "number") return Number.isFinite(candidate);
+    if (typeof candidate !== "object") return false;
+    if (seen.has(candidate)) return false;
+    seen.add(candidate);
+
+    if (Array.isArray(candidate)) {
+      if (hasSparseEntries(candidate)) return false;
+      const ownKeys = Reflect.ownKeys(candidate);
+      if (ownKeys.some((key) => key !== "length"
+        && (typeof key !== "string" || !/^(0|[1-9]\d*)$/.test(key) || Number(key) >= candidate.length))) return false;
+      for (let index = 0; index < candidate.length; index += 1) {
+        if (!isJsonSafe(candidate[index])) return false;
+      }
+      seen.delete(candidate);
+      return true;
+    }
+
+    const prototype = Object.getPrototypeOf(candidate);
+    if (prototype !== Object.prototype && prototype !== null) return false;
+    for (const key of Reflect.ownKeys(candidate)) {
+      if (typeof key !== "string") return false;
+      const descriptor = Object.getOwnPropertyDescriptor(candidate, key);
+      if (!descriptor || !descriptor.enumerable || !("value" in descriptor) || !isJsonSafe(descriptor.value)) return false;
+    }
+    seen.delete(candidate);
+    return true;
+  };
+
   try {
+    if (!isJsonSafe(value)) return { valid: false };
     const serialized = JSON.stringify(value);
-    return typeof serialized === "string" && serialized.length <= 2048;
+    if (typeof serialized !== "string" || serialized.length > 2048) return { valid: false };
+    return { valid: true, value: JSON.parse(serialized) as unknown };
   } catch {
-    return false;
+    return { valid: false };
   }
 }
 /** Return manifest defects; never infer permission or source scope. */
@@ -239,17 +272,16 @@ export function validateLeadSourcePageRequest<TCursor = string>(
     || (request.limit as number) > manifest.maxRecordsPerRun) {
     throw new Error("Lead source page limit exceeds the configured bound.");
   }
-  if (Object.prototype.hasOwnProperty.call(request, "cursor") && request.cursor !== undefined
-    && !isBoundedSerializableCursor(request.cursor)) {
+  const hasCursor = Object.prototype.hasOwnProperty.call(request, "cursor") && request.cursor !== undefined;
+  const normalizedCursor: { valid: boolean; value?: unknown } = hasCursor ? normalizeBoundedSerializableCursor(request.cursor) : { valid: true };
+  if (!normalizedCursor.valid) {
     throw new Error("Lead source cursor must be JSON-serializable and at most 2048 characters.");
   }
   return {
     category: request.category.trim(),
     location: request.location.trim(),
     limit: request.limit as number,
-    ...(Object.prototype.hasOwnProperty.call(request, "cursor")
-      ? { cursor: request.cursor as TCursor }
-      : {}),
+    ...(hasCursor ? { cursor: normalizedCursor.value as TCursor } : {}),
   };
 }
 
@@ -273,14 +305,15 @@ export function validateLeadSourcePageResult<TRecord = unknown, TCursor = string
   if (result.records.length > manifest.maxRecordsPerRun) {
     throw new Error("Lead source page result exceeds the configured record limit.");
   }
-  if (Object.prototype.hasOwnProperty.call(result, "nextCursor") && result.nextCursor !== undefined
-    && !isBoundedSerializableCursor(result.nextCursor)) {
+  const hasNextCursor = Object.prototype.hasOwnProperty.call(result, "nextCursor") && result.nextCursor !== undefined;
+  const normalizedNextCursor: { valid: boolean; value?: unknown } = hasNextCursor
+    ? normalizeBoundedSerializableCursor(result.nextCursor)
+    : { valid: true };
+  if (!normalizedNextCursor.valid) {
     throw new Error("Lead source next cursor must be JSON-serializable and at most 2048 characters.");
   }
   return {
     records: [...result.records] as TRecord[],
-    ...(Object.prototype.hasOwnProperty.call(result, "nextCursor") && result.nextCursor !== undefined
-      ? { nextCursor: result.nextCursor as TCursor | null }
-      : {}),
+    ...(hasNextCursor ? { nextCursor: normalizedNextCursor.value as TCursor | null } : {}),
   };
 }

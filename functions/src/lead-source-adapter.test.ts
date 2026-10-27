@@ -181,16 +181,33 @@ describe("lead source bounded page contract", () => {
     }, manifest, now)).toThrow("page limit exceeds the configured bound");
   });
 
-  it("rejects oversized and non-serializable page cursors", () => {
-    expect(() => validateLeadSourcePageRequest({
-      category: "builders", location: "Edinburgh", limit: 1, cursor: "x".repeat(2049),
-    }, manifest, now)).toThrow("cursor must be JSON-serializable and at most 2048 characters");
-
+  it("rejects oversized, cyclic, lossy, and non-JSON page cursors", () => {
+    const invalidCursors: unknown[] = [
+      "x".repeat(2049),
+      { token: undefined },
+      { token: Number.NaN },
+      new Date("2026-10-27T00:00:00.000Z"),
+      Array(1),
+    ];
     const circular: Record<string, unknown> = {};
     circular.self = circular;
-    expect(() => validateLeadSourcePageRequest({
-      category: "builders", location: "Edinburgh", limit: 1, cursor: circular,
-    }, manifest, now)).toThrow("cursor must be JSON-serializable and at most 2048 characters");
+    invalidCursors.push(circular);
+
+    for (const cursor of invalidCursors) {
+      expect(() => validateLeadSourcePageRequest({
+        category: "builders", location: "Edinburgh", limit: 1, cursor,
+      }, manifest, now)).toThrow("cursor must be JSON-serializable and at most 2048 characters");
+    }
+  });
+
+  it("normalizes page cursors to detached JSON-safe values", () => {
+    const cursor = { page: 2, nested: { token: "next" } };
+    const request = validateLeadSourcePageRequest({
+      category: "builders", location: "Edinburgh", limit: 1, cursor,
+    }, manifest, now);
+    cursor.nested.token = "mutated";
+    expect(request.cursor).toEqual({ page: 2, nested: { token: "next" } });
+    expect(request.cursor).not.toBe(cursor);
   });
 
   it("copies bounded page results and allowlists the cursor field", () => {
@@ -203,16 +220,29 @@ describe("lead source bounded page contract", () => {
     expect("internalDebug" in result).toBe(false);
   });
 
-  it("rejects oversized and non-serializable provider next cursors", () => {
-    expect(() => validateLeadSourcePageResult({
-      records: [], nextCursor: "x".repeat(2049),
-    }, manifest, now)).toThrow("next cursor must be JSON-serializable and at most 2048 characters");
-
+  it("rejects oversized, cyclic, lossy, and non-JSON provider next cursors", () => {
     const circular: Record<string, unknown> = {};
     circular.self = circular;
-    expect(() => validateLeadSourcePageResult({
-      records: [], nextCursor: circular,
-    }, manifest, now)).toThrow("next cursor must be JSON-serializable and at most 2048 characters");
+    for (const nextCursor of [
+      "x".repeat(2049),
+      { token: undefined },
+      { token: Number.POSITIVE_INFINITY },
+      new Date("2026-10-27T00:00:00.000Z"),
+      Array(1),
+      circular,
+    ]) {
+      expect(() => validateLeadSourcePageResult({
+        records: [], nextCursor,
+      }, manifest, now)).toThrow("next cursor must be JSON-serializable and at most 2048 characters");
+    }
+  });
+
+  it("normalizes provider next cursors to detached JSON-safe values", () => {
+    const nextCursor = { page: 3, nested: ["next"] };
+    const result = validateLeadSourcePageResult({ records: [], nextCursor }, manifest, now);
+    nextCursor.nested[0] = "mutated";
+    expect(result.nextCursor).toEqual({ page: 3, nested: ["next"] });
+    expect(result.nextCursor).not.toBe(nextCursor);
   });
 
   it("rejects malformed and oversized page results", () => {

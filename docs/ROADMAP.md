@@ -65,6 +65,7 @@
 
 ## Phase 4 — Approved lead-source adapters
 
+- [x] Validate bounded page cursors as strict JSON-safe values and pass adapters detached normalized cursor values; regression tests reject lossy, cyclic, sparse, and non-plain cursor data. This contract does not approve or connect any provider.
 - Provider-neutral adapter interface and provenance for each record.
 - Only APIs/providers whose terms permit the intended use.
 - Document permissions, rate limits, lawful basis/review status, and retention for each source.

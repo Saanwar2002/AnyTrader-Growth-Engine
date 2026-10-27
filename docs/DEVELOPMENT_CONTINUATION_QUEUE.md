@@ -1,3 +1,11 @@
+## AutoPilot continuation — strict JSON-safe lead-source cursors (2026-10-27)
+
+- Hardened incoming and outgoing adapter cursors to reject lossy JSON values (including undefined properties, non-finite numbers, sparse arrays, cycles, symbols/accessors, and non-plain objects) rather than silently changing cursor meaning during serialization.
+- Cursor values are now round-tripped through JSON after validation, giving adapters detached bounded values instead of caller-owned objects.
+- Added regression coverage for invalid values and detached cursor normalization. This is provider-neutral validation only; no provider API, network request, live data, migration, deployment, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — refresh readiness evidence after lead-source contract hardening (2026-10-27)
 
 - Updated the production-readiness audit and security gate to current main checkpoint `e26bd24bc6fa27acc6cec75a7bd0792c05710265`.
