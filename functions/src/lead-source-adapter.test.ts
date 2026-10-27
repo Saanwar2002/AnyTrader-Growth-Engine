@@ -16,6 +16,16 @@ const approvedManifest = (): LeadSourceAdapterManifest => ({
   permittedPurpose: "business_provider_recruitment", maxRequestsPerMinute: 30, maxRequestsPerRun: 100, maxRecordsPerRun: 100,
   allowedFields: ["businessName", "category", "location", "website"],
 });
+function acceptPageAfterRequest<TCursor>(
+  guard: LeadSourceAdapterRunGuard<TCursor>,
+  value: unknown,
+  collectedAt: string,
+  now: Date,
+) {
+  guard.recordRequest(now);
+  return acceptPageAfterRequest(guard, value, collectedAt, now);
+}
+
 describe("lead source adapter permission contract", () => {
   it("accepts a reviewed, bounded HTTPS source manifest", () => {
     expect(validateLeadSourceManifest(approvedManifest())).toEqual([]);
@@ -511,16 +521,34 @@ describe("lead source bounded page contract", () => {
       .toThrow("request validation clock must not move backwards");
   });
 
+  it("requires one recorded request per accepted page and resolves failed calls", () => {
+    const guard = new LeadSourceAdapterRunGuard<string>(manifest);
+    const start = new Date("2026-10-26T12:00:00.000Z");
+
+    expect(() => guard.acceptPage({ records: [] }, "2026-10-26T11:00:00.000Z", start))
+      .toThrow("without a recorded provider request");
+
+    guard.recordRequest(start);
+    expect(() => guard.recordRequest(new Date(start.getTime() + 1_000)))
+      .toThrow("resolve the previous provider request");
+    guard.recordRequestFailure();
+    guard.recordRequest(new Date(start.getTime() + 1_000));
+    expect(guard.acceptPage({
+      records: [{ businessName: "Example" }],
+    }, "2026-10-26T11:00:00.000Z", new Date(start.getTime() + 1_000)).records).toHaveLength(1);
+    expect(() => guard.recordRequestFailure()).toThrow("no outstanding provider request");
+  });
+
   it("enforces the total record budget across pages in one run", () => {
     const guard = new LeadSourceAdapterRunGuard<string>({ ...manifest, maxRecordsPerRun: 2 });
-    expect(guard.acceptPage({
+    expect(acceptPageAfterRequest(guard, {
       records: [{ businessName: "One", sourceRecordId: "one" }], nextCursor: "page-2",
     }, "2026-10-26T11:00:00.000Z", now).records).toHaveLength(1);
-    expect(guard.acceptPage({
+    expect(acceptPageAfterRequest(guard, {
       records: [{ businessName: "Two", sourceRecordId: "two" }], nextCursor: "page-3",
     }, "2026-10-26T11:00:00.000Z", now).records).toHaveLength(1);
     expect(guard.recordsAccepted).toBe(2);
-    expect(() => guard.acceptPage({
+    expect(() => acceptPageAfterRequest(guard, {
       records: [{ businessName: "Three", sourceRecordId: "three" }], nextCursor: null,
     }, "2026-10-26T11:00:00.000Z", now)).toThrow("total record limit");
     expect(guard.recordsAccepted).toBe(2);
@@ -530,27 +558,27 @@ describe("lead source bounded page contract", () => {
     const limitedManifest = { ...manifest, maxRecordsPerRun: 1, allowedFields: [...manifest.allowedFields] };
     const budgetGuard = new LeadSourceAdapterRunGuard<string>(limitedManifest);
     limitedManifest.maxRecordsPerRun = 10;
-    budgetGuard.acceptPage({
+    acceptPageAfterRequest(budgetGuard, {
       records: [{ businessName: "First" }], nextCursor: "page-2",
     }, "2026-10-26T11:00:00.000Z", now);
-    expect(() => budgetGuard.acceptPage({
+    expect(() => acceptPageAfterRequest(budgetGuard, {
       records: [{ businessName: "Second" }], nextCursor: null,
     }, "2026-10-26T11:00:00.000Z", now)).toThrow("total record limit");
 
     const fieldsManifest = { ...manifest, allowedFields: [...manifest.allowedFields] };
     const fieldsGuard = new LeadSourceAdapterRunGuard<string>(fieldsManifest);
     fieldsManifest.allowedFields.push("email");
-    expect(() => fieldsGuard.acceptPage({
+    expect(() => acceptPageAfterRequest(fieldsGuard, {
       records: [{ businessName: "Email Builder", email: "builder@example.test" }],
     }, "2026-10-26T11:00:00.000Z", now)).toThrow("outside its manifest allowlist");
   });
 
   it("rejects duplicate provider record IDs across pages without accepting the page", () => {
     const guard = new LeadSourceAdapterRunGuard<string>(manifest);
-    guard.acceptPage({
+    acceptPageAfterRequest(guard, {
       records: [{ businessName: "First", sourceRecordId: "provider-1" }], nextCursor: "page-2",
     }, "2026-10-26T11:00:00.000Z", now);
-    expect(() => guard.acceptPage({
+    expect(() => acceptPageAfterRequest(guard, {
       records: [{ businessName: "Duplicate", sourceRecordId: "provider-1" }], nextCursor: null,
     }, "2026-10-26T11:00:00.000Z", now)).toThrow("duplicate sourceRecordId values across pages");
     expect(guard.recordsAccepted).toBe(1);
@@ -558,10 +586,10 @@ describe("lead source bounded page contract", () => {
 
   it("rejects repeated pagination cursors without accepting the repeated page", () => {
     const guard = new LeadSourceAdapterRunGuard<string>(manifest);
-    guard.acceptPage({
+    acceptPageAfterRequest(guard, {
       records: [{ businessName: "First" }], nextCursor: "page-2",
     }, "2026-10-26T11:00:00.000Z", now);
-    expect(() => guard.acceptPage({
+    expect(() => acceptPageAfterRequest(guard, {
       records: [{ businessName: "Second" }], nextCursor: "page-2",
     }, "2026-10-26T11:00:00.000Z", now)).toThrow("repeated a next cursor");
     expect(guard.recordsAccepted).toBe(1);
