@@ -36,6 +36,7 @@ export interface LeadIdentifierReservationAuditReport {
   expectedReservationCount: number;
   missingReservationIds: string[];
   orphanReservationIds: string[];
+  unverifiableReservationIds: string[];
   mismatchedReservationIds: string[];
   malformedLeadIds: string[];
   malformedReservationIds: string[];
@@ -127,35 +128,45 @@ export function auditLeadIdentifierReservations(
     const website = typeof websiteValue === "string" ? websiteValue.trim() : "";
     const businessName = typeof businessNameValue === "string" ? businessNameValue.trim() : "";
     const location = typeof locationValue === "string" ? locationValue.trim() : "";
+    let malformed = false;
 
-    const malformed = (
-      (emailValue !== undefined && emailValue !== null && typeof emailValue !== "string")
-      || (websiteValue !== undefined && websiteValue !== null && typeof websiteValue !== "string")
-      || !businessName
-      || (locationValue !== undefined && locationValue !== null && typeof locationValue !== "string")
-      || (email !== "" && !isValidEmailAddress(email))
-      || (website !== "" && !isSafeWebsiteAddress(website))
-    );
-    if (malformed) {
-      malformedLeadIds.push(lead.id);
-      continue;
+    if (emailValue !== undefined && emailValue !== null && typeof emailValue !== "string") {
+      malformed = true;
+    } else if (email) {
+      if (isValidEmailAddress(email)) addExpected("email", canonicalLeadEmailKey(email), lead.id);
+      else malformed = true;
     }
 
-    if (email) addExpected("email", canonicalLeadEmailKey(email), lead.id);
-    if (website) {
-      try {
-        addExpected("website", canonicalLeadWebsiteKey(website), lead.id);
-      } catch {
-        malformedLeadIds.push(lead.id);
-        continue;
+    if (websiteValue !== undefined && websiteValue !== null && typeof websiteValue !== "string") {
+      malformed = true;
+    } else if (website) {
+      if (!isSafeWebsiteAddress(website)) {
+        malformed = true;
+      } else {
+        try {
+          addExpected("website", canonicalLeadWebsiteKey(website), lead.id);
+        } catch {
+          malformed = true;
+        }
       }
     }
-    addExpected("businessLocation", canonicalLeadBusinessLocationKey(businessName, location), lead.id);
+
+    const businessNameValid = typeof businessNameValue === "string" && businessName.length > 0;
+    const locationValid = locationValue === undefined || locationValue === null || typeof locationValue === "string";
+    if (businessNameValid && locationValid) {
+      addExpected("businessLocation", canonicalLeadBusinessLocationKey(businessName, location), lead.id);
+    } else {
+      malformed = true;
+    }
+
+    if (malformed) malformedLeadIds.push(lead.id);
   }
 
   const actual = new Map(reservations.map((reservation) => [reservation.id, reservation] as const));
   const missingReservationIds = [...expected.keys()].filter((id) => !actual.has(id)).sort();
   const orphanReservationIds: string[] = [];
+  const unverifiableReservationIds: string[] = [];
+  const malformedLeadIdSet = new Set(malformedLeadIds);
   const mismatchedReservationIds: string[] = [];
   const malformedReservationIds: string[] = [];
 
@@ -172,7 +183,8 @@ export function auditLeadIdentifierReservations(
 
     const expectedEntry = expected.get(reservation.id);
     if (!expectedEntry) {
-      orphanReservationIds.push(reservation.id);
+      if (malformedLeadIdSet.has(reservation.leadId as string)) unverifiableReservationIds.push(reservation.id);
+      else orphanReservationIds.push(reservation.id);
       continue;
     }
     if (reservation.identifierType !== expectedEntry.identifierType
@@ -197,6 +209,7 @@ export function auditLeadIdentifierReservations(
     expectedReservationCount: expected.size,
     missingReservationIds,
     orphanReservationIds: orphanReservationIds.sort(),
+    unverifiableReservationIds: unverifiableReservationIds.sort(),
     mismatchedReservationIds: mismatchedReservationIds.sort(),
     malformedLeadIds: [...new Set(malformedLeadIds)].sort(),
     malformedReservationIds: malformedReservationIds.sort(),
