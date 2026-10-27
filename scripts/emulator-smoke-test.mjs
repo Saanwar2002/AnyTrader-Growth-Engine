@@ -394,6 +394,32 @@ try {
   const concurrentMatches = (await callOne("listLeads", { organisationId: orgOne.organisationId }))
     .leads.filter((lead) => lead.businessName === "Synthetic Concurrent Import Ltd");
   assert.equal(concurrentMatches.length, 1, "concurrent idempotent import persists exactly one lead");
+
+  const differentKeyImportPayloads = [
+    {
+      organisationId: orgOne.organisationId,
+      campaignId: campaignOne.campaignId,
+      idempotencyKey: "csv-import-identifier-race-0001",
+      leads: [{ businessName: "Synthetic Import Reservation A Ltd", category: "Painters", location: "Sheffield",
+        email: "cross-path-reservation@example.test" }],
+    },
+    {
+      organisationId: orgOne.organisationId,
+      campaignId: campaignOne.campaignId,
+      idempotencyKey: "csv-import-identifier-race-0002",
+      leads: [{ businessName: "Synthetic Import Reservation B Ltd", category: "Painters", location: "Nottingham",
+        email: "CROSS-PATH-RESERVATION@example.test" }],
+    },
+  ];
+  const differentKeyImportResults = await Promise.all(differentKeyImportPayloads.map((payload) => callOne("importLeads", payload)));
+  assert.equal(differentKeyImportResults.reduce((sum, result) => sum + result.imported, 0), 1,
+    "concurrent imports with different idempotency keys reserve a canonical identifier exactly once");
+  assert.equal(differentKeyImportResults.reduce((sum, result) => sum + result.duplicatesSkipped, 0), 1,
+    "losing concurrent import reports the canonical duplicate as skipped");
+  const crossPathReservationMatches = (await callOne("listLeads", { organisationId: orgOne.organisationId }))
+    .leads.filter((lead) => lead.email === "cross-path-reservation@example.test");
+  assert.equal(crossPathReservationMatches.length, 1, "concurrent import race stores only one canonical email");
+
   execFileSync(process.execPath, [
     "functions/scripts/assert-emulator-audit-events.mjs",
     orgOne.organisationId,
@@ -856,6 +882,43 @@ try {
   const afterDuplicateContactEditList = await callOne("listLeads", { organisationId: orgOne.organisationId });
   assert.equal(afterDuplicateContactEditList.leads.find((lead) => lead.id === unsafeWebsiteLead.leadId)?.website,
     "https://before-edit.example.test", "duplicate contact edit preserves existing website");
+
+  const reservationLifecycleLead = await callOne("createLead", {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    idempotencyKey: "manual-reservation-lifecycle-0001",
+    businessName: "Synthetic Reservation Lifecycle Ltd",
+    category: "Painters",
+    location: "Derby",
+    email: "reservation-old@example.test",
+  });
+  await callOne("updateLeadContact", {
+    organisationId: orgOne.organisationId,
+    leadId: reservationLifecycleLead.leadId,
+    businessName: "Synthetic Reservation Lifecycle Ltd",
+    category: "Painters",
+    location: "Derby",
+    email: "reservation-new@example.test",
+  });
+  const reusedOldIdentifier = await callOne("createLead", {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    idempotencyKey: "manual-reservation-reuse-old-0001",
+    businessName: "Synthetic Reused Old Reservation Ltd",
+    category: "Painters",
+    location: "Newcastle",
+    email: "RESERVATION-OLD@example.test",
+  });
+  assert.ok(reusedOldIdentifier.leadId, "contact edits release an old reservation after the identifier changes");
+  await expectCallableFailure(callOne("createLead", {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    idempotencyKey: "manual-reservation-reject-new-0001",
+    businessName: "Synthetic Duplicate New Reservation Ltd",
+    category: "Painters",
+    location: "Glasgow",
+    email: "reservation-new@example.test",
+  }), "functions/already-exists", "contact edit retains reservation for the current canonical identifier");
 
   const quotaBeforeUnsafeWebsiteEdits = currentQuotaCount("updateLeadContact");
   for (const [label, unsafeWebsite] of [
