@@ -44,6 +44,7 @@ The following collection paths were verified in `functions/src/index.ts` on `mai
 | `organisations/{organisationId}/outreachDrafts/{draftId}` | Unsent outreach drafts; draft bodies may contain personal/business data. Deletion must never send drafts. |
 | `organisations/{organisationId}/securityAuditEvents/{eventId}` | Minimal server-generated security audit events; retention/legal-hold rules must be decided separately from tenant content deletion. |
 | `organisations/{organisationId}/campaignCreationIdempotency/{key}` | Retry/idempotency records scoped to campaign creation. |
+| `organisations/{organisationId}/memberAdditionIdempotency/{key}` | Retry/idempotency records for membership changes; include in the organisation-scoped offboarding inventory. |
 | `organisations/{organisationId}/importIdempotency/{key}` | CSV-import retry records. |
 | `organisations/{organisationId}/leadCreationIdempotency/{key}` | Manual lead-creation retry records. |
 | `organisations/{organisationId}/outreachDraftCreationIdempotency/{key}` | Draft-creation retry records. |

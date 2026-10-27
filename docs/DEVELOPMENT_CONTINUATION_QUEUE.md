@@ -1,3 +1,11 @@
+## AutoPilot continuation — include member-addition idempotency in offboarding inventory (2026-10-27)
+
+- Source review found `memberAdditionIdempotency` is written under `organisations/{organisationId}` but was missing from the non-destructive offboarding preview allow-list and schema-backed privacy inventory.
+- Added the category and a regression assertion; kept root-level rate-limit and organisation-creation idempotency records excluded because they cannot safely be attributed/deleted by a single-organisation preview.
+- No deletion, production migration, deployment, billing change, or outreach.
+
+---
+
 ## AutoPilot continuation — refresh production-readiness evidence after offboarding quota hardening (2026-10-27)
 
 - Updated the audit and security-gate checkpoint to `c9c63c37e63b213e05d32026668760e104ca1ea5` and recorded successful exact-PR and post-merge CI runs.
