@@ -62,8 +62,8 @@ const [leadScan, reservationScan] = await Promise.all([
 const complete = !leadScan.truncated && !reservationScan.truncated;
 const audit = complete
   ? auditLeadIdentifierReservations(
-    leadScan.records.map((snapshot) => ({ id: snapshot.id, ...snapshot.data() })),
-    reservationScan.records.map((snapshot) => ({ id: snapshot.id, ...snapshot.data() })),
+    leadScan.records.map((snapshot) => ({ ...snapshot.data(), id: snapshot.id })),
+    reservationScan.records.map((snapshot) => ({ ...snapshot.data(), id: snapshot.id })),
   )
   : null;
 
@@ -81,12 +81,14 @@ const report = {
     expectedReservationCount: audit.expectedReservationCount,
     missingReservationCount: audit.missingReservationIds.length,
     orphanReservationCount: audit.orphanReservationIds.length,
+    unverifiableReservationCount: audit.unverifiableReservationIds.length,
     mismatchedReservationCount: audit.mismatchedReservationIds.length,
     malformedLeadCount: audit.malformedLeadIds.length,
     malformedReservationCount: audit.malformedReservationIds.length,
     duplicateIdentifierGroupCount: audit.duplicateIdentifierGroups.length,
     missingReservationIds: sample(audit.missingReservationIds),
     orphanReservationIds: sample(audit.orphanReservationIds),
+    unverifiableReservationIds: sample(audit.unverifiableReservationIds),
     mismatchedReservationIds: sample(audit.mismatchedReservationIds),
     malformedLeadIds: sample(audit.malformedLeadIds),
     malformedReservationIds: sample(audit.malformedReservationIds),
