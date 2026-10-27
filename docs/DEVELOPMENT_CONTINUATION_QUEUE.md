@@ -1,3 +1,11 @@
+## AutoPilot continuation — reservation audit truncated-scan guard (2026-10-27)
+
+- Added emulator smoke coverage that runs the read-only reservation audit with a one-record budget and verifies exit code 2, both collection scans marked truncated, and no cross-inventory findings emitted.
+- The test uses the local synthetic emulator only and does not consume callable quotas or mutate records.
+- No cloud access, production migration, deployment, billing change, or outreach.
+
+---
+
 ## AutoPilot continuation — refresh readiness checkpoint after audit CLI argument tests (2026-10-27)
 
 - Updated the dated production-readiness and security-readiness documents to reference reviewed code checkpoint `b217ff172ebc0ced6ef7062e1fa108d6ce70421f` and CI run 40487763790, which includes CLI argument-boundary regression tests.
