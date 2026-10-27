@@ -29,6 +29,7 @@ describe("lead creation idempotency replay integrity", () => {
     expect(isPersistedLeadCreationReplayAvailable(persisted, expected, result)).toBe(true);
     expect(isPersistedLeadCreationReplayAvailable({...persisted, score:99}, expected, result)).toBe(false);
     expect(isPersistedLeadCreationReplayAvailable({...persisted, scoreReasons:["tampered"]}, expected, result)).toBe(false);
+    expect(isPersistedLeadCreationReplayAvailable({...persisted, scoreReasons:Array(1)}, expected, result)).toBe(false);
     expect(isPersistedLeadCreationReplayAvailable({...persisted, createdBy:"other"}, expected, result)).toBe(false);
     expect(isPersistedLeadCreationReplayAvailable(null, expected, result)).toBe(false);
   });
