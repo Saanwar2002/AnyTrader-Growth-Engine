@@ -6,8 +6,8 @@
 
 The current evidence-based assessment is in [PRODUCTION_READINESS_AUDIT_2026-10-27.md](./PRODUCTION_READINESS_AUDIT_2026-10-27.md). It supersedes the older commit/run snapshots below for current repository status while retaining them as historical context.
 
-- Reviewed code checkpoint: `4c7fc98158b0b6d37b8bbac350f1d9febba97ac5`.
-- PR #246 exact-head CI [run 40503494632](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40503494632) completed successfully with both Functions and frontend/emulator jobs passed; post-merge `main` CI [run 40503958427](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40503958427) also passed for checkpoint `4c7fc98158b0b6d37b8bbac350f1d9febba97ac5`.
+- Reviewed code checkpoint: `73e3b04fb05c3ea18aaf1de49edd9ee3980b7160`.
+- PR #250 exact-head CI [run 40507022929](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40507022929) completed successfully with both Functions and frontend/emulator jobs passed; post-merge `main` CI [run 40507397467](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40507397467) also passed for checkpoint `73e3b04fb05c3ea18aaf1de49edd9ee3980b7160`.
 - Recent PRs #239–#241 add emulator coverage for malformed offboarding organisation IDs, malformed persisted quota state, and concurrent requests at the final per-organisation read-quota slot. PR #243 adds member-addition idempotency to the offboarding inventory; PR #246 adds a client-side Firebase project allow-list. Invalid inputs and corrupt quota state fail closed; only one concurrent request can consume the final slot.
 - Canonical identifier reservation, bounded audit CLI, and owner-only offboarding authorization/quota tests remain in the current branch. The preview is still non-destructive and does not authorize deletion or migration.
 - The dedicated Growth Engine Firebase project and live App Check flow remain unverified. Production migration, privacy/retention operations, monitoring/budget alerts, backups/recovery, and release ownership remain blockers.

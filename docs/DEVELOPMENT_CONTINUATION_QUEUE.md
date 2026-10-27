@@ -1,3 +1,12 @@
+## AutoPilot continuation — refresh readiness checkpoint after frontend offboarding contract fix (2026-10-27)
+
+- Updated the production-readiness audit and security gate to `73e3b04fb05c3ea18aaf1de49edd9ee3980b7160`.
+- Recorded successful exact-head PR #250 CI (`40507022929`) and post-merge main CI (`40507397467`), both with Functions and frontend/emulator jobs passed.
+- The app remains not production-ready: dedicated live Firebase/App Check verification, privacy/retention, monitoring, backup/recovery, approved source configuration, and legacy reconciliation remain blockers.
+- Documentation-only; no deployment, production migration, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — align frontend offboarding category contract (2026-10-27)
 
 - Fixed a frontend contract gap: the backend offboarding preview now inventories `memberAdditionIdempotency`, but the `OffboardingPreviewCategory` TypeScript union did not include it.
