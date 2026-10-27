@@ -134,7 +134,7 @@ function normalizeLeadSourceManifest(value: unknown): LeadSourceAdapterManifest 
     if (Object.getPrototypeOf(fields) !== Array.prototype || hasSparseEntries(fields)) return null;
     const fieldKeys = Reflect.ownKeys(fields);
     if (fieldKeys.some((key) => key !== "length"
-      && (typeof key !== "string" || !/^(0|[1-9]\\d*)$/.test(key) || Number(key) >= fields.length))) return null;
+      && (typeof key !== "string" || !/^(0|[1-9]\d*)$/.test(key) || Number(key) >= fields.length))) return null;
     const copiedFields: unknown[] = [];
     for (let index = 0; index < fields.length; index += 1) {
       const descriptor = Object.getOwnPropertyDescriptor(fields, String(index));
