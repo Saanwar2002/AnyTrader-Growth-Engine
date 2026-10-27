@@ -3056,6 +3056,21 @@ try {
   );
   console.log("PASS: listLeads fails closed on malformed persisted quota state.");
 
+  execFileSync(process.execPath, [
+    "functions/scripts/seed-emulator-rate-limit.mjs",
+    orgOne.organisationId,
+    first.auth.currentUser.uid,
+    "previewOrganisationOffboarding",
+    "invalid",
+  ], { stdio: "inherit" });
+  await expectCallableFailure(
+    callOne("previewOrganisationOffboarding", { organisationId: orgOne.organisationId }),
+    "functions/failed-precondition",
+    "offboarding preview rejects malformed persisted read-quota state before inventory reads",
+  );
+  console.log("PASS: previewOrganisationOffboarding fails closed on malformed persisted quota state.");
+
+
   for (const [operation, payload, label] of [
     ["listCampaigns", { organisationId: orgOne.organisationId }, "campaign listing"],
     ["listOutreachDrafts", { organisationId: orgOne.organisationId }, "outreach-draft listing"],
