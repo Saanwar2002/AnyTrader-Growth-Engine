@@ -714,6 +714,16 @@ try {
   assert.equal(sameIdDifferentSource.imported, 1, "matching external IDs from different source labels do not create false duplicates");
   assert.equal(sameIdDifferentSource.duplicatesSkipped, 0, "source ID matching is scoped to the declared source label");
 
+  // Keep this race independent of earlier import smoke traffic: seed an expired
+  // emulator-only bucket so the two requests exercise the reservation transaction
+  // without tripping the intended per-user request limit.
+  execFileSync(process.execPath, [
+    "functions/scripts/seed-emulator-rate-limit.mjs",
+    orgOne.organisationId,
+    first.auth.currentUser.uid,
+    "importLeads",
+    "expired",
+  ], { stdio: "inherit" });
   const differentKeyImportPayloads = [
     {
       organisationId: orgOne.organisationId,
