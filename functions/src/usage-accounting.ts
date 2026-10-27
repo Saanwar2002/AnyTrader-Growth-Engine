@@ -103,7 +103,7 @@ function snapshotUsageStateForReservation(value: unknown): PlanUsageState | null
       snapshot[key] = descriptor.value;
     }
     if (snapshot.schemaVersion !== 1 || !METRICS.every((key) => isValidCounter(snapshot[key]))) return null;
-    if (typeof snapshot.aiUsagePeriod !== "string" || !/^\\d{4}-(0[1-9]|1[0-2])$/.test(snapshot.aiUsagePeriod)) return null;
+    if (typeof snapshot.aiUsagePeriod !== "string" || !/^\d{4}-(0[1-9]|1[0-2])$/.test(snapshot.aiUsagePeriod)) return null;
     return {
       schemaVersion: 1,
       campaigns: snapshot.campaigns as number,
