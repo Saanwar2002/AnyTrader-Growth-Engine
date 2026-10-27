@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
-import { FieldPath, FieldValue, Timestamp, getFirestore, type Query, type QueryDocumentSnapshot, type Transaction } from "firebase-admin/firestore";
+import { FieldPath, FieldValue, Timestamp, getFirestore, type DocumentReference, type Query, type QueryDocumentSnapshot, type Transaction } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import { generateAiOutreachDraftSuggestion } from "./ai-outreach-draft";
@@ -410,6 +410,113 @@ async function assertNoDuplicateLeadIdentifiers(
       "already-exists",
       "A lead with matching email, website, or business/location already exists in this organisation.",
     );
+  }
+}
+
+type LeadIdentifierType = "email" | "website" | "businessLocation";
+type LeadIdentifierKeys = Pick<ReturnType<typeof normaliseLeadFields>,
+  "dedupeEmailKey" | "dedupeWebsiteKey" | "dedupeBusinessLocationKey">;
+type LeadIdentifierReservationEntry = {
+  type: LeadIdentifierType;
+  key: string;
+  ref: DocumentReference;
+};
+
+/**
+ * Reservation documents serialize concurrent writes that use different
+ * idempotency keys. Firestore equality queries alone cannot reserve an absent
+ * value, so every lead mutation claims each canonical key in its tenant.
+ */
+function leadIdentifierReservationEntries(
+  organisationRef: DocumentReference,
+  keys: LeadIdentifierKeys,
+): LeadIdentifierReservationEntry[] {
+  const collection = organisationRef.collection("leadIdentifierReservations");
+  const entries: LeadIdentifierReservationEntry[] = [];
+  const add = (type: LeadIdentifierType, key: string) => {
+    if (!key) return;
+    const reservationId = createHash("sha256").update(JSON.stringify([type, key])).digest("hex");
+    entries.push({ type, key, ref: collection.doc(reservationId) });
+  };
+  add("email", keys.dedupeEmailKey);
+  add("website", keys.dedupeWebsiteKey);
+  add("businessLocation", keys.dedupeBusinessLocationKey);
+  return entries;
+}
+
+function persistedLeadIdentifierKeys(existingLead: Record<string, unknown>): LeadIdentifierKeys {
+  const email = typeof existingLead.email === "string" ? canonicalLeadEmailKey(existingLead.email) : "";
+  let website = "";
+  if (typeof existingLead.website === "string" && existingLead.website.trim()) {
+    try {
+      website = canonicalLeadWebsiteKey(existingLead.website);
+    } catch {
+      // Malformed legacy URLs do not create a new reservation key.
+    }
+  }
+  const businessName = typeof existingLead.businessName === "string" ? existingLead.businessName : "";
+  const location = typeof existingLead.location === "string" ? existingLead.location : "";
+  return {
+    dedupeEmailKey: typeof existingLead.dedupeEmailKey === "string" && existingLead.dedupeEmailKey
+      ? existingLead.dedupeEmailKey : email,
+    dedupeWebsiteKey: typeof existingLead.dedupeWebsiteKey === "string" && existingLead.dedupeWebsiteKey
+      ? existingLead.dedupeWebsiteKey : website,
+    dedupeBusinessLocationKey: typeof existingLead.dedupeBusinessLocationKey === "string" && existingLead.dedupeBusinessLocationKey
+      ? existingLead.dedupeBusinessLocationKey
+      : (businessName.trim() || location.trim() ? canonicalLeadBusinessLocationKey(businessName, location) : ""),
+  };
+}
+
+async function readLeadIdentifierReservations(
+  transaction: Transaction,
+  entries: readonly LeadIdentifierReservationEntry[],
+) {
+  const snapshots = await Promise.all(entries.map((entry) => transaction.get(entry.ref)));
+  return entries.map((entry, index) => ({ ...entry, snapshot: snapshots[index] }));
+}
+
+function assertLeadIdentifierReservationsAvailable(
+  reservations: ReturnType<typeof readLeadIdentifierReservations> extends Promise<infer T> ? T : never,
+  allowedLeadId?: string,
+): void {
+  for (const reservation of reservations) {
+    if (!reservation.snapshot.exists) continue;
+    const data = reservation.snapshot.data();
+    if (!data || typeof data.leadId !== "string" || !data.leadId) {
+      throw new HttpsError("failed-precondition", "Lead identifier reservation state is invalid and requires operator review.");
+    }
+    if (data.leadId !== allowedLeadId) {
+      throw new HttpsError("already-exists", "A lead with matching email, website, or business/location already exists in this organisation.");
+    }
+  }
+}
+
+function assertLeadIdentifierReservationsWellFormed(
+  reservations: ReturnType<typeof readLeadIdentifierReservations> extends Promise<infer T> ? T : never,
+): void {
+  for (const reservation of reservations) {
+    if (!reservation.snapshot.exists) continue;
+    const data = reservation.snapshot.data();
+    if (!data || typeof data.leadId !== "string" || !data.leadId) {
+      throw new HttpsError("failed-precondition", "Lead identifier reservation state is invalid and requires operator review.");
+    }
+  }
+}
+
+function createLeadIdentifierReservations(
+  transaction: Transaction,
+  reservations: ReturnType<typeof readLeadIdentifierReservations> extends Promise<infer T> ? T : never,
+  leadId: string,
+  createdAt: unknown,
+): void {
+  for (const reservation of reservations) {
+    if (reservation.snapshot.exists) continue;
+    transaction.create(reservation.ref, {
+      schemaVersion: 1,
+      identifierType: reservation.type,
+      leadId,
+      createdAt,
+    });
   }
 }
 export const listMyOrganisations = onCall(callableOptions, async (request) => {
@@ -1953,6 +2060,20 @@ export const importLeads = onCall(callableOptions, async (request) => {
     const existingBusinesses = new Set(businesses
       .filter((row, index) => existingBusinessDocs[index].some((snapshot) => !snapshot.empty))
       .map((row) => row.businessKey));
+    const preparedReservationEntries = prepared.flatMap((row) =>
+      leadIdentifierReservationEntries(organisationRef, row.fields));
+    const uniquePreparedReservationEntries = [...new Map(
+      preparedReservationEntries.map((entry) => [entry.ref.path, entry] as const),
+    ).values()];
+    const preparedReservations = await readLeadIdentifierReservations(transaction, uniquePreparedReservationEntries);
+    assertLeadIdentifierReservationsWellFormed(preparedReservations);
+    const reservationByPath = new Map(preparedReservations.map((reservation) => [reservation.ref.path, reservation] as const));
+    for (const reservation of preparedReservations) {
+      if (!reservation.snapshot.exists) continue;
+      if (reservation.type === "email") existingEmails.add(reservation.key);
+      else if (reservation.type === "website") existingWebsites.add(reservation.key);
+      else existingBusinesses.add(reservation.key);
+    }
     const rowsToImport: typeof prepared = [];
     let duplicateCount = 0;
     for (const row of prepared) {
@@ -1999,6 +2120,11 @@ export const importLeads = onCall(callableOptions, async (request) => {
         createdAt: now,
         updatedAt: now,
       });
+      const rowReservations = leadIdentifierReservationEntries(organisationRef, row.fields)
+        .map((entry) => reservationByPath.get(entry.ref.path))
+        .filter((reservation): reservation is NonNullable<typeof reservation> => reservation !== undefined);
+      assertLeadIdentifierReservationsAvailable(rowReservations);
+      createLeadIdentifierReservations(transaction, rowReservations, leadRef.id, now);
       transaction.create(activityRef, {
         leadId: leadRef.id,
         actorUid: uid,
@@ -2093,6 +2219,10 @@ export const createLead = onCall(callableOptions, async (request) => {
     const campaignSnapshot = await transaction.get(campaignRef);
     if (!campaignSnapshot.exists) throw new HttpsError("not-found", "Campaign was not found in this organisation.");
     await assertNoDuplicateLeadIdentifiers(transaction, organisationRef.collection("leads"), fields);
+    const createReservations = await readLeadIdentifierReservations(
+      transaction, leadIdentifierReservationEntries(organisationRef, fields),
+    );
+    assertLeadIdentifierReservationsAvailable(createReservations);
     const reservedPlanUsageState = await reserveOrganisationPlanUsage(transaction, organisationId, "leads", 1);
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "createLead", 200);
 
@@ -2122,6 +2252,7 @@ export const createLead = onCall(callableOptions, async (request) => {
       contactReviewStatus: "pending", contactReviewRevision: 0, createdBy: uid,
       createdAt: now, updatedAt: now,
     });
+    createLeadIdentifierReservations(transaction, createReservations, lead.id, now);
     transaction.create(activity, { leadId: lead.id, actorUid: uid, message: `Lead created: ${fields.businessName}`, createdAt: now });
     transaction.create(idempotencyRef, {
       requestHash,
@@ -2141,7 +2272,8 @@ export const updateLeadContact = onCall(callableOptions, async (request) => {
   const leadId = requireDocumentId(data.leadId, "leadId");
   const fields = normaliseLeadFields(data);
   await requireLeadEditor(organisationId, uid);
-  const leadsRef = db.collection("organisations").doc(organisationId).collection("leads");
+  const organisationRef = db.collection("organisations").doc(organisationId);
+  const leadsRef = organisationRef.collection("leads");
   const leadRef = leadsRef.doc(leadId);
   const activity = db.collection("organisations").doc(organisationId).collection("leadActivities").doc();
   const completeness = calculateLeadCompleteness(fields);
@@ -2158,6 +2290,17 @@ export const updateLeadContact = onCall(callableOptions, async (request) => {
     await assertNoDuplicateLeadIdentifiers(transaction, leadsRef, fields, leadId);
     const now = FieldValue.serverTimestamp();
     const existingLead = leadSnapshot.data() ?? {};
+    const oldReservationEntries = leadIdentifierReservationEntries(organisationRef, persistedLeadIdentifierKeys(existingLead));
+    const newReservationEntries = leadIdentifierReservationEntries(organisationRef, fields);
+    const combinedReservationEntries = [...new Map(
+      [...oldReservationEntries, ...newReservationEntries].map((entry) => [entry.ref.path, entry] as const),
+    ).values()];
+    const contactReservations = await readLeadIdentifierReservations(transaction, combinedReservationEntries);
+    const reservationsByPath = new Map(contactReservations.map((reservation) => [reservation.ref.path, reservation] as const));
+    const newReservationPaths = new Set(newReservationEntries.map((entry) => entry.ref.path));
+    const newReservations = newReservationEntries.map((entry) => reservationsByPath.get(entry.ref.path))
+      .filter((reservation): reservation is NonNullable<typeof reservation> => reservation !== undefined);
+    assertLeadIdentifierReservationsAvailable(newReservations, leadId);
     const storedContactReviewRevision = existingLead.contactReviewRevision;
     if (storedContactReviewRevision !== undefined
       && (typeof storedContactReviewRevision !== "number" || !Number.isSafeInteger(storedContactReviewRevision) || storedContactReviewRevision < 0)) {
@@ -2194,6 +2337,14 @@ export const updateLeadContact = onCall(callableOptions, async (request) => {
     };
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "updateLeadContact", 120);
     transaction.update(leadRef, { ...fields, ...restrictionUpdate, contactReviewRevision: nextContactReviewRevision, score: completeness.score, scoreReasons: completeness.reasons, updatedAt: now, updatedBy: uid });
+    for (const oldReservation of oldReservationEntries) {
+      if (newReservationPaths.has(oldReservation.ref.path)) continue;
+      const reservation = reservationsByPath.get(oldReservation.ref.path);
+      if (reservation?.snapshot.exists && reservation.snapshot.data()?.leadId === leadId) {
+        transaction.delete(oldReservation.ref);
+      }
+    }
+    createLeadIdentifierReservations(transaction, newReservations, leadId, now);
     transaction.create(activity, { leadId, actorUid: uid, message: "Lead contact details updated", createdAt: now });
     writeSecurityAuditEvent(transaction, organisationId, uid, "lead.contact_updated", "lead", leadId, {
       contactChannelsChanged,

@@ -271,6 +271,19 @@ describe("callable security contract", () => {
     expect(contactCallable).toContain("await assertNoDuplicateLeadIdentifiers(transaction, leadsRef, fields, leadId)");
   });
 
+  it("serializes canonical identifiers with tenant-scoped reservation documents", () => {
+    expect(callableSource).toContain('collection("leadIdentifierReservations")');
+    expect(callableSource).toContain("function leadIdentifierReservationEntries(");
+    expect(callableSource).toContain("async function readLeadIdentifierReservations(");
+    expect(callableSource).toContain("assertLeadIdentifierReservationsAvailable(createReservations)");
+    expect(callableSource).toContain("createLeadIdentifierReservations(transaction, createReservations, lead.id, now)");
+    expect(callableSource).toContain("const preparedReservations = await readLeadIdentifierReservations(transaction, uniquePreparedReservationEntries)");
+    expect(callableSource).toContain("createLeadIdentifierReservations(transaction, rowReservations, leadRef.id, now)");
+    expect(callableSource).toContain("assertLeadIdentifierReservationsAvailable(newReservations, leadId)");
+    expect(callableSource).toContain("transaction.delete(oldReservation.ref)");
+    expect(callableSource).toContain("A lead with matching email, website, or business/location already exists in this organisation.");
+  });
+
   it("keeps emulator unauthenticated coverage aligned with every callable export", () => {
     const smokeSource = readFileSync(
       fileURLToPath(new URL("../../scripts/emulator-smoke-test.mjs", import.meta.url)),

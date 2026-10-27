@@ -28,6 +28,10 @@ describe("non-destructive tenant offboarding preview", () => {
     expect(JSON.stringify(result)).not.toContain("phone");
   });
 
+  it("includes canonical lead identifier reservations in the explicit tenant inventory", () => {
+    expect(OFFBOARDING_PREVIEW_CATEGORIES).toContain("leadIdentifierReservations");
+  });
+
   it("fails closed with an inexact count when a category exceeds the cap", async () => {
     const result = await createOffboardingPreview(readerWithCounts({ leads: 1001 }));
     expect(result.complete).toBe(false);

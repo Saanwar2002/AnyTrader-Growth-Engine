@@ -30,7 +30,7 @@ export interface SecurityAuditEventPage {
   nextPageToken: string | null;
   scope: "organisation_security_audit";
 }
-export type OffboardingPreviewCategory = "members" | "campaigns" | "leads" | "leadActivities" | "outreachDrafts" | "securityAuditEvents" | "campaignCreationIdempotency" | "importIdempotency" | "leadCreationIdempotency" | "leadBulkStatusIdempotency" | "outreachDraftCreationIdempotency";
+export type OffboardingPreviewCategory = "members" | "campaigns" | "leads" | "leadIdentifierReservations" | "leadActivities" | "outreachDrafts" | "securityAuditEvents" | "campaignCreationIdempotency" | "importIdempotency" | "leadCreationIdempotency" | "leadBulkStatusIdempotency" | "outreachDraftCreationIdempotency";
 export interface OffboardingPreviewCategoryResult { category: OffboardingPreviewCategory; status: "complete" | "limit_reached" | "unavailable"; exactCount: number | null; observedCount: number; }
 export interface OffboardingPreviewResult { complete: boolean; destructiveActionPerformed: false; maxRecordsPerCategory: number; categories: OffboardingPreviewCategoryResult[]; }
 export interface CampaignInput { organisationId: string; idempotencyKey: string; name: string; brand: string; category: string; location: string; goal: string; }
