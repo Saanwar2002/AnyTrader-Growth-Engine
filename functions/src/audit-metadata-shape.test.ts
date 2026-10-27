@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hasExactAuditMetadataKeys } from "./audit-metadata-shape";
+import { hasExactAuditMetadataKeys, snapshotExactAuditMetadata } from "./audit-metadata-shape";
 
 describe("exact event-specific audit metadata shape", () => {
   const allowed = ["followUpDateSet", "leadStatus"];
@@ -55,6 +55,33 @@ describe("exact event-specific audit metadata shape", () => {
       ownKeys: () => { throw new Error("sensitive proxy detail"); },
     });
     expect(hasExactAuditMetadataKeys(hostile, allowed)).toBe(false);
+  });
+
+  it("snapshots proxy data descriptors without invoking its get trap", () => {
+    let getTrapInvoked = false;
+    const target = { leadStatus: "qualified", followUpDateSet: true };
+    const hostileRead = new Proxy(target, {
+      get(_target, key) {
+        getTrapInvoked = true;
+        if (key === "leadStatus") return "rejected";
+        return Reflect.get(_target, key);
+      },
+    });
+
+    const snapshot = snapshotExactAuditMetadata(hostileRead, allowed);
+    expect(snapshot).not.toBeNull();
+    expect(snapshot?.leadStatus).toBe("qualified");
+    expect(snapshot?.followUpDateSet).toBe(true);
+    expect(getTrapInvoked).toBe(false);
+  });
+
+  it("returns a detached null-prototype snapshot", () => {
+    const original = { leadStatus: "qualified", followUpDateSet: true };
+    const snapshot = snapshotExactAuditMetadata(original, allowed);
+    expect(snapshot).not.toBeNull();
+    expect(Object.getPrototypeOf(snapshot)).toBeNull();
+    original.leadStatus = "rejected";
+    expect(snapshot?.leadStatus).toBe("qualified");
   });
 
   it("requires all keys when the event contract is empty", () => {

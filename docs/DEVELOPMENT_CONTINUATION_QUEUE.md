@@ -1,3 +1,11 @@
+## AutoPilot continuation — snapshot audit metadata before validation and persistence (2026-10-27)
+
+- Added a detached null-prototype snapshot for exact event-specific audit metadata, populated from own enumerable data descriptors only.
+- Audit metadata value validation now operates on the snapshot rather than caller-controlled property reads; event writes persist the validated snapshot instead of the original object.
+- Added regressions proving a Proxy `get` trap is not invoked and later source mutation does not change the snapshot. No production audit records were read or changed; no deployment, migration, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — snapshot membership authorization fields (2026-10-27)
 
 - Membership UID/role validation now reads both authorization-critical values from own enumerable data descriptors and rejects accessor-backed or non-plain membership records without invoking getters.
