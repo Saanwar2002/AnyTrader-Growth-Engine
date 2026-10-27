@@ -131,6 +131,11 @@ export function attributeLeadSourceCandidates(
   assertLeadSourceAdapterRunnable(manifest);
   if (!isIsoDate(collectedAt)) throw new Error("collectedAt must be a valid ISO-8601 timestamp.");
   if (!Array.isArray(candidates)) throw new Error("Lead source output must be an array.");
+  for (let index = 0; index < candidates.length; index += 1) {
+    if (!Object.prototype.hasOwnProperty.call(candidates, index)) {
+      throw new Error("Lead source output must not contain sparse entries.");
+    }
+  }
   if (candidates.length > manifest.maxRecordsPerRun) {
     throw new Error("Lead source output exceeded its configured per-run record limit.");
   }
