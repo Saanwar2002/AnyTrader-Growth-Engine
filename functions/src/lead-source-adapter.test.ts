@@ -483,12 +483,15 @@ describe("lead source bounded page contract", () => {
     const start = new Date("2026-10-26T12:00:00.000Z");
 
     guard.recordRequest(start);
+    guard.recordRequestFailure();
     guard.recordRequest(new Date(start.getTime() + 1_000));
+    guard.recordRequestFailure();
     expect(() => guard.recordRequest(new Date(start.getTime() + 2_000)))
       .toThrow("per-minute request limit");
 
     // At the exact 60-second boundary the first request has left the window.
     expect(() => guard.recordRequest(new Date(start.getTime() + 60_000))).not.toThrow();
+    guard.recordRequestFailure();
   });
 
   it("enforces the manifest's total request budget even across multiple rolling windows", () => {
@@ -496,8 +499,11 @@ describe("lead source bounded page contract", () => {
     const guard = new LeadSourceAdapterRunGuard<string>(limitedManifest);
     const start = new Date("2026-10-26T12:00:00.000Z");
     guard.recordRequest(start);
+    guard.recordRequestFailure();
     guard.recordRequest(new Date(start.getTime() + 1_000));
+    guard.recordRequestFailure();
     guard.recordRequest(new Date(start.getTime() + 60_000));
+    guard.recordRequestFailure();
     expect(() => guard.recordRequest(new Date(start.getTime() + 120_000)))
       .toThrow("total request limit");
   });
@@ -514,6 +520,7 @@ describe("lead source bounded page contract", () => {
     const guard = new LeadSourceAdapterRunGuard<string>(manifest);
     const start = new Date("2026-10-26T12:00:00.000Z");
     guard.recordRequest(start);
+    guard.recordRequestFailure();
 
     expect(() => guard.recordRequest(new Date(Number.NaN)))
       .toThrow("request validation clock must be a valid date");
