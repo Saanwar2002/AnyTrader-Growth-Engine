@@ -335,7 +335,7 @@ it("keeps frontend and backend offboarding category inventories exactly aligned"
   const backendSource = readFileSync(new URL("../functions/src/offboarding-preview.ts", import.meta.url), "utf8");
 
   const frontendMatch = frontendSource.match(/export type OffboardingPreviewCategory = ([^;]+);/);
-  const backendMatch = backendSource.match(/export const OFFBOARDING_PREVIEW_CATEGORIES = \[([\\s\\S]*?)\] as const;/);
+  const backendMatch = backendSource.match(/export const OFFBOARDING_PREVIEW_CATEGORIES = \[([\s\S]*?)\] as const;/);
   expect(frontendMatch, "frontend offboarding category type exists").not.toBeNull();
   expect(backendMatch, "backend offboarding category allow-list exists").not.toBeNull();
 
