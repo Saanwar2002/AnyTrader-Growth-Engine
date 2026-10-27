@@ -38,6 +38,35 @@ describe("evaluatePlanLimit", () => {
     });
   });
 
+  it("rejects accessor-backed plan limits without invoking getters", () => {
+    let getterInvoked = false;
+    const limits = {
+      leads: 500,
+      members: 5,
+      monthlyAiSuggestions: 50,
+    };
+    Object.defineProperty(limits, "campaigns", {
+      enumerable: true,
+      get: () => { getterInvoked = true; return 10; },
+    });
+    const plan = Object.defineProperty({}, "limits", { enumerable: true, value: limits });
+
+    expect(evaluatePlanLimit(plan as never, "campaigns", 1))
+      .toMatchObject({ allowed: false, reason: "invalid_usage" });
+    expect(getterInvoked).toBe(false);
+  });
+
+  it("rejects malformed plan limits and unsupported runtime metrics", () => {
+    expect(evaluatePlanLimit(PILOT_PLAN, "__proto__" as never, 1))
+      .toMatchObject({ allowed: false, reason: "invalid_usage" });
+    expect(evaluatePlanLimit({ ...PILOT_PLAN, limits: { campaigns: 10, leads: -1, members: 5, monthlyAiSuggestions: 50 } } as never, "campaigns", 1))
+      .toMatchObject({ allowed: false, reason: "invalid_usage" });
+
+    const symbolLimits = { ...PILOT_PLAN.limits, [Symbol("extra")]: 1 };
+    expect(evaluatePlanLimit({ ...PILOT_PLAN, limits: symbolLimits } as never, "campaigns", 1))
+      .toMatchObject({ allowed: false, reason: "invalid_usage" });
+  });
+
   it("rejects non-integer, negative, or invalid requested usage", () => {
     expect(evaluatePlanLimit(PILOT_PLAN, "campaigns", -1).reason).toBe("invalid_usage");
     expect(evaluatePlanLimit(PILOT_PLAN, "campaigns", 1.5).reason).toBe("invalid_usage");

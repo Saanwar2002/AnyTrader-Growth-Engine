@@ -1,3 +1,11 @@
+## AutoPilot continuation — harden plan-limit evaluation inputs (2026-10-27)
+
+- `evaluatePlanLimit` now snapshots all four plan limits through own enumerable data descriptors, requiring an exact plain/null-prototype shape and non-negative safe-integer values.
+- Unsupported runtime metric values, accessor-backed/symbol-extended/malformed limits, and hostile object-inspection traps fail closed with `invalid_usage`; accessors are not invoked.
+- Added synthetic regressions for accessor-backed limits, negative limit values, symbol keys, and unsupported runtime metrics. Billing remains disabled; no production data or billing operations were used.
+
+---
+
 ## AutoPilot continuation — harden usage reservation inputs (2026-10-27)
 
 - `reservePlanUsage` now snapshots the complete usage state using own enumerable data descriptors and validates runtime metric values before reading counters, so accessors, symbols, unknown fields, class instances and hostile inspection traps fail closed without executing getters.

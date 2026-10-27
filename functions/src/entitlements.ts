@@ -53,6 +53,40 @@ export type PlanLimitDecision =
   | { allowed: true; limit: number; used: number; requested: number; remaining: number }
   | { allowed: false; limit: number; used: number; requested: number; remaining: number; reason: "limit_exceeded" | "invalid_usage" };
 
+const PLAN_USAGE_METRICS: readonly PlanUsageMetric[] = ["campaigns", "leads", "members", "monthlyAiSuggestions"];
+
+function snapshotPlanLimits(value: unknown): Record<PlanUsageMetric, number> | null {
+  try {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) return null;
+    const keys = Reflect.ownKeys(value);
+    if (keys.length !== PLAN_USAGE_METRICS.length
+      || keys.some((key) => typeof key !== "string" || !PLAN_USAGE_METRICS.includes(key as PlanUsageMetric))) return null;
+    const limits = Object.create(null) as Record<PlanUsageMetric, number>;
+    for (const metric of PLAN_USAGE_METRICS) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, metric);
+      if (!descriptor || !descriptor.enumerable || !("value" in descriptor)
+        || !Number.isSafeInteger(descriptor.value) || descriptor.value < 0) return null;
+      limits[metric] = descriptor.value as number;
+    }
+    return limits;
+  } catch {
+    return null;
+  }
+}
+
+function readPlanLimits(plan: unknown): Record<PlanUsageMetric, number> | null {
+  try {
+    if (!plan || typeof plan !== "object" || Array.isArray(plan)) return null;
+    const descriptor = Object.getOwnPropertyDescriptor(plan, "limits");
+    if (!descriptor || !("value" in descriptor)) return null;
+    return snapshotPlanLimits(descriptor.value);
+  } catch {
+    return null;
+  }
+}
+
 /** Pure decision helper. Callers must supply authoritative server-side usage. */
 export function evaluatePlanLimit(
   plan: PlanPolicy,
@@ -60,8 +94,11 @@ export function evaluatePlanLimit(
   used: number,
   requested = 1,
 ): PlanLimitDecision {
-  const limit = plan.limits[metric];
-  if (!Number.isSafeInteger(used) || used < 0 || !Number.isSafeInteger(requested) || requested < 1) {
+  const limits = readPlanLimits(plan);
+  const validMetric = (PLAN_USAGE_METRICS as readonly string[]).includes(metric);
+  const limit = validMetric && limits ? limits[metric] : Number.NaN;
+  if (!validMetric || !limits || !Number.isSafeInteger(used) || used < 0
+    || !Number.isSafeInteger(requested) || requested < 1) {
     return { allowed: false, limit, used, requested, remaining: 0, reason: "invalid_usage" };
   }
   const remaining = Math.max(0, limit - used);
