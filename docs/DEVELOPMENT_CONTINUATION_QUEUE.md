@@ -1,3 +1,11 @@
+## AutoPilot continuation — harden lead-creation replay data shapes (2026-10-27)
+
+- Replay envelopes, saved replay results, and persisted lead snapshots are copied through plain/null-prototype own enumerable data descriptors; accessors, symbols, hidden fields, class instances, and hostile inspection traps fail closed without getter execution.
+- Score-reason arrays are bounded, native, dense arrays with only own numeric indices and no symbols/extra properties; accessor-backed items and sparse arrays are rejected.
+- Added synthetic regressions for accessor-backed replay envelope/result/persisted fields, accessor-backed array items, symbol keys, and class instances. No production data, migrations, deployment, or outreach.
+
+---
+
 ## AutoPilot continuation — harden plan-limit evaluation inputs (2026-10-27)
 
 - `evaluatePlanLimit` now snapshots all four plan limits through own enumerable data descriptors, requiring an exact plain/null-prototype shape and non-negative safe-integer values.
