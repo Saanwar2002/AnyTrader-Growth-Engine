@@ -65,11 +65,12 @@ export async function generateAiOutreachDraftSuggestion(context: AiOutreachDraft
   if (contextValues.some((value) => typeof value !== "string")) {
     throw new Error("AI draft context is invalid.");
   }
-  const [businessName, category, location, brand, campaignGoal, organisationName] = contextValues as string[];
-  if (contextValues.some((value) => !value.trim())) {
+  const validatedContextValues = contextValues as string[];
+  const [businessName, category, location, brand, campaignGoal, organisationName] = validatedContextValues;
+  if (validatedContextValues.some((value) => !value.trim())) {
     throw new Error("AI draft context fields must not be blank.");
   }
-  if (contextValues.some((value) => UNSAFE_CONTEXT_CONTROLS.test(value))) {
+  if (validatedContextValues.some((value) => UNSAFE_CONTEXT_CONTROLS.test(value))) {
     throw new Error("AI draft context contains unsupported control characters.");
   }
   const optionsRecord = snapshotAiPlainDataObject(
