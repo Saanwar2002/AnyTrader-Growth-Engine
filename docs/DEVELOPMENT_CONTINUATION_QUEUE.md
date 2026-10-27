@@ -1,3 +1,11 @@
+## AutoPilot continuation — refresh production readiness evidence (2026-10-27)
+
+- Updated the production readiness audit and security gate to the current `main` commit `4dda223b1991ef04a932b5c44e34e56cfafb7a6d` and exact post-merge CI run 40485506685.
+- Recorded the reservation integrity audit as a bounded, read-only diagnostic control while keeping legacy production migration, live Firebase/App Check, privacy/retention, monitoring, backup/recovery, and deployment gates blocked until independently verified.
+- Documentation-only change; no deployment, live migration, billing change, production data, or outreach.
+
+---
+
 ## AutoPilot continuation — reservation audit emulator integration (2026-10-27)
 
 - Added an end-to-end emulator smoke check for the bounded reservation integrity CLI against the synthetic organisation created by the existing smoke suite.
