@@ -32,6 +32,49 @@ const AI_DRAFT_CONTEXT_KEYS = new Set([
 ]);
 const AI_DRAFT_OPTION_KEYS = new Set(["apiKey", "model", "fetcher", "timeoutMs"]);
 
+const MAX_AI_PROVIDER_RESPONSE_BYTES = 256 * 1024;
+
+async function readBoundedAiProviderResponse(response: Response): Promise<string> {
+  const body = response.body;
+  if (!body) {
+    const text = await response.text();
+    if (new TextEncoder().encode(text).byteLength > MAX_AI_PROVIDER_RESPONSE_BYTES) {
+      throw new Error("Gemini response exceeded the allowed size.");
+    }
+    return text;
+  }
+
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+  try {
+    while (true) {
+      const result = await reader.read();
+      if (result.done) break;
+      totalBytes += result.value.byteLength;
+      if (totalBytes > MAX_AI_PROVIDER_RESPONSE_BYTES) {
+        try { await reader.cancel(); } catch { /* preserve the size-limit error */ }
+        throw new Error("Gemini response exceeded the allowed size.");
+      }
+      chunks.push(result.value);
+    }
+  } finally {
+    try { reader.releaseLock(); } catch { /* already cancelled or released */ }
+  }
+
+  const bytes = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    throw new Error("Gemini response was not valid UTF-8.");
+  }
+}
+
 function snapshotAiProviderObject(value: unknown, errorMessage: string): Record<string, unknown> {
   try {
     if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error();
@@ -169,9 +212,17 @@ export async function generateAiOutreachDraftSuggestion(context: AiOutreachDraft
       throw new Error("Gemini API request failed.");
     }
     if (!response.ok) throw new Error("Gemini API request failed.");
+    let responseText: string;
+    try {
+      responseText = await readBoundedAiProviderResponse(response);
+    } catch (error) {
+      if (error instanceof Error && error.message === "Gemini response exceeded the allowed size.") throw error;
+      if (error instanceof Error && error.message === "Gemini response was not valid UTF-8.") throw error;
+      throw new Error("Gemini response could not be read.");
+    }
     let payload: unknown;
     try {
-      payload = await response.json();
+      payload = JSON.parse(responseText);
     } catch {
       throw new Error("Gemini response was not valid JSON.");
     }

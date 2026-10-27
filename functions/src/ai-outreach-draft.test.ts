@@ -270,19 +270,16 @@ describe("AI outreach draft validation", () => {
         .rejects.toThrow("Gemini draft content parts were malformed");
     }
   });
-  it("rejects accessor-backed provider envelope fields without invoking getters", async () => {
+  it("rejects non-Response provider values without invoking arbitrary JSON accessors", async () => {
     let getterInvoked = false;
-    const payload = Object.defineProperty({}, "candidates", {
+    const invalidResponse = Object.defineProperty({ ok: true }, "json", {
       enumerable: true,
-      get: () => { getterInvoked = true; return []; },
+      get: () => { getterInvoked = true; return async () => ({ candidates: [] }); },
     });
-    const fetcher = vi.fn<typeof fetch>(async () => ({
-      ok: true,
-      json: async () => payload,
-    } as unknown as Response));
+    const fetcher = vi.fn<typeof fetch>(async () => invalidResponse as unknown as Response);
 
     await expect(generateAiOutreachDraftSuggestion(context, { apiKey: "key", fetcher }))
-      .rejects.toThrow("Gemini response shape was invalid");
+      .rejects.toThrow("Gemini response could not be read");
     expect(getterInvoked).toBe(false);
   });
 
@@ -307,6 +304,23 @@ describe("AI outreach draft validation", () => {
         .rejects.toThrow();
     }
     expect(getterInvoked).toBe(false);
+  });
+
+  it("rejects oversized provider response bodies before JSON parsing", async () => {
+    const oversizedBody = JSON.stringify({
+      candidates: [{ finishReason: "STOP", content: { parts: [{ text: JSON.stringify({
+        subject: "Provider invitation", body: "x".repeat(270 * 1024),
+      }) }] } }],
+    });
+    const fetcher = vi.fn<typeof fetch>(async () => new Response(oversizedBody, { status: 200 }));
+    await expect(generateAiOutreachDraftSuggestion(context, { apiKey: "key", fetcher }))
+      .rejects.toThrow("Gemini response exceeded the allowed size");
+  });
+
+  it("rejects provider response bodies that are not valid UTF-8", async () => {
+    const fetcher = vi.fn<typeof fetch>(async () => new Response(new Uint8Array([0xc3, 0x28]), { status: 200 }));
+    await expect(generateAiOutreachDraftSuggestion(context, { apiKey: "key", fetcher }))
+      .rejects.toThrow("Gemini response was not valid UTF-8");
   });
 
   it("rejects provider safety blocks", async () => {

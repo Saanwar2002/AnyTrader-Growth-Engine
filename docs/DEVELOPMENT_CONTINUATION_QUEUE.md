@@ -1,3 +1,11 @@
+## AutoPilot continuation — bound AI provider response bodies (2026-10-27)
+
+- Read Gemini response streams incrementally with a 256 KiB byte ceiling; cancel the stream as soon as the limit is exceeded instead of calling `response.json()` on an unbounded body.
+- Decode UTF-8 strictly and preserve sanitized errors for oversize, invalid UTF-8, unreadable body, and malformed JSON cases.
+- Added synthetic regressions for oversized and invalid UTF-8 responses. No real model calls, live data, deployment, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — harden AI provider response envelopes (2026-10-27)
 
 - Snapshot the Gemini response envelope, candidate, content and text parts through plain-object own data descriptors; accessor-backed values are rejected without executing getters.
