@@ -205,11 +205,30 @@ export function validateLeadSourceManifest(manifest: LeadSourceAdapterManifest, 
   }
   return issues;
 }
+/**
+ * Validate and return a detached manifest snapshot. Callers that make
+ * permission or budget decisions must use this returned snapshot rather than
+ * rereading the caller-owned object after validation.
+ */
+function requireRunnableLeadSourceManifest(
+  manifest: LeadSourceAdapterManifest,
+  now: Date = new Date(),
+): LeadSourceAdapterManifest {
+  const normalized = normalizeLeadSourceManifest(manifest);
+  if (!normalized) {
+    throw new Error("Lead source adapter manifest is invalid: A source adapter manifest must be a plain data object with only supported own fields.");
+  }
+  const issues = validateLeadSourceManifest(normalized, now);
+  if (issues.length) throw new Error(`Lead source adapter manifest is invalid: ${issues.join(" ")}`);
+  if (normalized.reviewStatus !== "approved") {
+    throw new Error("Lead source adapter is blocked until its terms and permitted use are approved.");
+  }
+  return normalized;
+}
+
 /** Fail closed until a human has recorded permission review for this exact purpose. */
 export function assertLeadSourceAdapterRunnable(manifest: LeadSourceAdapterManifest, now: Date = new Date()): void {
-  const issues = validateLeadSourceManifest(manifest, now);
-  if (issues.length) throw new Error(`Lead source adapter manifest is invalid: ${issues.join(" ")}`);
-  if (manifest.reviewStatus !== "approved") throw new Error("Lead source adapter is blocked until its terms and permitted use are approved.");
+  requireRunnableLeadSourceManifest(manifest, now);
 }
 
 const FIELD_MAX_LENGTHS: Record<LeadSourceField, number> = {
@@ -231,7 +250,7 @@ export function attributeLeadSourceCandidates(
   collectedAt: string,
   now: Date = new Date(),
 ): AttributedLeadSourceCandidate[] {
-  assertLeadSourceAdapterRunnable(manifest, now);
+  manifest = requireRunnableLeadSourceManifest(manifest, now);
   if (!isIsoDate(collectedAt)) throw new Error("collectedAt must be a valid ISO-8601 timestamp.");
   if (!(now instanceof Date) || !Number.isFinite(now.getTime())) {
     throw new Error("Collection validation clock must be a valid date.");
@@ -322,7 +341,7 @@ export function validateLeadSourcePageRequest<TCursor = string>(
   manifest: LeadSourceAdapterManifest,
   now: Date = new Date(),
 ): LeadSourcePageRequest<TCursor> {
-  assertLeadSourceAdapterRunnable(manifest, now);
+  manifest = requireRunnableLeadSourceManifest(manifest, now);
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error("Lead source page request must be an object.");
   }
@@ -356,7 +375,7 @@ export function validateLeadSourcePageResult<TRecord = unknown, TCursor = string
   manifest: LeadSourceAdapterManifest,
   now: Date = new Date(),
 ): LeadSourcePage<TRecord, TCursor> {
-  assertLeadSourceAdapterRunnable(manifest, now);
+  manifest = requireRunnableLeadSourceManifest(manifest, now);
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error("Lead source page result must be an object.");
   }
@@ -417,7 +436,7 @@ export class LeadSourceAdapterRunGuard<TCursor = string> {
   constructor(manifest: LeadSourceAdapterManifest) {
     // A caller must not be able to expand permissions or limits mid-run by
     // mutating the manifest object or its allowedFields array.
-    this.manifest = { ...manifest, allowedFields: [...manifest.allowedFields] };
+    this.manifest = requireRunnableLeadSourceManifest(manifest);
   }
 
   get recordsAccepted(): number {
