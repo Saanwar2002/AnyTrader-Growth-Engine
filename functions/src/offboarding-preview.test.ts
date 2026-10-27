@@ -28,8 +28,15 @@ describe("non-destructive tenant offboarding preview", () => {
     expect(JSON.stringify(result)).not.toContain("phone");
   });
 
-  it("includes organisation-scoped member-addition idempotency records in the inventory", () => {
-    expect(OFFBOARDING_PREVIEW_CATEGORIES).toContain("memberAdditionIdempotency");
+  it("includes all organisation-scoped idempotency collections in the inventory", () => {
+    expect(OFFBOARDING_PREVIEW_CATEGORIES).toEqual(expect.arrayContaining([
+      "campaignCreationIdempotency",
+      "memberAdditionIdempotency",
+      "importIdempotency",
+      "leadCreationIdempotency",
+      "leadBulkStatusIdempotency",
+      "outreachDraftCreationIdempotency",
+    ]));
   });
 
   it("includes canonical lead identifier reservations in the explicit tenant inventory", () => {

@@ -10,7 +10,7 @@ Implemented as a **non-destructive, owner-only preview callable** named `preview
 - Revalidates the organisation and membership through the existing server-side membership check.
 - Requires the authoritative membership role to be `owner`; admin/member/viewer roles are denied.
 - Uses a server-side per-user, per-organisation read quota.
-- Counts only the explicit tenant subcollection allow-list: members, campaigns, leads, hashed lead identifier reservations, lead activities, outreach drafts, security audit events, and the five organisation-scoped idempotency collections.
+- Counts only the explicit tenant subcollection allow-list: members, campaigns, leads, hashed lead identifier reservations, lead activities, outreach drafts, security audit events, and all six organisation-scoped idempotency collections.
 - Reads document IDs only, in bounded pages. No lead/contact fields or document IDs are returned.
 - Each category is capped at 1,000 records. A category above the cap is marked `limit_reached` with no exact count; a read failure is marked `unavailable`. Either condition makes the overall preview incomplete.
 - The callable performs no delete operation. It creates/updates only the ordinary rate-limit record used to protect the endpoint.

@@ -1,3 +1,12 @@
+## AutoPilot continuation — verify offboarding inventory completeness and refresh readiness checkpoint (2026-10-27)
+
+- Added a regression assertion covering all six organisation-scoped idempotency collections so future offboarding inventory edits cannot silently omit membership-addition retry records.
+- Corrected the preview documentation from five to six organisation-scoped idempotency collections.
+- Refreshed the dated production-readiness/security checkpoint to `4c7fc98158b0b6d37b8bbac350f1d9febba97ac5`, with successful exact-head PR #246 CI (`40503494632`) and post-merge main CI (`40503958427`).
+- Live Firebase/App Check, privacy/retention, monitoring, backup/recovery, data-source approval, and legacy reconciliation remain blockers. No deployment, live migration, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — require explicit client-side Growth Engine project allow-list (2026-10-27)
 
 - Added `VITE_GROWTH_ENGINE_FIREBASE_PROJECT_ID` as a separately declared client-side project allow-list and fail closed to demo mode when it is missing or differs from `VITE_FIREBASE_PROJECT_ID`.
