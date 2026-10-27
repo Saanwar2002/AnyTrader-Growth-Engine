@@ -510,6 +510,7 @@ export class LeadSourceAdapterRunGuard<TCursor = string> {
   private readonly requestTimestamps: number[] = [];
   private lastRequestTimestamp: number | null = null;
   private requestCount = 0;
+  private requestAwaitingResult = false;
 
   constructor(manifest: LeadSourceAdapterManifest) {
     // A caller must not be able to expand permissions or limits mid-run by
@@ -532,6 +533,9 @@ export class LeadSourceAdapterRunGuard<TCursor = string> {
     // Approval can expire after guard construction; recheck before every
     // request so an expired source is blocked before any provider call.
     requireRunnableLeadSourceManifest(this.manifest, now);
+    if (this.requestAwaitingResult) {
+      throw new Error("Lead source run must resolve the previous provider request before starting another.");
+    }
     const timestamp = now.getTime();
     if (this.lastRequestTimestamp !== null && timestamp < this.lastRequestTimestamp) {
       throw new Error("Lead source request validation clock must not move backwards.");
@@ -550,6 +554,15 @@ export class LeadSourceAdapterRunGuard<TCursor = string> {
     }
     this.requestTimestamps.push(timestamp);
     this.requestCount += 1;
+    this.requestAwaitingResult = true;
+  }
+
+  /** Mark a failed provider call so the next bounded request can be attempted. */
+  recordRequestFailure(): void {
+    if (!this.requestAwaitingResult) {
+      throw new Error("Lead source run has no outstanding provider request to resolve.");
+    }
+    this.requestAwaitingResult = false;
   }
 
   acceptPage(
@@ -557,6 +570,12 @@ export class LeadSourceAdapterRunGuard<TCursor = string> {
     collectedAt: string,
     now: Date = new Date(),
   ): LeadSourcePage<AttributedLeadSourceCandidate, TCursor> {
+    if (!this.requestAwaitingResult) {
+      throw new Error("Lead source page cannot be accepted without a recorded provider request.");
+    }
+    // The provider response consumes the outstanding request even if its page
+    // later fails validation; callers must not reuse one request for two pages.
+    this.requestAwaitingResult = false;
     const page = validateAndAttributeLeadSourcePage<TCursor>(value, this.manifest, collectedAt, now);
     if (this.acceptedRecordCount + page.records.length > this.manifest.maxRecordsPerRun) {
       throw new Error("Lead source run exceeded its configured total record limit.");
