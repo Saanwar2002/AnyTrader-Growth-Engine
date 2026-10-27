@@ -565,6 +565,41 @@ export class LeadSourceAdapterRunGuard<TCursor = string> {
     this.requestAwaitingResult = false;
   }
 
+  /**
+   * Validate a page request, consume request budget, invoke the supplied
+   * provider callback, and accept its response in one controlled sequence.
+   * A failed callback resolves the outstanding request slot but remains
+   * counted against budgets. Approval is rechecked when the response arrives.
+   */
+  async requestAndAcceptPage(
+    request: unknown,
+    fetchPage: (validatedRequest: LeadSourcePageRequest<TCursor>) => Promise<unknown>,
+    collectedAt: string,
+    clock: () => Date = () => new Date(),
+  ): Promise<LeadSourcePage<AttributedLeadSourceCandidate, TCursor>> {
+    if (typeof fetchPage !== "function") {
+      throw new Error("Lead source page fetch callback must be a function.");
+    }
+    const requestedAt = clock();
+    const validatedRequest = validateLeadSourcePageRequest<TCursor>(request, this.manifest, requestedAt);
+    this.recordRequest(requestedAt);
+
+    let response: unknown;
+    try {
+      response = await fetchPage(validatedRequest);
+    } catch (error) {
+      // Preserve the original provider error even if a misbehaving callback
+      // has already changed the guard's outstanding-request state.
+      try {
+        this.recordRequestFailure();
+      } catch {
+        // The original provider failure is the actionable error.
+      }
+      throw error;
+    }
+    return this.acceptPage(response, collectedAt, clock());
+  }
+
   acceptPage(
     value: unknown,
     collectedAt: string,
