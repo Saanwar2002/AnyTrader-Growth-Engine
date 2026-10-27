@@ -801,6 +801,37 @@ try {
     email: "BEFORE-EDIT@example.test",
   }), "functions/already-exists", "manual lead creation rejects an existing canonical email");
 
+  const concurrentIdentifierResults = await Promise.allSettled([
+    callOne("createLead", {
+      organisationId: orgOne.organisationId,
+      campaignId: campaignOne.campaignId,
+      idempotencyKey: "manual-lead-race-attempt-0001",
+      businessName: "Synthetic Concurrent Identifier A Ltd",
+      category: "Painters",
+      location: "Bristol",
+      email: "concurrent-identifier-race@example.test",
+    }),
+    callOne("createLead", {
+      organisationId: orgOne.organisationId,
+      campaignId: campaignOne.campaignId,
+      idempotencyKey: "manual-lead-race-attempt-0002",
+      businessName: "Synthetic Concurrent Identifier B Ltd",
+      category: "Painters",
+      location: "Cardiff",
+      email: "CONCURRENT-IDENTIFIER-RACE@example.test",
+    }),
+  ]);
+  assert.equal(concurrentIdentifierResults.filter((result) => result.status === "fulfilled").length, 1,
+    "concurrent manual creates with different idempotency keys produce one lead");
+  const concurrentIdentifierFailure = concurrentIdentifierResults.find((result) => result.status === "rejected");
+  assert.equal(concurrentIdentifierFailure?.status, "rejected");
+  assert.equal(concurrentIdentifierFailure?.reason?.code, "functions/already-exists",
+    "losing concurrent manual create receives a duplicate conflict");
+  const afterConcurrentIdentifierList = await callOne("listLeads", { organisationId: orgOne.organisationId });
+  assert.equal(afterConcurrentIdentifierList.leads.filter((lead) =>
+    lead.email === "concurrent-identifier-race@example.test").length, 1,
+  "only one lead is stored for a canonical identifier under concurrent writes");
+
   const unsafeWebsiteLead = await callOne("createLead", {
     organisationId: orgOne.organisationId,
     campaignId: campaignOne.campaignId,
