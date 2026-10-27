@@ -88,6 +88,7 @@
 
 ## Phase 5 — Server-side AI assistance
 
+- [x] Harden the AI outreach draft response validator to accept only exact plain data objects with own enumerable `subject` and `body` fields, rejecting accessors, symbols, hidden/unknown fields, arrays, and class instances without invoking getters.
 - Server-side Gemini classification and draft generation with schema validation.
 - Prompt-injection protections, per-organisation usage limits, and human approval.
 - No automated outreach sending in the MVP.
