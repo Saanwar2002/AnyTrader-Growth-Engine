@@ -22,6 +22,41 @@ describe("exact event-specific audit metadata shape", () => {
     expect(hasExactAuditMetadataKeys(42, allowed)).toBe(false);
   });
 
+  it("rejects accessor-backed fields without invoking getters", () => {
+    let getterInvoked = false;
+    const metadata = { leadStatus: "qualified" };
+    Object.defineProperty(metadata, "followUpDateSet", {
+      enumerable: true,
+      get: () => { getterInvoked = true; return true; },
+    });
+
+    expect(hasExactAuditMetadataKeys(metadata, allowed)).toBe(false);
+    expect(getterInvoked).toBe(false);
+  });
+
+  it("rejects symbol keys, hidden fields, class instances, and throwing proxy traps", () => {
+    expect(hasExactAuditMetadataKeys({
+      leadStatus: "qualified",
+      followUpDateSet: true,
+      [Symbol("extra")]: "private",
+    }, allowed)).toBe(false);
+
+    const hidden = { leadStatus: "qualified", followUpDateSet: true };
+    Object.defineProperty(hidden, "hidden", { value: "private", enumerable: false });
+    expect(hasExactAuditMetadataKeys(hidden, allowed)).toBe(false);
+
+    class MetadataRecord {
+      leadStatus = "qualified";
+      followUpDateSet = true;
+    }
+    expect(hasExactAuditMetadataKeys(new MetadataRecord(), allowed)).toBe(false);
+
+    const hostile = new Proxy({ leadStatus: "qualified", followUpDateSet: true }, {
+      ownKeys: () => { throw new Error("sensitive proxy detail"); },
+    });
+    expect(hasExactAuditMetadataKeys(hostile, allowed)).toBe(false);
+  });
+
   it("requires all keys when the event contract is empty", () => {
     expect(hasExactAuditMetadataKeys({}, [])).toBe(true);
     expect(hasExactAuditMetadataKeys({ unexpected: true }, [])).toBe(false);
