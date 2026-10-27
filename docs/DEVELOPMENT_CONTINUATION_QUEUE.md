@@ -1,3 +1,11 @@
+## AutoPilot continuation — bound total lead-source requests per run (2026-10-27)
+
+- Added required maxRequestsPerRun to the reviewed source manifest, bounded to 1–1,000, so a run cannot continue forever by returning empty pages with ever-changing cursors.
+- The per-run guard now enforces both a rolling per-minute budget and a cumulative total request budget before a provider call; the caller must call recordRequest immediately before each request.
+- Added validation and regression coverage across multiple rolling windows. No live provider connection, network activity, persistence, migration, deployment, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — enforce per-run lead-source request rate limits (2026-10-27)
 
 - Added a rolling 60-second request budget to the per-discovery-run guard using the approved manifest's maxRequestsPerMinute value.

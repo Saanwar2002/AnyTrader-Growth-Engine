@@ -13,7 +13,7 @@ const approvedManifest = (): LeadSourceAdapterManifest => ({
   sourceId: "directory-api-v1", displayName: "Example Directory API", termsUrl: "https://example.test/terms",
   reviewStatus: "approved", reviewedAt: "2026-10-25T09:00:00.000Z", reviewedBy: "review-ticket-123",
   approvalExpiresAt: "2027-01-01T00:00:00.000Z",
-  permittedPurpose: "business_provider_recruitment", maxRequestsPerMinute: 30, maxRecordsPerRun: 100,
+  permittedPurpose: "business_provider_recruitment", maxRequestsPerMinute: 30, maxRequestsPerRun: 100, maxRecordsPerRun: 100,
   allowedFields: ["businessName", "category", "location", "website"],
 });
 describe("lead source adapter permission contract", () => {
@@ -39,8 +39,11 @@ describe("lead source adapter permission contract", () => {
       .toContain("termsUrl must be an HTTPS URL without embedded credentials.");
   });
   it("rejects unbounded request or record limits", () => {
-    const issues = validateLeadSourceManifest({ ...approvedManifest(), maxRequestsPerMinute: 601, maxRecordsPerRun: 501 });
+    const issues = validateLeadSourceManifest({
+      ...approvedManifest(), maxRequestsPerMinute: 601, maxRequestsPerRun: 1001, maxRecordsPerRun: 501,
+    });
     expect(issues).toContain("maxRequestsPerMinute must be an integer between 1 and 600.");
+    expect(issues).toContain("maxRequestsPerRun must be an integer between 1 and 1000.");
     expect(issues).toContain("maxRecordsPerRun must be an integer between 1 and 500.");
   });
   it("requires businessName and rejects unsupported or duplicate fields", () => {
@@ -476,6 +479,17 @@ describe("lead source bounded page contract", () => {
 
     // At the exact 60-second boundary the first request has left the window.
     expect(() => guard.recordRequest(new Date(start.getTime() + 60_000))).not.toThrow();
+  });
+
+  it("enforces the manifest's total request budget even across multiple rolling windows", () => {
+    const limitedManifest = { ...manifest, maxRequestsPerMinute: 2, maxRequestsPerRun: 3 };
+    const guard = new LeadSourceAdapterRunGuard<string>(limitedManifest);
+    const start = new Date("2026-10-26T12:00:00.000Z");
+    guard.recordRequest(start);
+    guard.recordRequest(new Date(start.getTime() + 1_000));
+    guard.recordRequest(new Date(start.getTime() + 60_000));
+    expect(() => guard.recordRequest(new Date(start.getTime() + 120_000)))
+      .toThrow("total request limit");
   });
 
   it("rejects invalid or backwards request-rate validation clocks", () => {

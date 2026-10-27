@@ -15,6 +15,7 @@ export interface LeadSourceAdapterManifest {
   approvalExpiresAt?: string;
   permittedPurpose?: "business_provider_recruitment";
   maxRequestsPerMinute: number;
+  maxRequestsPerRun: number;
   maxRecordsPerRun: number;
   allowedFields: LeadSourceField[];
 }
@@ -152,7 +153,7 @@ const PAGE_RESULT_KEYS = new Set(["records", "nextCursor"]);
 
 const MANIFEST_KEYS = new Set([
   "sourceId", "displayName", "termsUrl", "reviewStatus", "reviewedAt", "reviewedBy",
-  "approvalExpiresAt", "permittedPurpose", "maxRequestsPerMinute", "maxRecordsPerRun", "allowedFields",
+  "approvalExpiresAt", "permittedPurpose", "maxRequestsPerMinute", "maxRequestsPerRun", "maxRecordsPerRun", "allowedFields",
 ]);
 
 /**
@@ -219,6 +220,9 @@ export function validateLeadSourceManifest(manifest: LeadSourceAdapterManifest, 
   if (!["pending", "approved", "rejected"].includes(manifest.reviewStatus)) issues.push("reviewStatus must be pending, approved, or rejected.");
   if (!Number.isInteger(manifest.maxRequestsPerMinute) || manifest.maxRequestsPerMinute < 1 || manifest.maxRequestsPerMinute > 600) {
     issues.push("maxRequestsPerMinute must be an integer between 1 and 600.");
+  }
+  if (!Number.isInteger(manifest.maxRequestsPerRun) || manifest.maxRequestsPerRun < 1 || manifest.maxRequestsPerRun > 1000) {
+    issues.push("maxRequestsPerRun must be an integer between 1 and 1000.");
   }
   if (!Number.isInteger(manifest.maxRecordsPerRun) || manifest.maxRecordsPerRun < 1 || manifest.maxRecordsPerRun > 500) {
     issues.push("maxRecordsPerRun must be an integer between 1 and 500.");
@@ -505,6 +509,7 @@ export class LeadSourceAdapterRunGuard<TCursor = string> {
   private readonly manifest: LeadSourceAdapterManifest;
   private readonly requestTimestamps: number[] = [];
   private lastRequestTimestamp: number | null = null;
+  private requestCount = 0;
 
   constructor(manifest: LeadSourceAdapterManifest) {
     // A caller must not be able to expand permissions or limits mid-run by
@@ -530,6 +535,9 @@ export class LeadSourceAdapterRunGuard<TCursor = string> {
     }
     this.lastRequestTimestamp = timestamp;
 
+    if (this.requestCount >= this.manifest.maxRequestsPerRun) {
+      throw new Error("Lead source run exceeded its configured total request limit.");
+    }
     const windowStart = timestamp - 60_000;
     while (this.requestTimestamps.length > 0 && this.requestTimestamps[0] <= windowStart) {
       this.requestTimestamps.shift();
@@ -538,6 +546,7 @@ export class LeadSourceAdapterRunGuard<TCursor = string> {
       throw new Error("Lead source run exceeded its configured per-minute request limit.");
     }
     this.requestTimestamps.push(timestamp);
+    this.requestCount += 1;
   }
 
   acceptPage(
