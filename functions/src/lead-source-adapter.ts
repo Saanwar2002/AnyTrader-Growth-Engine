@@ -337,3 +337,55 @@ export function validateAndAttributeLeadSourcePage<TCursor = string>(
     ...(Object.prototype.hasOwnProperty.call(page, "nextCursor") ? { nextCursor: page.nextCursor } : {}),
   };
 }
+
+
+/**
+ * Stateful guard to reuse for every page in one discovery run. Enforces the
+ * manifest's total run budget and prevents duplicate provider IDs or cursor
+ * cycles from being accepted across pages. Instantiate one guard per run.
+ */
+export class LeadSourceAdapterRunGuard<TCursor = string> {
+  private acceptedRecordCount = 0;
+  private readonly seenSourceRecordIds = new Set<string>();
+  private readonly seenNextCursors = new Set<string>();
+
+  constructor(private readonly manifest: LeadSourceAdapterManifest) {}
+
+  get recordsAccepted(): number {
+    return this.acceptedRecordCount;
+  }
+
+  acceptPage(
+    value: unknown,
+    collectedAt: string,
+    now: Date = new Date(),
+  ): LeadSourcePage<AttributedLeadSourceCandidate, TCursor> {
+    const page = validateAndAttributeLeadSourcePage<TCursor>(value, this.manifest, collectedAt, now);
+    if (this.acceptedRecordCount + page.records.length > this.manifest.maxRecordsPerRun) {
+      throw new Error("Lead source run exceeded its configured total record limit.");
+    }
+
+    const pageSourceRecordIds = new Set<string>();
+    for (const record of page.records) {
+      const sourceRecordId = record.candidate.sourceRecordId;
+      if (!sourceRecordId) continue;
+      if (this.seenSourceRecordIds.has(sourceRecordId) || pageSourceRecordIds.has(sourceRecordId)) {
+        throw new Error("Lead source run contains duplicate sourceRecordId values across pages.");
+      }
+      pageSourceRecordIds.add(sourceRecordId);
+    }
+
+    let nextCursorKey: string | undefined;
+    if (page.nextCursor !== undefined && page.nextCursor !== null) {
+      nextCursorKey = JSON.stringify(page.nextCursor);
+      if (this.seenNextCursors.has(nextCursorKey)) {
+        throw new Error("Lead source pagination repeated a next cursor.");
+      }
+    }
+
+    this.acceptedRecordCount += page.records.length;
+    for (const sourceRecordId of pageSourceRecordIds) this.seenSourceRecordIds.add(sourceRecordId);
+    if (nextCursorKey !== undefined) this.seenNextCursors.add(nextCursorKey);
+    return page;
+  }
+}
