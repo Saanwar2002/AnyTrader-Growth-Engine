@@ -321,6 +321,22 @@ describe("AI outreach draft validation", () => {
     expect(getterInvoked).toBe(false);
   });
 
+  it("reports timeouts while reading a stalled provider response body", async () => {
+    const fetcher = vi.fn<typeof fetch>(async (_input, init) => {
+      const body = new ReadableStream<Uint8Array>({
+        start(streamController) {
+          init?.signal?.addEventListener("abort", () => {
+            streamController.error(new Error("raw body stream abort details"));
+          }, { once: true });
+        },
+      });
+      return new Response(body, { status: 200 });
+    });
+    await expect(generateAiOutreachDraftSuggestion(context, {
+      apiKey: "key", timeoutMs: 10, fetcher,
+    })).rejects.toThrow("Gemini API request timed out");
+  });
+
   it("rejects oversized provider response bodies before JSON parsing", async () => {
     const oversizedBody = JSON.stringify({
       candidates: [{ finishReason: "STOP", content: { parts: [{ text: JSON.stringify({
