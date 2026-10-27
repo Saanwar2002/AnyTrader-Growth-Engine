@@ -1,3 +1,11 @@
+## AutoPilot continuation — harden AI draft generation inputs (2026-10-27)
+
+- AI generation context and options are copied from plain objects using own enumerable data descriptors before validation or use, preventing getter execution and validate-then-reread inconsistencies.
+- Reject symbol/unknown keys, accessors, hidden fields, arrays, and class instances for context/options; preserve the server-only key, minimal context, schema validation, and bounded timeout behavior.
+- Added synthetic regressions; no real model calls, live data, deployment, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — harden AI draft response object shapes (2026-10-27)
 
 - The exported AI draft validator now snapshots subject/body through own enumerable data descriptors and rejects accessors, symbol keys, unknown fields, hidden properties, arrays, and class instances without invoking getters.
