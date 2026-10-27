@@ -38,6 +38,11 @@ export function getValidBulkLeadStatusReplayResult(
 
   const requestedIds = new Set(expected.leadIds);
   const changedIds = value.leadIds;
+  for (let index = 0; index < changedIds.length; index += 1) {
+    if (!Object.prototype.hasOwnProperty.call(changedIds, index) || typeof changedIds[index] !== "string") {
+      return null;
+    }
+  }
   if (changedIds.some((id) => typeof id !== "string" || id.length === 0 || id.includes("/") || !requestedIds.has(id))
     || new Set(changedIds).size !== changedIds.length
     || value.updatedCount !== changedIds.length

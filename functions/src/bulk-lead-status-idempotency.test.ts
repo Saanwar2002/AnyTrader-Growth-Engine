@@ -30,6 +30,20 @@ describe("bulk lead status idempotency replay integrity", () => {
     expect(getValidBulkLeadStatusReplayResult({ ...validResult, unchangedCount: 2 }, expected)).toBeNull();
   });
 
+  it("rejects sparse changed-ID arrays even when their length matches the updated count", () => {
+    expect(getValidBulkLeadStatusReplayResult({
+      organisationId: "org-1",
+      status: "qualified",
+      updatedCount: 1,
+      unchangedCount: 0,
+      leadIds: Array(1),
+    }, {
+      organisationId: "org-1",
+      status: "qualified",
+      leadIds: ["lead-1"],
+    })).toBeNull();
+  });
+
   it("rejects duplicate, unrequested, invalid, or count-inconsistent changed lead IDs", () => {
     expect(getValidBulkLeadStatusReplayResult({ ...validResult, leadIds: ["lead-1", "lead-1"] }, expected)).toBeNull();
     expect(getValidBulkLeadStatusReplayResult({ ...validResult, leadIds: ["lead-1", "other-lead"] }, expected)).toBeNull();
