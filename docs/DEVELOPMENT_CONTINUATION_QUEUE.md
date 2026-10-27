@@ -1,3 +1,12 @@
+## AutoPilot continuation — refresh production-readiness evidence after offboarding quota hardening (2026-10-27)
+
+- Updated the audit and security-gate checkpoint to `c9c63c37e63b213e05d32026668760e104ca1ea5` and recorded successful exact-PR and post-merge CI runs.
+- Recorded PRs #239–#241 coverage for invalid organisation IDs, malformed persisted quota state, and concurrent quota-boundary enforcement.
+- Kept live Firebase project/App Check verification, privacy/retention, monitoring, backup/recovery, approved data-source configuration, and legacy reconciliation as explicit production blockers.
+- Documentation-only; no deployment, live migration, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — concurrent offboarding preview quota boundary (2026-10-27)
 
 - Extended the local quota seeder to place `previewOrganisationOffboarding` exactly one request below its 10-call limit.
