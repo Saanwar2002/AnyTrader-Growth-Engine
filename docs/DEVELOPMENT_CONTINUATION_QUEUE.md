@@ -1,3 +1,11 @@
+## AutoPilot continuation — centralize guarded lead-source page fetches (2026-10-27)
+
+- Added `requestAndAcceptPage` on the per-run guard to validate and detach the request, consume both request budgets, invoke the supplied provider callback, and validate/accept the response in one controlled sequence.
+- Invalid requests fail before callback invocation; attempted provider calls consume budget even if the callback fails or returns invalid data.
+- Regression tests verify callback ordering and that exhausted budgets prevent additional provider calls. The helper itself has no provider credentials or built-in network integration.
+
+---
+
 ## AutoPilot continuation — bound total lead-source requests per run (2026-10-27)
 
 - Added required maxRequestsPerRun to the reviewed source manifest, bounded to 1–1,000, so a run cannot continue forever by returning empty pages with ever-changing cursors.
