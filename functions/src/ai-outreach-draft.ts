@@ -220,6 +220,7 @@ export async function generateAiOutreachDraftSuggestion(context: AiOutreachDraft
     try {
       responseText = await readBoundedAiProviderResponse(response);
     } catch (error) {
+      if (controller.signal.aborted) throw new Error("Gemini API request timed out.");
       if (error instanceof Error && error.message === "Gemini response exceeded the allowed size.") throw error;
       if (error instanceof Error && error.message === "Gemini response was not valid UTF-8.") throw error;
       throw new Error("Gemini response could not be read.");

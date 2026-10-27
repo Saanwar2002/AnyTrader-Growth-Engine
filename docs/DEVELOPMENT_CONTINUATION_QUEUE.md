@@ -1,3 +1,11 @@
+## AutoPilot continuation — report AI provider body-read timeouts accurately (2026-10-27)
+
+- If the shared AbortController fires while streaming the Gemini response body, report the same sanitized timeout error used for stalled request establishment instead of misclassifying it as a generic body-read failure.
+- Added a synthetic stalled ReadableStream regression that aborts with sensitive transport details and verifies those details are not surfaced.
+- No real model calls, live data, deployment, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — bound AI draft context fields (2026-10-27)
 
 - Reject raw AI draft context values exceeding the per-field limits before trimming, control-character scanning, or provider calls. Limits match the existing maximum payload lengths: business/location 160, category/brand/organisation 100, campaign goal 300.
