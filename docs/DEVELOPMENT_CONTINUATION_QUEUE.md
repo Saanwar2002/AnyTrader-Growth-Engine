@@ -1,3 +1,11 @@
+## AutoPilot continuation — validate persisted lead identifier reservations (2026-10-27)
+
+- Reservation reads now validate schema version, expected identifier type, safe lead document ID, and exact allowed field names through own enumerable data descriptors before deciding duplicate/conflict behavior.
+- Unknown/symbol/hidden/accessor fields, class instances, malformed identities, and hostile inspection traps fail closed with operator-review errors. The legacy `createdAt` metadata remains optional and is not used as authority.
+- Added isolated unit tests for valid and malformed reservation states; no production reservation records were read or changed, no migration/deployment/billing/outreach occurred.
+
+---
+
 ## AutoPilot continuation — snapshot audit metadata before validation and persistence (2026-10-27)
 
 - Added a detached null-prototype snapshot for exact event-specific audit metadata, populated from own enumerable data descriptors only.

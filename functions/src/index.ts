@@ -14,6 +14,7 @@ import { getValidLeadCreationReplayResult, isPersistedLeadCreationReplayAvailabl
 import { getValidImportReplayResult, isPersistedImportedLeadReplayAvailable } from "./import-idempotency";
 import * as logger from "firebase-functions/logger";
 import { canonicalLeadBusinessLocationKey, canonicalLeadEmailKey, canonicalLeadWebsiteKey } from "./lead-identifiers";
+import { getValidLeadIdentifierReservationState } from "./lead-identifier-reservation-state";
 import { createOffboardingPreview, OFFBOARDING_PREVIEW_CATEGORIES } from "./offboarding-preview";
 import { PILOT_PLAN, resolvePlanPolicy } from "./entitlements";
 import { currentAiUsagePeriod, reservePlanUsage, resolvePlanUsageState, type PlanUsageState } from "./usage-accounting";
@@ -491,11 +492,11 @@ function assertLeadIdentifierReservationsAvailable(
 ): void {
   for (const reservation of reservations) {
     if (!reservation.snapshot.exists) continue;
-    const data = reservation.snapshot.data();
-    if (!data || typeof data.leadId !== "string" || !data.leadId) {
+    const state = getValidLeadIdentifierReservationState(reservation.snapshot.data(), reservation.type);
+    if (!state) {
       throw new HttpsError("failed-precondition", "Lead identifier reservation state is invalid and requires operator review.");
     }
-    if (data.leadId !== allowedLeadId) {
+    if (state.leadId !== allowedLeadId) {
       throw new HttpsError("already-exists", "A lead with matching email, website, or business/location already exists in this organisation.");
     }
   }
@@ -506,8 +507,7 @@ function assertLeadIdentifierReservationsWellFormed(
 ): void {
   for (const reservation of reservations) {
     if (!reservation.snapshot.exists) continue;
-    const data = reservation.snapshot.data();
-    if (!data || typeof data.leadId !== "string" || !data.leadId) {
+    if (!getValidLeadIdentifierReservationState(reservation.snapshot.data(), reservation.type)) {
       throw new HttpsError("failed-precondition", "Lead identifier reservation state is invalid and requires operator review.");
     }
   }
