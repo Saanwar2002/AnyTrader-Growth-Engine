@@ -79,7 +79,8 @@ function normalizeBoundedSerializableCursor(value: unknown): { valid: boolean; v
       if (ownKeys.some((key) => key !== "length"
         && (typeof key !== "string" || !/^(0|[1-9]\d*)$/.test(key) || Number(key) >= candidate.length))) return false;
       for (let index = 0; index < candidate.length; index += 1) {
-        if (!isJsonSafe(candidate[index])) return false;
+        const descriptor = Object.getOwnPropertyDescriptor(candidate, String(index));
+        if (!descriptor || !descriptor.enumerable || !("value" in descriptor) || !isJsonSafe(descriptor.value)) return false;
       }
       seen.delete(candidate);
       return true;
