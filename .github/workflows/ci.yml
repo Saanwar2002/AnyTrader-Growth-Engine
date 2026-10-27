@@ -96,3 +96,5 @@ jobs:
         run: npm test
       - name: Compile Functions
         run: npm run build
+      - name: Verify reservation audit refuses cloud Firestore targets
+        run: node scripts/test-audit-lead-identifier-reservations-guard.mjs
