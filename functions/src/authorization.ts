@@ -9,11 +9,26 @@ export type OrganisationRole = "owner" | "admin" | "member" | "viewer";
 export function safeTimestampToIso(value: unknown): string | null {
   if (value === null || value === undefined || typeof value !== "object") return null;
   try {
-    const toDate = (value as { toDate?: unknown }).toDate;
+    // Firestore Timestamp exposes toDate on its prototype. Resolve data
+    // descriptors only so a persisted own/prototype accessor cannot execute.
+    let current: object | null = value;
+    let toDate: unknown;
+    while (current !== null) {
+      const descriptor = Object.getOwnPropertyDescriptor(current, "toDate");
+      if (descriptor) {
+        if (!("value" in descriptor)) return null;
+        toDate = descriptor.value;
+        break;
+      }
+      current = Object.getPrototypeOf(current) as object | null;
+    }
     if (typeof toDate !== "function") return null;
-    const date = toDate.call(value);
-    if (!(date instanceof Date) || !Number.isFinite(date.getTime())) return null;
-    return date.toISOString();
+    const date: unknown = toDate.call(value);
+    if (!(date instanceof Date)) return null;
+    // Use intrinsic Date methods so an own override cannot run or alter output.
+    const milliseconds = Date.prototype.getTime.call(date) as number;
+    if (!Number.isFinite(milliseconds)) return null;
+    return Date.prototype.toISOString.call(date);
   } catch {
     return null;
   }

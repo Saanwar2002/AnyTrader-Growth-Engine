@@ -3,6 +3,35 @@ import { describe, expect, it } from "vitest";
 import { calculateLeadCompleteness, canChangeSuppression, canMarkLeadContacted, canCreateServerOutreachDraft, canTransitionLeadStatus, getOutreachDraftReviewState, hasCampaignWritePermission, hasLeadWritePermission, isValidCampaignStatus, isValidDocumentId, isValidEmailAddress, isValidLeadStatus, isValidOrganisationId, isValidOrganisationPageToken, isValidOrganisationCollectionPageToken, isValidMembershipRecord, isValidMembershipForOrganisation, isValidFirestoreTimestamp, normaliseContactReviewStatus, hasConsistentDraftCampaign, normaliseOptionalText, normaliseRequiredText, isSafeWebsiteAddress, evaluateRateLimit, createRateLimitDocumentId, safeTimestampToIso } from "./authorization";
 
 describe("safe persisted timestamp serialization", () => {
+  it("does not execute accessor-backed timestamp conversion methods", () => {
+    let getterInvoked = false;
+    const timestamp = Object.defineProperty({}, "toDate", {
+      configurable: true,
+      get: () => {
+        getterInvoked = true;
+        return () => new Date("2026-10-20T12:00:00.000Z");
+      },
+    });
+    expect(safeTimestampToIso(timestamp)).toBeNull();
+    expect(getterInvoked).toBe(false);
+
+    const prototype = Object.defineProperty({}, "toDate", {
+      get: () => {
+        getterInvoked = true;
+        return () => new Date("2026-10-20T12:00:00.000Z");
+      },
+    });
+    expect(safeTimestampToIso(Object.create(prototype))).toBeNull();
+    expect(getterInvoked).toBe(false);
+  });
+
+  it("uses intrinsic Date methods rather than overridable instance properties", () => {
+    const date = new Date("2026-10-20T12:00:00.000Z");
+    Object.defineProperty(date, "getTime", { get: () => { throw new Error("must not run"); } });
+    Object.defineProperty(date, "toISOString", { get: () => { throw new Error("must not run"); } });
+    expect(safeTimestampToIso({ toDate: () => date })).toBe("2026-10-20T12:00:00.000Z");
+  });
+
   it("serializes valid timestamps and fails closed for malformed legacy values", () => {
     expect(safeTimestampToIso({ toDate: () => new Date("2026-10-20T12:00:00.000Z") })).toBe("2026-10-20T12:00:00.000Z");
     expect(safeTimestampToIso(undefined)).toBeNull();
