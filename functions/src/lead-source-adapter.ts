@@ -503,6 +503,8 @@ export class LeadSourceAdapterRunGuard<TCursor = string> {
   private readonly seenSourceRecordIds = new Set<string>();
   private readonly seenNextCursors = new Set<string>();
   private readonly manifest: LeadSourceAdapterManifest;
+  private readonly requestTimestamps: number[] = [];
+  private lastRequestTimestamp: number | null = null;
 
   constructor(manifest: LeadSourceAdapterManifest) {
     // A caller must not be able to expand permissions or limits mid-run by
@@ -512,6 +514,30 @@ export class LeadSourceAdapterRunGuard<TCursor = string> {
 
   get recordsAccepted(): number {
     return this.acceptedRecordCount;
+  }
+
+  /**
+   * Record a provider request immediately before issuing it. Reuse the same
+   * guard for the whole discovery run; this method performs no network I/O.
+   */
+  recordRequest(now: Date = new Date()): void {
+    if (!(now instanceof Date) || !Number.isFinite(now.getTime())) {
+      throw new Error("Lead source request validation clock must be a valid date.");
+    }
+    const timestamp = now.getTime();
+    if (this.lastRequestTimestamp !== null && timestamp < this.lastRequestTimestamp) {
+      throw new Error("Lead source request validation clock must not move backwards.");
+    }
+    this.lastRequestTimestamp = timestamp;
+
+    const windowStart = timestamp - 60_000;
+    while (this.requestTimestamps.length > 0 && this.requestTimestamps[0] <= windowStart) {
+      this.requestTimestamps.shift();
+    }
+    if (this.requestTimestamps.length >= this.manifest.maxRequestsPerMinute) {
+      throw new Error("Lead source run exceeded its configured per-minute request limit.");
+    }
+    this.requestTimestamps.push(timestamp);
   }
 
   acceptPage(
