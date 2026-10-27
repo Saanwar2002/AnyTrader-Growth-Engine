@@ -16,6 +16,7 @@ import * as logger from "firebase-functions/logger";
 import { canonicalLeadBusinessLocationKey, canonicalLeadEmailKey, canonicalLeadWebsiteKey } from "./lead-identifiers";
 import { getValidLeadIdentifierReservationState } from "./lead-identifier-reservation-state";
 import { snapshotPersistedSecurityAuditEvent } from "./security-audit-event-shape";
+import { getValidSecurityAuditCursorId } from "./security-audit-cursor";
 import { createOffboardingPreview, OFFBOARDING_PREVIEW_CATEGORIES } from "./offboarding-preview";
 import { PILOT_PLAN, resolvePlanPolicy } from "./entitlements";
 import { currentAiUsagePeriod, reservePlanUsage, resolvePlanUsageState, type PlanUsageState } from "./usage-accounting";
@@ -835,10 +836,10 @@ export const listOrganisationSecurityAuditEvents = onCall(callableOptions, async
   let cursorId: string | undefined;
   if (typeof rawPageToken === "string" && rawPageToken.length > 0) {
     try {
-      const decoded = JSON.parse(Buffer.from(rawPageToken, "base64url").toString("utf8")) as Record<string, unknown>;
-      if (decoded.scope !== "organisation_security_audit" || decoded.organisationId !== organisationId
-        || !isValidDocumentId(decoded.lastEventId)) throw new Error("Invalid security audit cursor");
-      cursorId = decoded.lastEventId;
+      const decoded: unknown = JSON.parse(Buffer.from(rawPageToken, "base64url").toString("utf8"));
+      const validatedCursorId = getValidSecurityAuditCursorId(decoded, organisationId);
+      if (!validatedCursorId) throw new Error("Invalid security audit cursor");
+      cursorId = validatedCursorId;
     } catch {
       throw new HttpsError("invalid-argument", "Security audit page token is invalid for this organisation.");
     }
