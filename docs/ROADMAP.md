@@ -65,6 +65,7 @@
 
 ## Phase 4 — Approved lead-source adapters
 
+- [x] Provide a single pure helper that validates each bounded adapter page and cursor, validates/maps every candidate against the approved manifest, and attaches provenance before returning the page; regression tests cover valid normalization and malformed/disallowed records.
 - [x] Validate bounded page cursors as strict JSON-safe values and pass adapters detached normalized cursor values; regression tests reject lossy, cyclic, sparse, and non-plain cursor data. This contract does not approve or connect any provider.
 - Provider-neutral adapter interface and provenance for each record.
 - Only APIs/providers whose terms permit the intended use.
