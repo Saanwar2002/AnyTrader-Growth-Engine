@@ -109,6 +109,20 @@ describe("AI outreach draft validation", () => {
     await expect(generateAiOutreachDraftSuggestion(context, { apiKey: "key", timeoutMs: 1, fetcher: timeoutFetcher }))
       .rejects.toThrowError(new Error("Gemini API request timed out."));
   });
+  it("rejects sparse or malformed Gemini content parts instead of silently dropping them", async () => {
+    const malformedParts: unknown[][] = [
+      Array(1),
+      [null],
+      [{ text: 42 }],
+    ];
+    for (const parts of malformedParts) {
+      const fetcher = vi.fn<typeof fetch>(async () => new Response(JSON.stringify({
+        candidates: [{ finishReason: "STOP", content: { parts } }],
+      }), { status: 200 }));
+      await expect(generateAiOutreachDraftSuggestion(context, { apiKey: "key", fetcher }))
+        .rejects.toThrow("Gemini draft content parts were malformed");
+    }
+  });
   it("rejects provider safety blocks", async () => {
     const fetcher = vi.fn<typeof fetch>(async () => new Response(JSON.stringify({ candidates: [{ finishReason: "SAFETY", content: { parts: [{ text: "{}" }] } }] }), { status: 200 }));
     await expect(generateAiOutreachDraftSuggestion(context, { apiKey: "key", fetcher })).rejects.toThrow("eligible draft candidate");

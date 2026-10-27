@@ -89,8 +89,17 @@ export async function generateAiOutreachDraftSuggestion(context: AiOutreachDraft
     if (candidate.finishReason !== "STOP" || !candidate.content || typeof candidate.content !== "object") throw new Error("Gemini did not return an eligible draft candidate.");
     const parts = (candidate.content as Record<string, unknown>).parts;
     if (!Array.isArray(parts)) throw new Error("Gemini draft content was missing.");
-    const text = parts.filter((part): part is Record<string, unknown> => Boolean(part) && typeof part === "object" && !Array.isArray(part))
-      .map((part) => typeof part.text === "string" ? part.text : "").join("").trim();
+    for (let index = 0; index < parts.length; index += 1) {
+      if (!Object.prototype.hasOwnProperty.call(parts, index)) {
+        throw new Error("Gemini draft content parts were malformed.");
+      }
+      const part: unknown = parts[index];
+      if (!part || typeof part !== "object" || Array.isArray(part)
+        || typeof (part as Record<string, unknown>).text !== "string") {
+        throw new Error("Gemini draft content parts were malformed.");
+      }
+    }
+    const text = (parts as Array<{ text: string }>).map((part) => part.text).join("").trim();
     if (!text) throw new Error("Gemini draft content was empty.");
     let parsed: unknown;
     try { parsed = JSON.parse(text); } catch { throw new Error("Gemini draft was not valid JSON."); }
