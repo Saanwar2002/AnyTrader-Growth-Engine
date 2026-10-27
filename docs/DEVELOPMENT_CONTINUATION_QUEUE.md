@@ -1,3 +1,11 @@
+## AutoPilot continuation — reservation audit CLI argument validation (2026-10-27)
+
+- Extended subprocess regression coverage to reject invalid organisation IDs, page sizes above 200, and record budgets above 20,000 before any Firestore initialization.
+- Tests run after the Functions build alongside the existing cloud-target guard checks; invalid arguments must fail closed and emit no audit findings.
+- No cloud access, Firestore writes, production migration, deployment, billing change, or outreach.
+
+---
+
 ## AutoPilot continuation — refresh production readiness evidence (2026-10-27)
 
 - Updated the production readiness audit and security gate to the current `main` commit `4dda223b1991ef04a932b5c44e34e56cfafb7a6d` and exact post-merge CI run 40485506685.
