@@ -31,6 +31,7 @@ const AI_DRAFT_CONTEXT_KEYS = new Set([
   "businessName", "category", "location", "brand", "campaignGoal", "organisationName",
 ]);
 const AI_DRAFT_OPTION_KEYS = new Set(["apiKey", "model", "fetcher", "timeoutMs"]);
+const AI_DRAFT_CONTEXT_MAX_LENGTHS = [160, 100, 160, 100, 300, 100] as const;
 
 const MAX_AI_PROVIDER_RESPONSE_BYTES = 256 * 1024;
 
@@ -149,6 +150,9 @@ export async function generateAiOutreachDraftSuggestion(context: AiOutreachDraft
     throw new Error("AI draft context is invalid.");
   }
   const validatedContextValues = contextValues as string[];
+  if (validatedContextValues.some((value, index) => value.length > AI_DRAFT_CONTEXT_MAX_LENGTHS[index])) {
+    throw new Error("AI draft context field exceeds the allowed length.");
+  }
   const [businessName, category, location, brand, campaignGoal, organisationName] = validatedContextValues;
   if (validatedContextValues.some((value) => !value.trim())) {
     throw new Error("AI draft context fields must not be blank.");
