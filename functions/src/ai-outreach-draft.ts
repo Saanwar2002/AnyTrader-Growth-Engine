@@ -57,17 +57,23 @@ export async function generateAiOutreachDraftSuggestion(context: AiOutreachDraft
     campaignGoal: context.campaignGoal.slice(0, 300), organisationName: context.organisationName.slice(0, 100),
   };
   try {
-    const response = await fetcher(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-      method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": options.apiKey },
-      signal: controller.signal,
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: systemInstruction }] },
-        contents: [{ role: "user", parts: [{ text: JSON.stringify(safeContext) }] }],
-        generationConfig: { temperature: 0.4, maxOutputTokens: 1024, responseMimeType: "application/json",
-          responseSchema: { type: "OBJECT", properties: { subject: { type: "STRING" }, body: { type: "STRING" } },
-            required: ["subject", "body"], propertyOrdering: ["subject", "body"] } },
-      }),
-    });
+    let response: Response;
+    try {
+      response = await fetcher(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+        method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": options.apiKey },
+        signal: controller.signal,
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: systemInstruction }] },
+          contents: [{ role: "user", parts: [{ text: JSON.stringify(safeContext) }] }],
+          generationConfig: { temperature: 0.4, maxOutputTokens: 1024, responseMimeType: "application/json",
+            responseSchema: { type: "OBJECT", properties: { subject: { type: "STRING" }, body: { type: "STRING" } },
+              required: ["subject", "body"], propertyOrdering: ["subject", "body"] } },
+        }),
+      });
+    } catch {
+      if (controller.signal.aborted) throw new Error("Gemini API request timed out.");
+      throw new Error("Gemini API request failed.");
+    }
     if (!response.ok) throw new Error("Gemini API request failed.");
     const payload: unknown = await response.json();
     if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new Error("Gemini response shape was invalid.");
