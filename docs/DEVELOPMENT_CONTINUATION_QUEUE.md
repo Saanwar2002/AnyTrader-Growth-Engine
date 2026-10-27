@@ -1,3 +1,11 @@
+## AutoPilot continuation — snapshot persisted security audit event envelopes (2026-10-27)
+
+- Validate the exact persisted audit-event key set and copy own enumerable data descriptors into a detached null-prototype snapshot before reading actor/resource/event fields.
+- Reject symbols, unknown/hidden/accessor fields, class instances, and hostile inspection traps without invoking getters; validate metadata through the existing normalized bounded-metadata contract and return the normalized copy.
+- Added isolated synthetic tests for snapshot immutability and malformed shapes. No audit records were read or changed, and no migration, deployment, billing activation, or outreach occurred.
+
+---
+
 ## AutoPilot continuation — validate persisted lead identifier reservations (2026-10-27)
 
 - Reservation reads now validate schema version, expected identifier type, safe lead document ID, and exact allowed field names through own enumerable data descriptors before deciding duplicate/conflict behavior.
