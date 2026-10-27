@@ -106,6 +106,48 @@ function normalizeBoundedSerializableCursor(value: unknown): { valid: boolean; v
     return { valid: false };
   }
 }
+function normalizePlainDataRecord(
+  value: unknown,
+  allowedKeys: ReadonlySet<string>,
+): Record<string, unknown> | null {
+  try {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) return null;
+    const normalized = Object.create(null) as Record<string, unknown>;
+    for (const key of Reflect.ownKeys(value)) {
+      if (typeof key !== "string" || !allowedKeys.has(key)) return null;
+      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      if (!descriptor || !descriptor.enumerable || !("value" in descriptor)) return null;
+      normalized[key] = descriptor.value;
+    }
+    return normalized;
+  } catch {
+    return null;
+  }
+}
+
+function copyDenseDataArray(value: unknown): unknown[] | null {
+  try {
+    if (!Array.isArray(value) || Object.getPrototypeOf(value) !== Array.prototype || hasSparseEntries(value)) return null;
+    const ownKeys = Reflect.ownKeys(value);
+    if (ownKeys.some((key) => key !== "length"
+      && (typeof key !== "string" || !/^(0|[1-9]\\d*)$/.test(key) || Number(key) >= value.length))) return null;
+    const copied: unknown[] = [];
+    for (let index = 0; index < value.length; index += 1) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+      if (!descriptor || !descriptor.enumerable || !("value" in descriptor)) return null;
+      copied.push(descriptor.value);
+    }
+    return copied;
+  } catch {
+    return null;
+  }
+}
+
+const PAGE_REQUEST_KEYS = new Set(["category", "location", "limit", "cursor"]);
+const PAGE_RESULT_KEYS = new Set(["records", "nextCursor"]);
+
 const MANIFEST_KEYS = new Set([
   "sourceId", "displayName", "termsUrl", "reviewStatus", "reviewedAt", "reviewedBy",
   "approvalExpiresAt", "permittedPurpose", "maxRequestsPerMinute", "maxRecordsPerRun", "allowedFields",
@@ -345,7 +387,10 @@ export function validateLeadSourcePageRequest<TCursor = string>(
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error("Lead source page request must be an object.");
   }
-  const request = value as Record<string, unknown>;
+  const request = normalizePlainDataRecord(value, PAGE_REQUEST_KEYS);
+  if (!request) {
+    throw new Error("Lead source page request must be a plain data object with only supported own fields.");
+  }
   if (typeof request.category !== "string" || !request.category.trim() || request.category.length > 120) {
     throw new Error("Lead source category must contain 1 to 120 characters.");
   }
@@ -379,14 +424,21 @@ export function validateLeadSourcePageResult<TRecord = unknown, TCursor = string
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error("Lead source page result must be an object.");
   }
-  const result = value as Record<string, unknown>;
+  const result = normalizePlainDataRecord(value, PAGE_RESULT_KEYS);
+  if (!result) {
+    throw new Error("Lead source page result must be a plain data object with only supported own fields.");
+  }
   if (!Array.isArray(result.records)) {
     throw new Error("Lead source page records must be an array.");
   }
   if (hasSparseEntries(result.records)) {
     throw new Error("Lead source page records must not contain sparse entries.");
   }
-  if (result.records.length > manifest.maxRecordsPerRun) {
+  const records = copyDenseDataArray(result.records);
+  if (!records) {
+    throw new Error("Lead source page records must contain only indexed data properties.");
+  }
+  if (records.length > manifest.maxRecordsPerRun) {
     throw new Error("Lead source page result exceeds the configured record limit.");
   }
   const hasNextCursor = Object.prototype.hasOwnProperty.call(result, "nextCursor") && result.nextCursor !== undefined;
@@ -397,7 +449,7 @@ export function validateLeadSourcePageResult<TRecord = unknown, TCursor = string
     throw new Error("Lead source next cursor must be JSON-serializable and at most 2048 characters.");
   }
   return {
-    records: [...result.records] as TRecord[],
+    records: records as TRecord[],
     ...(hasNextCursor ? { nextCursor: normalizedNextCursor.value as TCursor | null } : {}),
   };
 }
