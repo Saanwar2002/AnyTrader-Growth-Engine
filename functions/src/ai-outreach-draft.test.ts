@@ -42,6 +42,16 @@ describe("AI outreach draft validation", () => {
     await expect(generateAiOutreachDraftSuggestion(context, { apiKey: "key", fetcher: vi.fn<typeof fetch>(async () => new Response("{}", { status: 503 })) })).rejects.toThrow("API request failed");
     await expect(generateAiOutreachDraftSuggestion(context, { apiKey: "key", fetcher: vi.fn<typeof fetch>(async () => okResponse("not json")) })).rejects.toThrow("valid JSON");
   });
+  it.each(["MAX_TOKENS", "RECITATION", "OTHER", undefined])(
+    "rejects a candidate with incomplete finish reason %s",
+    async (finishReason) => {
+      const fetcher = vi.fn<typeof fetch>(async () => new Response(JSON.stringify({
+        candidates: [{ finishReason, content: { parts: [{ text: JSON.stringify({ subject: "Hello", body: "May we share details?" }) }] } }],
+      }), { status: 200 }));
+      await expect(generateAiOutreachDraftSuggestion(context, { apiKey: "key", fetcher }))
+        .rejects.toThrow("eligible draft candidate");
+    },
+  );
   it("rejects provider safety blocks", async () => {
     const fetcher = vi.fn<typeof fetch>(async () => new Response(JSON.stringify({ candidates: [{ finishReason: "SAFETY", content: { parts: [{ text: "{}" }] } }] }), { status: 200 }));
     await expect(generateAiOutreachDraftSuggestion(context, { apiKey: "key", fetcher })).rejects.toThrow("eligible draft candidate");
