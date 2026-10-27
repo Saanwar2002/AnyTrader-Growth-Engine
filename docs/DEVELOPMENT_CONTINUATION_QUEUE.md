@@ -1,3 +1,11 @@
+## AutoPilot continuation — avoid Firestore cursor timestamp accessor execution (2026-10-27)
+
+- Reuse descriptor-only prototype-chain lookup for both `toDate` and `toMillis`, preserving inherited SDK methods while rejecting accessor-backed conversion properties without executing getters.
+- Added synthetic regressions for own and inherited `toMillis` accessors and verified inherited data methods remain supported.
+- Pure timestamp validation only; no production database access, migrations, deployment, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — avoid timestamp conversion accessor execution (2026-10-27)
 
 - `safeTimestampToIso` now resolves `toDate` through property descriptors across the prototype chain, rejecting accessor descriptors without invoking them while preserving inherited Firestore Timestamp methods.
