@@ -780,6 +780,34 @@ describe("adversarial timestamp method failures", () => {
   });
 });
 
+describe("timestamp conversion accessor safety", () => {
+  it("rejects own and inherited toMillis accessors without invoking them", () => {
+    let getterInvoked = false;
+    const ownAccessor = Object.defineProperty({}, "toMillis", {
+      get: () => {
+        getterInvoked = true;
+        return () => 1234;
+      },
+    });
+    expect(isValidFirestoreTimestamp(ownAccessor)).toBe(false);
+    expect(getterInvoked).toBe(false);
+
+    const prototype = Object.defineProperty({}, "toMillis", {
+      get: () => {
+        getterInvoked = true;
+        return () => 1234;
+      },
+    });
+    expect(isValidFirestoreTimestamp(Object.create(prototype))).toBe(false);
+    expect(getterInvoked).toBe(false);
+  });
+
+  it("accepts inherited data methods from Firestore-like timestamp objects", () => {
+    const prototype = { toMillis: () => 1234 };
+    expect(isValidFirestoreTimestamp(Object.create(prototype))).toBe(true);
+  });
+});
+
 describe("Firestore timestamp cursor validation", () => {
   it("accepts finite safe-range millisecond timestamps including sub-millisecond precision", () => {
     expect(isValidFirestoreTimestamp({ toMillis: () => 1_700_000_000_000 })).toBe(true);
