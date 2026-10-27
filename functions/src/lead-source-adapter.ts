@@ -163,6 +163,7 @@ export function attributeLeadSourceCandidates(
     throw new Error("Lead source output exceeded its configured per-run record limit.");
   }
 
+  const seenSourceRecordIds = new Set<string>();
   return candidates.map((candidate: unknown) => {
     if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
       throw new Error("Lead source output contains a malformed candidate.");
@@ -186,6 +187,13 @@ export function attributeLeadSourceCandidates(
     if (record.sourceRecordId !== undefined
       && (typeof record.sourceRecordId !== "string" || !record.sourceRecordId.trim() || record.sourceRecordId.length > 200)) {
       throw new Error("Lead source output contains an invalid sourceRecordId.");
+    }
+    if (typeof record.sourceRecordId === "string") {
+      const sourceRecordId = record.sourceRecordId.trim();
+      if (seenSourceRecordIds.has(sourceRecordId)) {
+        throw new Error("Lead source output contains duplicate sourceRecordId values.");
+      }
+      seenSourceRecordIds.add(sourceRecordId);
     }
 
     const normalized: LeadSourceCandidate = { businessName: record.businessName.trim() };
