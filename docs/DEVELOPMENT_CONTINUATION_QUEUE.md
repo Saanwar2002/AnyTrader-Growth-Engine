@@ -1,3 +1,11 @@
+## AutoPilot continuation — clarify implemented roadmap work and remaining blockers (2026-10-27)
+
+- Split two mixed roadmap entries into implemented capabilities and explicit remaining work: onboarding cohort/timestamp implementation versus legacy timestamp backfill, and server-side quotas versus legacy usage reconciliation/billing.
+- Kept the legacy backfill, legacy quota reconciliation, billing, live Firebase setup, privacy/retention, and operational readiness gates unchecked until reviewed and verified.
+- Documentation-only; no production data, deployment, billing change, migration, or outreach.
+
+---
+
 ## AutoPilot continuation — reservation audit truncated-scan guard (2026-10-27)
 
 - Added emulator smoke coverage that runs the read-only reservation audit with a one-record budget and verifies exit code 2, both collection scans marked truncated, and no cross-inventory findings emitted.
