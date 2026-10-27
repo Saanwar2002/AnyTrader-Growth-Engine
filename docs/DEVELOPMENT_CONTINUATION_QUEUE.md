@@ -1,3 +1,12 @@
+## AutoPilot continuation — refresh readiness evidence after lead-source contract hardening (2026-10-27)
+
+- Updated the production-readiness audit and security gate to current main checkpoint `e26bd24bc6fa27acc6cec75a7bd0792c05710265`.
+- Verified exact-main CI run `40516135401`: both Functions and frontend/emulator jobs passed.
+- Recorded recent source-contract safeguards: future approval timestamps, future collection timestamps, and duplicate trimmed provider record IDs are rejected. No provider API, live data, deployment, migration, billing activation, or outreach was enabled.
+- Production remains blocked on dedicated Firebase/App Check verification, privacy/retention approvals, monitoring/budget alerts, backup/recovery, approved source configuration, and legacy identifier reconciliation.
+
+---
+
 ## AutoPilot continuation — reject duplicate provider record identifiers (2026-10-27)
 
 - Added a bounded in-memory uniqueness check for optional provider `sourceRecordId` values within one attribution batch.

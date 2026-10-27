@@ -10,10 +10,10 @@ This is an evidence-based repository audit, not a certification that any externa
 
 - Repository: `Saanwar2002/AnyTrader-Growth-Engine`
 - Branch: `main`
-- Audited code checkpoint: `73e3b04fb05c3ea18aaf1de49edd9ee3980b7160`.
+- Audited code checkpoint: `e26bd24bc6fa27acc6cec75a7bd0792c05710265`.
 - Recent merged hardening includes PRs #239–#241 (offboarding-preview input, persisted quota-state, and concurrent quota-boundary safeguards), PR #243 (include organisation-scoped member-addition idempotency records in the offboarding inventory), and PR #246 (explicit client-side Growth Engine Firebase project allow-list), PR #249 (offboarding allow-list/privacy-inventory parity), and PR #250 (frontend offboarding category type aligned with the backend), alongside canonical identifier reservation lifecycle and bounded read-only audit work.
-- Exact-head CI for the latest frontend offboarding contract fix: [run 40507022929](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40507022929) for PR #250 head `0968f61995ef8560f3d8ff389400ee6cb8de7897` — **success**; both Functions and frontend/emulator jobs passed.
-- Latest post-merge main CI: [run 40507397467](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40507397467) for commit `73e3b04fb05c3ea18aaf1de49edd9ee3980b7160` — **success**, both Functions and frontend/emulator jobs passed.
+- Exact current-main CI: [run 40516135401](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40516135401) for commit `e26bd24bc6fa27acc6cec75a7bd0792c05710265` — **success**; both Functions and frontend/emulator jobs passed.
+- Recent merged source-contract hardening rejects future approval review timestamps, future collection timestamps, and duplicate trimmed provider record IDs within one attribution batch. These changes validate synthetic data only and do not connect a provider.
 - Offboarding preview remains owner-only, bounded, tenant-scoped, read-only, App-Check protected outside the emulator, and quota-limited. Invalid organisation IDs and malformed/exhausted quota states fail closed; denied roles do not consume quota.
 - The dedicated Growth Engine Firebase project, live App Check verification, privacy/retention approvals, monitoring/budget alerts, backup/recovery, and approved data-source configuration remain release blockers. No production deployment or live migration was performed.
 
