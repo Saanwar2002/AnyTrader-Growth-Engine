@@ -1,3 +1,11 @@
+## AutoPilot continuation — harden lead-source candidate batch arrays (2026-10-27)
+
+- Candidate batches are copied from dense indexed data descriptors before iteration, preventing accessor-backed indices, symbol/extra array properties, subclasses, and overridden map methods from influencing validation.
+- Sparse batches retain their specific validation error; getter-backed indices are rejected without invoking getters.
+- Added synthetic regressions for accessor, symbol-extended, and overridden-method arrays. No provider connection, live data, persistence, migration, deployment, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — harden lead-source page envelope shapes (2026-10-27)
 
 - Request and result envelopes are copied from plain/null-prototype objects using own enumerable data descriptors; accessors, symbol keys, class instances, and hidden/non-data properties fail closed without invoking getters.
