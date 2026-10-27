@@ -1,3 +1,11 @@
+## AutoPilot continuation — bind accepted pages to recorded provider requests (2026-10-27)
+
+- The per-run guard now requires a recorded request before accepting a page and consumes that request association before validating the response, preventing one request budget entry from authorizing multiple pages.
+- Added an explicit failure-resolution method so failed network attempts can release the outstanding request slot while remaining counted against request budgets.
+- Added regression coverage for missing request records, duplicate outstanding requests, failure resolution, and successful response acceptance. No network/provider integration added.
+
+---
+
 ## AutoPilot continuation — recheck source approval before provider requests (2026-10-27)
 
 - The per-run guard now revalidates the detached source manifest immediately before recording each request, so approval expiry or a now-invalid review timestamp blocks the request before a provider call.
