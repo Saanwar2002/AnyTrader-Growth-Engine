@@ -7,7 +7,7 @@ import { defineSecret } from "firebase-functions/params";
 import { generateAiOutreachDraftSuggestion } from "./ai-outreach-draft";
 import { getValidOutreachDraftReplayResult, isPersistedOutreachDraftAvailable } from "./outreach-draft-idempotency";
 import { getValidBulkLeadStatusReplayResult } from "./bulk-lead-status-idempotency";
-import { hasExactAuditMetadataKeys } from "./audit-metadata-shape";
+import { snapshotExactAuditMetadata } from "./audit-metadata-shape";
 import { getValidCampaignCreationReplayResult, isPersistedCampaignCreationReplayAvailable } from "./campaign-creation-idempotency";
 import { getValidOrganisationCreationReplayResult } from "./organisation-creation-idempotency";
 import { getValidLeadCreationReplayResult, isPersistedLeadCreationReplayAvailable } from "./lead-creation-idempotency";
@@ -147,24 +147,33 @@ const AUDIT_METADATA_KEYS: Record<SecurityAuditEventType, readonly (keyof Securi
   "outreach_draft.deleted": ["draftAction"],
 };
 
-function isBoundedAuditMetadata(eventType: SecurityAuditEventType, metadata: SecurityAuditEventMetadata): boolean {
+function normalizeBoundedAuditMetadata(
+  eventType: SecurityAuditEventType,
+  metadata: SecurityAuditEventMetadata,
+): SecurityAuditEventMetadata | null {
   const allowedKeys = AUDIT_METADATA_KEYS[eventType];
-  if (!hasExactAuditMetadataKeys(metadata, allowedKeys)) return false;
-  if (("importedCount" in metadata && (!Number.isSafeInteger(metadata.importedCount) || metadata.importedCount! < 0 || metadata.importedCount! > 5000))
-    || ("duplicatesSkipped" in metadata && (!Number.isSafeInteger(metadata.duplicatesSkipped) || metadata.duplicatesSkipped! < 0 || metadata.duplicatesSkipped! > 5000))
-    || ("contactReviewRevision" in metadata && (!Number.isSafeInteger(metadata.contactReviewRevision) || metadata.contactReviewRevision! < 0))
-    || ("contactChannelsChanged" in metadata && typeof metadata.contactChannelsChanged !== "boolean")
-    || ("doNotContact" in metadata && typeof metadata.doNotContact !== "boolean")
-    || ("notesCleared" in metadata && typeof metadata.notesCleared !== "boolean")
-    || ("followUpDateSet" in metadata && typeof metadata.followUpDateSet !== "boolean")
-    || ("nameChanged" in metadata && typeof metadata.nameChanged !== "boolean")
-    || ("campaignDetailsChanged" in metadata && typeof metadata.campaignDetailsChanged !== "boolean")) return false;
-  if ("campaignStatus" in metadata && !["active", "paused", "completed"].includes(metadata.campaignStatus ?? "")) return false;
-  if ("leadStatus" in metadata && !["new", "reviewing", "qualified", "contacted", "onboarded", "rejected"].includes(metadata.leadStatus ?? "")) return false;
-  if ("contactReviewStatus" in metadata && !["pending", "cleared", "blocked"].includes(metadata.contactReviewStatus ?? "")) return false;
-  if ("draftAction" in metadata && !["created", "updated", "deleted"].includes(metadata.draftAction ?? "")) return false;
-  if ("memberRole" in metadata && !["admin", "member", "viewer"].includes(metadata.memberRole ?? "")) return false;
-  return true;
+  const snapshot = snapshotExactAuditMetadata(metadata, allowedKeys);
+  if (!snapshot) return null;
+  const record = snapshot as SecurityAuditEventMetadata;
+  if (("importedCount" in record && (!Number.isSafeInteger(record.importedCount) || record.importedCount! < 0 || record.importedCount! > 5000))
+    || ("duplicatesSkipped" in record && (!Number.isSafeInteger(record.duplicatesSkipped) || record.duplicatesSkipped! < 0 || record.duplicatesSkipped! > 5000))
+    || ("contactReviewRevision" in record && (!Number.isSafeInteger(record.contactReviewRevision) || record.contactReviewRevision! < 0))
+    || ("contactChannelsChanged" in record && typeof record.contactChannelsChanged !== "boolean")
+    || ("doNotContact" in record && typeof record.doNotContact !== "boolean")
+    || ("notesCleared" in record && typeof record.notesCleared !== "boolean")
+    || ("followUpDateSet" in record && typeof record.followUpDateSet !== "boolean")
+    || ("nameChanged" in record && typeof record.nameChanged !== "boolean")
+    || ("campaignDetailsChanged" in record && typeof record.campaignDetailsChanged !== "boolean")) return null;
+  if ("campaignStatus" in record && !["active", "paused", "completed"].includes(record.campaignStatus ?? "")) return null;
+  if ("leadStatus" in record && !["new", "reviewing", "qualified", "contacted", "onboarded", "rejected"].includes(record.leadStatus ?? "")) return null;
+  if ("contactReviewStatus" in record && !["pending", "cleared", "blocked"].includes(record.contactReviewStatus ?? "")) return null;
+  if ("draftAction" in record && !["created", "updated", "deleted"].includes(record.draftAction ?? "")) return null;
+  if ("memberRole" in record && !["admin", "member", "viewer"].includes(record.memberRole ?? "")) return null;
+  return record;
+}
+
+function isBoundedAuditMetadata(eventType: SecurityAuditEventType, metadata: SecurityAuditEventMetadata): boolean {
+  return normalizeBoundedAuditMetadata(eventType, metadata) !== null;
 }
 
 function writeSecurityAuditEvent(
@@ -176,7 +185,8 @@ function writeSecurityAuditEvent(
   resourceId: string,
   metadata: SecurityAuditEventMetadata,
 ): void {
-  if (AUDIT_EVENT_RESOURCE_TYPES[eventType] !== resourceType || !isBoundedAuditMetadata(eventType, metadata)) {
+  const normalizedMetadata = normalizeBoundedAuditMetadata(eventType, metadata);
+  if (AUDIT_EVENT_RESOURCE_TYPES[eventType] !== resourceType || !normalizedMetadata) {
     throw new Error("Invalid security audit event resource or metadata contract.");
   }
   const eventRef = db.collection("organisations").doc(organisationId).collection("securityAuditEvents").doc();
@@ -188,7 +198,7 @@ function writeSecurityAuditEvent(
     resourceType,
     resourceId,
     outcome: "success",
-    metadata,
+    metadata: normalizedMetadata,
     createdAt: FieldValue.serverTimestamp(),
   });
 }
