@@ -203,7 +203,7 @@ export async function generateAiOutreachDraftSuggestion(context: AiOutreachDraft
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: systemInstruction }] },
           contents: [{ role: "user", parts: [{ text: JSON.stringify(safeContext) }] }],
-          generationConfig: { temperature: 0.4, maxOutputTokens: 1024, responseMimeType: "application/json",
+          generationConfig: { candidateCount: 1, temperature: 0.4, maxOutputTokens: 1024, responseMimeType: "application/json",
             responseSchema: { type: "OBJECT", properties: { subject: { type: "STRING" }, body: { type: "STRING" } },
               required: ["subject", "body"], propertyOrdering: ["subject", "body"] } },
         }),
@@ -231,6 +231,7 @@ export async function generateAiOutreachDraftSuggestion(context: AiOutreachDraft
     const payloadRecord = snapshotAiProviderObject(payload, "Gemini response shape was invalid.");
     const candidates = snapshotAiProviderArray(payloadRecord.candidates, "Gemini returned no draft candidate.");
     if (!candidates.length) throw new Error("Gemini returned no draft candidate.");
+    if (candidates.length !== 1) throw new Error("Gemini returned an ambiguous number of draft candidates.");
     const candidate = snapshotAiProviderObject(candidates[0], "Gemini returned no draft candidate.");
     if (candidate.finishReason !== "STOP") throw new Error("Gemini did not return an eligible draft candidate.");
     const content = snapshotAiProviderObject(candidate.content, "Gemini draft content was missing.");
