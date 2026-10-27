@@ -16,6 +16,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function isDocumentId(value: unknown): value is string {
   return typeof value === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(value);
 }
+function isDenseStringArray(value: unknown): value is string[] {
+  if (!Array.isArray(value)) return false;
+  for (let index = 0; index < value.length; index += 1) {
+    if (!Object.prototype.hasOwnProperty.call(value, index) || typeof value[index] !== "string") return false;
+  }
+  return true;
+}
 export function getValidLeadCreationReplayResult(savedValue: unknown, expected: ExpectedLeadCreationReplay): ValidLeadCreationReplayResult | null {
   if (!isRecord(savedValue) || savedValue.actorUid !== expected.actorUid
     || savedValue.requestHash !== expected.requestHash || !isRecord(savedValue.result)) return null;
@@ -33,7 +40,7 @@ export function getValidLeadCreationReplayResult(savedValue: unknown, expected: 
     || (expected.sourceRecordId !== undefined && result.sourceRecordId !== expected.sourceRecordId)
     || result.status !== "new" || result.source !== "manual"
     || typeof result.score !== "number" || !Number.isFinite(result.score)
-    || !Array.isArray(result.scoreReasons) || !result.scoreReasons.every((reason) => typeof reason === "string")
+    || !isDenseStringArray(result.scoreReasons)
     || result.doNotContact !== true || result.contactReviewStatus !== "pending" || result.contactReviewRevision !== 0) return null;
   return {
     leadId: result.leadId as string, organisationId: expected.organisationId, campaignId: expected.campaignId,
