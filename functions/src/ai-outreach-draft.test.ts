@@ -248,6 +248,22 @@ describe("AI outreach draft validation", () => {
     await expect(generateAiOutreachDraftSuggestion(context, { apiKey: "key", fetcher }))
       .rejects.toThrowError(new Error("Gemini response was not valid JSON."));
   });
+  it("requests exactly one candidate and rejects ambiguous multi-candidate responses", async () => {
+    const draft = JSON.stringify({ subject: "Hello", body: "May we share details?" });
+    const fetcher = vi.fn<typeof fetch>(async (_input, init) => {
+      const request = JSON.parse(String(init?.body)) as { generationConfig?: { candidateCount?: number } };
+      expect(request.generationConfig?.candidateCount).toBe(1);
+      return new Response(JSON.stringify({
+        candidates: [
+          { finishReason: "STOP", content: { parts: [{ text: draft }] } },
+          { finishReason: "STOP", content: { parts: [{ text: draft }] } },
+        ],
+      }), { status: 200 });
+    });
+    await expect(generateAiOutreachDraftSuggestion(context, { apiKey: "key", fetcher }))
+      .rejects.toThrow("ambiguous number of draft candidates");
+  });
+
   it.each(["MAX_TOKENS", "RECITATION", "OTHER", undefined])(
     "rejects a candidate with incomplete finish reason %s",
     async (finishReason) => {
