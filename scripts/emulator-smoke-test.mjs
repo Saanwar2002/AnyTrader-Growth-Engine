@@ -68,6 +68,16 @@ try {
   assert.deepEqual(planUsageReconciliation.mismatchedMetrics, []);
   assert.equal(planUsageReconciliation.aiUsageReviewRequired, true);
   assert.equal(planUsageReconciliation.destructiveActionPerformed, false);
+  for (const invalidOrganisationId of ["", "bad/organisation", "../other-tenant"]) {
+    const invalidInputQuotaBefore = currentQuotaCount("previewOrganisationOffboarding", first.auth.currentUser.uid);
+    await expectCallableFailure(
+      callOne("previewOrganisationOffboarding", { organisationId: invalidOrganisationId }),
+      "functions/invalid-argument",
+      "offboarding preview rejects malformed organisation IDs before inventory reads",
+    );
+    assert.equal(currentQuotaCount("previewOrganisationOffboarding", first.auth.currentUser.uid), invalidInputQuotaBefore,
+      "invalid offboarding preview input does not consume the owner's read quota");
+  }
   const ownerOffboardingQuotaBefore = currentQuotaCount("previewOrganisationOffboarding", first.auth.currentUser.uid);
   const offboardingPreview = await callOne("previewOrganisationOffboarding", { organisationId: orgOne.organisationId });
   assert.equal(currentQuotaCount("previewOrganisationOffboarding", first.auth.currentUser.uid), ownerOffboardingQuotaBefore + 1,
