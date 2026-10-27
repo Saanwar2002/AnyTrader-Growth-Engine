@@ -26,6 +26,16 @@ describe("AI outreach draft validation", () => {
     expect(result.body).toContain("DRAFT ONLY — NOT SENT.");
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
+  it.each(["businessName", "category", "location", "brand", "campaignGoal", "organisationName"])(
+    "rejects non-string context field %s before calling the provider",
+    async (field) => {
+      const malformed = { ...context, [field]: 42 } as unknown as AiOutreachDraftContext;
+      const fetcher = vi.fn<typeof fetch>();
+      await expect(generateAiOutreachDraftSuggestion(malformed, { apiKey: "key", fetcher }))
+        .rejects.toThrow("AI draft context is invalid");
+      expect(fetcher).not.toHaveBeenCalled();
+    },
+  );
   it("fails closed for missing keys, invalid model names, provider errors, and malformed JSON", async () => {
     await expect(generateAiOutreachDraftSuggestion(context, { apiKey: "" })).rejects.toThrow("not configured");
     await expect(generateAiOutreachDraftSuggestion(context, { apiKey: "key", model: "../unsafe" })).rejects.toThrow("model name is invalid");
