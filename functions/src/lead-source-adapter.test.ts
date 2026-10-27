@@ -61,6 +61,30 @@ describe("lead source adapter permission contract", () => {
     expect(issues).toContain("displayName must contain 2–100 characters.");
   });
 
+  it("uses the validated manifest snapshot when the caller-owned manifest changes during inspection", () => {
+    const target = approvedManifest();
+    const manifest = new Proxy(target, {
+      getOwnPropertyDescriptor(object, key) {
+        const descriptor = Reflect.getOwnPropertyDescriptor(object, key);
+        if (key === "maxRecordsPerRun" && descriptor && "value" in descriptor) {
+          // Simulate caller-owned state changing after its descriptor was read.
+          Reflect.set(object, "maxRecordsPerRun", 1);
+        }
+        return descriptor;
+      },
+    });
+
+    const attributed = attributeLeadSourceCandidates(
+      manifest,
+      [{ businessName: "Example One" }, { businessName: "Example Two" }],
+      "2026-10-27T10:00:00.000Z",
+      new Date("2026-10-27T12:00:00.000Z"),
+    );
+
+    expect(attributed).toHaveLength(2);
+    expect(target.maxRecordsPerRun).toBe(1);
+  });
+
   it("rejects unsafe manifest shapes without invoking accessors", () => {
     let getterInvoked = false;
     const accessorManifest = Object.defineProperty(approvedManifest(), "sourceId", {
