@@ -50,10 +50,11 @@ jobs:
         run: npm test
       - name: Production build
         run: npm run build
-      - name: Validate emulator and reconciliation script syntax
+      - name: Validate emulator, reconciliation, and reservation audit script syntax
         run: |
           node --check scripts/emulator-smoke-test.mjs
           node --check functions/scripts/report-plan-usage-reconciliation.mjs
+          node --check functions/scripts/audit-lead-identifier-reservations.mjs
       - name: Set up Java for Firebase emulators
         uses: actions/setup-java@v6
         with:

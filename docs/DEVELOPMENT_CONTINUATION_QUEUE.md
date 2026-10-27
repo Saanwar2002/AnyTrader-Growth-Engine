@@ -1,7 +1,18 @@
+## AutoPilot continuation — bounded read-only reservation integrity audit (2026-10-27)
+
+- Added a pure analyzer comparing canonical identifiers from a complete tenant lead inventory with its hashed reservation documents.
+- Reports missing, orphaned, mismatched, malformed and unverifiable reservation records plus duplicate canonical identifier groups. Output omits raw contact values and uses document IDs/fingerprints only.
+- Added an emulator-only CLI that pages both collections within explicit budgets, refuses cloud Firestore, and withholds cross-inventory findings if either scan is truncated.
+- Added unit tests for clean inventories, missing/orphan/mismatched/malformed records, duplicate identifiers, case-sensitive URL paths, malformed leads and PII redaction; added the CLI syntax check to CI.
+- No writes, repairs, production migration, deployment, billing changes, real-data import or outreach.
+- Next: exact-head CI, inspect failures, merge only after both jobs pass and review is clean, then verify post-merge main CI.
+
+---
+
 ## AutoPilot continuation — concurrent lead identifier write-path coverage (2026-10-27)
 
 - Extended the emulator smoke suite to exercise simultaneous contact edits from two distinct leads claiming the same case-insensitive email; exactly one edit may commit and the losing edit must return a duplicate conflict.
-- CSV-import different-idempotency-key races and reservation release/reclaim behavior are covered separately by PR #221; this PR intentionally focuses on the contact-edit race to avoid duplicating that scope.
+- Concurrent import races and reservation release/reclaim behavior were completed in PR #223; the contact-edit race was merged in PR #222. Both PRs passed exact-head CI and post-merge main CI.
 - Synthetic emulator fixtures only. No production migration, deployment, billing, real-data import, or outreach.
 - Next: wait for exact-head CI, inspect any failures, then review/merge only if both jobs pass and the PR head remains unchanged.
 
