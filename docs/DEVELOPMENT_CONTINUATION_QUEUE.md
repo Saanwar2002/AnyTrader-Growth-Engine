@@ -1,3 +1,11 @@
+## AutoPilot continuation — canonicalize pagination cursors for cycle detection (2026-10-27)
+
+- Pagination-cycle keys now serialize normalized JSON-safe cursors deterministically by sorting object keys recursively, so equivalent object cursors with different property insertion order cannot evade repeat detection.
+- Added a regression proving reordered-but-equivalent object cursors are rejected without accepting the repeated page or changing accepted-record state.
+- Pure synthetic validation only; no provider connection, live data, persistence, migration, deployment, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — centralize guarded lead-source page fetches (2026-10-27)
 
 - Added `requestAndAcceptPage` to validate and detach the request, consume per-minute and total-run budgets before the provider callback, and validate/accept its response as one sequence.
