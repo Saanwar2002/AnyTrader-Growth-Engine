@@ -60,7 +60,7 @@ export function isPersistedImportedLeadReplayAvailable(
   return isRecord(value) && value.createdBy === expected.actorUid
     && value.campaignId === expected.campaignId && value.businessName === expected.businessName
     && value.source === expected.sourceLabel
-    && (expected.sourceRecordId === undefined || value.sourceRecordId === expected.sourceRecordId)
+    && (expected.sourceRecordId === undefined ? value.sourceRecordId === undefined : value.sourceRecordId === expected.sourceRecordId)
     && value.status === "new"
     && value.doNotContact === true && value.contactReviewStatus === "pending"
     && value.contactReviewRevision === 0;

@@ -27,6 +27,7 @@ describe("CSV import idempotency replay integrity", () => {
   it("requires persisted imported leads to remain in the original tenant/campaign and safely suppressed", () => {
     const persisted = {createdBy:"user-1",campaignId:"campaign-1",businessName:"Example Ltd",source:"csv_import",status:"new",doNotContact:true,contactReviewStatus:"pending",contactReviewRevision:0};
     expect(isPersistedImportedLeadReplayAvailable(persisted,{actorUid:"user-1",campaignId:"campaign-1",businessName:"Example Ltd",sourceLabel:"csv_import"})).toBe(true);
+    expect(isPersistedImportedLeadReplayAvailable({...persisted,sourceRecordId:"unexpected-record"},{actorUid:"user-1",campaignId:"campaign-1",businessName:"Example Ltd",sourceLabel:"csv_import"})).toBe(false);
     expect(isPersistedImportedLeadReplayAvailable({...persisted,createdBy:"other"},{actorUid:"user-1",campaignId:"campaign-1",businessName:"Example Ltd",sourceLabel:"csv_import"})).toBe(false);
     expect(isPersistedImportedLeadReplayAvailable({...persisted,doNotContact:false},{actorUid:"user-1",campaignId:"campaign-1",businessName:"Example Ltd",sourceLabel:"csv_import"})).toBe(false);
     expect(isPersistedImportedLeadReplayAvailable(null,{actorUid:"user-1",campaignId:"campaign-1",businessName:"Example Ltd",sourceLabel:"csv_import"})).toBe(false);
