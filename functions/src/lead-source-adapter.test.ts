@@ -463,6 +463,32 @@ describe("lead source bounded page contract", () => {
     expect(getterInvoked).toBe(false);
   });
 
+  it("enforces a rolling per-minute provider request budget per run", () => {
+    const limitedManifest = { ...manifest, maxRequestsPerMinute: 2 };
+    const guard = new LeadSourceAdapterRunGuard<string>(limitedManifest);
+    limitedManifest.maxRequestsPerMinute = 10;
+    const start = new Date("2026-10-26T12:00:00.000Z");
+
+    guard.recordRequest(start);
+    guard.recordRequest(new Date(start.getTime() + 1_000));
+    expect(() => guard.recordRequest(new Date(start.getTime() + 2_000)))
+      .toThrow("per-minute request limit");
+
+    // At the exact 60-second boundary the first request has left the window.
+    expect(() => guard.recordRequest(new Date(start.getTime() + 60_000))).not.toThrow();
+  });
+
+  it("rejects invalid or backwards request-rate validation clocks", () => {
+    const guard = new LeadSourceAdapterRunGuard<string>(manifest);
+    const start = new Date("2026-10-26T12:00:00.000Z");
+    guard.recordRequest(start);
+
+    expect(() => guard.recordRequest(new Date(Number.NaN)))
+      .toThrow("request validation clock must be a valid date");
+    expect(() => guard.recordRequest(new Date(start.getTime() - 1)))
+      .toThrow("request validation clock must not move backwards");
+  });
+
   it("enforces the total record budget across pages in one run", () => {
     const guard = new LeadSourceAdapterRunGuard<string>({ ...manifest, maxRecordsPerRun: 2 });
     expect(guard.acceptPage({
