@@ -26,9 +26,12 @@ export function readFirebaseWebConfig(env: Record<string, string | undefined>): 
   const apiKey = env.VITE_FIREBASE_API_KEY?.trim();
   const authDomain = env.VITE_FIREBASE_AUTH_DOMAIN?.trim();
   const projectId = env.VITE_FIREBASE_PROJECT_ID?.trim();
+  const approvedProjectId = env.VITE_GROWTH_ENGINE_FIREBASE_PROJECT_ID?.trim();
   const appId = env.VITE_FIREBASE_APP_ID?.trim();
   const appCheckSiteKey = env.VITE_FIREBASE_APPCHECK_SITE_KEY?.trim();
-  if (!apiKey || !authDomain || !projectId || !appId || !appCheckSiteKey) return null;
+  // Require a separately declared allow-list value so a mistaken Firebase target
+  // cannot silently enable cloud mode. Deployment has a matching server-side guard.
+  if (!apiKey || !authDomain || !projectId || !approvedProjectId || projectId !== approvedProjectId || !appId || !appCheckSiteKey) return null;
   return {
     apiKey,
     authDomain,
