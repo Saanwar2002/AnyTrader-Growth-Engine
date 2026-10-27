@@ -308,7 +308,7 @@ describe("AI outreach draft validation", () => {
     const fetcher = vi.fn<typeof fetch>(async () => invalidResponse as unknown as Response);
 
     await expect(generateAiOutreachDraftSuggestion(context, { apiKey: "key", fetcher }))
-      .rejects.toThrow("Gemini response could not be read");
+      .rejects.toThrow("Gemini response was not valid JSON");
     expect(getterInvoked).toBe(false);
   });
 
