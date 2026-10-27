@@ -522,6 +522,11 @@ export class LeadSourceAdapterRunGuard<TCursor = string> {
     return this.acceptedRecordCount;
   }
 
+  /** Validate a request against this guard's detached approved manifest. */
+  validateRequest(value: unknown, now: Date = new Date()): LeadSourcePageRequest<TCursor> {
+    return validateLeadSourcePageRequest<TCursor>(value, this.manifest, now);
+  }
+
   /**
    * Record a provider request immediately before issuing it. Reuse the same
    * guard for the whole discovery run; this method performs no network I/O.
@@ -606,4 +611,38 @@ export class LeadSourceAdapterRunGuard<TCursor = string> {
     if (nextCursorKey !== undefined) this.seenNextCursors.add(nextCursorKey);
     return page;
   }
+}
+
+/**
+ * Centralize the safe sequence for one page fetch: validate the request,
+ * consume request budgets before calling the provider, resolve failed calls,
+ * and validate/attribute the returned page before exposing it.
+ */
+export async function fetchGuardedLeadSourcePage<TCursor = string>(
+  request: unknown,
+  guard: LeadSourceAdapterRunGuard<TCursor>,
+  discoverPage: (request: LeadSourcePageRequest<TCursor>) => Promise<LeadSourcePage<LeadSourceCandidate, TCursor>>,
+  collectedAt: string,
+  clock: () => Date = () => new Date(),
+): Promise<LeadSourcePage<AttributedLeadSourceCandidate, TCursor>> {
+  const startedAt = clock();
+  const validatedRequest = guard.validateRequest(request, startedAt);
+  guard.recordRequest(startedAt);
+
+  let rawPage: LeadSourcePage<LeadSourceCandidate, TCursor>;
+  try {
+    rawPage = await discoverPage(validatedRequest);
+  } catch (error) {
+    guard.recordRequestFailure();
+    throw error;
+  }
+
+  let completedAt: Date;
+  try {
+    completedAt = clock();
+  } catch (error) {
+    guard.recordRequestFailure();
+    throw error;
+  }
+  return guard.acceptPage(rawPage, collectedAt, completedAt);
 }
