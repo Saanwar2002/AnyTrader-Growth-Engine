@@ -75,6 +75,21 @@ describe("non-destructive tenant offboarding preview", () => {
     });
   });
 
+  it("preserves the observed count when a later page read fails", async () => {
+    const result = await createOffboardingPreview(async (category, afterId) => {
+      if (category !== "members") return { ids: [] };
+      if (afterId === null) return { ids: ["d0000"] };
+      throw new Error("synthetic second-page read failure");
+    }, { maxRecordsPerCategory: 3, pageSize: 1 });
+
+    expect(result.complete).toBe(false);
+    expect(result.categories.find((item) => item.category === "members")).toMatchObject({
+      status: "unavailable",
+      exactCount: null,
+      observedCount: 1,
+    });
+  });
+
   it("fails closed when a reader repeats a pagination cursor", async () => {
     const result = await createOffboardingPreview(async (category) => ({
       ids: category === "members" ? ["same-id"] : [],
