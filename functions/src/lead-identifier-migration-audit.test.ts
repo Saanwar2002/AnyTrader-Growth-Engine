@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { auditLeadIdentifierRecords } from "./lead-identifier-migration-audit";
+import { auditLeadIdentifierRecords, type LegacyLeadRecord } from "./lead-identifier-migration-audit";
 
 describe("read-only lead identifier migration audit", () => {
   it("rejects malformed input records and duplicate IDs before analyzing", () => {
@@ -11,6 +11,35 @@ describe("read-only lead identifier migration audit", () => {
       { id: "same", email: "first@example.test" },
       { id: "same", email: "second@example.test" },
     ])).toThrow("duplicate record ID");
+  });
+
+  it("rejects accessor-backed audit fields without invoking getters", () => {
+    let getterInvoked = false;
+    const record = Object.defineProperty({ id: "lead-a" }, "email", {
+      enumerable: true,
+      get: () => { getterInvoked = true; return "private@example.test"; },
+    });
+    expect(() => auditLeadIdentifierRecords([record] as unknown as never))
+      .toThrow("malformed record");
+    expect(getterInvoked).toBe(false);
+  });
+
+  it("rejects extended, sparse, symbol-bearing, and non-plain audit inputs", () => {
+    expect(() => auditLeadIdentifierRecords([{
+      id: "lead-a", email: "private@example.test", unexpected: true,
+    }] as unknown as never)).toThrow("malformed record");
+    expect(() => auditLeadIdentifierRecords([{
+      id: "lead-a", email: "private@example.test", [Symbol("extra")]: true,
+    }] as unknown as never)).toThrow("malformed record");
+    class LeadRecord { id = "lead-a"; email = "private@example.test"; }
+    expect(() => auditLeadIdentifierRecords([new LeadRecord()] as unknown as never))
+      .toThrow("malformed record");
+
+    const sparse = new Array(1) as unknown as LegacyLeadRecord[];
+    expect(() => auditLeadIdentifierRecords(sparse)).toThrow("malformed records array");
+    const extended = Object.assign([{ id: "lead-a" }], { extra: true });
+    expect(() => auditLeadIdentifierRecords(extended as unknown as never))
+      .toThrow("malformed records array");
   });
 
   it("reports missing and stale keys without including raw contact data", () => {
