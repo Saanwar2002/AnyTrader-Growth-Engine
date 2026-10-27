@@ -309,6 +309,23 @@ describe("AI outreach draft validation", () => {
     expect(getterInvoked).toBe(false);
   });
 
+  it("rejects oversized provider response bodies before JSON parsing", async () => {
+    const oversizedBody = JSON.stringify({
+      candidates: [{ finishReason: "STOP", content: { parts: [{ text: JSON.stringify({
+        subject: "Provider invitation", body: "x".repeat(270 * 1024),
+      }) }] } }],
+    });
+    const fetcher = vi.fn<typeof fetch>(async () => new Response(oversizedBody, { status: 200 }));
+    await expect(generateAiOutreachDraftSuggestion(context, { apiKey: "key", fetcher }))
+      .rejects.toThrow("Gemini response exceeded the allowed size");
+  });
+
+  it("rejects provider response bodies that are not valid UTF-8", async () => {
+    const fetcher = vi.fn<typeof fetch>(async () => new Response(new Uint8Array([0xc3, 0x28]), { status: 200 }));
+    await expect(generateAiOutreachDraftSuggestion(context, { apiKey: "key", fetcher }))
+      .rejects.toThrow("Gemini response was not valid UTF-8");
+  });
+
   it("rejects provider safety blocks", async () => {
     const fetcher = vi.fn<typeof fetch>(async () => new Response(JSON.stringify({ candidates: [{ finishReason: "SAFETY", content: { parts: [{ text: "{}" }] } }] }), { status: 200 }));
     await expect(generateAiOutreachDraftSuggestion(context, { apiKey: "key", fetcher })).rejects.toThrow("eligible draft candidate");
