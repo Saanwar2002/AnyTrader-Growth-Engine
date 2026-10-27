@@ -1,3 +1,11 @@
+## AutoPilot continuation — refresh readiness checkpoint after audit CLI argument tests (2026-10-27)
+
+- Updated the dated production-readiness and security-readiness documents to reference reviewed code checkpoint `b217ff172ebc0ced6ef7062e1fa108d6ce70421f` and CI run 40487763790, which includes CLI argument-boundary regression tests.
+- Preserved production blockers for live Firebase/App Check, privacy/retention operations, approved data sources, monitoring, backup/recovery, and production migration.
+- Documentation-only; no deployment, cloud access, live migration, billing changes, production data, or outreach.
+
+---
+
 ## AutoPilot continuation — reservation audit CLI argument validation (2026-10-27)
 
 - Extended subprocess regression coverage to reject invalid organisation IDs, page sizes above 200, and record budgets above 20,000 before any Firestore initialization.
