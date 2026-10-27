@@ -148,6 +148,7 @@
 - [x] Harden organisation-creation idempotency replay responses with an exact key set, original actor/request/name binding, and a re-check of persisted owner membership and organisation name.
 - [x] Harden lead-creation idempotency replay responses with an exact key set and original actor/request/payload binding; compare persisted score, score reasons, contact-safety flags, and creation fields before replay.
 - [x] Validate persisted lead-identifier reservation schema version, identifier type, lead ID, and allowed data-descriptor shape before using reservation state for duplicate/conflict decisions.
+- [x] Snapshot read-only legacy lead-identifier audit records through exact own data descriptors and reject accessor, symbol, hidden, unknown, class-instance, sparse, and extended-array shapes before analyzing.
 - [x] Snapshot persisted security audit event envelopes through exact own data descriptors before reading authorization/audit fields; normalize metadata before returning audit pages.
 - [x] Validate decoded security audit pagination cursors against an exact tenant-bound payload shape and safe event ID before querying.
 - [x] Validate decoded member-roster pagination cursors against an exact tenant-bound payload shape and safe member UID before querying.
