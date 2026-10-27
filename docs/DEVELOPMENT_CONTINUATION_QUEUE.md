@@ -1,3 +1,11 @@
+## AutoPilot continuation — offboarding preview owner-only role coverage (2026-10-27)
+
+- Added emulator assertions that admin, member, and viewer roles are denied access to the owner-only `previewOrganisationOffboarding` callable.
+- The owner preview remains read-only and returns bounded counts only; this change extends authorization regression coverage and does not add destructive offboarding.
+- Synthetic emulator data only. No production migration, deployment, billing changes, production data, or outreach.
+
+---
+
 ## AutoPilot continuation — reservation audit truncated-scan guard (2026-10-27)
 
 - Added emulator smoke coverage that runs the read-only reservation audit with a one-record budget and verifies exit code 2, both collection scans marked truncated, and no cross-inventory findings emitted.
