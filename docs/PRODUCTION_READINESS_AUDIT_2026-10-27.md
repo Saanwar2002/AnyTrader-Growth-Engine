@@ -10,9 +10,9 @@ This is an evidence-based repository audit, not a certification that any externa
 
 - Repository: `Saanwar2002/AnyTrader-Growth-Engine`
 - Branch: `main`
-- Audited commit: `4dda223b1991ef04a932b5c44e34e56cfafb7a6d`
+- Audited code checkpoint: `b217ff172ebc0ced6ef7062e1fa108d6ce70421f`
 - Recent merged hardening: PR #218 (manual lead duplicate checks), PR #220 (concurrent canonical identifier reservations), PR #222 (concurrent contact-edit race coverage), PR #223 (identifier reservation lifecycle), and PR #226 (reservation audit CLI safety and emulator behavior).
-- Exact-head post-merge CI: [run 40485506685](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40485506685) — **success** on commit `4dda223b1991ef04a932b5c44e34e56cfafb7a6d`. Both Functions tests/build and frontend typecheck/tests/build/emulator integration jobs passed, including reservation audit CLI guard checks and emulator smoke tests.
+- Exact-code-checkpoint CI: [run 40487763790](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40487763790) for commit `b217ff172ebc0ced6ef7062e1fa108d6ce70421f` — **success**; both jobs passed. This run includes the reservation audit CLI cloud-target guard and invalid-argument tests, Functions tests/build, frontend typecheck/tests/build, and emulator integration smoke tests.
 - No production deployment or live migration was performed.
 
 ## Readiness scorecard
@@ -24,7 +24,7 @@ Status meanings:
 
 | Area | Status | Evidence and remaining work |
 |---|---|---|
-| Build and automated regression suite | **PASS — repository evidence** | Exact post-merge main CI run 40485506685 passed both jobs on commit `4dda223b1991ef04a932b5c44e34e56cfafb7a6d`, including typecheck, unit tests, build, dependency audits, Functions tests/build, CLI guard checks, and Firebase emulator smoke tests. Repeat against the exact release candidate before every release. |
+| Build and automated regression suite | **PASS — repository evidence** | CI run 40487763790 is associated with code checkpoint `b217ff172ebc0ced6ef7062e1fa108d6ce70421f` and exercises typecheck, unit tests, build, dependency audits, Functions tests/build, CLI cloud-target/argument guard checks, and Firebase emulator smoke tests. Both jobs passed; rerun against the exact release candidate before release. |
 | Tenant authorization | **PASS — development only** | Callable handlers enforce Firebase Auth and organisation membership/roles; emulator tests cover cross-tenant denial. Still require project-specific security review and production-like verification. |
 | Direct Firestore client access | **PASS — repository evidence** | `firestore.rules` denies direct client reads/writes. Keep this default until narrowly scoped rules are independently reviewed. |
 | Callable App Check enforcement | **PARTIAL** | Deployed callable options enforce App Check; the bypass is explicitly limited to the Functions emulator. The frontend requires a public site key. A live project/provider/token flow has not been verified. |

@@ -6,9 +6,9 @@
 
 The current evidence-based assessment is in [PRODUCTION_READINESS_AUDIT_2026-10-27.md](./PRODUCTION_READINESS_AUDIT_2026-10-27.md). It supersedes the older commit/run snapshots below for current repository status while retaining them as historical context.
 
-- Current `main` commit: `4dda223b1991ef04a932b5c44e34e56cfafb7a6d`.
-- Exact-head post-merge CI run [40485506685](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40485506685) passed both jobs on `4dda223b1991ef04a932b5c44e34e56cfafb7a6d`, after PR #226 added emulator coverage and a CI guard for the bounded read-only reservation audit CLI.
-- PR #218 adds bounded tenant-scoped duplicate rejection to manual lead creation and contact edits; PRs #220–#223 strengthen concurrent canonical identifier reservation and lifecycle coverage. PR #226 fixes the analyzer's TypeScript build inclusion and verifies the CLI refuses cloud targets and behaves read-only against synthetic emulator data.
+- Reviewed code checkpoint: `b217ff172ebc0ced6ef7062e1fa108d6ce70421f`.
+- CI run [40487763790](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40487763790) targets reviewed code checkpoint `b217ff172ebc0ced6ef7062e1fa108d6ce70421f` and includes reservation audit CLI cloud-target and argument-validation tests. The run completed successfully with both jobs passed; rerun against the exact release candidate before release.
+- PR #218 adds bounded tenant-scoped duplicate rejection to manual lead creation and contact edits; PRs #220–#223 strengthen concurrent canonical identifier reservation and lifecycle coverage. PR #226 fixes the analyzer's TypeScript build inclusion and verifies the CLI refuses cloud targets and behaves read-only against synthetic emulator data. Commit `b217ff1` adds CLI argument-boundary tests for invalid organisation IDs, page sizes over 200, and record budgets over 20,000; the CI run completed green on the exact code checkpoint.
 - The dedicated Growth Engine Firebase project and live App Check flow remain unverified. Production migration, privacy/retention operations, monitoring/budget alerts, backups/recovery, and release ownership remain blockers.
 - Continue with synthetic data and draft-only outreach. Do not deploy, enable billing, run a live migration, or connect production AnyTrader data without explicit approval.
 
