@@ -379,6 +379,39 @@ function normaliseLeadFields(data: Record<string, unknown>) {
   const dedupeBusinessLocationKey = canonicalLeadBusinessLocationKey(businessName, location);
   return { businessName, category, location, website, email, phone, dedupeEmailKey, dedupeWebsiteKey, dedupeBusinessLocationKey };
 }
+
+/**
+ * Reject duplicate identifiers for manual creation and contact edits. Every query
+ * is tenant-scoped and bounded; exact-value fallbacks cover legacy records only
+ * when their stored value exactly matches the normalized incoming value.
+ */
+async function assertNoDuplicateLeadIdentifiers(
+  transaction: Transaction,
+  leadsRef: Query,
+  fields: ReturnType<typeof normaliseLeadFields>,
+  excludedLeadId?: string,
+): Promise<void> {
+  const queries: Query[] = [];
+  if (fields.dedupeEmailKey) {
+    queries.push(leadsRef.where("dedupeEmailKey", "==", fields.dedupeEmailKey).limit(2));
+    queries.push(leadsRef.where("email", "==", fields.email).limit(2));
+  }
+  if (fields.dedupeWebsiteKey) {
+    queries.push(leadsRef.where("dedupeWebsiteKey", "==", fields.dedupeWebsiteKey).limit(2));
+    queries.push(leadsRef.where("website", "==", fields.website).limit(2));
+  }
+  queries.push(leadsRef.where("dedupeBusinessLocationKey", "==", fields.dedupeBusinessLocationKey).limit(2));
+  queries.push(leadsRef.where("businessName", "==", fields.businessName)
+    .where("location", "==", fields.location).limit(2));
+
+  const snapshots = await Promise.all(queries.map((query) => transaction.get(query)));
+  if (snapshots.some((snapshot) => snapshot.docs.some((document) => document.id !== excludedLeadId))) {
+    throw new HttpsError(
+      "already-exists",
+      "A lead with matching email, website, or business/location already exists in this organisation.",
+    );
+  }
+}
 export const listMyOrganisations = onCall(callableOptions, async (request) => {
   const uid = requireUid(request.auth?.uid);
   await consumeReadRateLimit("global", uid, "listMyOrganisations", 120);
@@ -2059,6 +2092,7 @@ export const createLead = onCall(callableOptions, async (request) => {
     // stale/deleted campaign cannot race past the precondition.
     const campaignSnapshot = await transaction.get(campaignRef);
     if (!campaignSnapshot.exists) throw new HttpsError("not-found", "Campaign was not found in this organisation.");
+    await assertNoDuplicateLeadIdentifiers(transaction, organisationRef.collection("leads"), fields);
     const reservedPlanUsageState = await reserveOrganisationPlanUsage(transaction, organisationId, "leads", 1);
     await consumeTransactionalRateLimit(transaction, organisationId, uid, "createLead", 200);
 
@@ -2107,7 +2141,8 @@ export const updateLeadContact = onCall(callableOptions, async (request) => {
   const leadId = requireDocumentId(data.leadId, "leadId");
   const fields = normaliseLeadFields(data);
   await requireLeadEditor(organisationId, uid);
-  const leadRef = db.collection("organisations").doc(organisationId).collection("leads").doc(leadId);
+  const leadsRef = db.collection("organisations").doc(organisationId).collection("leads");
+  const leadRef = leadsRef.doc(leadId);
   const activity = db.collection("organisations").doc(organisationId).collection("leadActivities").doc();
   const completeness = calculateLeadCompleteness(fields);
   let contactRestriction: {
@@ -2120,6 +2155,7 @@ export const updateLeadContact = onCall(callableOptions, async (request) => {
     await requireTransactionalRole(transaction, organisationId, uid, "lead");
     const leadSnapshot = await transaction.get(leadRef);
     if (!leadSnapshot.exists) throw new HttpsError("not-found", "Lead was not found in this organisation.");
+    await assertNoDuplicateLeadIdentifiers(transaction, leadsRef, fields, leadId);
     const now = FieldValue.serverTimestamp();
     const existingLead = leadSnapshot.data() ?? {};
     const storedContactReviewRevision = existingLead.contactReviewRevision;
