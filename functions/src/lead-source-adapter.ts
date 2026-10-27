@@ -116,10 +116,12 @@ function normalizePlainDataRecord(
     if (prototype !== Object.prototype && prototype !== null) return null;
     const normalized = Object.create(null) as Record<string, unknown>;
     for (const key of Reflect.ownKeys(value)) {
-      if (typeof key !== "string" || !allowedKeys.has(key)) return null;
+      if (typeof key !== "string") return null;
       const descriptor = Object.getOwnPropertyDescriptor(value, key);
       if (!descriptor || !descriptor.enumerable || !("value" in descriptor)) return null;
-      normalized[key] = descriptor.value;
+      // Unknown ordinary data fields are safely discarded; symbols and
+      // descriptor tricks are rejected so hidden state cannot affect the contract.
+      if (allowedKeys.has(key)) normalized[key] = descriptor.value;
     }
     return normalized;
   } catch {
