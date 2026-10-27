@@ -351,6 +351,19 @@ describe("AI outreach draft validation", () => {
     })).rejects.toThrow("Gemini API request timed out");
   });
 
+  it("does not invoke an unbounded text fallback when the provider response has no body", async () => {
+    let textGetterInvoked = false;
+    const bodylessResponse = Object.defineProperty({ ok: true, body: null }, "text", {
+      enumerable: true,
+      get: () => { textGetterInvoked = true; return async () => "x".repeat(300 * 1024); },
+    });
+    const fetcher = vi.fn<typeof fetch>(async () => bodylessResponse as unknown as Response);
+
+    await expect(generateAiOutreachDraftSuggestion(context, { apiKey: "key", fetcher }))
+      .rejects.toThrow("Gemini response was not valid JSON");
+    expect(textGetterInvoked).toBe(false);
+  });
+
   it("rejects oversized provider response bodies before JSON parsing", async () => {
     const oversizedBody = JSON.stringify({
       candidates: [{ finishReason: "STOP", content: { parts: [{ text: JSON.stringify({
