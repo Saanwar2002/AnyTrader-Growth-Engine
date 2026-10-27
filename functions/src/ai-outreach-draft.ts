@@ -2,14 +2,19 @@ export interface AiOutreachDraftContext { businessName: string; category: string
 export interface AiOutreachDraftSuggestion { subject: string; body: string; }
 export interface AiOutreachDraftOptions { apiKey: string; model?: string; fetcher?: typeof fetch; timeoutMs?: number; }
 const DRAFT_MARKER = "DRAFT ONLY — NOT SENT.";
+const UNSAFE_BIDI_CONTROLS = /[\u202A-\u202E\u2066-\u2069]/;
 export function validateAiOutreachDraftSuggestion(value: unknown): AiOutreachDraftSuggestion {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("AI response was not a draft object.");
   const record = value as Record<string, unknown>;
   if (typeof record.subject !== "string" || typeof record.body !== "string") throw new Error("AI response must include a subject and body.");
   const subject = record.subject.trim();
   let body = record.body.trim();
-  if (!subject || subject.length > 200 || /[\r\n\u0000-\u001f]/.test(subject)) throw new Error("AI response subject failed validation.");
-  if (!body || body.includes("\u0000") || /<\/?[a-z][^>]*>/i.test(body)) throw new Error("AI response body failed plain-text validation.");
+  if (!subject || subject.length > 200 || /[\r\n\u0000-\u001f]/.test(subject)
+    || UNSAFE_BIDI_CONTROLS.test(subject)) throw new Error("AI response subject failed validation.");
+  if (!body || /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/.test(body)
+    || UNSAFE_BIDI_CONTROLS.test(body) || /<\/?[a-z][^>]*>/i.test(body)) {
+    throw new Error("AI response body failed plain-text validation.");
+  }
   if (!body.includes(DRAFT_MARKER)) body = `${body}\n\n${DRAFT_MARKER}`;
   if (body.length > 10000) throw new Error("AI response body exceeds the allowed length.");
   return { subject, body };
