@@ -24,7 +24,7 @@ const windowMs = operation === "createOrganisation" ? 60 * 60_000 : 60_000;
 const windowStartedAtMs = state === "expired" ? now - windowMs - 1000 : now;
 await db.collection("rateLimits").doc(key).set({
   windowStartedAtMs,
-  count: state === "exhausted" ? (operation === "createOrganisation" ? 5 : operation === "updateLeadNotes" ? 240 : operation === "updateOutreachDraft" ? 120 : operation === "listOutreachDrafts" ? 60 : operation === "previewOrganisationOffboarding" ? 10 : 120) : state === "boundary" ? (operation === "updateLeadNotes" ? 239 : operation === "updateOutreachDraft" ? 119 : operation === "listOutreachDrafts" ? 59 : 119) : state === "expired" ? (operation === "createOrganisation" ? 5 : 120) : "corrupt",
+  count: state === "exhausted" ? (operation === "createOrganisation" ? 5 : operation === "updateLeadNotes" ? 240 : operation === "updateOutreachDraft" ? 120 : operation === "listOutreachDrafts" ? 60 : operation === "previewOrganisationOffboarding" ? 10 : 120) : state === "boundary" ? (operation === "updateLeadNotes" ? 239 : operation === "updateOutreachDraft" ? 119 : operation === "listOutreachDrafts" ? 59 : operation === "previewOrganisationOffboarding" ? 9 : 119) : state === "expired" ? (operation === "createOrganisation" ? 5 : 120) : "corrupt",
   updatedAt: new Date(now),
   expireAt: new Date(windowStartedAtMs + windowMs + 5 * 60_000),
 });

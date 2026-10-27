@@ -3137,6 +3137,37 @@ try {
   ], { stdio: "inherit" });
   console.log("PASS: concurrent read requests serialize consumption of the final global quota slot and leave the counter exactly at its limit.");
 
+  // The owner-only offboarding preview must serialize concurrent calls against its
+  // per-organisation quota just like other metered reads.
+  execFileSync(process.execPath, [
+    "functions/scripts/seed-emulator-rate-limit.mjs",
+    orgOne.organisationId,
+    first.auth.currentUser.uid,
+    "previewOrganisationOffboarding",
+    "boundary",
+  ], { stdio: "inherit" });
+  const concurrentOffboardingResults = await Promise.allSettled(
+    Array.from({ length: 5 }, () => callOne("previewOrganisationOffboarding", { organisationId: orgOne.organisationId })),
+  );
+  const successfulOffboardingPreviews = concurrentOffboardingResults.filter((result) => result.status === "fulfilled");
+  const rejectedOffboardingPreviews = concurrentOffboardingResults.filter((result) => result.status === "rejected");
+  assert.equal(successfulOffboardingPreviews.length, 1,
+    "only one concurrent offboarding preview may consume the final available per-organisation quota slot");
+  assert.equal(rejectedOffboardingPreviews.length, 4,
+    "all other concurrent offboarding previews must be rate-limited at the final slot");
+  for (const result of rejectedOffboardingPreviews) {
+    assert.equal(result.reason?.code, "functions/resource-exhausted",
+      "concurrent offboarding preview quota losers must receive resource-exhausted");
+  }
+  execFileSync(process.execPath, [
+    "functions/scripts/assert-emulator-rate-limit-count.mjs",
+    orgOne.organisationId,
+    first.auth.currentUser.uid,
+    "previewOrganisationOffboarding",
+    "10",
+  ], { stdio: "inherit" });
+  console.log("PASS: concurrent offboarding previews serialize the final per-organisation quota slot.");
+
   // An expired bucket must be treated as a new window, and the successful request
   // must refresh both the counter and TTL timestamp to match the newly persisted window.
   execFileSync(process.execPath, [

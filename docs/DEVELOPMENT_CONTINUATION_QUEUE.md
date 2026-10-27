@@ -1,3 +1,11 @@
+## AutoPilot continuation — concurrent offboarding preview quota boundary (2026-10-27)
+
+- Extended the local quota seeder to place `previewOrganisationOffboarding` exactly one request below its 10-call limit.
+- Added a five-way concurrent emulator regression asserting exactly one preview succeeds, four receive `resource-exhausted`, and the persisted counter remains exactly 10.
+- Synthetic emulator only. No cloud access, production migration, deployment, billing change, or outreach.
+
+---
+
 ## AutoPilot continuation — malformed quota state for offboarding preview (2026-10-27)
 
 - Added an emulator regression that seeds corrupt persisted read-quota state for `previewOrganisationOffboarding` and verifies the callable fails with `failed-precondition` rather than beginning the inventory scan.
