@@ -270,6 +270,45 @@ describe("AI outreach draft validation", () => {
         .rejects.toThrow("Gemini draft content parts were malformed");
     }
   });
+  it("rejects accessor-backed provider envelope fields without invoking getters", async () => {
+    let getterInvoked = false;
+    const payload = Object.defineProperty({}, "candidates", {
+      enumerable: true,
+      get: () => { getterInvoked = true; return []; },
+    });
+    const fetcher = vi.fn<typeof fetch>(async () => ({
+      ok: true,
+      json: async () => payload,
+    } as unknown as Response));
+
+    await expect(generateAiOutreachDraftSuggestion(context, { apiKey: "key", fetcher }))
+      .rejects.toThrow("Gemini response shape was invalid");
+    expect(getterInvoked).toBe(false);
+  });
+
+  it("rejects unsafe provider candidate/content objects and extended arrays", async () => {
+    let getterInvoked = false;
+    const candidate = Object.defineProperty({ finishReason: "STOP" }, "content", {
+      enumerable: true,
+      get: () => { getterInvoked = true; return { parts: [{ text: JSON.stringify({ subject: "Hello", body: "May we share details?" }) }] }; },
+    });
+    const unsafeCandidates = [
+      [candidate],
+      Object.assign([{ finishReason: "STOP", content: { parts: [{ text: "{}" }] } }], { extra: true }),
+    ];
+    Object.defineProperty(unsafeCandidates[1], Symbol("extra"), { value: true });
+
+    for (const candidates of unsafeCandidates) {
+      const fetcher = vi.fn<typeof fetch>(async () => ({
+        ok: true,
+        json: async () => ({ candidates }),
+      } as unknown as Response));
+      await expect(generateAiOutreachDraftSuggestion(context, { apiKey: "key", fetcher }))
+        .rejects.toThrow();
+    }
+    expect(getterInvoked).toBe(false);
+  });
+
   it("rejects provider safety blocks", async () => {
     const fetcher = vi.fn<typeof fetch>(async () => new Response(JSON.stringify({ candidates: [{ finishReason: "SAFETY", content: { parts: [{ text: "{}" }] } }] }), { status: 200 }));
     await expect(generateAiOutreachDraftSuggestion(context, { apiKey: "key", fetcher })).rejects.toThrow("eligible draft candidate");
