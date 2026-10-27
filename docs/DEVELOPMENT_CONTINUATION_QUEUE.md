@@ -1,3 +1,11 @@
+## AutoPilot continuation — reject unsafe lead-source manifest object shapes (2026-10-27)
+
+- Hardened manifest validation to accept only plain or null-prototype data records with known own enumerable data properties.
+- Manifest getters are inspected by descriptor and never invoked; symbol/unknown keys, class instances, inherited-only values, and accessor/symbol-extended allowedFields arrays fail closed.
+- Added regression coverage for unsafe manifest records and allowed-field arrays. Provider-neutral validation only; no live source access, persistence, migration, deployment, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — refresh readiness evidence after immutable run-guard hardening (2026-10-27)
 
 - Updated the dated readiness/security checkpoint to main commit `38fd77eff8031bfc469a2a8f519f8ac6100dc975`.
