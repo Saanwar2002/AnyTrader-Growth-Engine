@@ -23,7 +23,7 @@ function acceptPageAfterRequest<TCursor>(
   now: Date,
 ) {
   guard.recordRequest(now);
-  return acceptPageAfterRequest(guard, value, collectedAt, now);
+  return guard.acceptPage(value, collectedAt, now);
 }
 
 describe("lead source adapter permission contract", () => {
