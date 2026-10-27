@@ -20,12 +20,17 @@ if (!(organisationId === "global" || /^[A-Za-z0-9_-]{1,128}$/.test(organisationI
 initializeApp({ projectId });
 const db = getFirestore();
 const key = createHash("sha256").update(JSON.stringify([organisationId, uid, operation])).digest("hex");
+if (state === "reset") {
+  await db.collection("rateLimits").doc(key).delete();
+  console.log(`Deleted the emulator-only ${operation} quota fixture.`);
+  process.exit(0);
+}
 const now = Date.now();
 const windowMs = operation === "createOrganisation" ? 60 * 60_000 : 60_000;
 const windowStartedAtMs = state === "expired" ? now - windowMs - 1000 : now;
 await db.collection("rateLimits").doc(key).set({
   windowStartedAtMs,
-  count: state === "reset" ? 0 : state === "invalid" ? "corrupt" : state === "exhausted"
+  count: state === "invalid" ? "corrupt" : state === "exhausted"
     ? (operation === "createOrganisation" ? 5 : operation === "updateLeadNotes" ? 240 : operation === "updateOutreachDraft" ? 120 : operation === "listOutreachDrafts" ? 60 : operation === "importLeads" ? 10 : 120)
     : state === "boundary"
       ? (operation === "createOrganisation" ? 4 : operation === "updateLeadNotes" ? 239 : operation === "updateOutreachDraft" ? 119 : operation === "listOutreachDrafts" ? 59 : operation === "importLeads" ? 9 : 119)
