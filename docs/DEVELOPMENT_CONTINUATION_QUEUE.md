@@ -1,3 +1,11 @@
+## AutoPilot continuation — align offboarding allow-list with privacy inventory (2026-10-27)
+
+- Added the missing `leadBulkStatusIdempotency` collection to the schema-backed privacy/offboarding inventory.
+- Added a regression test that every allow-listed offboarding category must appear in the privacy inventory, preventing future collection omissions when the bounded preview schema changes.
+- Documentation and test only; no deletion, migration, deployment, billing change, or outreach.
+
+---
+
 ## AutoPilot continuation — require explicit client-side Growth Engine project allow-list (2026-10-27)
 
 - Added `VITE_GROWTH_ENGINE_FIREBASE_PROJECT_ID` as a separately declared client-side project allow-list and fail closed to demo mode when it is missing or differs from `VITE_FIREBASE_PROJECT_ID`.
