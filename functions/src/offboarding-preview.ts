@@ -107,7 +107,7 @@ export async function createOffboardingPreview(
         afterId = lastId;
       }
     } catch {
-      categories.push({ category, status: "unavailable", exactCount: null, observedCount: 0 });
+      categories.push({ category, status: "unavailable", exactCount: null, observedCount });
     }
   }
 
