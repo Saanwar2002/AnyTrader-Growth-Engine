@@ -17,6 +17,7 @@
     "src/authorization.ts",
     "src/lead-identifier-migration-audit.ts",
     "src/bounded-lead-identifier-audit.ts",
+    "src/lead-identifier-reservation-audit.ts",
     "src/usage-accounting.ts"
   ]
 }
