@@ -1,3 +1,11 @@
+## AutoPilot continuation — require explicit client-side Growth Engine project allow-list (2026-10-27)
+
+- Added `VITE_GROWTH_ENGINE_FIREBASE_PROJECT_ID` as a separately declared client-side project allow-list and fail closed to demo mode when it is missing or differs from `VITE_FIREBASE_PROJECT_ID`.
+- Updated `.env.example`, README setup instructions, and the cloud release gate; added regression tests for missing, mismatched, and matching IDs.
+- This reduces accidental project-target misconfiguration but does not replace live project/App Check verification or the server-side deployment guard. No cloud configuration, deployment, migration, billing change, or outreach.
+
+---
+
 ## AutoPilot continuation — include member-addition idempotency in offboarding inventory (2026-10-27)
 
 - Source review found `memberAdditionIdempotency` is written under `organisations/{organisationId}` but was missing from the non-destructive offboarding preview allow-list and schema-backed privacy inventory.
