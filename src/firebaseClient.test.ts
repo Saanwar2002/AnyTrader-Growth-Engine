@@ -8,11 +8,31 @@ describe("Firebase web configuration", () => {
     expect(readFirebaseWebConfig({ VITE_FIREBASE_API_KEY: "key", VITE_FIREBASE_AUTH_DOMAIN: "example.firebaseapp.com", VITE_FIREBASE_PROJECT_ID: "project", VITE_FIREBASE_APP_ID: "app" })).toBeNull();
   });
 
+  it("keeps cloud mode disabled unless the explicitly approved Growth Engine project matches", () => {
+    const base = {
+      VITE_FIREBASE_API_KEY: "key",
+      VITE_FIREBASE_AUTH_DOMAIN: "growth.example.firebaseapp.com",
+      VITE_FIREBASE_PROJECT_ID: "growth-project",
+      VITE_FIREBASE_APP_ID: "app-id",
+      VITE_FIREBASE_APPCHECK_SITE_KEY: "site-key",
+    };
+    expect(readFirebaseWebConfig(base)).toBeNull();
+    expect(readFirebaseWebConfig({
+      ...base,
+      VITE_GROWTH_ENGINE_FIREBASE_PROJECT_ID: "different-project",
+    })).toBeNull();
+    expect(readFirebaseWebConfig({
+      ...base,
+      VITE_GROWTH_ENGINE_FIREBASE_PROJECT_ID: "growth-project",
+    })).not.toBeNull();
+  });
+
   it("reads required public configuration and trims whitespace", () => {
     expect(readFirebaseWebConfig({
       VITE_FIREBASE_API_KEY: " key ",
       VITE_FIREBASE_AUTH_DOMAIN: " growth.example.firebaseapp.com ",
       VITE_FIREBASE_PROJECT_ID: " growth-project ",
+      VITE_GROWTH_ENGINE_FIREBASE_PROJECT_ID: " growth-project ",
       VITE_FIREBASE_APP_ID: " app-id ",
       VITE_FIREBASE_APPCHECK_SITE_KEY: " recaptcha-site-key ",
     })).toEqual({ apiKey: "key", authDomain: "growth.example.firebaseapp.com", projectId: "growth-project", appId: "app-id", appCheckSiteKey: "recaptcha-site-key" });
@@ -21,7 +41,7 @@ describe("Firebase web configuration", () => {
   it("does not require optional messaging/storage fields", () => {
     expect(readFirebaseWebConfig({
       VITE_FIREBASE_API_KEY: "key", VITE_FIREBASE_AUTH_DOMAIN: "example.firebaseapp.com",
-      VITE_FIREBASE_PROJECT_ID: "project", VITE_FIREBASE_APP_ID: "app", VITE_FIREBASE_APPCHECK_SITE_KEY: "site-key",
+      VITE_FIREBASE_PROJECT_ID: "project", VITE_GROWTH_ENGINE_FIREBASE_PROJECT_ID: "project", VITE_FIREBASE_APP_ID: "app", VITE_FIREBASE_APPCHECK_SITE_KEY: "site-key",
       VITE_FIREBASE_MESSAGING_SENDER_ID: " ", VITE_FIREBASE_STORAGE_BUCKET: "",
     })).toEqual({ apiKey: "key", authDomain: "example.firebaseapp.com", projectId: "project", appId: "app", appCheckSiteKey: "site-key" });
   });
