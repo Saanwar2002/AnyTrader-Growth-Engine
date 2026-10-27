@@ -1,3 +1,11 @@
+## AutoPilot continuation — malformed quota state for offboarding preview (2026-10-27)
+
+- Added an emulator regression that seeds corrupt persisted read-quota state for `previewOrganisationOffboarding` and verifies the callable fails with `failed-precondition` rather than beginning the inventory scan.
+- Complements exhausted-quota and malformed-input tests; no production data is touched.
+- Synthetic emulator only. No cloud access, migration, deployment, billing change, or outreach.
+
+---
+
 ## AutoPilot continuation — reject malformed offboarding preview organisation IDs (2026-10-27)
 
 - Added emulator regressions for empty, slash-containing, and traversal-like organisation identifiers sent to the owner-only offboarding preview callable.
