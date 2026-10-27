@@ -63,7 +63,7 @@ describe("non-destructive tenant offboarding preview", () => {
     });
     expect(getTrapInvoked).toBe(false);
     expect(result.categories.find((item) => item.category === "members")).toMatchObject({
-      status: "unavailable", exactCount: null,
+      status: "complete", exactCount: 1,
     });
   });
 
