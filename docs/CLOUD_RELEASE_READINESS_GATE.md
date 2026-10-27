@@ -32,6 +32,7 @@ This checklist is a human-operated release gate for enabling the Growth Engine c
 - [ ] Register the intended web app with the selected App Check provider and configure only approved domains.
 - [ ] Supply the public App Check site key through the documented local/build environment variable; never put private provider secrets in frontend variables.
 - [ ] Verify the app refuses cloud mode when required Firebase configuration or App Check configuration is absent.
+- [ ] Verify `VITE_GROWTH_ENGINE_FIREBASE_PROJECT_ID` is explicitly set to the approved dedicated Growth Engine project and exactly matches `VITE_FIREBASE_PROJECT_ID`; cloud mode must remain disabled when missing or mismatched.
 - [ ] In the dedicated project, verify that a missing token and an invalid/expired token are rejected, and that a valid token succeeds.
 - [ ] Confirm Auth, App Check, organisation membership, role checks, and tenant scoping are independently enforced; App Check is not authorisation.
 - [ ] Before deployment, verify the explicit Growth Engine project allow-list equals the actual Firebase CLI target. Stop on missing or mismatched values.
