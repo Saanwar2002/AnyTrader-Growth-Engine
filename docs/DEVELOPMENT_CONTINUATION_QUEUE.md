@@ -1,3 +1,11 @@
+## AutoPilot continuation — harden persisted plan usage state shape (2026-10-27)
+
+- `resolvePlanUsageState` now snapshots exact allowed usage fields through own enumerable data descriptors, rejects symbols/hidden/accessor properties and non-plain objects, and fails closed when object inspection traps throw.
+- Added regressions proving getters are not executed and symbol keys, hidden fields, class instances, and throwing proxies are rejected.
+- Pure validation only; no counter repair, billing activation, data migration, production reads, or writes.
+
+---
+
 ## AutoPilot continuation — keep bodyless AI responses bounded (2026-10-27)
 
 - Treat a response with no readable body stream as empty instead of calling `response.text()` and checking its size afterward. The fallback could buffer an unbounded custom response before the limit was enforced.

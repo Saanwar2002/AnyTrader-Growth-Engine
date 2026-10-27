@@ -30,6 +30,57 @@ describe("plan usage state", () => {
       .toEqual({ ok: false, reason: "invalid_state" });
   });
 
+  it("rejects accessor-backed usage fields without invoking getters", () => {
+    let getterInvoked = false;
+    const state = {
+      schemaVersion: 1,
+      leads: 0,
+      members: 0,
+      monthlyAiSuggestions: 0,
+      aiUsagePeriod: "2026-10",
+    };
+    Object.defineProperty(state, "campaigns", {
+      enumerable: true,
+      get: () => { getterInvoked = true; return 0; },
+    });
+
+    expect(resolvePlanUsageState(state, now)).toEqual({ ok: false, reason: "invalid_state" });
+    expect(getterInvoked).toBe(false);
+  });
+
+  it("rejects symbol keys, hidden fields, class instances, and hostile proxy traps", () => {
+    const valid = {
+      schemaVersion: 1,
+      campaigns: 0,
+      leads: 0,
+      members: 0,
+      monthlyAiSuggestions: 0,
+      aiUsagePeriod: "2026-10",
+    };
+    expect(resolvePlanUsageState({ ...valid, [Symbol("extra")]: true }, now))
+      .toEqual({ ok: false, reason: "invalid_state" });
+
+    const hidden = { ...valid };
+    Object.defineProperty(hidden, "extra", { value: true, enumerable: false });
+    expect(resolvePlanUsageState(hidden, now)).toEqual({ ok: false, reason: "invalid_state" });
+
+    class UsageStateRecord {
+      schemaVersion = 1;
+      campaigns = 0;
+      leads = 0;
+      members = 0;
+      monthlyAiSuggestions = 0;
+      aiUsagePeriod = "2026-10";
+    }
+    expect(resolvePlanUsageState(new UsageStateRecord(), now))
+      .toEqual({ ok: false, reason: "invalid_state" });
+
+    const hostile = new Proxy(valid, {
+      ownKeys: () => { throw new Error("sensitive proxy detail"); },
+    });
+    expect(resolvePlanUsageState(hostile, now)).toEqual({ ok: false, reason: "invalid_state" });
+  });
+
   it("rejects unexpected or missing fields rather than silently carrying unknown state", () => {
     const valid = { schemaVersion: 1, campaigns: 0, leads: 0, members: 0, monthlyAiSuggestions: 0, aiUsagePeriod: "2026-10" };
     expect(resolvePlanUsageState({ ...valid, legacyCounter: 9 }, now)).toEqual({ ok: false, reason: "invalid_state" });

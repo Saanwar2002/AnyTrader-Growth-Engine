@@ -44,10 +44,26 @@ export function resolvePlanUsageState(value: unknown, now: Date): UsageStateReso
     };
   }
   if (value === null || typeof value !== "object" || Array.isArray(value)) return { ok: false, reason: "invalid_state" };
-  const candidate = value as Record<string, unknown>;
-  const keys = Object.keys(candidate);
+  let candidate: Record<string, unknown>;
+  try {
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) return { ok: false, reason: "invalid_state" };
+    candidate = Object.create(null) as Record<string, unknown>;
+    for (const key of Reflect.ownKeys(value)) {
+      if (typeof key !== "string" || !USAGE_STATE_KEYS.includes(key as (typeof USAGE_STATE_KEYS)[number])) {
+        return { ok: false, reason: "invalid_state" };
+      }
+      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      if (!descriptor || !descriptor.enumerable || !("value" in descriptor)) {
+        return { ok: false, reason: "invalid_state" };
+      }
+      candidate[key] = descriptor.value;
+    }
+  } catch {
+    return { ok: false, reason: "invalid_state" };
+  }
   if (
-    keys.length !== USAGE_STATE_KEYS.length ||
+    Object.keys(candidate).length !== USAGE_STATE_KEYS.length ||
     !USAGE_STATE_KEYS.every((key) => Object.prototype.hasOwnProperty.call(candidate, key)) ||
     candidate.schemaVersion !== 1 ||
     !METRICS.every((metric) => isValidCounter(candidate[metric]))
