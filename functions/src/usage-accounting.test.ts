@@ -106,6 +106,45 @@ describe("plan usage state", () => {
 describe("transaction-ready usage reservation decision", () => {
   const state = { schemaVersion: 1 as const, campaigns: 9, leads: 499, members: 4, monthlyAiSuggestions: 49, aiUsagePeriod: "2026-10" };
 
+  it("rejects accessor-backed reservation state without invoking getters", () => {
+    let getterInvoked = false;
+    const unsafeState = {
+      schemaVersion: 1,
+      leads: 0,
+      members: 0,
+      monthlyAiSuggestions: 0,
+      aiUsagePeriod: "2026-10",
+    };
+    Object.defineProperty(unsafeState, "campaigns", {
+      enumerable: true,
+      get: () => { getterInvoked = true; return 0; },
+    });
+
+    expect(reservePlanUsage(PILOT_PLAN, unsafeState as never, "campaigns"))
+      .toMatchObject({ allowed: false, reason: "invalid_usage" });
+    expect(getterInvoked).toBe(false);
+  });
+
+  it("rejects accessor-backed plan limits without invoking getters", () => {
+    let getterInvoked = false;
+    const limits = Object.defineProperty({}, "campaigns", {
+      enumerable: true,
+      get: () => { getterInvoked = true; return 10; },
+    });
+    const plan = Object.defineProperty({}, "limits", { enumerable: true, value: limits });
+
+    expect(reservePlanUsage(plan as never, state, "campaigns"))
+      .toMatchObject({ allowed: false, reason: "invalid_usage" });
+    expect(getterInvoked).toBe(false);
+  });
+
+  it("rejects unsupported runtime metrics and malformed reservation states", () => {
+    expect(reservePlanUsage(PILOT_PLAN, state, "__proto__" as never))
+      .toMatchObject({ allowed: false, reason: "invalid_usage" });
+    expect(reservePlanUsage(PILOT_PLAN, { ...state, extra: true } as never, "campaigns"))
+      .toMatchObject({ allowed: false, reason: "invalid_usage" });
+  });
+
   it("reserves exactly up to the plan boundary without mutating the input", () => {
     expect(reservePlanUsage(PILOT_PLAN, state, "campaigns")).toMatchObject({ allowed: true, remaining: 0, state: { campaigns: 10 } });
     expect(state.campaigns).toBe(9);
