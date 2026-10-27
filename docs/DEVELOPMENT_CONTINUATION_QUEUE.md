@@ -1,3 +1,11 @@
+## AutoPilot continuation — centralize guarded lead-source page fetches (2026-10-27)
+
+- Added fetchGuardedLeadSourcePage to enforce the full sequence: validate the request against the guard's approved manifest, record request budgets before invoking the provider callback, resolve failed callbacks, and validate/attribute the response using the completion-time clock.
+- Added regression coverage for normalized request inputs, provenance-safe page output, and recovery after a synthetic provider failure.
+- The helper is provider-neutral; no actual adapter, network integration, live data, persistence, migration, deployment, billing activation, or outreach was added.
+
+---
+
 ## AutoPilot continuation — bind accepted pages to recorded provider requests (2026-10-27)
 
 - The per-run guard now requires a recorded request before accepting a page and consumes that request association before validating the response, preventing one request budget entry from authorizing multiple pages.
