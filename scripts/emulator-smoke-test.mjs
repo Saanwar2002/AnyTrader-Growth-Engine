@@ -424,14 +424,14 @@ try {
     "functions/scripts/assert-emulator-audit-events.mjs",
     orgOne.organisationId,
     "lead.csv_import.completed",
-    "2",
+    "4",
   ], { stdio: "inherit" });
   execFileSync(process.execPath, [
     "functions/scripts/assert-emulator-rate-limit-count.mjs",
     orgOne.organisationId,
     first.auth.currentUser.uid,
     "importLeads",
-    "2",
+    "4",
   ], { stdio: "inherit" });
 
   assert.equal(importResult.received, 4, "CSV import reports received row count");
