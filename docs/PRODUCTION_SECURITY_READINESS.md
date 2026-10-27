@@ -2,6 +2,16 @@
 
 **Status: NOT READY for public production deployment.**
 
+## Current checkpoint — 27 October 2026
+
+The current evidence-based assessment is in [PRODUCTION_READINESS_AUDIT_2026-10-27.md](./PRODUCTION_READINESS_AUDIT_2026-10-27.md). It supersedes the older commit/run snapshots below for current repository status while retaining them as historical context.
+
+- Current `main` commit: `637d60cee39f49b2bbfdbb5c4cdd87b6cf7b98ff`.
+- Exact-head post-merge CI run [40475093576](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40475093576) passed both jobs after PR #218 merged.
+- PR #218 adds bounded tenant-scoped duplicate rejection to manual lead creation and contact edits; emulator smoke coverage and the full CI workflow passed.
+- The dedicated Growth Engine Firebase project and live App Check flow remain unverified. Production migration, privacy/retention operations, monitoring/budget alerts, backups/recovery, and release ownership remain blockers.
+- Continue with synthetic data and draft-only outreach. Do not deploy, enable billing, run a live migration, or connect production AnyTrader data without explicit approval.
+
 ## Post-merge verification — 25 October 2026
 
 - PRs #15 and #16 (privacy/offboarding), #18–#20 (readiness evidence and callable inventory), #21 (defensive lead-audit input validation), and #22 (continuation queue sync) are merged into `main`.
