@@ -1110,7 +1110,7 @@ describe("organisation security audit log", () => {
     expect(start).toBeGreaterThanOrEqual(0);
     expect(body).toContain('membership.role !== "owner" && membership.role !== "admin"');
     expect(body).toContain('consumeReadRateLimit(organisationId, uid, "listOrganisationSecurityAuditEvents", 10)');
-    expect(body).toContain('decoded.scope !== "organisation_security_audit" || decoded.organisationId !== organisationId');
+    expect(body).toContain("getValidSecurityAuditCursorId(decoded, organisationId)");
     expect(body).toContain("query.limit(51)");
     expect(body).toContain('isValidFirestoreTimestamp(cursor.get("createdAt"))');
     expect(body).toContain("await requireAuditViewer();");
