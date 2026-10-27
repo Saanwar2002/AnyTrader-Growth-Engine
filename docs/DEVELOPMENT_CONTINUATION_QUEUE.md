@@ -1,3 +1,11 @@
+## AutoPilot continuation — avoid timestamp conversion accessor execution (2026-10-27)
+
+- `safeTimestampToIso` now resolves `toDate` through property descriptors across the prototype chain, rejecting accessor descriptors without invoking them while preserving inherited Firestore Timestamp methods.
+- Uses intrinsic `Date.prototype` methods for validation/serialization so overridden own `getTime`/`toISOString` properties are not evaluated.
+- Added synthetic regressions for own/prototype getters and Date instance overrides. No production database access, migration, deployment, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — harden lead-creation replay data shapes (2026-10-27)
 
 - Replay envelopes, saved replay results, and persisted lead snapshots are copied through plain/null-prototype own enumerable data descriptors; accessors, symbols, hidden fields, class instances, and hostile inspection traps fail closed without getter execution.
