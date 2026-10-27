@@ -1,3 +1,13 @@
+## AutoPilot continuation — concurrent lead identifier write-path coverage (2026-10-27)
+
+- Extended the emulator smoke suite to exercise simultaneous contact edits from two distinct leads claiming the same case-insensitive email; exactly one edit may commit and the losing edit must return a duplicate conflict.
+- CSV-import different-idempotency-key races and reservation release/reclaim behavior are covered separately by PR #221; this PR intentionally focuses on the contact-edit race to avoid duplicating that scope.
+- Synthetic emulator fixtures only. No production migration, deployment, billing, real-data import, or outreach.
+- Next: wait for exact-head CI, inspect any failures, then review/merge only if both jobs pass and the PR head remains unchanged.
+
+---
+
+
 ## AutoPilot run — correct cumulative emulator audit assertions (2026-10-26)
 
 - Fixed the no-op lead-note smoke test to account for the earlier successful member-role note edit on the same fixture lead.
