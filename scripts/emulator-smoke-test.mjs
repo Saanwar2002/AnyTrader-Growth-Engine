@@ -68,7 +68,10 @@ try {
   assert.deepEqual(planUsageReconciliation.mismatchedMetrics, []);
   assert.equal(planUsageReconciliation.aiUsageReviewRequired, true);
   assert.equal(planUsageReconciliation.destructiveActionPerformed, false);
+  const ownerOffboardingQuotaBefore = currentQuotaCount("previewOrganisationOffboarding", first.auth.currentUser.uid);
   const offboardingPreview = await callOne("previewOrganisationOffboarding", { organisationId: orgOne.organisationId });
+  assert.equal(currentQuotaCount("previewOrganisationOffboarding", first.auth.currentUser.uid), ownerOffboardingQuotaBefore + 1,
+    "successful owner offboarding preview consumes exactly one read quota");
   assert.equal(offboardingPreview.destructiveActionPerformed, false, "offboarding preview never deletes data");
   assert.equal(offboardingPreview.complete, true, "synthetic tenant preview completes within the category caps");
   assert.ok(offboardingPreview.categories.every((item) => item.status === "complete" && Number.isSafeInteger(item.exactCount)),
