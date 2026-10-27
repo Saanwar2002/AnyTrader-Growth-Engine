@@ -1,3 +1,12 @@
+## AutoPilot continuation — align frontend offboarding category contract (2026-10-27)
+
+- Fixed a frontend contract gap: the backend offboarding preview now inventories `memberAdditionIdempotency`, but the `OffboardingPreviewCategory` TypeScript union did not include it.
+- Added a typed API regression fixture for the membership-addition retry category so future backend/frontend category drift fails typechecking/tests.
+- Post-merge main CI for the inventory parity checkpoint `136999f5233fd61fa45e8dce7518b66df1cf1f61` completed successfully in run `40506312642`.
+- No deletion, production migration, deployment, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — enforce offboarding allow-list/privacy-inventory parity (2026-10-27)
 
 - Added a source-contract regression test that every `OFFBOARDING_PREVIEW_CATEGORIES` entry must be present in the schema-backed privacy inventory, preventing omissions when the allow-list changes.
