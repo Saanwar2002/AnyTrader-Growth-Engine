@@ -549,6 +549,28 @@ export class LeadSourceAdapterRunGuard<TCursor = string> {
     this.requestCount += 1;
   }
 
+  /**
+   * Validate a page request, consume request budget, then invoke the supplied
+   * provider callback and accept its result. Keeping this sequence in one
+   * method prevents integrations from accidentally fetching before accounting
+   * for the request. The callback is supplied by the caller; this module has
+   * no provider credentials or built-in network access.
+   */
+  async requestAndAcceptPage(
+    request: unknown,
+    fetchPage: (validatedRequest: LeadSourcePageRequest<TCursor>) => Promise<unknown>,
+    collectedAt: string,
+    now: Date = new Date(),
+  ): Promise<LeadSourcePage<AttributedLeadSourceCandidate, TCursor>> {
+    if (typeof fetchPage !== "function") {
+      throw new Error("Lead source page fetch callback must be a function.");
+    }
+    const validatedRequest = validateLeadSourcePageRequest<TCursor>(request, this.manifest, now);
+    this.recordRequest(now);
+    const response = await fetchPage(validatedRequest);
+    return this.acceptPage(response, collectedAt, now);
+  }
+
   acceptPage(
     value: unknown,
     collectedAt: string,
