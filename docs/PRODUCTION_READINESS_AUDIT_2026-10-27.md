@@ -10,13 +10,12 @@ This is an evidence-based repository audit, not a certification that any externa
 
 - Repository: `Saanwar2002/AnyTrader-Growth-Engine`
 - Branch: `main`
-- Audited code checkpoint: `cffd4f3b808695e70420a795d041825c0e58863d`
-- Recent merged hardening: PR #218 (manual lead duplicate checks), PR #220 (concurrent canonical identifier reservations), PR #222 (concurrent contact-edit race coverage), PR #223 (identifier reservation lifecycle), and PR #226 (reservation audit CLI safety and emulator behavior), PR #232 (separate implemented roadmap work from remaining blockers), and PR #235 (verify denied offboarding previews do not consume quota).
-- Exact-code-checkpoint CI: [run 40493742548](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40493742548) for commit `cffd4f3b808695e70420a795d041825c0e58863d` — **success**; both jobs passed. This run includes the reservation audit CLI cloud-target guard and invalid-argument tests, Functions tests/build, frontend typecheck/tests/build, and emulator integration smoke tests.
-- Latest post-merge main CI: [run 40493742548](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40493742548) for commit `cffd4f3b808695e70420a795d041825c0e58863d` — **success**, both Functions and frontend/emulator jobs passed.
-- PR #235 adds emulator assertions that owner-only offboarding-preview denials for admin/member/viewer do not consume their read quota; it does not add deletion or migration.
-- PR #232 clarifies the implemented onboarding/cohort and authoritative quota capabilities while retaining legacy backfill/reconciliation as unchecked blockers.
-- No production deployment or live migration was performed.
+- Audited code checkpoint: `c9c63c37e63b213e05d32026668760e104ca1ea5`.
+- Recent merged hardening includes PR #239 (malformed offboarding-preview organisation IDs fail before quota consumption), PR #240 (malformed persisted offboarding quota state fails closed), and PR #241 (concurrent owner previews cannot consume beyond the final per-organisation read-quota slot), alongside the canonical identifier reservation lifecycle and bounded read-only audit work.
+- Exact-code-checkpoint CI: [run 40500358252](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40500358252) for PR #241 head `106cfed9b26d51eb4474c305973863dbbffac49a` — **success**; both Functions and frontend/emulator jobs passed, including the concurrent offboarding quota boundary regression.
+- Latest post-merge main CI: [run 40500970931](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40500970931) for commit `c9c63c37e63b213e05d32026668760e104ca1ea5` — **success**, both Functions and frontend/emulator jobs passed.
+- Offboarding preview remains owner-only, bounded, tenant-scoped, read-only, App-Check protected outside the emulator, and quota-limited. Invalid organisation IDs and malformed/exhausted quota states fail closed; denied roles do not consume quota.
+- The dedicated Growth Engine Firebase project, live App Check verification, privacy/retention approvals, monitoring/budget alerts, backup/recovery, and approved data-source configuration remain release blockers. No production deployment or live migration was performed.
 
 ## Readiness scorecard
 
