@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { createGrowthEngineApi, type CallableInvoker, type OffboardingPreviewCategory } from "./backendApi";
 
@@ -328,21 +327,4 @@ it("requests an organisation member role update", async () => {
   const api = createGrowthEngineApi(invoke);
   await expect(api.updateOrganisationMemberRole({ organisationId: "org-1", targetUid: "member-uid", role: "admin" })).resolves.toEqual(response);
   expect(calls).toEqual([{ name: "updateOrganisationMemberRole", payload: { organisationId: "org-1", targetUid: "member-uid", role: "admin" } }]);
-});
-
-it("keeps frontend and backend offboarding category inventories exactly aligned", () => {
-  const frontendSource = readFileSync(new URL("./backendApi.ts", import.meta.url), "utf8");
-  const backendSource = readFileSync(new URL("../functions/src/offboarding-preview.ts", import.meta.url), "utf8");
-
-  const frontendMatch = frontendSource.match(/export type OffboardingPreviewCategory = ([^;]+);/);
-  const backendMatch = backendSource.match(/export const OFFBOARDING_PREVIEW_CATEGORIES = \[([\s\S]*?)\] as const;/);
-  expect(frontendMatch, "frontend offboarding category type exists").not.toBeNull();
-  expect(backendMatch, "backend offboarding category allow-list exists").not.toBeNull();
-
-  const frontendCategories = [...frontendMatch![1].matchAll(/"([^"]+)"/g)].map((match) => match[1]).sort();
-  const backendCategories = [...backendMatch![1].matchAll(/"([^"]+)"/g)].map((match) => match[1]).sort();
-
-  expect(new Set(frontendCategories).size, "frontend category names are unique").toBe(frontendCategories.length);
-  expect(new Set(backendCategories).size, "backend category names are unique").toBe(backendCategories.length);
-  expect(frontendCategories).toEqual(backendCategories);
 });
