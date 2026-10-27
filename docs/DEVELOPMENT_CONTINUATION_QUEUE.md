@@ -1,3 +1,12 @@
+## AutoPilot continuation — refresh readiness evidence after PR #256 (2026-10-27)
+
+- Refreshed production-readiness and security evidence to the verified `main` checkpoint `283f30a721f9e0171d805fd4a3be1284b8572671`.
+- Recorded successful exact-head PR #256 CI (`40510661633`) and successful post-merge main CI (`40511378412`), both with Functions and frontend/emulator jobs passing.
+- PR #254 preserves partial observed counts when a later offboarding preview page fails, while keeping exact counts unknown and the overall preview incomplete. PR #256 adds cross-layer category parity coverage. Production blockers remain unchanged: live Firebase/App Check, privacy/retention approval, monitoring, backup/recovery, approved source configuration, and legacy reconciliation.
+- Documentation-only; no deployment, production migration, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — guard frontend/backend offboarding category parity (2026-10-27)
 
 - Added a Functions source-contract regression that reads the frontend `OffboardingPreviewCategory` union and backend offboarding allow-list and asserts exact category equality.
