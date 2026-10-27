@@ -12,6 +12,8 @@ describe("lead creation idempotency replay integrity", () => {
     expect(getValidLeadCreationReplayResult({...saved, requestHash:"other"}, expected)).toBeNull();
     expect(getValidLeadCreationReplayResult(null, expected)).toBeNull();
     expect(getValidLeadCreationReplayResult({...saved, result:[]}, expected)).toBeNull();
+    expect(getValidLeadCreationReplayResult({ ...saved, createdAt: new Date("2026-10-27T12:00:00.000Z") }, expected)).toEqual(result);
+    expect(getValidLeadCreationReplayResult({ ...saved, unexpectedMetadata: true }, expected)).toBeNull();
   });
   it("rejects accessor-backed replay envelopes and results without invoking getters", () => {
     let getterInvoked = false;
