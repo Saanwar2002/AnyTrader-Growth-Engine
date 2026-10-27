@@ -310,16 +310,25 @@ export function evaluateRateLimit(state: unknown, nowMs: number, maxRequests: nu
       return { allowed: false, invalidState: true, nextState: null, retryAfterMs: 0 };
     }
     const keys = Reflect.ownKeys(state);
-    if (keys.length !== 2 || keys.some((key) => key !== "windowStartedAtMs" && key !== "count")) {
+    const allowedKeys = new Set(["windowStartedAtMs", "count", "updatedAt", "expireAt"]);
+    if (keys.length < 2 || keys.length > allowedKeys.size
+      || keys.some((key) => typeof key !== "string" || !allowedKeys.has(key))
+      || !keys.includes("windowStartedAtMs") || !keys.includes("count")) {
       return { allowed: false, invalidState: true, nextState: null, retryAfterMs: 0 };
     }
-    // Read persisted quota state only through enumerable own data descriptors.
-    // This rejects getters, symbols, hidden/extra fields, class instances, and
-    // proxy traps without evaluating caller-controlled property accessors.
+    // Firestore persistence adds updatedAt/expireAt metadata. Permit only
+    // those known fields, and require every present field to be an enumerable
+    // own data property so getters, symbols, hidden/extra keys, and proxies fail closed.
+    for (const key of keys) {
+      const descriptor = Object.getOwnPropertyDescriptor(state, key);
+      if (!descriptor || !descriptor.enumerable || !("value" in descriptor)) {
+        return { allowed: false, invalidState: true, nextState: null, retryAfterMs: 0 };
+      }
+    }
     const startedDescriptor = Object.getOwnPropertyDescriptor(state, "windowStartedAtMs");
     const countDescriptor = Object.getOwnPropertyDescriptor(state, "count");
-    if (!startedDescriptor || !startedDescriptor.enumerable || !("value" in startedDescriptor)
-      || !countDescriptor || !countDescriptor.enumerable || !("value" in countDescriptor)) {
+    if (!startedDescriptor || !("value" in startedDescriptor)
+      || !countDescriptor || !("value" in countDescriptor)) {
       return { allowed: false, invalidState: true, nextState: null, retryAfterMs: 0 };
     }
     const started = startedDescriptor.value;
