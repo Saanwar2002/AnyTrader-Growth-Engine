@@ -1,3 +1,11 @@
+## AutoPilot continuation — verify approval expiry during in-flight source requests (2026-10-27)
+
+- Added a regression where a source is approved when the provider request starts but its approval expires before the response arrives.
+- The response is rejected, the provider callback is invoked only once, and accepted-record state remains unchanged.
+- Test-only guard verification; no provider integration, live data, persistence, migration, deployment, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — reject stalled lead-source pagination (2026-10-27)
 
 - The per-run guard now associates a recorded request with its normalized input cursor and rejects a response whose next cursor is equivalent to the cursor just requested, even when object keys are reordered.
