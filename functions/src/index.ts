@@ -706,7 +706,7 @@ export const listOrganisationSecurityAuditEvents = onCall(callableOptions, async
   let query = auditCollection.orderBy("createdAt", "desc").orderBy(FieldPath.documentId(), "desc");
   if (cursorId) {
     const cursor = await auditCollection.doc(cursorId).get();
-    if (!cursor.exists || !cursor.get("createdAt") || typeof cursor.get("createdAt").toMillis !== "function") {
+    if (!cursor.exists || !isValidFirestoreTimestamp(cursor.get("createdAt"))) {
       throw new HttpsError("invalid-argument", "Security audit page token no longer identifies a valid event.");
     }
     query = query.startAfter(cursor);
