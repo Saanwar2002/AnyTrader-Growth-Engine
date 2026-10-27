@@ -131,7 +131,13 @@ function normalizeLeadSourceManifest(value: unknown): LeadSourceAdapterManifest 
 
     const fields = normalized.allowedFields;
     if (!Array.isArray(fields)) return normalized as unknown as LeadSourceAdapterManifest;
-    if (Object.getPrototypeOf(fields) !== Array.prototype || hasSparseEntries(fields)) return null;
+    if (Object.getPrototypeOf(fields) !== Array.prototype) return null;
+    // Preserve sparse arrays for the existing semantic validator to report
+    // the specific allowedFields defect; checking for holes reads no values.
+    if (hasSparseEntries(fields)) {
+      normalized.allowedFields = fields;
+      return normalized as unknown as LeadSourceAdapterManifest;
+    }
     const fieldKeys = Reflect.ownKeys(fields);
     if (fieldKeys.some((key) => key !== "length"
       && (typeof key !== "string" || !/^(0|[1-9]\d*)$/.test(key) || Number(key) >= fields.length))) return null;
