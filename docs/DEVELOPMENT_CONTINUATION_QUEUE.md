@@ -1,3 +1,12 @@
+## AutoPilot continuation — refresh readiness evidence after PR #250 (2026-10-27)
+
+- Refreshed the production-readiness audit and security gate to the verified `main` checkpoint `73e3b04fb05c3ea18aaf1de49edd9ee3980b7160`.
+- Recorded successful exact-head PR #250 CI (`40507022929`) and post-merge main CI (`40507397467`), including Functions and frontend/emulator jobs.
+- PR #250 aligned the frontend offboarding category type with the backend inventory; PR #249 had already added backend allow-list/privacy-inventory parity coverage. Live Firebase/App Check, privacy/retention approvals, monitoring, backup/recovery, approved data sources, and legacy reconciliation remain production blockers.
+- Documentation-only; no deployment, production migration, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — align frontend offboarding category contract (2026-10-27)
 
 - Fixed a frontend contract gap: the backend offboarding preview now inventories `memberAdditionIdempotency`, but the `OffboardingPreviewCategory` TypeScript union did not include it.
