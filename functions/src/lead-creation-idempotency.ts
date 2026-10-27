@@ -39,7 +39,7 @@ export function getValidLeadCreationReplayResult(savedValue: unknown, expected: 
     || result.dedupeBusinessLocationKey !== expected.dedupeBusinessLocationKey
     || (expected.sourceRecordId !== undefined && result.sourceRecordId !== expected.sourceRecordId)
     || result.status !== "new" || result.source !== "manual"
-    || typeof result.score !== "number" || !Number.isFinite(result.score)
+    || typeof result.score !== "number" || !Number.isFinite(result.score) || result.score < 0 || result.score > 100
     || !isDenseStringArray(result.scoreReasons)
     || result.doNotContact !== true || result.contactReviewStatus !== "pending" || result.contactReviewRevision !== 0) return null;
   return {
