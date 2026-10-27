@@ -68,13 +68,13 @@ describe("AI outreach draft validation", () => {
   );
   it("rejects deceptive control characters in context before calling the provider", async () => {
     for (const field of ["businessName", "category", "location", "brand", "campaignGoal", "organisationName"] as const) {
-      const malformed = { ...context, [field]: `unsafe \\u202E text` };
+      const malformed = { ...context, [field]: `unsafe \u202E text` };
       const fetcher = vi.fn<typeof fetch>();
       await expect(generateAiOutreachDraftSuggestion(malformed, { apiKey: "key", fetcher }))
         .rejects.toThrow("unsupported control characters");
       expect(fetcher).not.toHaveBeenCalled();
     }
-    const escapeContext = { ...context, businessName: "business\\u001Bname" };
+    const escapeContext = { ...context, businessName: "business\u001Bname" };
     const fetcher = vi.fn<typeof fetch>();
     await expect(generateAiOutreachDraftSuggestion(escapeContext, { apiKey: "key", fetcher }))
       .rejects.toThrow("unsupported control characters");
