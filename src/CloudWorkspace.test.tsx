@@ -2445,7 +2445,7 @@ describe("cloud authentication gate", () => {
 
     fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
     const nextTenantButton = await screen.findByRole("button", { name: "Load audit log" });
-    await waitFor(() => expect(nextTenantButton).not.toBeDisabled());
+    await waitFor(() => expect((nextTenantButton as HTMLButtonElement).disabled).toBe(false));
     fireEvent.click(nextTenantButton);
 
     await waitFor(() => expect(mocks.api.listOrganisationSecurityAuditEvents).toHaveBeenCalledWith({ organisationId: "org-2" }));
