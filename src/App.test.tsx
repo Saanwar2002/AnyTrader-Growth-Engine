@@ -343,4 +343,21 @@ describe("Growth Engine interactive workflows", () => {
     expect(screen.getByText("0 active filters")).toBeTruthy();
   });
 
+
+  it("sorts visible leads by business name without changing the active filter count", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /Lead directory/i }));
+    const sort = screen.getByRole("combobox", { name: "Sort leads" });
+    const rows = () => Array.from(document.querySelectorAll(".table-wrap tbody tr"));
+
+    expect(rows()[0].textContent).toContain("Fictional Northside Painting Co");
+    fireEvent.change(sort, { target: { value: "name" } });
+    expect(rows()[0].textContent).toContain("Demo Oak & Colour Ltd");
+    expect(rows()[1].textContent).toContain("Example FreshCoat Services");
+    expect(screen.getByText("0 active filters")).toBeTruthy();
+
+    fireEvent.change(sort, { target: { value: "default" } });
+    expect(rows()[0].textContent).toContain("Fictional Northside Painting Co");
+  });
+
 });
