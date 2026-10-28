@@ -2668,6 +2668,7 @@ describe("cloud authentication gate", () => {
     fireEvent.click(screen.getByRole("checkbox", { name: "Select Hidden Bulk Decorator for bulk status update" }));
     fireEvent.change(screen.getByRole("searchbox", { name: "Search leads" }), { target: { value: "Visible Bulk Painter" } });
 
+    expect(screen.getByText(/2\/25 selected; 1 match current filters/)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Update 1 selected lead(s)" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Update 1 selected lead(s)" }));
     await waitFor(() => expect(mocks.api.bulkUpdateLeadStatus).toHaveBeenCalledTimes(1));
