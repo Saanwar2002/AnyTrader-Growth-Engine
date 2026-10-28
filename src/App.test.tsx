@@ -205,10 +205,12 @@ describe("Growth Engine interactive workflows", () => {
 
   it("exports campaign and contact-review context with the visible leads", async () => {
     let exportedBlob: Blob | undefined;
-    vi.stubGlobal("URL", Object.assign(URL, {
+    const URLWithObjectUrls = class extends URL {};
+    Object.assign(URLWithObjectUrls, {
       createObjectURL: vi.fn((blob: Blob) => { exportedBlob = blob; return "blob:export-test"; }),
       revokeObjectURL: vi.fn(),
-    }));
+    });
+    vi.stubGlobal("URL", URLWithObjectUrls);
     vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
 
     render(<App />);
