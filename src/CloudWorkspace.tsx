@@ -1342,6 +1342,7 @@ DRAFT ONLY — NOT SENT.`,
     try {
       const allLeads: LeadSummary[] = [];
       const seenLeadIds = new Set<string>();
+      const seenLeadPageTokens = new Set<string>();
       let pageToken: string | undefined;
       let hasMore = true;
       for (let pageIndex = 0; pageIndex < 20 && hasMore; pageIndex += 1) {
@@ -1355,12 +1356,15 @@ DRAFT ONLY — NOT SENT.`,
         }
         hasMore = result.hasMoreLeads === true;
         if (hasMore && !result.nextPageToken) throw new Error("The server did not provide a safe continuation cursor. No file was downloaded.");
+        if (hasMore && seenLeadPageTokens.has(result.nextPageToken!)) throw new Error("The lead export returned a repeated continuation cursor. No file was downloaded.");
+        if (hasMore) seenLeadPageTokens.add(result.nextPageToken!);
         pageToken = result.nextPageToken ?? undefined;
         if (hasMore && pageIndex === 19) throw new Error("The export exceeds the 1,000-record safety limit. No partial file was downloaded.");
       }
 
       const allCampaigns: CampaignSummary[] = [];
       const seenCampaignIds = new Set<string>();
+      const seenCampaignPageTokens = new Set<string>();
       let campaignPageToken: string | undefined;
       let moreCampaigns = true;
       for (let pageIndex = 0; pageIndex < 20 && moreCampaigns; pageIndex += 1) {
@@ -1374,6 +1378,8 @@ DRAFT ONLY — NOT SENT.`,
         }
         moreCampaigns = result.hasMoreCampaigns === true;
         if (moreCampaigns && !result.nextPageToken) throw new Error("The server did not provide a safe campaign continuation cursor. No file was downloaded.");
+        if (moreCampaigns && seenCampaignPageTokens.has(result.nextPageToken!)) throw new Error("The campaign export returned a repeated continuation cursor. No file was downloaded.");
+        if (moreCampaigns) seenCampaignPageTokens.add(result.nextPageToken!);
         campaignPageToken = result.nextPageToken ?? undefined;
         if (moreCampaigns && pageIndex === 19) throw new Error("The campaign inventory exceeds the export safety limit. No file was downloaded.");
       }
