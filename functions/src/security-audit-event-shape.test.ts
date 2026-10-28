@@ -45,4 +45,22 @@ describe("persisted security audit event shape", () => {
     const hostile = new Proxy(validEvent(), { ownKeys() { throw new Error("trap"); } });
     expect(snapshotPersistedSecurityAuditEvent(hostile)).toBeNull();
   });
+
+  it("rejects non-enumerable own fields", () => {
+    const event = Object.defineProperty(validEvent(), "actorUid", {
+      configurable: true,
+      enumerable: false,
+      value: "user-1",
+    });
+    expect(snapshotPersistedSecurityAuditEvent(event)).toBeNull();
+  });
+
+  it.each([
+    ["prototype inspection", { getPrototypeOf() { throw new Error("prototype trap"); } }],
+    ["descriptor inspection", { getOwnPropertyDescriptor() { throw new Error("descriptor trap"); } }],
+  ])("fails closed when hostile proxy %s throws", (_label, handler) => {
+    const hostile = new Proxy(validEvent(), handler);
+    expect(snapshotPersistedSecurityAuditEvent(hostile)).toBeNull();
+  });
+
 });
