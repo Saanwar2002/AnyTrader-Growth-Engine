@@ -413,4 +413,31 @@ describe("Growth Engine interactive workflows", () => {
     vi.restoreAllMocks();
   });
 
+
+  it("searches imported leads by phone number and website", async () => {
+    const { container } = render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /Lead directory/i }));
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+    const csv = new File(
+      ["businessName,category,location,website,email,phone\\nNorth Star Roofing,Roofers,Leeds,https://northstar-roofing.example,hello@northstar.example,+44 7700 900123\\n"],
+      "search-contact-fields.csv",
+      { type: "text/csv" },
+    );
+    fireEvent.change(fileInput, { target: { files: [csv] } });
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Match your spreadsheet columns" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Preview rows" }));
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Review CSV before importing" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Confirm import (1)" }));
+    expect(screen.getByText("North Star Roofing")).toBeTruthy();
+
+    const search = screen.getByPlaceholderText("Search business, category, area, email, phone or website…");
+    fireEvent.change(search, { target: { value: "+44 7700 900123" } });
+    expect(screen.getByText("North Star Roofing")).toBeTruthy();
+    expect(screen.queryByText("Fictional Northside Painting Co")).toBeNull();
+
+    fireEvent.change(search, { target: { value: "northstar-roofing.example" } });
+    expect(screen.getByText("North Star Roofing")).toBeTruthy();
+    expect(screen.queryByText("Sample BrightBrush Decorators")).toBeNull();
+  });
+
 });
