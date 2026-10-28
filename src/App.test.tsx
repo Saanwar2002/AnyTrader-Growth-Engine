@@ -480,4 +480,45 @@ describe("Growth Engine interactive workflows", () => {
     expect(screen.getByText("0 active filters")).toBeTruthy();
   });
 
+
+  it("exports only CSV-imported leads when the source filter is active", async () => {
+    let exportedBlob: Blob | undefined;
+    const URLWithObjectUrls = class extends URL {};
+    Object.assign(URLWithObjectUrls, {
+      createObjectURL: vi.fn((blob: Blob) => { exportedBlob = blob; return "blob:source-filter-export-test"; }),
+      revokeObjectURL: vi.fn(),
+    });
+    vi.stubGlobal("URL", URLWithObjectUrls);
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+
+    const { container } = render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /Lead directory/i }));
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+    const csv = new File(
+      ["businessName,category,location,email\nNorth Star Roofing,Roofers,Leeds,hello@northstar.example\n"],
+      "source-filter-export.csv",
+      { type: "text/csv" },
+    );
+    fireEvent.change(fileInput, { target: { files: [csv] } });
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Match your spreadsheet columns" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Preview rows" }));
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Review CSV before importing" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Confirm import (1)" }));
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Filter by lead source" }), { target: { value: "csv" } });
+    fireEvent.click(screen.getByRole("button", { name: /Export CSV/i }));
+    expect(exportedBlob).toBeDefined();
+    const exportedText = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result ?? ""));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsText(exportedBlob as Blob);
+    });
+    expect(exportedText).toContain("North Star Roofing");
+    expect(exportedText).not.toContain("Fictional Northside Painting Co");
+    expect(exportedText).not.toContain("Sample BrightBrush Decorators");
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
 });
