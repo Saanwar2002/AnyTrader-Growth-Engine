@@ -1740,6 +1740,59 @@ describe("cloud authentication gate", () => {
     expect(await screen.findByText(/Exported 1 lead\(s\) matching current filters from 2 stored lead\(s\)/)).toBeTruthy();
   });
 
+  it("fails closed when the full lead export encounters a repeated page cursor", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    const loadedLead = {
+      id: "loaded-lead", campaignId: "campaign-1", businessName: "Loaded Example",
+      category: "Decorators", location: "Leeds", website: "", email: "", phone: "", source: "csv_import",
+      status: "new", score: 20, scoreReasons: [], notes: "", doNotContact: true,
+      contactRestrictionVerified: false, contactReviewStatus: "pending", contactReviewRevision: 0, createdAt: null,
+    };
+    mocks.api.listLeads.mockResolvedValue({ leads: [loadedLead], hasMoreLeads: false, nextPageToken: null });
+    const createObjectURL = vi.fn();
+    vi.stubGlobal("URL", { createObjectURL, revokeObjectURL: vi.fn() });
+    render(<CloudWorkspace />);
+    expect(await screen.findByText("Loaded Example")).toBeTruthy();
+    const repeatedPage = { leads: [loadedLead], hasMoreLeads: true, nextPageToken: "cursor-1" };
+    mocks.api.listLeads.mockResolvedValueOnce(repeatedPage).mockResolvedValueOnce(repeatedPage);
+
+    fireEvent.click(screen.getByRole("button", { name: "Export all stored leads (CSV)" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/lead export returned a repeated continuation cursor/i);
+    expect(createObjectURL).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when the full campaign export encounters a repeated page cursor", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    const loadedLead = {
+      id: "loaded-lead", campaignId: "campaign-1", businessName: "Loaded Example",
+      category: "Decorators", location: "Leeds", website: "", email: "", phone: "", source: "csv_import",
+      status: "new", score: 20, scoreReasons: [], notes: "", doNotContact: true,
+      contactRestrictionVerified: false, contactReviewStatus: "pending", contactReviewRevision: 0, createdAt: null,
+    };
+    const loadedCampaign = { id: "campaign-1", name: "Loaded Campaign", brand: "AnyTrader", category: "Painters", location: "Leeds", goal: "Pilot", status: "active", createdAt: null };
+    mocks.api.listLeads.mockResolvedValue({ leads: [loadedLead], hasMoreLeads: false, nextPageToken: null });
+    mocks.api.listCampaigns.mockResolvedValue({ campaigns: [loadedCampaign], hasMoreCampaigns: false, nextPageToken: null });
+    const createObjectURL = vi.fn();
+    vi.stubGlobal("URL", { createObjectURL, revokeObjectURL: vi.fn() });
+    render(<CloudWorkspace />);
+    expect(await screen.findByText("Loaded Example")).toBeTruthy();
+    const repeatedPage = { campaigns: [loadedCampaign], hasMoreCampaigns: true, nextPageToken: "campaign-cursor-1" };
+    mocks.api.listLeads.mockResolvedValueOnce({ leads: [loadedLead], hasMoreLeads: false, nextPageToken: null });
+    mocks.api.listCampaigns.mockResolvedValueOnce(repeatedPage).mockResolvedValueOnce(repeatedPage);
+
+    fireEvent.click(screen.getByRole("button", { name: "Export all stored leads (CSV)" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/campaign export returned a repeated continuation cursor/i);
+    expect(createObjectURL).not.toHaveBeenCalled();
+  });
+
   it("does not show full lead export to viewer roles", async () => {
     mocks.currentUser = { email: "viewer@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({
