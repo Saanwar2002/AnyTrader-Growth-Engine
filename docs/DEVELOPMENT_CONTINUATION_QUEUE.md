@@ -1,3 +1,11 @@
+## AutoPilot continuation — stop stalled workspace pagination cursors (2026-10-28)
+
+- Added fail-closed checks to load-more pagination for organisations, campaigns, leads, and outreach drafts. If a page claims more data but returns the same continuation cursor (or no cursor), loading stops and the UI reports the pagination problem instead of allowing repeated fetches.
+- Added UI regressions for repeated campaign and lead cursors, checking that the load-more control is removed after the failure.
+- Repository-only UI safeguard; no production data, migration, deployment, billing activation, provider connection, or outreach.
+
+---
+
 ## AutoPilot continuation — fail closed on repeated full-export pagination cursors (2026-10-28)
 
 - Added cycle detection to owner/admin all-stored lead CSV exports and campaign inventory pagination. A repeated opaque continuation token now stops the export immediately rather than repeatedly fetching the same page until the 1,000-record cap.
