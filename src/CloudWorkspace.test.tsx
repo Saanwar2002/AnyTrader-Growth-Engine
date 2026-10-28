@@ -2799,6 +2799,45 @@ describe("cloud authentication gate", () => {
 
 
 
+  it("filters leads with no assigned campaign without conflating unknown campaign IDs", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+    });
+    mocks.api.listCampaigns.mockResolvedValue({
+      campaigns: [{ id: "campaign-1", name: "Painter campaign", brand: "AnyTrader", category: "Painters", location: "Leeds", goal: "Pilot", status: "active", createdAt: null }],
+    });
+    const makeLead = (id: string, businessName: string, campaignId: string) => ({
+      id, campaignId, businessName, category: "Painters", location: "Leeds", website: "", email: "", phone: "",
+      source: "manual", status: "new", score: 20, scoreReasons: [], notes: "", doNotContact: true,
+      contactRestrictionVerified: false, contactReviewStatus: "pending", createdAt: null,
+    });
+    mocks.api.listLeads.mockResolvedValue({
+      leads: [
+        makeLead("assigned", "Assigned Painter", "campaign-1"),
+        makeLead("unassigned", "Unassigned Painter", ""),
+        makeLead("orphaned", "Unknown Campaign Painter", "missing-campaign"),
+      ],
+    });
+
+    render(<CloudWorkspace />);
+    expect(await screen.findByText("Assigned Painter")).toBeTruthy();
+    expect(screen.getByText("Campaign: Painter campaign")).toBeTruthy();
+    expect(screen.getByText("Campaign: Unassigned")).toBeTruthy();
+    expect(screen.getByText("Campaign: Unknown campaign")).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Filter by campaign"), { target: { value: "unassigned" } });
+    expect(screen.getByText("Unassigned Painter")).toBeTruthy();
+    expect(screen.queryByText("Assigned Painter")).toBeNull();
+    expect(screen.queryByText("Unknown Campaign Painter")).toBeNull();
+    expect(screen.getByText("1 active filter")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect((screen.getByLabelText("Filter by campaign") as HTMLSelectElement).value).toBe("all");
+    expect(screen.getByText("Assigned Painter")).toBeTruthy();
+    expect(screen.getByText("Unknown Campaign Painter")).toBeTruthy();
+  });
+
   it("filters the loaded lead directory into a follow-up queue with UTC day boundaries", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({
