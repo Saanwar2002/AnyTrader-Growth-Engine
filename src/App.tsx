@@ -215,8 +215,8 @@ export default function App() {
   }
 
   function exportCsv() {
-    const header = ["businessName", "category", "location", "website", "email", "phone", "status", "score", "source", "doNotContact"];
-    const rows = [header.join(","), ...visibleLeads.map((lead) => [lead.businessName, lead.category, lead.location, lead.website, lead.email, lead.phone, lead.status, lead.score, lead.source, lead.doNotContact ? "yes" : "no"].map(escapeCsvCell).join(","))];
+    const header = ["businessName", "campaignName", "category", "location", "website", "email", "phone", "status", "score", "source", "doNotContact", "contactReviewStatus"];
+    const rows = [header.join(","), ...visibleLeads.map((lead) => [lead.businessName, state.campaigns.find((campaign) => campaign.id === lead.campaignId)?.name ?? "Campaign unavailable", lead.category, lead.location, lead.website, lead.email, lead.phone, lead.status, lead.score, lead.source, lead.doNotContact ? "yes" : "no", lead.contactReviewStatus ?? "unknown"].map(escapeCsvCell).join(","))];
     const blob = new Blob(["\uFEFF", rows.join("\r\n")], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");

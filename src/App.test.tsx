@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 
 afterEach(() => cleanup());
@@ -201,6 +201,49 @@ describe("Growth Engine interactive workflows", () => {
     fireEvent.click(screen.getByRole("button", { name: /Confirm import \(10\)/i }));
     expect(screen.getByRole("status").textContent).toContain("Import complete: 10 added");
     expect(screen.getByText("Pagination Business 9")).toBeTruthy();
+  });
+
+  it("exports campaign and contact-review context with the visible leads", async () => {
+    let exportedBlob: Blob | undefined;
+    const URLWithObjectUrls = class extends URL {};
+    Object.assign(URLWithObjectUrls, {
+      createObjectURL: vi.fn((blob: Blob) => { exportedBlob = blob; return "blob:export-test"; }),
+      revokeObjectURL: vi.fn(),
+    });
+    vi.stubGlobal("URL", URLWithObjectUrls);
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+
+    const { container } = render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /Lead directory/i }));
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+    const csv = new File(
+      ["businessName,category,location,email\nExport Review Test Roofing,Roofers,Leeds,hello@export-review.example\n"],
+      "export-review-lead.csv",
+      { type: "text/csv" },
+    );
+    fireEvent.change(fileInput, { target: { files: [csv] } });
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Match your spreadsheet columns" })).toBeTruthy());
+    fireEvent.change(screen.getByLabelText(/Business name/), { target: { value: "businessName" } });
+    await waitFor(() => expect((screen.getByRole("button", { name: "Preview rows" }) as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(screen.getByRole("button", { name: "Preview rows" }));
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Review CSV before importing" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: /Confirm import \(1\)/i }));
+    expect(screen.getByText("Export Review Test Roofing")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /Export CSV/i }));
+    expect(exportedBlob).toBeDefined();
+    const exportedText = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result ?? ""));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsText(exportedBlob as Blob);
+    });
+    expect(exportedText).toContain("businessName,campaignName,category");
+    expect(exportedText).toContain("doNotContact,contactReviewStatus");
+    expect(exportedText).toContain("Export Review Test Roofing");
+    expect(exportedText).toContain("pending");
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
 });
