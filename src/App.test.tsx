@@ -249,7 +249,7 @@ describe("Growth Engine interactive workflows", () => {
       target: { value: "Fictional Northside Painting Co" },
     });
     expect(screen.getByText("Fictional Northside Painting Co")).toBeTruthy();
-    expect(screen.queryByText("Fictional West End Roofing Ltd")).toBeNull();
+    expect(screen.queryByText("Sample BrightBrush Decorators")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: /Export CSV/i }));
     expect(exportedBlob).toBeDefined();
@@ -260,7 +260,7 @@ describe("Growth Engine interactive workflows", () => {
       reader.readAsText(exportedBlob as Blob);
     });
     expect(exportedText).toContain("Fictional Northside Painting Co");
-    expect(exportedText).not.toContain("Fictional West End Roofing Ltd");
+    expect(exportedText).not.toContain("Sample BrightBrush Decorators");
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
