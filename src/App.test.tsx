@@ -265,4 +265,37 @@ describe("Growth Engine interactive workflows", () => {
     vi.restoreAllMocks();
   });
 
+
+  it("exports only the leads matching the active status filter", async () => {
+    let exportedBlob: Blob | undefined;
+    const URLWithObjectUrls = class extends URL {};
+    Object.assign(URLWithObjectUrls, {
+      createObjectURL: vi.fn((blob: Blob) => { exportedBlob = blob; return "blob:status-filter-export-test"; }),
+      revokeObjectURL: vi.fn(),
+    });
+    vi.stubGlobal("URL", URLWithObjectUrls);
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /Lead directory/i }));
+    fireEvent.change(screen.getByRole("combobox", { name: "Filter by lead status" }), {
+      target: { value: "qualified" },
+    });
+    expect(screen.getByText("Demo Oak & Colour Ltd")).toBeTruthy();
+    expect(screen.queryByText("Fictional Northside Painting Co")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /Export CSV/i }));
+    expect(exportedBlob).toBeDefined();
+    const exportedText = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result ?? ""));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsText(exportedBlob as Blob);
+    });
+    expect(exportedText).toContain("Demo Oak & Colour Ltd");
+    expect(exportedText).not.toContain("Fictional Northside Painting Co");
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
 });
