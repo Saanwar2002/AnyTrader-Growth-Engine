@@ -247,7 +247,7 @@ export default function App() {
   function resetDemo() {
     const confirmed = window.confirm("Reset this browser's Growth Engine demo data? Campaigns, imported demo leads, drafts and activity history will be reset.");
     if (!confirmed) return;
-    setState(repository.reset()); setQuery(""); setStatusFilter("all"); setContactFilter("all"); setCampaignFilter("all"); setView("overview");
+    setState(repository.reset()); setQuery(""); setStatusFilter("all"); setContactFilter("all"); setCampaignFilter("all"); setCategoryFilter("all"); setSortBy("default"); setView("overview");
     setNotice("Demo workspace reset to the original synthetic records.");
   }
 
