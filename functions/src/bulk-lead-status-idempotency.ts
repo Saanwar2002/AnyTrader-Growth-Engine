@@ -12,49 +12,87 @@ export interface ValidBulkLeadStatusReplayResult {
   leadIds: string[];
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
+const RESULT_KEYS = ["organisationId", "status", "updatedCount", "unchangedCount", "leadIds"] as const;
+
+function snapshotReplayResult(value: unknown): Record<string, unknown> | null {
+  try {
+    if (value === null || typeof value !== "object" || Array.isArray(value)) return null;
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) return null;
+
+    const keys = Reflect.ownKeys(value);
+    if (keys.length !== RESULT_KEYS.length || keys.some((key) => typeof key !== "string" || !RESULT_KEYS.includes(key as typeof RESULT_KEYS[number]))) {
+      return null;
+    }
+
+    const snapshot: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
+    for (const key of RESULT_KEYS) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      if (!descriptor || !descriptor.enumerable || !("value" in descriptor)) return null;
+      snapshot[key] = descriptor.value;
+    }
+    return snapshot;
+  } catch {
+    // Persisted state is untrusted; hostile proxies must fail closed.
+    return null;
+  }
+}
+
+function snapshotChangedIds(value: unknown): string[] | null {
+  try {
+    if (!Array.isArray(value) || Object.getPrototypeOf(value) !== Array.prototype) return null;
+    const keys = Reflect.ownKeys(value);
+    if (keys.length !== value.length + 1 || !keys.includes("length")) return null;
+
+    const result: string[] = [];
+    for (let index = 0; index < value.length; index += 1) {
+      if (!keys.includes(String(index))) return null;
+      const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+      if (!descriptor || !descriptor.enumerable || !("value" in descriptor) || typeof descriptor.value !== "string") return null;
+      result.push(descriptor.value);
+    }
+    return result;
+  } catch {
+    return null;
+  }
 }
 
 /**
  * Validate the committed response before returning it for an idempotent retry.
- * The returned changed IDs must be unique members of the original request and
- * agree with the counts, preventing malformed stored state from being trusted.
+ * The result is copied using own data descriptors only: accessors, unexpected
+ * fields, custom prototypes, sparse/extended arrays, and hostile proxies fail closed.
  */
 export function getValidBulkLeadStatusReplayResult(
   value: unknown,
   expected: ExpectedBulkLeadStatusReplay,
 ): ValidBulkLeadStatusReplayResult | null {
-  if (!isRecord(value)
-    || value.organisationId !== expected.organisationId
-    || value.status !== expected.status
-    || !Number.isSafeInteger(value.updatedCount)
-    || !Number.isSafeInteger(value.unchangedCount)
-    || (value.updatedCount as number) < 0
-    || (value.unchangedCount as number) < 0
-    || !Array.isArray(value.leadIds)) {
+  const snapshot = snapshotReplayResult(value);
+  if (!snapshot
+    || snapshot.organisationId !== expected.organisationId
+    || snapshot.status !== expected.status
+    || !Number.isSafeInteger(snapshot.updatedCount)
+    || !Number.isSafeInteger(snapshot.unchangedCount)
+    || (snapshot.updatedCount as number) < 0
+    || (snapshot.unchangedCount as number) < 0) {
     return null;
   }
 
+  const changedIds = snapshotChangedIds(snapshot.leadIds);
+  if (!changedIds) return null;
+
   const requestedIds = new Set(expected.leadIds);
-  const changedIds = value.leadIds;
-  for (let index = 0; index < changedIds.length; index += 1) {
-    if (!Object.prototype.hasOwnProperty.call(changedIds, index) || typeof changedIds[index] !== "string") {
-      return null;
-    }
-  }
-  if (changedIds.some((id) => typeof id !== "string" || id.length === 0 || id.includes("/") || !requestedIds.has(id))
+  if (changedIds.some((id) => id.length === 0 || id.includes("/") || !requestedIds.has(id))
     || new Set(changedIds).size !== changedIds.length
-    || value.updatedCount !== changedIds.length
-    || (value.updatedCount as number) + (value.unchangedCount as number) !== expected.leadIds.length) {
+    || snapshot.updatedCount !== changedIds.length
+    || (snapshot.updatedCount as number) + (snapshot.unchangedCount as number) !== expected.leadIds.length) {
     return null;
   }
 
   return {
     organisationId: expected.organisationId,
     status: expected.status,
-    updatedCount: value.updatedCount as number,
-    unchangedCount: value.unchangedCount as number,
-    leadIds: [...changedIds] as string[],
+    updatedCount: snapshot.updatedCount as number,
+    unchangedCount: snapshot.unchangedCount as number,
+    leadIds: changedIds,
   };
 }
