@@ -630,7 +630,7 @@ describe("cloud authentication gate", () => {
     expect(screen.getByText("City Decorators")).toBeTruthy();
     expect(screen.getByText("Showing 2 of 2 loaded leads.")).toBeTruthy();
     expect(screen.getByText("0 active filters")).toBeTruthy();
-    expect(screen.getByLabelText("Search leads").getAttribute("placeholder")).toBe("Business, category, location, website, email, phone, source record ID, or internal notes");
+    expect(screen.getByLabelText("Search leads").getAttribute("placeholder")).toBe("Business, campaign, category, location, website, email, phone, source record ID, or internal notes");
     expect(screen.getByText("Source record ID: provider-record-42")).toBeTruthy();
 
     fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: "northside.example" } });
@@ -651,6 +651,12 @@ describe("cloud authentication gate", () => {
 
     fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: "salford" } });
     expect(screen.getByText("Showing 1 of 2 loaded leads.")).toBeTruthy();
+    expect(screen.getByText("City Decorators")).toBeTruthy();
+    expect(screen.queryByText("Northside Painting")).toBeNull();
+
+    fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: "" } });
+
+    fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: "Decorator campaign" } });
     expect(screen.getByText("City Decorators")).toBeTruthy();
     expect(screen.queryByText("Northside Painting")).toBeNull();
 
