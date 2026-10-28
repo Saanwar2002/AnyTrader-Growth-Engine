@@ -188,9 +188,13 @@ describe("Growth Engine interactive workflows", () => {
     expect(screen.getByText("Pagination Business 1")).toBeTruthy();
     expect(screen.queryByText("Pagination Business 9")).toBeNull();
     expect(screen.getByText("Page 1 of 2 · Showing 1–8 of 10")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Next import page" }));
+    expect((screen.getByRole("checkbox", { name: "Include Pagination Business 9 in import" }) as HTMLInputElement).checked).toBe(false);
+    fireEvent.click(screen.getByRole("checkbox", { name: "Include Pagination Business 9 in import" }));
+    fireEvent.click(screen.getByRole("button", { name: "Previous import page" }));
 
-    fireEvent.click(screen.getByRole("button", { name: /Confirm import \(9\)/i }));
-    expect(screen.getByRole("status").textContent).toContain("Import complete: 9 added");
+    fireEvent.click(screen.getByRole("button", { name: /Confirm import \(10\)/i }));
+    expect(screen.getByRole("status").textContent).toContain("Import complete: 10 added");
     expect(screen.getByText("Pagination Business 9")).toBeTruthy();
   });
 
