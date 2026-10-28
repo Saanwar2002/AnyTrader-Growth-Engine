@@ -110,6 +110,15 @@ export default function App() {
 
   const selectedVisibleLeads = visibleLeads.filter((lead) => selectedLeadIds.includes(lead.id));
 
+  useEffect(() => {
+    const visibleIds = new Set(visibleLeads.map((lead) => lead.id));
+    const nextSelection = selectedLeadIds.filter((id) => visibleIds.has(id));
+    if (nextSelection.length !== selectedLeadIds.length) {
+      setSelectedLeadIds(nextSelection);
+      setNotice("Selection cleared for leads hidden by the current filters.");
+    }
+  }, [visibleLeads, selectedLeadIds]);
+
   const activeFilterCount = [query.trim() !== "", statusFilter !== "all", contactFilter !== "all", campaignFilter !== "all", categoryFilter !== "all", sourceFilter !== "all"].filter(Boolean).length;
   const leadCategories = useMemo(() => [...new Set(state.leads.map((lead) => lead.category.trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, "en-GB")), [state.leads]);
   const reviewCount = state.leads.filter((lead) => lead.status === "new" || lead.status === "reviewing").length;
@@ -128,7 +137,11 @@ export default function App() {
 
   function applyBulkLeadStatus() {
     const targets = visibleLeads.filter((lead) => selectedLeadIds.includes(lead.id));
-    if (!targets.length) return;
+    if (!targets.length) {
+      setSelectedLeadIds([]);
+      setNotice("No selected leads are visible under the current filters. Selection cleared.");
+      return;
+    }
     let next = state;
     for (const lead of targets) {
       next = {

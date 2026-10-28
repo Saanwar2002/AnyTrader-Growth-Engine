@@ -558,4 +558,18 @@ describe("Growth Engine interactive workflows", () => {
     expect(screen.queryByText("2 selected")).toBeNull();
   });
 
+
+  it("clears bulk selection when every selected lead is hidden by active filters", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /Lead directory/i }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Select Fictional Northside Painting Co" }));
+    expect(screen.getByText("1 selected")).toBeTruthy();
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Search leads" }), { target: { value: "no-business-matches-this-search" } });
+
+    expect(screen.queryByText("1 selected")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Apply status to selected leads" })).toBeNull();
+    expect(screen.getByRole("status").textContent).toContain("Selection cleared for leads hidden by the current filters.");
+  });
+
 });
