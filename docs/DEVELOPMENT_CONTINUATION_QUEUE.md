@@ -1,3 +1,11 @@
+## AutoPilot continuation — cloud lead category filters and campaign context (2026-10-28)
+
+- Added a service-category filter to the cloud lead directory and included it in active-filter counts, clear-all reset behaviour, and all-stored filtered CSV exports.
+- Added regression coverage proving the category filter excludes otherwise matching records from all-stored exports, and displays campaign names on each lead row.
+- Verified PRs #351, #352, and #353 on their exact heads with both Growth Engine CI jobs passing before merge. UI/test/documentation work only; no deployment, live data, migration, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — preserve campaign and contact-review context in CSV exports (2026-10-28)
 
 - Added the campaign name and explicit contact-review status to lead CSV exports, alongside the existing Do Not Contact flag. This helps reviewers interpret exported lead rows without losing the contact-review state in a spreadsheet.
