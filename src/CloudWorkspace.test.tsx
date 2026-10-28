@@ -2426,6 +2426,31 @@ describe("cloud authentication gate", () => {
     expect(screen.queryByRole("button", { name: "Load more audit events" })).toBeNull();
   });
 
+  it("allows the next organisation audit request while an old tenant request is still pending", async () => {
+    mocks.currentUser = { email: "owner@example.test", uid: "owner-uid" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [
+        { organisationId: "org-1", name: "Pilot Workspace", role: "owner" },
+        { organisationId: "org-2", name: "Second Workspace", role: "owner" },
+      ],
+      hasMoreOrganisations: false,
+    });
+    mocks.api.listOrganisationSecurityAuditEvents.mockImplementation(
+      () => new Promise(() => { /* Keep each request pending to exercise tenant-switch loading state. */ }),
+    );
+
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load audit log" }));
+    await waitFor(() => expect(mocks.api.listOrganisationSecurityAuditEvents).toHaveBeenCalledWith({ organisationId: "org-1" }));
+
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
+    const nextTenantButton = await screen.findByRole("button", { name: "Load audit log" });
+    await waitFor(() => expect(nextTenantButton).not.toBeDisabled());
+    fireEvent.click(nextTenantButton);
+
+    await waitFor(() => expect(mocks.api.listOrganisationSecurityAuditEvents).toHaveBeenCalledWith({ organisationId: "org-2" }));
+  });
+
   it("does not show a failed security audit request from a previous organisation", async () => {
     mocks.currentUser = { email: "owner@example.test", uid: "owner-uid" };
     mocks.api.listMyOrganisations.mockResolvedValue({
