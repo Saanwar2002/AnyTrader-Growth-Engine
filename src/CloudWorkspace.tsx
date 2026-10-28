@@ -1385,7 +1385,7 @@ DRAFT ONLY — NOT SENT.`,
         const matchesSearch = !query || [lead.businessName, lead.category, lead.location, campaignNames[lead.campaignId] ?? "", lead.website, lead.email, lead.phone, lead.sourceRecordId ?? "", lead.notes ?? ""]
           .some((value) => value.toLocaleLowerCase("en-GB").includes(query));
         const reviewStatus = getLeadContactReviewStatus(lead);
-        const matchesFollowUp = leadFollowUpFilter === "all" || classifyLeadFollowUpDate(lead.followUpDate, new Date().toISOString().slice(0, 10)) === leadFollowUpFilter;
+        const matchesFollowUp = leadFollowUpFilter === "all" || classifyLeadFollowUpDate(lead.followUpDate, todayUtc) === leadFollowUpFilter;
         const matchesCompleteness = leadCompletenessFilter === "all"
           || (leadCompletenessFilter === "low" && lead.score < 40)
           || (leadCompletenessFilter === "medium" && lead.score >= 40 && lead.score < 70)
