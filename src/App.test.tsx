@@ -314,8 +314,10 @@ describe("Growth Engine interactive workflows", () => {
     fireEvent.change(status, { target: { value: "qualified" } });
     fireEvent.change(contact, { target: { value: "suppressed" } });
     fireEvent.change(campaign, { target: { value: (campaignOption as HTMLOptionElement).value } });
+    expect(screen.getByText("4 active filters")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(screen.getByText("0 active filters")).toBeTruthy();
 
     expect((search as HTMLInputElement).value).toBe("");
     expect((status as HTMLSelectElement).value).toBe("all");
