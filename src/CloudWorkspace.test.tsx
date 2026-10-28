@@ -661,6 +661,14 @@ describe("cloud authentication gate", () => {
     expect(screen.queryByText("Northside Painting")).toBeNull();
 
     fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: "" } });
+    fireEvent.change(screen.getByLabelText("Filter by category"), { target: { value: "Decorators" } });
+    expect(screen.getByText("1 active filter")).toBeTruthy();
+    expect(screen.getByText("City Decorators")).toBeTruthy();
+    expect(screen.queryByText("Northside Painting")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect((screen.getByLabelText("Filter by category") as HTMLSelectElement).value).toBe("all");
+    expect(screen.getByText("0 active filters")).toBeTruthy();
+
     fireEvent.change(screen.getByLabelText("Filter by status"), { target: { value: "qualified" } });
     expect(screen.getByText("City Decorators")).toBeTruthy();
     expect(screen.queryByText("Northside Painting")).toBeNull();
