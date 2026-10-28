@@ -128,7 +128,11 @@ export default function App() {
 
   function applyBulkLeadStatus() {
     const targets = visibleLeads.filter((lead) => selectedLeadIds.includes(lead.id));
-    if (!targets.length) return;
+    if (!targets.length) {
+      setSelectedLeadIds([]);
+      setNotice("No selected leads are visible under the current filters. Selection cleared.");
+      return;
+    }
     let next = state;
     for (const lead of targets) {
       next = {
