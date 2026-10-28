@@ -2645,6 +2645,35 @@ describe("cloud authentication gate", () => {
     expect(payload.idempotencyKey).toMatch(/^bulk-lead-status/);
   });
 
+
+  it("bulk-updates only selected leads that still match the current filters", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
+      hasMoreOrganisations: false,
+    });
+    mocks.api.listLeads.mockResolvedValue({
+      leads: [
+        { id: "bulk-visible-1", campaignId: "campaign-1", businessName: "Visible Bulk Painter", category: "Painters", location: "Leeds", website: "", email: "", phone: "", source: "manual", status: "new", score: 40, scoreReasons: [], notes: "", doNotContact: true, contactRestrictionVerified: false, contactReviewStatus: "pending", createdAt: null },
+        { id: "bulk-hidden-2", campaignId: "campaign-1", businessName: "Hidden Bulk Decorator", category: "Decorators", location: "York", website: "", email: "", phone: "", source: "manual", status: "new", score: 55, scoreReasons: [], notes: "", doNotContact: true, contactRestrictionVerified: false, contactReviewStatus: "pending", createdAt: null },
+      ],
+      hasMoreLeads: false,
+      nextPageToken: null,
+    });
+    mocks.api.bulkUpdateLeadStatus.mockResolvedValue({
+      organisationId: "org-1", status: "qualified", updatedCount: 1, unchangedCount: 0, leadIds: ["bulk-visible-1"],
+    });
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("checkbox", { name: "Select Visible Bulk Painter for bulk status update" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Select Hidden Bulk Decorator for bulk status update" }));
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search leads" }), { target: { value: "Visible Bulk Painter" } });
+
+    expect(screen.getByRole("button", { name: "Update 1 selected lead(s)" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Update 1 selected lead(s)" }));
+    await waitFor(() => expect(mocks.api.bulkUpdateLeadStatus).toHaveBeenCalledTimes(1));
+    expect(mocks.api.bulkUpdateLeadStatus.mock.calls[0][0].leadIds).toEqual(["bulk-visible-1"]);
+  });
+
   it("keeps an uncertain bulk lead status retry bound to its organisation", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({
