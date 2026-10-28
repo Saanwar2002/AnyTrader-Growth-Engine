@@ -1,3 +1,12 @@
+## AutoPilot continuation — paginate large CSV import previews (2026-10-28)
+
+- CSV import review now displays all unique candidate rows across pages of eight instead of rendering only the first eight, while retaining the full selection set between page changes.
+- Added previous/next controls with a visible page/range summary and disabled boundary controls; pagination resets for each new preview and after confirmation/cancellation.
+- Added a UI regression with ten synthetic CSV rows that selects a candidate on page two, returns to page one, confirms the selection count, and verifies the selected candidate is imported.
+- Local demo workflow only; no provider connection, production data, deployment, migration, billing activation, or outreach.
+
+---
+
 ## AutoPilot continuation — refresh production-readiness evidence (2026-10-27)
 
 - Added a dated addendum to the production-readiness audit with current main checkpoint `341e475f3e50ee3f1b4759108378a1ec83afd1fb` and successful CI run `40590982304`, including emulator smoke tests.
