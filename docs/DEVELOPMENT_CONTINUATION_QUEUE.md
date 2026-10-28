@@ -1,3 +1,11 @@
+## AutoPilot continuation — stop multi-page cursor cycles in workspace lists (2026-10-28)
+
+- Extended workspace load-more safeguards to track continuation cursors already requested within the current organisation/list refresh. A response that points back to any earlier cursor now fails closed, including cycles such as A → B → A rather than only immediate A → A repeats.
+- Added campaign and lead UI regressions for multi-page cursor cycles and verified pagination stops with an alert instead of issuing another request.
+- Cursor history resets on organisation-list/workspace refresh to avoid carrying state across tenants or new list loads. Repository-only change; no production data, deployment, live migration, billing activation, provider connection, or outreach.
+
+---
+
 ## AutoPilot continuation — stop stalled workspace pagination cursors (2026-10-28)
 
 - Added fail-closed checks to load-more pagination for organisations, campaigns, leads, and outreach drafts. If a page claims more data but returns the same continuation cursor (or no cursor), loading stops and the UI reports the pagination problem instead of allowing repeated fetches.
