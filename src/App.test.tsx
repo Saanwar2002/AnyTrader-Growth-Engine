@@ -334,8 +334,8 @@ describe("Growth Engine interactive workflows", () => {
     fireEvent.change(search, { target: { value: "no-such-business-match" } });
 
     expect(screen.getByText("No leads match these filters")).toBeTruthy();
-    expect(screen.getByText("0 active filters")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(screen.getByText("1 active filter")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters and show all leads" }));
 
     expect((search as HTMLInputElement).value).toBe("");
     expect(screen.getByText("Fictional Northside Painting Co")).toBeTruthy();
