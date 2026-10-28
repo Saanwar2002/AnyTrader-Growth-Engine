@@ -1,3 +1,11 @@
+## AutoPilot continuation — preserve campaign and contact-review context in CSV exports (2026-10-28)
+
+- Added the campaign name and explicit contact-review status to lead CSV exports, alongside the existing Do Not Contact flag. This helps reviewers interpret exported lead rows without losing the contact-review state in a spreadsheet.
+- Added a UI regression that captures the generated CSV and verifies both new headers and the pending-review state are present.
+- Demo workspace only; exports remain user-initiated and filtered to visible leads. No live data, outreach, deployment, migration, or billing activation.
+
+---
+
 ## AutoPilot continuation — expose partial CSV selection state (2026-10-28)
 
 - The CSV import “select all candidates” checkbox now uses its native indeterminate state when only some candidates are selected across pages, making partial selection visible to mouse, keyboard, and assistive-technology users.
