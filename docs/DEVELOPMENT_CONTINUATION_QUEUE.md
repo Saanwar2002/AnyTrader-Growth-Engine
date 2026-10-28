@@ -1,3 +1,11 @@
+## AutoPilot continuation — fail closed on repeated full-export pagination cursors (2026-10-28)
+
+- Added cycle detection to owner/admin all-stored lead CSV exports and campaign inventory pagination. A repeated opaque continuation token now stops the export immediately rather than repeatedly fetching the same page until the 1,000-record cap.
+- Added UI regressions for repeated lead and campaign cursors; both verify no CSV download is created when pagination is unsafe.
+- Repository-only safeguards; no production data, migration, deployment, billing activation, provider connection, or outreach.
+
+---
+
 ## AutoPilot continuation — cloud lead category filters and campaign context (2026-10-28)
 
 - Added a service-category filter to the cloud lead directory and included it in active-filter counts, clear-all reset behaviour, and all-stored filtered CSV exports.
