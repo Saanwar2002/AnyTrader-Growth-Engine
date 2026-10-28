@@ -217,7 +217,7 @@ describe("Growth Engine interactive workflows", () => {
     fireEvent.click(screen.getByRole("button", { name: /Lead directory/i }));
     const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
     const csv = new File(
-      ["businessName,category,location,email\\nExport Review Test Roofing,Roofers,Leeds,hello@export-review.example\\n"],
+      ["businessName,category,location,email\nExport Review Test Roofing,Roofers,Leeds,hello@export-review.example\n"],
       "export-review-lead.csv",
       { type: "text/csv" },
     );
@@ -227,7 +227,7 @@ describe("Growth Engine interactive workflows", () => {
     await waitFor(() => expect((screen.getByRole("button", { name: "Preview rows" }) as HTMLButtonElement).disabled).toBe(false));
     fireEvent.click(screen.getByRole("button", { name: "Preview rows" }));
     await waitFor(() => expect(screen.getByRole("heading", { name: "Review CSV before importing" })).toBeTruthy());
-    fireEvent.click(screen.getByRole("button", { name: /Confirm import \\(1\\)/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Confirm import \(1\)/i }));
     expect(screen.getByText("Export Review Test Roofing")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: /Export CSV/i }));
