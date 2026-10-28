@@ -155,6 +155,10 @@ export default function CloudWorkspace() {
   const [error, setError] = useState("");
   const workspaceLoadIdRef = useRef(0);
   const organisationListLoadIdRef = useRef(0);
+  const organisationPageTokensRef = useRef(new Set<string>());
+  const campaignPageTokensRef = useRef(new Set<string>());
+  const leadPageTokensRef = useRef(new Set<string>());
+  const draftPageTokensRef = useRef(new Set<string>());
   const memberRosterLoadIdRef = useRef(0);
   const memberActionLoadIdRef = useRef(0);
   const currentOrganisationIdRef = useRef(organisationId);
@@ -208,6 +212,7 @@ export default function CloudWorkspace() {
   const refreshOrganisations = useCallback(async () => {
     if (!api) return;
     const requestId = ++organisationListLoadIdRef.current;
+    organisationPageTokensRef.current.clear();
     setLoadingMoreOrganisations(false);
     const result = await api.listMyOrganisations();
     if (requestId !== organisationListLoadIdRef.current) return;
@@ -225,7 +230,8 @@ export default function CloudWorkspace() {
     try {
       const result = await api.listMyOrganisations(nextOrganisationPageToken);
       if (requestId !== organisationListLoadIdRef.current) return;
-      if (result.hasMoreOrganisations === true && (!result.nextPageToken || result.nextPageToken === nextOrganisationPageToken)) {
+      organisationPageTokensRef.current.add(nextOrganisationPageToken);
+      if (result.hasMoreOrganisations === true && (!result.nextPageToken || organisationPageTokensRef.current.has(result.nextPageToken))) {
         setHasMoreOrganisations(false);
         setNextOrganisationPageToken(null);
         throw new Error("Organisation pagination returned a repeated or missing continuation cursor. Further loading has stopped.");
@@ -245,6 +251,9 @@ export default function CloudWorkspace() {
 
   const refreshWorkspace = useCallback(async (orgId: string) => {
     const requestId = ++workspaceLoadIdRef.current;
+    campaignPageTokensRef.current.clear();
+    leadPageTokensRef.current.clear();
+    draftPageTokensRef.current.clear();
     if (!api || !orgId) {
       setCampaigns([]); setHasMoreCampaigns(false); setNextCampaignPageToken(null); setLoadingMoreCampaigns(false); setLeads([]); setHasMoreLeads(false); setNextLeadPageToken(null); setLoadingMoreLeads(false); setLeadNotes({}); setLeadFollowUpDates({}); setDrafts([]); setHasMoreDrafts(false); setNextDraftPageToken(null); setLoadingMoreDrafts(false);
       setEditingDraftId(""); setDraftSubject(""); setDraftBody("");
@@ -277,7 +286,8 @@ export default function CloudWorkspace() {
     try {
       const result = await api.listCampaigns({ organisationId: requestedOrganisationId, pageToken: nextCampaignPageToken });
       if (requestId !== workspaceLoadIdRef.current || requestedOrganisationId !== currentOrganisationIdRef.current) return;
-      if (result.hasMoreCampaigns === true && (!result.nextPageToken || result.nextPageToken === nextCampaignPageToken)) {
+      campaignPageTokensRef.current.add(nextCampaignPageToken);
+      if (result.hasMoreCampaigns === true && (!result.nextPageToken || campaignPageTokensRef.current.has(result.nextPageToken))) {
         setHasMoreCampaigns(false);
         setNextCampaignPageToken(null);
         throw new Error("Campaign pagination returned a repeated or missing continuation cursor. Further loading has stopped.");
@@ -303,7 +313,8 @@ export default function CloudWorkspace() {
     try {
       const result = await api.listLeads({ organisationId: requestedOrganisationId, pageToken: nextLeadPageToken });
       if (requestId !== workspaceLoadIdRef.current || requestedOrganisationId !== currentOrganisationIdRef.current) return;
-      if (result.hasMoreLeads === true && (!result.nextPageToken || result.nextPageToken === nextLeadPageToken)) {
+      leadPageTokensRef.current.add(nextLeadPageToken);
+      if (result.hasMoreLeads === true && (!result.nextPageToken || leadPageTokensRef.current.has(result.nextPageToken))) {
         setHasMoreLeads(false);
         setNextLeadPageToken(null);
         throw new Error("Lead pagination returned a repeated or missing continuation cursor. Further loading has stopped.");
@@ -329,7 +340,8 @@ export default function CloudWorkspace() {
     try {
       const result = await api.listOutreachDrafts({ organisationId: requestedOrganisationId, pageToken: nextDraftPageToken });
       if (requestId !== workspaceLoadIdRef.current || requestedOrganisationId !== currentOrganisationIdRef.current) return;
-      if (result.hasMoreDrafts === true && (!result.nextPageToken || result.nextPageToken === nextDraftPageToken)) {
+      draftPageTokensRef.current.add(nextDraftPageToken);
+      if (result.hasMoreDrafts === true && (!result.nextPageToken || draftPageTokensRef.current.has(result.nextPageToken))) {
         setHasMoreDrafts(false);
         setNextDraftPageToken(null);
         throw new Error("Draft pagination returned a repeated or missing continuation cursor. Further loading has stopped.");
