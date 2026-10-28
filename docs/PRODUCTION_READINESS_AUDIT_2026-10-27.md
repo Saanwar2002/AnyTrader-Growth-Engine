@@ -1,3 +1,13 @@
+> **Continuation addendum — 28 October 2026, 12:18 UTC**
+>
+> - **Current main checkpoint:** `79abac48f12efa2de3e5759e9f67fa87c7034f81`.
+> - **Current main CI:** run [40686256974](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40686256974) completed successfully for this exact checkpoint. Both Firebase Functions tests/build and frontend typecheck/tests/build—including the Firebase emulator integration smoke tests—passed.
+> - **Additional repository-only lead-directory improvements:** service-category filtering now participates in active-filter counts, clear-all reset behaviour, and all-stored filtered CSV export; a regression verifies category filtering excludes otherwise matching records from the all-stored export; each cloud lead row now displays its campaign name. PRs #351, #352, and #353 were merged only after exact-head CI success and review-thread checks.
+> - **Release decision unchanged: NOT PRODUCTION READY.** A dedicated Growth Engine Firebase project and live App Check token flow remain unverified. Privacy/retention approval, monitoring and budget alerts, backup/recovery evidence, approved source-provider configuration, legacy-data reconciliation, release ownership, and rollback rehearsal remain blockers.
+> - No production deployment, live data migration, billing activation, live provider connection, or outreach was performed. Continue using synthetic data and local/emulator environments only. Re-run the complete CI suite against any release candidate; green CI alone is not release approval.
+>
+> ---
+>
 # Production readiness audit — 27 October 2026
 
 > **Continuation addendum — 28 October 2026, 11:20 UTC**
