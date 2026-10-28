@@ -214,6 +214,7 @@ describe("Growth Engine interactive workflows", () => {
     vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
 
     render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /Lead directory/i }));
     fireEvent.click(screen.getByRole("button", { name: /Export CSV/i }));
 
     expect(exportedBlob).toBeDefined();
