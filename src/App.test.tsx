@@ -447,4 +447,34 @@ describe("Growth Engine interactive workflows", () => {
     expect(screen.queryByText("Sample BrightBrush Decorators")).toBeNull();
   });
 
+
+  it("filters leads by source and clears the source filter with the other controls", async () => {
+    const { container } = render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /Lead directory/i }));
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+    const csv = new File(
+      ["businessName,category,location,website,email,phone\nNorth Star Roofing,Roofers,Leeds,https://northstar-roofing.example,hello@northstar.example,+44 7700 900123\n"],
+      "source-filter-leads.csv",
+      { type: "text/csv" },
+    );
+    fireEvent.change(fileInput, { target: { files: [csv] } });
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Match your spreadsheet columns" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Preview rows" }));
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Review CSV before importing" })).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Confirm import (1)" }));
+    expect(screen.getByText("North Star Roofing")).toBeTruthy();
+
+    const source = screen.getByRole("combobox", { name: "Filter by lead source" });
+    fireEvent.change(source, { target: { value: "csv" } });
+    expect(screen.getByText("North Star Roofing")).toBeTruthy();
+    expect(screen.queryByText("Fictional Northside Painting Co")).toBeNull();
+    expect(screen.getByText("1 active filter")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect((source as HTMLSelectElement).value).toBe("all");
+    expect(screen.getByText("North Star Roofing")).toBeTruthy();
+    expect(screen.getByText("Fictional Northside Painting Co")).toBeTruthy();
+    expect(screen.getByText("0 active filters")).toBeTruthy();
+  });
+
 });
