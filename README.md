@@ -7,12 +7,12 @@ A standalone, multi-brand lead discovery and provider acquisition workspace for 
 - Responsive dashboard with overview metrics and recent activity.
 - Create campaigns with a brand, service category, target location, and acquisition goal.
 - View campaign cards and change campaign status.
-- Lead directory with an accessible search field; filters for lead status, service category, source (synthetic demo or CSV-imported), contact permission, and campaign; sorting by default order, business name A–Z, highest completeness score, or most recently added; active-filter count and clear-all controls; a clear-filters action when no records match; plus a lead details panel and editable internal notes.
+- Lead directory with an accessible search field; filters for lead status, service category, source (synthetic demo or CSV-imported), contact permission, and campaign; sorting by default order, business name A–Z, highest completeness score, or most recently added; a live active-filter count and clear-all control; plus a lead details panel and editable internal notes. Cloud bulk actions also show how many selected leads still match the current filters.
 - Bulk lead status updates for selected visible rows. Selections are cleared when filters hide the selected rows, so a later bulk action cannot unexpectedly affect leads that are no longer visible.
 - Lead status workflow: new, in review, qualified, contacted, onboarded, and rejected.
 - Transparent completeness score (0–100) with an explanation of which fields contributed.
 - CSV import with a 2 MB file limit, automatic header suggestions, configurable field mapping for unfamiliar spreadsheets, quoted-field support including embedded line breaks, row validation, per-campaign demo duplicate detection and a campaign-scoped client duplicate preview aligned with server-side tenant-scoped canonical email/website/business-location checks plus source-record-ID duplicate checks scoped to campaign and self-declared source label, with a visible partial-preview warning and an in-place load-more action whenever additional lead pages remain, and a review table that lets you include/exclude candidates before committing the import.
-- Export currently visible leads to CSV, or export a selected subset (up to 25 selected at a time). Bulk selection selects every filtered loaded lead when there are 25 or fewer matches, and the first 25 in the current sort order when there are more. Selection exports include only selected records in loaded pages and do not fetch additional pages.
+- Export currently visible leads to CSV, or export a selected subset (up to 25 selected at a time). Bulk selection selects every filtered loaded lead when there are 25 or fewer matches, and the first 25 in the current sort order when there are more. Selected exports include only selected records that still match current filters among loaded pages; they do not fetch additional pages. Owners/admins can export all stored leads or all matching filtered leads across pages (up to 1,000 records), with search, status, campaign, source, contact-review, completeness, and follow-up filters applied.
 - Create and edit outreach drafts; no send action exists.
 - Local activity history and a demo reset action.
 - Synthetic example data clearly labelled as fictional.
@@ -103,7 +103,7 @@ The local demo is not a secure multi-user service. It uses browser localStorage,
 
 ## Cloud release readiness
 
-Before enabling cloud mode or deploying Firebase resources, complete the [Cloud Release Readiness Gate](docs/CLOUD_RELEASE_READINESS_GATE.md). A green CI run is necessary but does not prove that a real Firebase project, App Check, privacy controls, or recovery procedures are ready. Keep cloud mode disabled until the dedicated Growth Engine Firebase project is created and verified. See the [evidence-based Production Readiness Audit for 27 October 2026](docs/PRODUCTION_READINESS_AUDIT_2026-10-27.md) for the current main SHA, exact post-merge CI result, and remaining blockers.
+Before enabling cloud mode or deploying Firebase resources, complete the [Cloud Release Readiness Gate](docs/CLOUD_RELEASE_READINESS_GATE.md). A green CI run is necessary but does not prove that a real Firebase project, App Check, privacy controls, or recovery procedures are ready. Keep cloud mode disabled until the dedicated Growth Engine Firebase project is created and verified. See the [evidence-based Production Readiness Audit (updated 28 October 2026)](docs/PRODUCTION_READINESS_AUDIT_2026-10-27.md) for the current main SHA, exact post-merge CI result, and remaining blockers.
 
 ## Safety and privacy principles
 
