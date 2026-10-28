@@ -46,6 +46,30 @@ describe("Firebase deployment project guard", () => {
     })).toMatchObject({ ok: false, reason: expect.stringContaining("valid Firebase project ID") });
   });
 
+  it("enforces the six-to-thirty-character project ID length boundaries", () => {
+    const shortestValidId = "a1234b";
+    const longestValidId = `a${"b".repeat(28)}1`;
+    const tooShortId = "a123b";
+    const tooLongId = `a${"b".repeat(29)}1`;
+
+    for (const projectId of [shortestValidId, longestValidId]) {
+      expect(validateDeploymentProject({
+        GROWTH_ENGINE_FIREBASE_PROJECT_ID: projectId,
+        GCLOUD_PROJECT: projectId,
+      })).toEqual({ ok: true, projectId });
+    }
+
+    for (const projectId of [tooShortId, tooLongId]) {
+      expect(validateDeploymentProject({
+        GROWTH_ENGINE_FIREBASE_PROJECT_ID: projectId,
+        GCLOUD_PROJECT: projectId,
+      })).toMatchObject({
+        ok: false,
+        reason: expect.stringContaining("valid Firebase project ID"),
+      });
+    }
+  });
+
   it("refuses demo projects even when the configured IDs match", () => {
     expect(validateDeploymentProject({
       GROWTH_ENGINE_FIREBASE_PROJECT_ID: "demo-growth-engine-test",
