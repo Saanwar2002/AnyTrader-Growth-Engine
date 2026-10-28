@@ -431,7 +431,7 @@ describe("Growth Engine interactive workflows", () => {
     expect(screen.getByText("North Star Roofing")).toBeTruthy();
 
     const search = screen.getByPlaceholderText("Search business, category, area, email, phone or website…");
-    fireEvent.change(search, { target: { value: "+44 7700 900123" } });
+    fireEvent.change(search, { target: { value: "  +44 7700 900123  " } });
     expect(screen.getByText("North Star Roofing")).toBeTruthy();
     expect(screen.queryByText("Fictional Northside Painting Co")).toBeNull();
 
