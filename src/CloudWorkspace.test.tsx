@@ -629,10 +629,12 @@ describe("cloud authentication gate", () => {
     expect(await screen.findByText("Northside Painting")).toBeTruthy();
     expect(screen.getByText("City Decorators")).toBeTruthy();
     expect(screen.getByText("Showing 2 of 2 loaded leads.")).toBeTruthy();
+    expect(screen.getByText("0 active filters")).toBeTruthy();
     expect(screen.getByLabelText("Search leads").getAttribute("placeholder")).toBe("Business, category, location, website, email, phone, or source record ID");
     expect(screen.getByText("Source record ID: provider-record-42")).toBeTruthy();
 
     fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: "northside.example" } });
+    expect(screen.getByText("1 active filter")).toBeTruthy();
     expect(screen.getByText("Northside Painting")).toBeTruthy();
     expect(screen.queryByText("City Decorators")).toBeNull();
     fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: "" } });
@@ -653,10 +655,12 @@ describe("cloud authentication gate", () => {
     expect(screen.queryByText("Northside Painting")).toBeNull();
 
     fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: "no-such-provider" } });
+    expect(screen.getByText("2 active filters")).toBeTruthy();
     expect(screen.queryByText("City Decorators")).toBeNull();
     expect(screen.getByRole("status").textContent).toContain("No leads match these filters");
 
     fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(screen.getByText("0 active filters")).toBeTruthy();
     expect((screen.getByLabelText("Search leads") as HTMLInputElement).value).toBe("");
     expect((screen.getByLabelText("Filter by status") as HTMLSelectElement).value).toBe("all");
     expect((screen.getByLabelText("Filter by campaign") as HTMLSelectElement).value).toBe("all");
