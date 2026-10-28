@@ -2471,6 +2471,72 @@ describe("cloud authentication gate", () => {
     expect(screen.queryByText(/stale security audit request failed/i)).toBeNull();
   });
 
+  it("ignores a stale audit pagination response after switching organisations", async () => {
+    mocks.currentUser = { email: "owner@example.test", uid: "owner-uid" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [
+        { organisationId: "org-1", name: "Pilot Workspace", role: "owner" },
+        { organisationId: "org-2", name: "Second Workspace", role: "owner" },
+      ],
+      hasMoreOrganisations: false,
+    });
+    type AuditPage = {
+      organisationId: string;
+      events: Array<{
+        id: string;
+        eventType: string;
+        actorUid: string;
+        resourceType: string;
+        resourceId: string;
+        outcome: string;
+        metadata: Record<string, string>;
+        createdAt: string;
+      }>;
+      hasMoreEvents: boolean;
+      nextPageToken: string | null;
+      scope: "organisation_security_audit";
+    };
+    let resolveOldPage!: (page: AuditPage) => void;
+    const page = (organisationId: string, id: string, resourceId: string, hasMoreEvents = false): AuditPage => ({
+      organisationId,
+      events: [{
+        id, eventType: "lead.status_changed", actorUid: "owner-uid", resourceType: "lead",
+        resourceId, outcome: "success", metadata: {}, createdAt: "2026-10-28T12:00:00.000Z",
+      }],
+      hasMoreEvents,
+      nextPageToken: hasMoreEvents ? "cursor-old" : null,
+      scope: "organisation_security_audit",
+    });
+    mocks.api.listOrganisationSecurityAuditEvents.mockImplementation(
+      ({ organisationId, pageToken }: { organisationId: string; pageToken?: string }) => {
+        if (organisationId === "org-1" && !pageToken) return Promise.resolve(page("org-1", "old-first", "old-first-resource", true));
+        if (organisationId === "org-1" && pageToken === "cursor-old") {
+          return new Promise<AuditPage>((resolve) => { resolveOldPage = resolve; });
+        }
+        return Promise.resolve(page("org-2", "new-tenant-event", "new-tenant-resource"));
+      },
+    );
+
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load audit log" }));
+    expect(await screen.findByText("old-first-resource")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Load more audit events" }));
+    await waitFor(() => expect(mocks.api.listOrganisationSecurityAuditEvents).toHaveBeenCalledWith({
+      organisationId: "org-1", pageToken: "cursor-old",
+    }));
+
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
+    const nextTenantButton = await screen.findByRole("button", { name: "Load audit log" });
+    await waitFor(() => expect((nextTenantButton as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(nextTenantButton);
+    expect(await screen.findByText("new-tenant-resource")).toBeTruthy();
+
+    resolveOldPage(page("org-1", "old-late-event", "old-late-resource"));
+    await waitFor(() => expect(screen.queryByText("old-late-resource")).toBeNull());
+    expect(screen.getByText("new-tenant-resource")).toBeTruthy();
+    expect(screen.queryByText("old-first-resource")).toBeNull();
+  });
+
   it("ignores a successful audit response from the previous organisation", async () => {
     mocks.currentUser = { email: "owner@example.test", uid: "owner-uid" };
     mocks.api.listMyOrganisations.mockResolvedValue({
