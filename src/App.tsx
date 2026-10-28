@@ -244,7 +244,7 @@ export default function App() {
     const blob = new Blob(["\uFEFF", rows.join("\r\n")], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
-    anchor.href = url; anchor.download = "growth-engine-leads-demo.csv"; anchor.click(); URL.revokeObjectURL(url);
+    anchor.href = url; anchor.download = "growth-engine-leads.csv"; anchor.click(); URL.revokeObjectURL(url);
     setNotice(`Exported ${visibleLeads.length} visible lead(s).`);
   }
 
