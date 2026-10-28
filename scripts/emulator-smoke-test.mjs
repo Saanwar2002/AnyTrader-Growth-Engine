@@ -2926,6 +2926,35 @@ try {
     "global", first.auth.currentUser.uid, "createOrganisation", "fresh-window",
   ], { stdio: "inherit" });
 
+  // Race two first-time bulk-status requests using the same idempotency key.
+  // Only one transaction should apply the transition; the other must replay its result.
+  const concurrentBulkLead = await callOne("createLead", {
+    organisationId: orgOne.organisationId,
+    campaignId: campaignOne.campaignId,
+    idempotencyKey: "manual-lead-bulk-status-race-0001",
+    businessName: "Synthetic Concurrent Bulk Status Ltd",
+    category: "Painters",
+    location: "Manchester",
+  });
+  const concurrentBulkStatusPayload = {
+    organisationId: orgOne.organisationId,
+    leadIds: [concurrentBulkLead.leadId],
+    status: "reviewing",
+    idempotencyKey: "bulk-status-concurrent-race-0001",
+  };
+  const concurrentBulkStatusResults = await Promise.all([
+    callOne("bulkUpdateLeadStatus", concurrentBulkStatusPayload),
+    callOne("bulkUpdateLeadStatus", concurrentBulkStatusPayload),
+  ]);
+  assert.deepEqual(concurrentBulkStatusResults[0], concurrentBulkStatusResults[1],
+    "concurrent first-time bulk status requests return the same committed result");
+  assert.equal(concurrentBulkStatusResults[0].updatedCount, 1,
+    "concurrent bulk status retries report one committed lead transition");
+  const concurrentBulkLeadAfter = (await callOne("listLeads", { organisationId: orgOne.organisationId }))
+    .leads.find((lead) => lead.id === concurrentBulkLead.leadId);
+  assert.equal(concurrentBulkLeadAfter?.status, "reviewing",
+    "concurrent bulk status retries persist the requested state exactly once");
+
   // Force a quota boundary in the local emulator and verify a rejected mutation has no side effects.
   const beforeQuotaTest = await callOne("listLeads", { organisationId: orgOne.organisationId });
   const quotaLeadBefore = beforeQuotaTest.leads[0];

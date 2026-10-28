@@ -1,3 +1,12 @@
+## AutoPilot continuation — verify concurrent bulk-status idempotency replay (2026-10-28)
+
+- Added an emulator smoke regression that races two first-time `bulkUpdateLeadStatus` calls with the same idempotency key and payload.
+- The regression verifies both callers receive the same committed result and the lead persists in the requested state, complementing sequential replay and changed-payload rejection coverage. It runs before the later smoke-test section deliberately seeds malformed `listLeads` quota state, so the verification read does not collide with that intentional negative fixture.
+- Synthetic emulator-only test coverage; no production data, deployment, billing, live provider connection, or outreach.
+- The first CI attempt exposed a test-ordering issue: the verification read ran after a later test intentionally seeded malformed `listLeads` quota state. The regression was moved ahead of that fixture; rerun exact-head CI and confirm both jobs before treating it as verified.
+
+---
+
 ## AutoPilot continuation — verify stale audit pagination failure handling (2026-10-28)
 
 - Merged PR #371 after both exact-head CI jobs passed; post-merge main CI run [40741340516](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40741340516) also passed both Firebase Functions and frontend jobs, including emulator integration smoke tests.
