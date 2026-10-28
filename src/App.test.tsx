@@ -541,4 +541,21 @@ describe("Growth Engine interactive workflows", () => {
     vi.restoreAllMocks();
   });
 
+
+  it("updates status for multiple selected visible leads and clears the selection", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /Lead directory/i }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Select Fictional Northside Painting Co" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Select Sample BrightBrush Decorators" }));
+
+    expect(screen.getByText("2 selected")).toBeTruthy();
+    fireEvent.change(screen.getByRole("combobox", { name: "Bulk lead status" }), { target: { value: "qualified" } });
+    fireEvent.click(screen.getByRole("button", { name: "Apply status to selected leads" }));
+
+    expect((screen.getByRole("combobox", { name: "Change status for Fictional Northside Painting Co" }) as HTMLSelectElement).value).toBe("qualified");
+    expect((screen.getByRole("combobox", { name: "Change status for Sample BrightBrush Decorators" }) as HTMLSelectElement).value).toBe("qualified");
+    expect(screen.getByRole("status").textContent).toContain("Updated 2 lead(s) to qualified.");
+    expect(screen.queryByText("2 selected")).toBeNull();
+  });
+
 });
