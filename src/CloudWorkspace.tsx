@@ -1382,7 +1382,7 @@ DRAFT ONLY — NOT SENT.`,
       const campaignNames = Object.fromEntries(allCampaigns.map((campaign) => [campaign.id, campaign.name]));
       const query = leadSearch.trim().toLocaleLowerCase("en-GB");
       const exportLeads = applyCurrentFilters ? allLeads.filter((lead) => {
-        const matchesSearch = !query || [lead.businessName, lead.category, lead.location, campaignNames[lead.campaignId] ?? "", lead.website, lead.email, lead.phone, lead.sourceRecordId ?? "", lead.notes ?? ""]
+        const matchesSearch = !query || [lead.businessName, lead.category, lead.location, campaignNames[lead.campaignId] ?? "", lead.website, lead.email, lead.phone, lead.sourceRecordId ?? "", lead.notes ?? "", lead.followUpDate ?? ""]
           .some((value) => value.toLocaleLowerCase("en-GB").includes(query));
         const reviewStatus = getLeadContactReviewStatus(lead);
         const matchesFollowUp = leadFollowUpFilter === "all" || classifyLeadFollowUpDate(lead.followUpDate, todayUtc) === leadFollowUpFilter;
