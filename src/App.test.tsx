@@ -390,4 +390,27 @@ describe("Growth Engine interactive workflows", () => {
     expect(screen.getByText("0 active filters")).toBeTruthy();
   });
 
+
+  it("resets category filtering and sorting when the demo workspace is reset", () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /Lead directory/i }));
+    fireEvent.change(screen.getByRole("combobox", { name: "Filter by service category" }), {
+      target: { value: "Painters & decorators" },
+    });
+    fireEvent.change(screen.getByRole("combobox", { name: "Sort leads" }), { target: { value: "name" } });
+    expect(screen.getByText("1 active filter")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /Workspace settings/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Reset demo workspace" }));
+    expect(screen.getByRole("status").textContent).toContain("Demo workspace reset");
+
+    fireEvent.click(screen.getByRole("button", { name: /Lead directory/i }));
+    expect((screen.getByRole("combobox", { name: "Filter by service category" }) as HTMLSelectElement).value).toBe("all");
+    expect((screen.getByRole("combobox", { name: "Sort leads" }) as HTMLSelectElement).value).toBe("default");
+    expect(screen.getByText("0 active filters")).toBeTruthy();
+    expect(document.querySelector(".table-wrap tbody tr")?.textContent).toContain("Fictional Northside Painting Co");
+    vi.restoreAllMocks();
+  });
+
 });
