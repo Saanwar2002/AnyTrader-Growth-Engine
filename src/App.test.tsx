@@ -398,8 +398,10 @@ describe("Growth Engine interactive workflows", () => {
     fireEvent.change(screen.getByRole("combobox", { name: "Filter by service category" }), {
       target: { value: "Painters & decorators" },
     });
+    const source = screen.getByRole("combobox", { name: "Filter by lead source" });
+    fireEvent.change(source, { target: { value: "csv" } });
     fireEvent.change(screen.getByRole("combobox", { name: "Sort leads" }), { target: { value: "name" } });
-    expect(screen.getByText("1 active filter")).toBeTruthy();
+    expect(screen.getByText("2 active filters")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: /Workspace settings/i }));
     fireEvent.click(screen.getByRole("button", { name: "Reset demo workspace" }));
@@ -407,6 +409,7 @@ describe("Growth Engine interactive workflows", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Lead directory/i }));
     expect((screen.getByRole("combobox", { name: "Filter by service category" }) as HTMLSelectElement).value).toBe("all");
+    expect((screen.getByRole("combobox", { name: "Filter by lead source" }) as HTMLSelectElement).value).toBe("all");
     expect((screen.getByRole("combobox", { name: "Sort leads" }) as HTMLSelectElement).value).toBe("default");
     expect(screen.getByText("0 active filters")).toBeTruthy();
     expect(document.querySelector(".table-wrap tbody tr")?.textContent).toContain("Fictional Northside Painting Co");
