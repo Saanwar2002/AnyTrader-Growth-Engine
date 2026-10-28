@@ -1682,17 +1682,18 @@ describe("cloud authentication gate", () => {
     expect(await screen.findByText("Loaded Example")).toBeTruthy();
     fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: "Provider" } });
     fireEvent.change(screen.getByLabelText("Filter by category"), { target: { value: "Decorators" } });
+    fireEvent.change(screen.getByLabelText("Filter by follow-up"), { target: { value: "overdue" } });
     mocks.api.listLeads.mockResolvedValueOnce({
       leads: [
         {
           id: "target-lead", campaignId: "campaign-1", businessName: "Target Provider",
-          category: "Decorators", location: "Leeds", website: "", email: "", phone: "", source: "csv_import",
+          category: "Decorators", location: "Leeds", website: "", email: "", phone: "", source: "csv_import", followUpDate: "2026-10-27",
           status: "qualified", score: 80, scoreReasons: ["Business name provided (+20)"], notes: "",
           doNotContact: false, contactRestrictionVerified: true, contactReviewStatus: "cleared", contactReviewRevision: 1, createdAt: null,
         },
         {
           id: "other-lead", campaignId: "campaign-1", businessName: "Other Provider",
-          category: "Painters", location: "Glasgow", website: "", email: "", phone: "", source: "csv_import",
+          category: "Painters", location: "Glasgow", website: "", email: "", phone: "", source: "csv_import", followUpDate: "2026-10-29",
           status: "new", score: 20, scoreReasons: [], notes: "",
           doNotContact: true, contactRestrictionVerified: false, contactReviewStatus: "pending", contactReviewRevision: 0, createdAt: null,
         },
