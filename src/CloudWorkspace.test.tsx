@@ -233,9 +233,9 @@ describe("cloud authentication gate", () => {
     expect((await screen.findAllByText("First Tenant Private Campaign")).length).toBeGreaterThan(0);
     fireEvent.change(screen.getByLabelText("Notes for First Tenant Private Lead"), { target: { value: "Unsaved first tenant note" } });
     fireEvent.click(await screen.findByRole("checkbox", { name: "Select First Tenant Private Lead for bulk status update" }));
-    expect(screen.getByText("1/25 selected. Bulk updates are all-or-nothing; selecting “contacted” is blocked if any selected lead has an unresolved contact restriction.")).toBeTruthy();
+    expect(screen.getByText("1/25 selected; 1 match current filters. Bulk updates are all-or-nothing; selecting “contacted” is blocked if any selected lead has an unresolved contact restriction.")).toBeTruthy();
     fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
-    expect(screen.getByText("0/25 selected. Bulk updates are all-or-nothing; selecting “contacted” is blocked if any selected lead has an unresolved contact restriction.")).toBeTruthy();
+    expect(screen.getByText("0/25 selected; 0 match current filters. Bulk updates are all-or-nothing; selecting “contacted” is blocked if any selected lead has an unresolved contact restriction.")).toBeTruthy();
     expect(screen.queryByText("First Tenant Private Lead")).toBeNull();
     expect(screen.queryByText("First Tenant Private Campaign")).toBeNull();
 
@@ -2635,7 +2635,7 @@ describe("cloud authentication gate", () => {
     });
     render(<CloudWorkspace />);
     fireEvent.click(await screen.findByRole("button", { name: "Select first 25 filtered loaded leads" }));
-    expect(screen.getByText(/25\/25 selected\. Bulk updates are all-or-nothing/)).toBeTruthy();
+    expect(screen.getByText(/25\/25 selected; 25 match current filters. Bulk updates are all-or-nothing/)).toBeTruthy();
     expect((screen.getByRole("checkbox", { name: "Select Bulk Candidate 01 for bulk status update" }) as HTMLInputElement).checked).toBe(true);
     expect((screen.getByRole("checkbox", { name: "Select Bulk Candidate 25 for bulk status update" }) as HTMLInputElement).checked).toBe(true);
     expect((screen.getByRole("checkbox", { name: "Select Bulk Candidate 26 for bulk status update" }) as HTMLInputElement).checked).toBe(false);
@@ -2661,7 +2661,7 @@ describe("cloud authentication gate", () => {
     render(<CloudWorkspace />);
     fireEvent.click(await screen.findByRole("checkbox", { name: "Select Bulk Painter A for bulk status update" }));
     fireEvent.click(screen.getByRole("checkbox", { name: "Select Bulk Painter B for bulk status update" }));
-    expect(screen.getByText(/2\/25 selected\. Bulk updates are all-or-nothing/)).toBeTruthy();
+    expect(screen.getByText(/2\/25 selected; 2 match current filters. Bulk updates are all-or-nothing/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Update 2 selected lead(s)" }));
     await waitFor(() => expect(mocks.api.bulkUpdateLeadStatus).toHaveBeenCalledTimes(1));
     const payload = mocks.api.bulkUpdateLeadStatus.mock.calls[0][0];
@@ -2694,6 +2694,7 @@ describe("cloud authentication gate", () => {
     fireEvent.click(screen.getByRole("checkbox", { name: "Select Hidden Bulk Decorator for bulk status update" }));
     fireEvent.change(screen.getByRole("searchbox", { name: "Search leads" }), { target: { value: "Visible Bulk Painter" } });
 
+    expect(screen.getByText(/2\/25 selected; 1 match current filters/)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Update 1 selected lead(s)" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Update 1 selected lead(s)" }));
     await waitFor(() => expect(mocks.api.bulkUpdateLeadStatus).toHaveBeenCalledTimes(1));
