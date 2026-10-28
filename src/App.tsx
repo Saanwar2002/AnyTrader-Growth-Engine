@@ -89,7 +89,7 @@ export default function App() {
 
   const visibleLeads = useMemo(() => {
     const filtered = state.leads.filter((lead) => {
-      const normalizedQuery = query.toLocaleLowerCase("en-GB");
+      const normalizedQuery = query.trim().toLocaleLowerCase("en-GB");
       const matchesQuery = [lead.businessName, lead.category, lead.location, lead.email, lead.phone, lead.website].some((value) => value.toLocaleLowerCase("en-GB").includes(normalizedQuery));
       const matchesStatus = statusFilter === "all" || lead.status === statusFilter;
       const matchesCampaign = campaignFilter === "all" || lead.campaignId === campaignFilter;
