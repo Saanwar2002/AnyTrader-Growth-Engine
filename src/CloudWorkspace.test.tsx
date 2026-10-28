@@ -2471,6 +2471,69 @@ describe("cloud authentication gate", () => {
     expect(screen.queryByText(/stale security audit request failed/i)).toBeNull();
   });
 
+  it("ignores a successful audit response from the previous organisation", async () => {
+    mocks.currentUser = { email: "owner@example.test", uid: "owner-uid" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [
+        { organisationId: "org-1", name: "Pilot Workspace", role: "owner" },
+        { organisationId: "org-2", name: "Second Workspace", role: "owner" },
+      ],
+      hasMoreOrganisations: false,
+    });
+    type AuditPage = {
+      organisationId: string;
+      events: Array<{
+        id: string;
+        eventType: string;
+        actorUid: string;
+        resourceType: string;
+        resourceId: string;
+        outcome: string;
+        metadata: Record<string, string>;
+        createdAt: string;
+      }>;
+      hasMoreEvents: boolean;
+      nextPageToken: null;
+      scope: "organisation_security_audit";
+    };
+    let resolveFirst!: (page: AuditPage) => void;
+    let resolveSecond!: (page: AuditPage) => void;
+    mocks.api.listOrganisationSecurityAuditEvents.mockImplementation(({ organisationId }: { organisationId: string }) =>
+      new Promise<AuditPage>((resolve) => {
+        if (organisationId === "org-1") resolveFirst = resolve;
+        else resolveSecond = resolve;
+      }),
+    );
+    const page = (organisationId: string, id: string, resourceId: string): AuditPage => ({
+      organisationId,
+      events: [{
+        id, eventType: "lead.status_changed", actorUid: "owner-uid", resourceType: "lead",
+        resourceId, outcome: "success", metadata: {}, createdAt: "2026-10-28T12:00:00.000Z",
+      }],
+      hasMoreEvents: false,
+      nextPageToken: null,
+      scope: "organisation_security_audit",
+    });
+
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load audit log" }));
+    await waitFor(() => expect(mocks.api.listOrganisationSecurityAuditEvents).toHaveBeenCalledWith({ organisationId: "org-1" }));
+
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
+    const nextTenantButton = await screen.findByRole("button", { name: "Load audit log" });
+    await waitFor(() => expect((nextTenantButton as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(nextTenantButton);
+    await waitFor(() => expect(mocks.api.listOrganisationSecurityAuditEvents).toHaveBeenCalledWith({ organisationId: "org-2" }));
+
+    resolveSecond(page("org-2", "new-tenant-event", "new-tenant-resource"));
+    expect(await screen.findByRole("table", { name: "Organisation security audit events" })).toBeTruthy();
+    expect(screen.getByText("new-tenant-resource")).toBeTruthy();
+
+    resolveFirst(page("org-1", "old-tenant-event", "old-tenant-resource"));
+    await waitFor(() => expect(screen.queryByText("old-tenant-resource")).toBeNull());
+    expect(screen.getByText("new-tenant-resource")).toBeTruthy();
+  });
+
   it("does not let an older member removal clear the active organisation action state", async () => {
     mocks.currentUser = { email: "owner@example.test", uid: "owner-uid" };
     mocks.api.listMyOrganisations.mockResolvedValue({
