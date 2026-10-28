@@ -232,4 +232,37 @@ describe("Growth Engine interactive workflows", () => {
     vi.restoreAllMocks();
   });
 
+
+  it("exports only the leads matching the active search filter", async () => {
+    let exportedBlob: Blob | undefined;
+    const URLWithObjectUrls = class extends URL {};
+    Object.assign(URLWithObjectUrls, {
+      createObjectURL: vi.fn((blob: Blob) => { exportedBlob = blob; return "blob:filtered-export-test"; }),
+      revokeObjectURL: vi.fn(),
+    });
+    vi.stubGlobal("URL", URLWithObjectUrls);
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /Lead directory/i }));
+    fireEvent.change(screen.getByPlaceholderText("Search business, category or area…"), {
+      target: { value: "Fictional Northside Painting Co" },
+    });
+    expect(screen.getByText("Fictional Northside Painting Co")).toBeTruthy();
+    expect(screen.queryByText("Sample BrightBrush Decorators")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /Export CSV/i }));
+    expect(exportedBlob).toBeDefined();
+    const exportedText = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result ?? ""));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsText(exportedBlob as Blob);
+    });
+    expect(exportedText).toContain("Fictional Northside Painting Co");
+    expect(exportedText).not.toContain("Sample BrightBrush Decorators");
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
 });
