@@ -1,3 +1,12 @@
+## AutoPilot continuation — verify stale audit pagination failure handling (2026-10-28)
+
+- Merged PR #371 after both exact-head CI jobs passed; post-merge main CI run [40741340516](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40741340516) also passed both Firebase Functions and frontend jobs, including emulator integration smoke tests.
+- Added a regression showing that a rejected pagination request for a previous organisation cannot display a stale error or disturb the current organisation's audit results.
+- Tenant-switch audit regressions now cover pending old requests, stale successful responses, stale pagination responses, and stale pagination failures (PRs #368–#371).
+- Test and documentation hardening only; no deployment, production data access, migration, billing activation, provider connection, or outreach. Production-readiness blockers remain open.
+
+---
+
 ## AutoPilot continuation — cover cursor-cycle safeguards across every workspace list (2026-10-28)
 
 - Added dedicated UI regression tests for organisation and outreach-draft pagination cycles, complementing existing campaign and lead cycle tests.

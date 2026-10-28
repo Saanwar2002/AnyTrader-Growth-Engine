@@ -1,3 +1,13 @@
+> **Continuation addendum — 28 October 2026, 18:05 UTC**
+>
+> - **Current main checkpoint:** `02e394e702ab00e0c4ccd1e417f4b13552bfa16b`.
+> - **Current main CI:** run [40741340516](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40741340516) completed successfully for this exact checkpoint. Both Firebase Functions tests/build and frontend typecheck/tests/build—including Firebase emulator integration smoke tests—passed.
+> - **Additional repository-only tenant-switch regression coverage:** PR #371 adds a test proving a rejected audit-pagination request from a previous organisation cannot surface a stale error or replace the current organisation's audit data. PRs #368–#371 collectively cover pending requests, stale successful responses, stale pagination responses, and stale pagination failures during organisation switches; all were merged after exact-head CI passed.
+> - **Release decision unchanged: NOT PRODUCTION READY.** Dedicated Growth Engine Firebase project setup and live App Check token flow remain unverified. Privacy/retention approval, monitoring and budget alerts, backup/recovery evidence, approved source-provider configuration, legacy-data reconciliation, release ownership, and rollback rehearsal remain blockers.
+> - No production deployment, live data migration, billing activation, live provider connection, or outreach was performed. Continue using synthetic data and local/emulator environments only. Green CI is not release approval.
+>
+> ---
+>
 > **Continuation addendum — 28 October 2026, 12:18 UTC**
 >
 > - **Current main checkpoint:** `79abac48f12efa2de3e5759e9f67fa87c7034f81`.
