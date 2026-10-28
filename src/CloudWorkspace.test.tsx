@@ -366,6 +366,24 @@ describe("cloud authentication gate", () => {
     expect(mocks.api.listLeads).toHaveBeenCalledTimes(3);
   });
 
+  it("stops draft pagination when continuation cursors form a cycle", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
+    const draft = { id: "draft-cycle", leadId: "lead-1", campaignId: "campaign-1", subject: "Cycle Draft", body: "Draft body", status: "draft", leadSuppressed: false, requiresReview: false, reviewReason: null, createdAt: null };
+    mocks.api.listOutreachDrafts
+      .mockResolvedValueOnce({ drafts: [draft], hasMoreDrafts: true, nextPageToken: "cursor-a" })
+      .mockResolvedValueOnce({ drafts: [draft], hasMoreDrafts: true, nextPageToken: "cursor-b" })
+      .mockResolvedValueOnce({ drafts: [draft], hasMoreDrafts: true, nextPageToken: "cursor-a" });
+    render(<CloudWorkspace />);
+    expect(await screen.findByText("Cycle Draft")).toBeTruthy();
+    fireEvent.click(await screen.findByRole("button", { name: "Load more drafts" }));
+    await waitFor(() => expect(mocks.api.listOutreachDrafts).toHaveBeenCalledTimes(2));
+    fireEvent.click(await screen.findByRole("button", { name: "Load more drafts" }));
+    expect((await screen.findByRole("alert")).textContent).toMatch(/draft pagination returned a repeated or missing continuation cursor/i);
+    expect(screen.queryByRole("button", { name: "Load more drafts" })).toBeNull();
+    expect(mocks.api.listOutreachDrafts).toHaveBeenCalledTimes(3);
+  });
+
   it("loads additional draft pages without replacing or duplicating the first page", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
@@ -517,6 +535,34 @@ describe("cloud authentication gate", () => {
     expect(screen.getByText("First Workspace · owner")).toBeTruthy();
     await waitFor(() => expect(mocks.api.listMyOrganisations).toHaveBeenCalledWith("organisations/org-2/members/user-1"));
     expect(screen.queryByRole("button", { name: "Load more organisations" })).toBeNull();
+  });
+
+  it("stops organisation pagination when continuation cursors form a cycle", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations
+      .mockResolvedValueOnce({
+        organisations: [{ organisationId: "org-1", name: "First Workspace", role: "owner" }],
+        hasMoreOrganisations: true,
+        nextPageToken: "cursor-a",
+      })
+      .mockResolvedValueOnce({
+        organisations: [{ organisationId: "org-2", name: "Second Workspace", role: "member" }],
+        hasMoreOrganisations: true,
+        nextPageToken: "cursor-b",
+      })
+      .mockResolvedValueOnce({
+        organisations: [{ organisationId: "org-3", name: "Third Workspace", role: "member" }],
+        hasMoreOrganisations: true,
+        nextPageToken: "cursor-a",
+      });
+    render(<CloudWorkspace />);
+    expect(await screen.findByText("First Workspace · owner")).toBeTruthy();
+    fireEvent.click(await screen.findByRole("button", { name: "Load more organisations" }));
+    expect(await screen.findByText("Second Workspace · member")).toBeTruthy();
+    fireEvent.click(await screen.findByRole("button", { name: "Load more organisations" }));
+    expect((await screen.findByRole("alert")).textContent).toMatch(/organisation pagination returned a repeated or missing continuation cursor/i);
+    expect(screen.queryByRole("button", { name: "Load more organisations" })).toBeNull();
+    expect(mocks.api.listMyOrganisations).toHaveBeenCalledTimes(3);
   });
 
   it("downloads a blank CSV template with the optional source record ID column", async () => {

@@ -1,3 +1,11 @@
+## AutoPilot continuation — cover cursor-cycle safeguards across every workspace list (2026-10-28)
+
+- Added dedicated UI regression tests for organisation and outreach-draft pagination cycles, complementing existing campaign and lead cycle tests.
+- Tests simulate a multi-page A → B → A cursor cycle and assert loading stops with a visible alert and no further load-more control.
+- Test-only hardening; no production data, deployment, migration, billing activation, provider connection, or outreach.
+
+---
+
 ## AutoPilot continuation — stop multi-page cursor cycles in workspace lists (2026-10-28)
 
 - Extended workspace load-more safeguards to track continuation cursors already requested within the current organisation/list refresh. A response that points back to any earlier cursor now fails closed, including cycles such as A → B → A rather than only immediate A → A repeats.
