@@ -832,6 +832,32 @@ describe("cloud authentication gate", () => {
     expect(await screen.findByText(/Exported 1 selected lead/i)).toBeTruthy();
   });
 
+
+  it("exports only selected cloud leads that still match the active filters", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }], hasMoreOrganisations: false });
+    mocks.api.listCampaigns.mockResolvedValue({ campaigns: [{ id: "campaign-1", name: "Painter pilot", brand: "AnyTrader", category: "Painters", location: "Manchester", goal: "Recruit providers", status: "active", createdAt: null }], hasMoreCampaigns: false });
+    mocks.api.listLeads.mockResolvedValue({ leads: [
+      { id: "lead-visible", campaignId: "campaign-1", businessName: "Visible Bulk Painter", category: "Painters", location: "Manchester", website: "", email: "visible@example.test", phone: "", source: "csv_import", status: "new", score: 50, scoreReasons: [], notes: "", doNotContact: true, contactReviewStatus: "pending", contactRestrictionVerified: false, contactReviewRevision: 0, createdAt: null },
+      { id: "lead-hidden", campaignId: "campaign-1", businessName: "Hidden Bulk Decorator", category: "Decorators", location: "York", website: "", email: "hidden@example.test", phone: "", source: "csv_import", status: "new", score: 50, scoreReasons: [], notes: "", doNotContact: true, contactReviewStatus: "pending", contactReviewRevision: 0, createdAt: null },
+    ], hasMoreLeads: false });
+    const createObjectURL = vi.fn((_blob: Blob) => "blob:filtered-selected-leads");
+    vi.stubGlobal("URL", { createObjectURL, revokeObjectURL: vi.fn() });
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("checkbox", { name: "Select Visible Bulk Painter for bulk status update" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Select Hidden Bulk Decorator for bulk status update" }));
+    fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: "Visible Bulk Painter" } });
+    fireEvent.click(screen.getByRole("button", { name: "Export selected (CSV)" }));
+
+    await waitFor(() => expect(createObjectURL).toHaveBeenCalledTimes(1));
+    const csv = await (createObjectURL.mock.calls[0][0] as Blob).text();
+    expect(csv).toContain("Visible Bulk Painter");
+    expect(csv).not.toContain("Hidden Bulk Decorator");
+    expect(screen.getByText(/Exported 1 selected lead\(s\) matching current filters/)).toBeTruthy();
+  });
+
   it("opens a safe lead website in a protected new tab and suppresses unsafe URLs", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }], hasMoreOrganisations: false });
