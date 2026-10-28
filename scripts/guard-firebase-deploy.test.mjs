@@ -31,6 +31,21 @@ describe("Firebase deployment project guard", () => {
     });
   });
 
+  it("rejects malformed configured and CLI project IDs", () => {
+    expect(validateDeploymentProject({
+      GROWTH_ENGINE_FIREBASE_PROJECT_ID: "Growth_Engine",
+      GCLOUD_PROJECT: "growth-prod-123",
+    })).toMatchObject({ ok: false, reason: expect.stringContaining("valid Firebase project ID") });
+    expect(validateDeploymentProject({
+      GROWTH_ENGINE_FIREBASE_PROJECT_ID: "growth-prod-123",
+      GCLOUD_PROJECT: "bad_project_id",
+    })).toMatchObject({ ok: false, reason: expect.stringContaining("valid Firebase project ID") });
+    expect(validateDeploymentProject({
+      GROWTH_ENGINE_FIREBASE_PROJECT_ID: "123456",
+      GCLOUD_PROJECT: "123456",
+    })).toMatchObject({ ok: false, reason: expect.stringContaining("valid Firebase project ID") });
+  });
+
   it("refuses demo projects even when the configured IDs match", () => {
     expect(validateDeploymentProject({
       GROWTH_ENGINE_FIREBASE_PROJECT_ID: "demo-growth-engine-test",
