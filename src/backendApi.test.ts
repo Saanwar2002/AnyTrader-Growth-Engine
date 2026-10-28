@@ -328,3 +328,24 @@ it("requests an organisation member role update", async () => {
   await expect(api.updateOrganisationMemberRole({ organisationId: "org-1", targetUid: "member-uid", role: "admin" })).resolves.toEqual(response);
   expect(calls).toEqual([{ name: "updateOrganisationMemberRole", payload: { organisationId: "org-1", targetUid: "member-uid", role: "admin" } }]);
 });
+
+it("passes a stable idempotency key and exact tenant-scoped payload for bulk lead status updates", async () => {
+  const response = {
+    organisationId: "org-1",
+    status: "reviewing" as const,
+    updatedCount: 2,
+    unchangedCount: 0,
+    leadIds: ["lead-1", "lead-2"],
+  };
+  const { invoke, calls } = makeInvoker([response]);
+  const api = createGrowthEngineApi(invoke);
+  const payload = {
+    organisationId: "org-1",
+    leadIds: ["lead-1", "lead-2"],
+    status: "reviewing" as const,
+    idempotencyKey: "bulk-status-api-contract-0001",
+  };
+
+  await expect(api.bulkUpdateLeadStatus(payload)).resolves.toEqual(response);
+  expect(calls).toEqual([{ name: "bulkUpdateLeadStatus", payload }]);
+});
