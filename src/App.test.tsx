@@ -223,6 +223,8 @@ describe("Growth Engine interactive workflows", () => {
     );
     fireEvent.change(fileInput, { target: { files: [csv] } });
     await waitFor(() => expect(screen.getByRole("heading", { name: "Match your spreadsheet columns" })).toBeTruthy());
+    fireEvent.change(screen.getByLabelText(/Business name/), { target: { value: "businessName" } });
+    await waitFor(() => expect((screen.getByRole("button", { name: "Preview rows" }) as HTMLButtonElement).disabled).toBe(false));
     fireEvent.click(screen.getByRole("button", { name: "Preview rows" }));
     await waitFor(() => expect(screen.getByRole("heading", { name: "Review CSV before importing" })).toBeTruthy());
     fireEvent.click(screen.getByRole("button", { name: /Confirm import \\(1\\)/i }));
