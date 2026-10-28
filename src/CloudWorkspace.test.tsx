@@ -621,7 +621,7 @@ describe("cloud authentication gate", () => {
     mocks.api.listLeads.mockResolvedValue({
       leads: [
         { ...lead("lead-1", "Northside Painting", "Painters", "Manchester", "new"), website: "https://northside.example", sourceRecordId: "provider-record-42", notes: "Urgent callback next week", followUpDate: "2026-11-04" },
-        { ...lead("lead-2", "City Decorators", "Decorators", "Salford", "qualified"), campaignId: "campaign-2" },
+        { ...lead("lead-2", "City Decorators", "Decorators", "Salford", "qualified"), campaignId: "campaign-2", source: "linkedin_csv" },
       ],
     });
 
@@ -632,7 +632,7 @@ describe("cloud authentication gate", () => {
     expect(screen.getByText("Campaign: Decorator campaign")).toBeTruthy();
     expect(screen.getByText("Showing 2 of 2 loaded leads.")).toBeTruthy();
     expect(screen.getByText("0 active filters")).toBeTruthy();
-    expect(screen.getByLabelText("Search leads").getAttribute("placeholder")).toBe("Business, campaign, category, location, website, email, phone, source record ID, internal notes, or follow-up date");
+    expect(screen.getByLabelText("Search leads").getAttribute("placeholder")).toBe("Business, campaign, category, location, website, email, phone, source type, source record ID, internal notes, or follow-up date");
     expect(screen.getByText("Source record ID: provider-record-42")).toBeTruthy();
 
     fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: "northside.example" } });
@@ -654,6 +654,11 @@ describe("cloud authentication gate", () => {
     fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: "2026-11-04" } });
     expect(screen.getByText("Northside Painting")).toBeTruthy();
     expect(screen.queryByText("City Decorators")).toBeNull();
+    fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: "" } });
+
+    fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: "LinkedIn export" } });
+    expect(screen.getByText("City Decorators")).toBeTruthy();
+    expect(screen.queryByText("Northside Painting")).toBeNull();
     fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: "" } });
 
     fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: "salford" } });
@@ -1658,6 +1663,7 @@ describe("cloud authentication gate", () => {
   });
 
   it("exports all matching filtered leads across stored pages, not just currently loaded rows", async () => {
+    const targetFollowUpDate = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({
       organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
@@ -1685,14 +1691,14 @@ describe("cloud authentication gate", () => {
 
     render(<CloudWorkspace />);
     expect(await screen.findByText("Loaded Example")).toBeTruthy();
-    fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: "Provider" } });
+    fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: targetFollowUpDate } });
     fireEvent.change(screen.getByLabelText("Filter by category"), { target: { value: "Decorators" } });
     fireEvent.change(screen.getByLabelText("Filter by follow-up"), { target: { value: "overdue" } });
     mocks.api.listLeads.mockResolvedValueOnce({
       leads: [
         {
           id: "target-lead", campaignId: "campaign-1", businessName: "Target Provider",
-          category: "Decorators", location: "Leeds", website: "", email: "", phone: "", source: "csv_import", followUpDate: new Date(Date.now() - 86_400_000).toISOString().slice(0, 10),
+          category: "Decorators", location: "Leeds", website: "", email: "", phone: "", source: "csv_import", followUpDate: targetFollowUpDate,
           status: "qualified", score: 80, scoreReasons: ["Business name provided (+20)"], notes: "",
           doNotContact: false, contactRestrictionVerified: true, contactReviewStatus: "cleared", contactReviewRevision: 1, createdAt: null,
         },
