@@ -881,7 +881,8 @@ DRAFT ONLY — NOT SENT.`,
     }
     return (right.createdAt ?? "").localeCompare(left.createdAt ?? "") || left.businessName.localeCompare(right.businessName, "en-GB");
   });
-  const filteredSelectedLeadIds = filteredLeads.filter((lead) => selectedLeadIds.includes(lead.id)).map((lead) => lead.id);
+  const filteredLeadIds = new Set(filteredLeads.map((lead) => lead.id));
+  const filteredSelectedLeadIds = selectedLeadIds.filter((id) => filteredLeadIds.has(id));
   const contactReviewCounts = leads.reduce((counts, lead) => {
     counts[getLeadContactReviewStatus(lead)] += 1;
     return counts;
