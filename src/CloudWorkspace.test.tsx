@@ -1698,7 +1698,7 @@ describe("cloud authentication gate", () => {
       leads: [
         {
           id: "target-lead", campaignId: "campaign-1", businessName: "Target Provider",
-          category: "Decorators", location: "Leeds", website: "", email: "", phone: "", source: "csv_import", followUpDate: targetFollowUpDate, followUpDate: new Date(Date.now() - 86_400_000).toISOString().slice(0, 10),
+          category: "Decorators", location: "Leeds", website: "", email: "", phone: "", source: "csv_import", followUpDate: targetFollowUpDate,
           status: "qualified", score: 80, scoreReasons: ["Business name provided (+20)"], notes: "",
           doNotContact: false, contactRestrictionVerified: true, contactReviewStatus: "cleared", contactReviewRevision: 1, createdAt: null,
         },
