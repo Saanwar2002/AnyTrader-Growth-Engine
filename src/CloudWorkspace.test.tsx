@@ -1685,20 +1685,22 @@ describe("cloud authentication gate", () => {
 
     render(<CloudWorkspace />);
     expect(await screen.findByText("Loaded Example")).toBeTruthy();
-    fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: "Provider" } });
+    const targetFollowUpDate = new Date(Date.now() + 5 * 86_400_000).toISOString().slice(0, 10);
+    const otherFollowUpDate = new Date(Date.now() + 6 * 86_400_000).toISOString().slice(0, 10);
+    fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: targetFollowUpDate } });
     fireEvent.change(screen.getByLabelText("Filter by category"), { target: { value: "Decorators" } });
-    fireEvent.change(screen.getByLabelText("Filter by follow-up"), { target: { value: "overdue" } });
+    fireEvent.change(screen.getByLabelText("Filter by follow-up"), { target: { value: "upcoming" } });
     mocks.api.listLeads.mockResolvedValueOnce({
       leads: [
         {
           id: "target-lead", campaignId: "campaign-1", businessName: "Target Provider",
-          category: "Decorators", location: "Leeds", website: "", email: "", phone: "", source: "csv_import", followUpDate: new Date(Date.now() - 86_400_000).toISOString().slice(0, 10),
+          category: "Decorators", location: "Leeds", website: "", email: "", phone: "", source: "csv_import", followUpDate: targetFollowUpDate,
           status: "qualified", score: 80, scoreReasons: ["Business name provided (+20)"], notes: "",
           doNotContact: false, contactRestrictionVerified: true, contactReviewStatus: "cleared", contactReviewRevision: 1, createdAt: null,
         },
         {
           id: "other-lead", campaignId: "campaign-1", businessName: "Other Provider",
-          category: "Painters", location: "Glasgow", website: "", email: "", phone: "", source: "csv_import", followUpDate: new Date(Date.now() + 86_400_000).toISOString().slice(0, 10),
+          category: "Decorators", location: "Glasgow", website: "", email: "", phone: "", source: "csv_import", followUpDate: otherFollowUpDate,
           status: "new", score: 20, scoreReasons: [], notes: "",
           doNotContact: true, contactRestrictionVerified: false, contactReviewStatus: "pending", contactReviewRevision: 0, createdAt: null,
         },
