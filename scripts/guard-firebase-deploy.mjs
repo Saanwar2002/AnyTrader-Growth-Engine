@@ -5,6 +5,10 @@ import { resolve } from "node:path";
  * Require an explicit allow-listed Growth Engine Firebase project before any
  * Firebase CLI deployment. This guard does not authenticate or deploy anything.
  */
+function isValidFirebaseProjectId(value) {
+  return /^[a-z][a-z0-9-]{4,28}[a-z0-9]$/.test(value);
+}
+
 export function validateDeploymentProject(env) {
   const expected = typeof env.GROWTH_ENGINE_FIREBASE_PROJECT_ID === "string"
     ? env.GROWTH_ENGINE_FIREBASE_PROJECT_ID.trim()
@@ -14,8 +18,14 @@ export function validateDeploymentProject(env) {
   if (!expected) {
     return { ok: false, reason: "GROWTH_ENGINE_FIREBASE_PROJECT_ID must explicitly name the approved Growth Engine Firebase project." };
   }
+  if (!isValidFirebaseProjectId(expected)) {
+    return { ok: false, reason: "GROWTH_ENGINE_FIREBASE_PROJECT_ID must be a valid Firebase project ID (6–30 lowercase letters, digits, or hyphens; starts with a letter and ends with a letter or digit)." };
+  }
   if (!target) {
     return { ok: false, reason: "Firebase CLI did not provide GCLOUD_PROJECT; deployment target cannot be verified." };
+  }
+  if (!isValidFirebaseProjectId(target)) {
+    return { ok: false, reason: "GCLOUD_PROJECT is not a valid Firebase project ID; refusing deployment." };
   }
   if (target.startsWith("demo-")) {
     return { ok: false, reason: "Firebase demo projects are for local testing and cannot be deployment targets." };
