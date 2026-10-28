@@ -300,6 +300,36 @@ describe("cloud authentication gate", () => {
     expect(screen.queryByRole("button", { name: "Load more leads" })).toBeNull();
   });
 
+  it("stops campaign pagination when the server repeats the current cursor", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
+    const campaign = { id: "campaign-1", name: "Cursor Campaign", brand: "AnyTrader", category: "Painters", location: "Manchester", goal: "Recruit providers", status: "active", createdAt: null };
+    mocks.api.listCampaigns
+      .mockResolvedValueOnce({ campaigns: [campaign], hasMoreCampaigns: true, nextPageToken: "same-cursor" })
+      .mockResolvedValueOnce({ campaigns: [campaign], hasMoreCampaigns: true, nextPageToken: "same-cursor" });
+    render(<CloudWorkspace />);
+    expect((await screen.findAllByText("Cursor Campaign")).length).toBeGreaterThan(0);
+    fireEvent.click(await screen.findByRole("button", { name: "Load more campaigns" }));
+    expect((await screen.findByRole("alert")).textContent).toMatch(/campaign pagination returned a repeated or missing continuation cursor/i);
+    expect(screen.queryByRole("button", { name: "Load more campaigns" })).toBeNull();
+    expect(mocks.api.listCampaigns).toHaveBeenCalledTimes(2);
+  });
+
+  it("stops lead pagination when the server repeats the current cursor", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
+    const lead = { id: "lead-1", campaignId: "campaign-1", businessName: "Cursor Painter", category: "Painters", location: "Manchester", website: "", email: "", phone: "", source: "manual", status: "new", score: 20, scoreReasons: [], notes: "", doNotContact: false, contactRestrictionVerified: true, createdAt: null };
+    mocks.api.listLeads
+      .mockResolvedValueOnce({ leads: [lead], hasMoreLeads: true, nextPageToken: "same-cursor" })
+      .mockResolvedValueOnce({ leads: [lead], hasMoreLeads: true, nextPageToken: "same-cursor" });
+    render(<CloudWorkspace />);
+    expect(await screen.findByText("Cursor Painter")).toBeTruthy();
+    fireEvent.click(await screen.findByRole("button", { name: "Load more leads" }));
+    expect((await screen.findByRole("alert")).textContent).toMatch(/lead pagination returned a repeated or missing continuation cursor/i);
+    expect(screen.queryByRole("button", { name: "Load more leads" })).toBeNull();
+    expect(mocks.api.listLeads).toHaveBeenCalledTimes(2);
+  });
+
   it("loads additional draft pages without replacing or duplicating the first page", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
