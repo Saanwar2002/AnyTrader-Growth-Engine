@@ -1687,13 +1687,13 @@ describe("cloud authentication gate", () => {
       leads: [
         {
           id: "target-lead", campaignId: "campaign-1", businessName: "Target Provider",
-          category: "Decorators", location: "Leeds", website: "", email: "", phone: "", source: "csv_import", followUpDate: "2026-10-27",
+          category: "Decorators", location: "Leeds", website: "", email: "", phone: "", source: "csv_import", followUpDate: new Date(Date.now() - 86_400_000).toISOString().slice(0, 10),
           status: "qualified", score: 80, scoreReasons: ["Business name provided (+20)"], notes: "",
           doNotContact: false, contactRestrictionVerified: true, contactReviewStatus: "cleared", contactReviewRevision: 1, createdAt: null,
         },
         {
           id: "other-lead", campaignId: "campaign-1", businessName: "Other Provider",
-          category: "Painters", location: "Glasgow", website: "", email: "", phone: "", source: "csv_import", followUpDate: "2026-10-29",
+          category: "Painters", location: "Glasgow", website: "", email: "", phone: "", source: "csv_import", followUpDate: new Date(Date.now() + 86_400_000).toISOString().slice(0, 10),
           status: "new", score: 20, scoreReasons: [], notes: "",
           doNotContact: true, contactRestrictionVerified: false, contactReviewStatus: "pending", contactReviewRevision: 0, createdAt: null,
         },
