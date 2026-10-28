@@ -565,7 +565,7 @@ describe("Growth Engine interactive workflows", () => {
     fireEvent.click(screen.getByRole("checkbox", { name: "Select Fictional Northside Painting Co" }));
     expect(screen.getByText("1 selected")).toBeTruthy();
 
-    fireEvent.change(screen.getByRole("combobox", { name: "Search leads" }), { target: { value: "no-business-matches-this-search" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Search leads" }), { target: { value: "no-business-matches-this-search" } });
     expect(screen.getByText("1 selected")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Apply status to selected leads" }));
 
