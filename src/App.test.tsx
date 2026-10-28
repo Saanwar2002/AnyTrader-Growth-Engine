@@ -298,4 +298,31 @@ describe("Growth Engine interactive workflows", () => {
     vi.restoreAllMocks();
   });
 
+
+  it("clears search, status, contact-permission and campaign filters together", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /Lead directory/i }));
+
+    const search = screen.getByPlaceholderText("Search business, category or area…");
+    const status = screen.getByRole("combobox", { name: "Filter by lead status" });
+    const contact = screen.getByRole("combobox", { name: "Filter by contact permission" });
+    const campaign = screen.getByRole("combobox", { name: "Filter by campaign" });
+    const campaignOption = within(campaign).getAllByRole("option").find((option) => (option as HTMLOptionElement).value !== "all");
+    expect(campaignOption).toBeTruthy();
+
+    fireEvent.change(search, { target: { value: "Fictional Northside Painting Co" } });
+    fireEvent.change(status, { target: { value: "qualified" } });
+    fireEvent.change(contact, { target: { value: "suppressed" } });
+    fireEvent.change(campaign, { target: { value: (campaignOption as HTMLOptionElement).value } });
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+
+    expect((search as HTMLInputElement).value).toBe("");
+    expect((status as HTMLSelectElement).value).toBe("all");
+    expect((contact as HTMLSelectElement).value).toBe("all");
+    expect((campaign as HTMLSelectElement).value).toBe("all");
+    expect(screen.getByText("Fictional Northside Painting Co")).toBeTruthy();
+    expect(screen.getByText("Sample BrightBrush Decorators")).toBeTruthy();
+  });
+
 });
