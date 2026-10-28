@@ -521,4 +521,24 @@ describe("Growth Engine interactive workflows", () => {
     vi.restoreAllMocks();
   });
 
+
+  it("uses a non-demo filename for lead exports", () => {
+    vi.stubGlobal("URL", class extends URL {
+      static createObjectURL = vi.fn(() => "blob:export-filename-test");
+      static revokeObjectURL = vi.fn();
+    });
+    let downloadedFilename = "";
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+      downloadedFilename = this.download;
+    });
+
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /Lead directory/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Export CSV/i }));
+
+    expect(downloadedFilename).toBe("growth-engine-leads.csv");
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
 });
