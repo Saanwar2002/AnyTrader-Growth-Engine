@@ -1761,7 +1761,7 @@ describe("cloud authentication gate", () => {
     mocks.api.listLeads.mockResolvedValueOnce(repeatedPage).mockResolvedValueOnce(repeatedPage);
 
     fireEvent.click(screen.getByRole("button", { name: "Export all stored leads (CSV)" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent(/lead export returned a repeated continuation cursor/i);
+    expect((await screen.findByRole("alert")).textContent).toMatch(/lead export returned a repeated continuation cursor/i);
     expect(createObjectURL).not.toHaveBeenCalled();
   });
 
@@ -1789,7 +1789,7 @@ describe("cloud authentication gate", () => {
     mocks.api.listCampaigns.mockResolvedValueOnce(repeatedPage).mockResolvedValueOnce(repeatedPage);
 
     fireEvent.click(screen.getByRole("button", { name: "Export all stored leads (CSV)" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent(/campaign export returned a repeated continuation cursor/i);
+    expect((await screen.findByRole("alert")).textContent).toMatch(/campaign export returned a repeated continuation cursor/i);
     expect(createObjectURL).not.toHaveBeenCalled();
   });
 
