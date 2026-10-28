@@ -621,7 +621,7 @@ describe("cloud authentication gate", () => {
     mocks.api.listLeads.mockResolvedValue({
       leads: [
         { ...lead("lead-1", "Northside Painting", "Painters", "Manchester", "new"), website: "https://northside.example", sourceRecordId: "provider-record-42", notes: "Urgent callback next week", followUpDate: "2026-11-04" },
-        { ...lead("lead-2", "City Decorators", "Decorators", "Salford", "qualified"), campaignId: "campaign-2" },
+        { ...lead("lead-2", "City Decorators", "Decorators", "Salford", "qualified"), campaignId: "campaign-2", source: "linkedin_csv" },
       ],
     });
 
@@ -632,7 +632,7 @@ describe("cloud authentication gate", () => {
     expect(screen.getByText("Campaign: Decorator campaign")).toBeTruthy();
     expect(screen.getByText("Showing 2 of 2 loaded leads.")).toBeTruthy();
     expect(screen.getByText("0 active filters")).toBeTruthy();
-    expect(screen.getByLabelText("Search leads").getAttribute("placeholder")).toBe("Business, campaign, category, location, website, email, phone, source record ID, internal notes, or follow-up date");
+    expect(screen.getByLabelText("Search leads").getAttribute("placeholder")).toBe("Business, campaign, category, location, website, email, phone, source type, source record ID, internal notes, or follow-up date");
     expect(screen.getByText("Source record ID: provider-record-42")).toBeTruthy();
 
     fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: "northside.example" } });
@@ -654,6 +654,11 @@ describe("cloud authentication gate", () => {
     fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: "2026-11-04" } });
     expect(screen.getByText("Northside Painting")).toBeTruthy();
     expect(screen.queryByText("City Decorators")).toBeNull();
+    fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: "" } });
+
+    fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: "LinkedIn export" } });
+    expect(screen.getByText("City Decorators")).toBeTruthy();
+    expect(screen.queryByText("Northside Painting")).toBeNull();
     fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: "" } });
 
     fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: "salford" } });
