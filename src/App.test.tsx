@@ -327,4 +327,20 @@ describe("Growth Engine interactive workflows", () => {
     expect(screen.getByText("Sample BrightBrush Decorators")).toBeTruthy();
   });
 
+  it("offers a clear-filters action when the lead directory has no matches", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /Lead directory/i }));
+    const search = screen.getByPlaceholderText("Search business, category or area…");
+    fireEvent.change(search, { target: { value: "no-such-business-match" } });
+
+    expect(screen.getByText("No leads match these filters")).toBeTruthy();
+    expect(screen.getByText("0 active filters")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+
+    expect((search as HTMLInputElement).value).toBe("");
+    expect(screen.getByText("Fictional Northside Painting Co")).toBeTruthy();
+    expect(screen.getByText("Sample BrightBrush Decorators")).toBeTruthy();
+    expect(screen.getByText("0 active filters")).toBeTruthy();
+  });
+
 });
