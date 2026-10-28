@@ -161,6 +161,7 @@ export default function CloudWorkspace() {
   const draftPageTokensRef = useRef(new Set<string>());
   const memberRosterLoadIdRef = useRef(0);
   const memberActionLoadIdRef = useRef(0);
+  const securityAuditLoadIdRef = useRef(0);
   const currentOrganisationIdRef = useRef(organisationId);
   currentOrganisationIdRef.current = organisationId;
   useEffect(() => {
@@ -168,6 +169,11 @@ export default function CloudWorkspace() {
   }, [organisationId, organisations]);
 
   useEffect(() => {
+    // Invalidate audit requests when the active tenant changes. An old request
+    // must not keep the new tenant's audit controls stuck in a loading state.
+    securityAuditLoadIdRef.current += 1;
+    setLoadingSecurityAudit(false);
+    setSecurityAuditPage(null);
     // Invalidate in-flight roster requests when the active tenant changes. An older
     // request must not overwrite the new tenant roster or clear its loading state.
     memberRosterLoadIdRef.current += 1;
@@ -479,11 +485,12 @@ export default function CloudWorkspace() {
   async function loadSecurityAuditEvents(pageToken?: string) {
     if (!api || !organisationId || (selectedOrganisationRole !== "owner" && selectedOrganisationRole !== "admin") || loadingSecurityAudit) return;
     const requestedOrganisationId = organisationId;
+    const requestId = ++securityAuditLoadIdRef.current;
     setLoadingSecurityAudit(true);
     setError("");
     try {
       const result = await api.listOrganisationSecurityAuditEvents({ organisationId: requestedOrganisationId, ...(pageToken ? { pageToken } : {}) });
-      if (currentOrganisationIdRef.current === requestedOrganisationId) {
+      if (requestId === securityAuditLoadIdRef.current && currentOrganisationIdRef.current === requestedOrganisationId) {
         if (!pageToken) {
           setSecurityAuditPage(result);
         } else {
@@ -498,9 +505,9 @@ export default function CloudWorkspace() {
         }
       }
     } catch (reason) {
-      if (currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(reason));
+      if (requestId === securityAuditLoadIdRef.current && currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(reason));
     } finally {
-      setLoadingSecurityAudit(false);
+      if (requestId === securityAuditLoadIdRef.current) setLoadingSecurityAudit(false);
     }
   }
 
