@@ -245,7 +245,7 @@ describe("Growth Engine interactive workflows", () => {
 
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: /Lead directory/i }));
-    fireEvent.change(screen.getByPlaceholderText("Search business, category or area…"), {
+    fireEvent.change(screen.getByPlaceholderText("Search business, category, area, email, phone or website…"), {
       target: { value: "Fictional Northside Painting Co" },
     });
     expect(screen.getByText("Fictional Northside Painting Co")).toBeTruthy();
@@ -303,7 +303,7 @@ describe("Growth Engine interactive workflows", () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: /Lead directory/i }));
 
-    const search = screen.getByPlaceholderText("Search business, category or area…");
+    const search = screen.getByPlaceholderText("Search business, category, area, email, phone or website…");
     const status = screen.getByRole("combobox", { name: "Filter by lead status" });
     const contact = screen.getByRole("combobox", { name: "Filter by contact permission" });
     const campaign = screen.getByRole("combobox", { name: "Filter by campaign" });
@@ -330,7 +330,7 @@ describe("Growth Engine interactive workflows", () => {
   it("offers a clear-filters action when the lead directory has no matches", () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: /Lead directory/i }));
-    const search = screen.getByPlaceholderText("Search business, category or area…");
+    const search = screen.getByPlaceholderText("Search business, category, area, email, phone or website…");
     fireEvent.change(search, { target: { value: "no-such-business-match" } });
 
     expect(screen.getByText("No leads match these filters")).toBeTruthy();
