@@ -628,6 +628,8 @@ describe("cloud authentication gate", () => {
     render(<CloudWorkspace />);
     expect(await screen.findByText("Northside Painting")).toBeTruthy();
     expect(screen.getByText("City Decorators")).toBeTruthy();
+    expect(screen.getByText("Campaign: Painter campaign")).toBeTruthy();
+    expect(screen.getByText("Campaign: Decorator campaign")).toBeTruthy();
     expect(screen.getByText("Showing 2 of 2 loaded leads.")).toBeTruthy();
     expect(screen.getByText("0 active filters")).toBeTruthy();
     expect(screen.getByLabelText("Search leads").getAttribute("placeholder")).toBe("Business, campaign, category, location, website, email, phone, source record ID, or internal notes");
