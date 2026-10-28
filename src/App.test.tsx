@@ -413,4 +413,11 @@ describe("Growth Engine interactive workflows", () => {
     vi.restoreAllMocks();
   });
 
+
+  it("exposes an accessible name for lead search", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: /Lead directory/i }));
+    expect(screen.getByRole("textbox", { name: "Search leads" })).toBeTruthy();
+  });
+
 });
