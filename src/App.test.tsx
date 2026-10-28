@@ -187,6 +187,7 @@ describe("Growth Engine interactive workflows", () => {
     fireEvent.click(screen.getByRole("button", { name: "Next import page" }));
     expect(screen.getByText("Pagination Business 9")).toBeTruthy();
     fireEvent.click(screen.getByRole("checkbox", { name: "Include Pagination Business 9 in import" }));
+    expect((screen.getByRole("checkbox", { name: "Select all import candidates" }) as HTMLInputElement).indeterminate).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "Previous import page" }));
     expect(screen.getByText("Pagination Business 1")).toBeTruthy();
     expect(screen.queryByText("Pagination Business 9")).toBeNull();
@@ -194,6 +195,7 @@ describe("Growth Engine interactive workflows", () => {
     fireEvent.click(screen.getByRole("button", { name: "Next import page" }));
     expect((screen.getByRole("checkbox", { name: "Include Pagination Business 9 in import" }) as HTMLInputElement).checked).toBe(false);
     fireEvent.click(screen.getByRole("checkbox", { name: "Include Pagination Business 9 in import" }));
+    expect((screen.getByRole("checkbox", { name: "Select all import candidates" }) as HTMLInputElement).indeterminate).toBe(false);
     fireEvent.click(screen.getByRole("button", { name: "Previous import page" }));
 
     fireEvent.click(screen.getByRole("button", { name: /Confirm import \(10\)/i }));

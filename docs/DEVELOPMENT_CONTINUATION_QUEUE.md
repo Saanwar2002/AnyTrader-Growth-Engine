@@ -1,3 +1,10 @@
+## AutoPilot continuation — expose partial CSV selection state (2026-10-28)
+
+- The CSV import “select all candidates” checkbox now uses its native indeterminate state when only some candidates are selected across pages, making partial selection visible to mouse, keyboard, and assistive-technology users.
+- Extended the 10-row synthetic CSV pagination regression to assert partial selection is indeterminate and full selection clears that state. Demo-only UI change; no live data, outreach, deployment, migration, or billing activation.
+
+---
+
 ## AutoPilot continuation — announce CSV preview pagination accessibly (2026-10-28)
 
 - Exposed CSV import pagination as a named navigation landmark so keyboard and assistive-technology users can find the page controls.
