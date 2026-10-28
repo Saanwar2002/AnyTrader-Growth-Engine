@@ -1663,6 +1663,7 @@ describe("cloud authentication gate", () => {
   });
 
   it("exports all matching filtered leads across stored pages, not just currently loaded rows", async () => {
+    const targetFollowUpDate = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({
       organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
@@ -1690,14 +1691,14 @@ describe("cloud authentication gate", () => {
 
     render(<CloudWorkspace />);
     expect(await screen.findByText("Loaded Example")).toBeTruthy();
-    fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: "Provider" } });
+    fireEvent.change(screen.getByLabelText("Search leads"), { target: { value: targetFollowUpDate } });
     fireEvent.change(screen.getByLabelText("Filter by category"), { target: { value: "Decorators" } });
     fireEvent.change(screen.getByLabelText("Filter by follow-up"), { target: { value: "overdue" } });
     mocks.api.listLeads.mockResolvedValueOnce({
       leads: [
         {
           id: "target-lead", campaignId: "campaign-1", businessName: "Target Provider",
-          category: "Decorators", location: "Leeds", website: "", email: "", phone: "", source: "csv_import", followUpDate: new Date(Date.now() - 86_400_000).toISOString().slice(0, 10),
+          category: "Decorators", location: "Leeds", website: "", email: "", phone: "", source: "csv_import", followUpDate: targetFollowUpDate, followUpDate: new Date(Date.now() - 86_400_000).toISOString().slice(0, 10),
           status: "qualified", score: 80, scoreReasons: ["Business name provided (+20)"], notes: "",
           doNotContact: false, contactRestrictionVerified: true, contactReviewStatus: "cleared", contactReviewRevision: 1, createdAt: null,
         },
