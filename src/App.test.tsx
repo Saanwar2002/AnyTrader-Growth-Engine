@@ -566,11 +566,10 @@ describe("Growth Engine interactive workflows", () => {
     expect(screen.getByText("1 selected")).toBeTruthy();
 
     fireEvent.change(screen.getByRole("textbox", { name: "Search leads" }), { target: { value: "no-business-matches-this-search" } });
-    expect(screen.getByText("1 selected")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Apply status to selected leads" }));
 
     expect(screen.queryByText("1 selected")).toBeNull();
-    expect(screen.getByRole("status").textContent).toContain("No selected leads are visible under the current filters. Selection cleared.");
+    expect(screen.queryByRole("button", { name: "Apply status to selected leads" })).toBeNull();
+    expect(screen.getByRole("status").textContent).toContain("Selection cleared for leads hidden by the current filters.");
   });
 
 });
