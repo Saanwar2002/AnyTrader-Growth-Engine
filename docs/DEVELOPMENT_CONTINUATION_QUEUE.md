@@ -1,3 +1,11 @@
+## AutoPilot continuation — announce CSV preview pagination accessibly (2026-10-28)
+
+- Exposed CSV import pagination as a named navigation landmark so keyboard and assistive-technology users can find the page controls.
+- Marked the page/range summary as a polite atomic live region so page changes are announced without interrupting the user.
+- Extended the existing synthetic CSV pagination regression to assert the navigation landmark and announcement attributes. UI-only change; no live data, outreach, deployment, migration, or billing activation.
+
+---
+
 ## AutoPilot continuation — paginate large CSV import previews (2026-10-28)
 
 - CSV import review now displays all unique candidate rows across pages of eight instead of rendering only the first eight, while retaining the full selection set between page changes.
