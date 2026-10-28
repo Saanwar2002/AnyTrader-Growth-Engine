@@ -2193,6 +2193,13 @@ describe("cloud authentication gate", () => {
     expect((screen.getByLabelText("Filter by source") as HTMLSelectElement).value).toBe("all");
     expect(screen.getByText("Alpha Provider")).toBeTruthy();
     expect(screen.getByText("Zulu Provider")).toBeTruthy();
+
+    expect(screen.getByRole("option", { name: "Google Maps/Places research (user-declared)" })).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Filter by source"), { target: { value: "google_places_manual" } });
+    expect(screen.getByText(/No leads match these filters/i)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(screen.getByText("Alpha Provider")).toBeTruthy();
+    expect(screen.getByText("Zulu Provider")).toBeTruthy();
   });
 
   it("loads a paginated, read-only security audit log for organisation owners", async () => {
