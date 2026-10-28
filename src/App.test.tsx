@@ -419,7 +419,7 @@ describe("Growth Engine interactive workflows", () => {
     fireEvent.click(screen.getByRole("button", { name: /Lead directory/i }));
     const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
     const csv = new File(
-      ["businessName,category,location,website,email,phone\\nNorth Star Roofing,Roofers,Leeds,https://northstar-roofing.example,hello@northstar.example,+44 7700 900123\\n"],
+      ["businessName,category,location,website,email,phone\nNorth Star Roofing,Roofers,Leeds,https://northstar-roofing.example,hello@northstar.example,+44 7700 900123\n"],
       "search-contact-fields.csv",
       { type: "text/csv" },
     );
