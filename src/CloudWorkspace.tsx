@@ -225,6 +225,11 @@ export default function CloudWorkspace() {
     try {
       const result = await api.listMyOrganisations(nextOrganisationPageToken);
       if (requestId !== organisationListLoadIdRef.current) return;
+      if (result.hasMoreOrganisations === true && (!result.nextPageToken || result.nextPageToken === nextOrganisationPageToken)) {
+        setHasMoreOrganisations(false);
+        setNextOrganisationPageToken(null);
+        throw new Error("Organisation pagination returned a repeated or missing continuation cursor. Further loading has stopped.");
+      }
       setOrganisations((current) => {
         const known = new Set(current.map((org) => org.organisationId));
         return [...current, ...result.organisations.filter((org) => !known.has(org.organisationId))];
@@ -272,6 +277,11 @@ export default function CloudWorkspace() {
     try {
       const result = await api.listCampaigns({ organisationId: requestedOrganisationId, pageToken: nextCampaignPageToken });
       if (requestId !== workspaceLoadIdRef.current || requestedOrganisationId !== currentOrganisationIdRef.current) return;
+      if (result.hasMoreCampaigns === true && (!result.nextPageToken || result.nextPageToken === nextCampaignPageToken)) {
+        setHasMoreCampaigns(false);
+        setNextCampaignPageToken(null);
+        throw new Error("Campaign pagination returned a repeated or missing continuation cursor. Further loading has stopped.");
+      }
       setCampaigns((current) => {
         const known = new Set(current.map((campaign) => campaign.id));
         return [...current, ...result.campaigns.filter((campaign) => !known.has(campaign.id))];
@@ -293,6 +303,11 @@ export default function CloudWorkspace() {
     try {
       const result = await api.listLeads({ organisationId: requestedOrganisationId, pageToken: nextLeadPageToken });
       if (requestId !== workspaceLoadIdRef.current || requestedOrganisationId !== currentOrganisationIdRef.current) return;
+      if (result.hasMoreLeads === true && (!result.nextPageToken || result.nextPageToken === nextLeadPageToken)) {
+        setHasMoreLeads(false);
+        setNextLeadPageToken(null);
+        throw new Error("Lead pagination returned a repeated or missing continuation cursor. Further loading has stopped.");
+      }
       setLeads((current) => {
         const known = new Set(current.map((lead) => lead.id));
         return [...current, ...result.leads.filter((lead) => !known.has(lead.id))];
@@ -314,6 +329,11 @@ export default function CloudWorkspace() {
     try {
       const result = await api.listOutreachDrafts({ organisationId: requestedOrganisationId, pageToken: nextDraftPageToken });
       if (requestId !== workspaceLoadIdRef.current || requestedOrganisationId !== currentOrganisationIdRef.current) return;
+      if (result.hasMoreDrafts === true && (!result.nextPageToken || result.nextPageToken === nextDraftPageToken)) {
+        setHasMoreDrafts(false);
+        setNextDraftPageToken(null);
+        throw new Error("Draft pagination returned a repeated or missing continuation cursor. Further loading has stopped.");
+      }
       setDrafts((current) => {
         const known = new Set(current.map((draft) => draft.id));
         return [...current, ...result.drafts.filter((draft) => !known.has(draft.id))];
