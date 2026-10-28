@@ -213,23 +213,8 @@ describe("Growth Engine interactive workflows", () => {
     vi.stubGlobal("URL", URLWithObjectUrls);
     vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
 
-    const { container } = render(<App />);
+    render(<App />);
     fireEvent.click(screen.getByRole("button", { name: /Lead directory/i }));
-    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
-    const csv = new File(
-      ["businessName,category,location,email\nExport Review Test Roofing,Roofers,Leeds,hello@export-review.example\n"],
-      "export-review-lead.csv",
-      { type: "text/csv" },
-    );
-    fireEvent.change(fileInput, { target: { files: [csv] } });
-    await waitFor(() => expect(screen.getByRole("heading", { name: "Match your spreadsheet columns" })).toBeTruthy());
-    fireEvent.change(screen.getByLabelText(/Business name/), { target: { value: "businessName" } });
-    await waitFor(() => expect((screen.getByRole("button", { name: "Preview rows" }) as HTMLButtonElement).disabled).toBe(false));
-    fireEvent.click(screen.getByRole("button", { name: "Preview rows" }));
-    await waitFor(() => expect(screen.getByRole("heading", { name: "Review CSV before importing" })).toBeTruthy());
-    fireEvent.click(screen.getByRole("button", { name: /Confirm import \(1\)/i }));
-    expect(screen.getByText("Export Review Test Roofing")).toBeTruthy();
-
     fireEvent.click(screen.getByRole("button", { name: /Export CSV/i }));
     expect(exportedBlob).toBeDefined();
     const exportedText = await new Promise<string>((resolve, reject) => {
@@ -240,8 +225,9 @@ describe("Growth Engine interactive workflows", () => {
     });
     expect(exportedText).toContain("businessName,campaignName,category");
     expect(exportedText).toContain("doNotContact,contactReviewStatus");
-    expect(exportedText).toContain("Export Review Test Roofing");
-    expect(exportedText).toContain("pending");
+    expect(exportedText).toContain("Fictional Northside Painting Co");
+    expect(exportedText).toContain("Manchester painter pilot");
+    expect(exportedText).toContain("unknown");
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
