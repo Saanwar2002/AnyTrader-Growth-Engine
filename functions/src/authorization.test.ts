@@ -728,6 +728,25 @@ describe("server-side rate-limit evaluation", () => {
       });
     }
   });
+  it("fails closed when hostile rate-limit proxies throw during prototype or key inspection", () => {
+    const prototypeTrap = new Proxy({ windowStartedAtMs: 1000, count: 1 }, {
+      getPrototypeOf() { throw new Error("prototype trap"); },
+    });
+    const keyTrap = new Proxy({ windowStartedAtMs: 1000, count: 1 }, {
+      getPrototypeOf() { return Object.prototype; },
+      ownKeys() { throw new Error("ownKeys trap"); },
+    });
+
+    for (const state of [prototypeTrap, keyTrap]) {
+      expect(evaluateRateLimit(state, 2000, 3, 60000)).toEqual({
+        allowed: false,
+        invalidState: true,
+        nextState: null,
+        retryAfterMs: 0,
+      });
+    }
+  });
+
   it("does not reset early when the local clock moves backwards", () => {
     expect(evaluateRateLimit({ windowStartedAtMs: 10000, count: 2 }, 9000, 2, 60000)).toEqual({ allowed: false, invalidState: false, nextState: null, retryAfterMs: 61000 });
   });
