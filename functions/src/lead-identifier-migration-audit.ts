@@ -33,6 +33,48 @@ export interface LeadIdentifierAuditReport {
   businessLocationCollisions: IdentifierCollision[];
 }
 
+const RECORD_KEYS = new Set([
+  "id", "email", "website", "businessName", "location",
+  "dedupeEmailKey", "dedupeWebsiteKey", "dedupeBusinessLocationKey",
+]);
+
+/** Snapshot untrusted array and record values through own data descriptors only. */
+function snapshotAuditRecords(value: unknown): LegacyLeadRecord[] | null {
+  try {
+    if (!Array.isArray(value) || Object.getPrototypeOf(value) !== Array.prototype) return null;
+    const keys = Reflect.ownKeys(value);
+    const lengthDescriptor = Object.getOwnPropertyDescriptor(value, "length");
+    if (!lengthDescriptor || !("value" in lengthDescriptor)
+      || !Number.isSafeInteger(lengthDescriptor.value) || lengthDescriptor.value < 0) return null;
+    const length = lengthDescriptor.value as number;
+    if (keys.length !== length + 1 || !keys.includes("length")) return null;
+
+    const records: LegacyLeadRecord[] = [];
+    for (let index = 0; index < length; index += 1) {
+      if (!keys.includes(String(index))) return null;
+      const itemDescriptor = Object.getOwnPropertyDescriptor(value, String(index));
+      if (!itemDescriptor || !itemDescriptor.enumerable || !("value" in itemDescriptor)) return null;
+      const item = itemDescriptor.value;
+      if (item === null || typeof item !== "object" || Array.isArray(item)) return null;
+      const prototype = Object.getPrototypeOf(item);
+      if (prototype !== Object.prototype && prototype !== null) return null;
+      const itemKeys = Reflect.ownKeys(item);
+      const snapshot: Record<string, unknown> = Object.create(null);
+      for (const key of itemKeys) {
+        if (typeof key !== "string" || !RECORD_KEYS.has(key)) return null;
+        const descriptor = Object.getOwnPropertyDescriptor(item, key);
+        if (!descriptor || !descriptor.enumerable || !("value" in descriptor)) return null;
+        snapshot[key] = descriptor.value;
+      }
+      if (typeof snapshot.id !== "string" || !snapshot.id.trim()) return null;
+      records.push(snapshot as unknown as LegacyLeadRecord);
+    }
+    return records;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Build a read-only audit report for a bounded page set of lead records.
  *
@@ -42,30 +84,23 @@ export interface LeadIdentifierAuditReport {
  * collection with an explicit limit before invoking it.
  */
 export function auditLeadIdentifierRecords(records: readonly LegacyLeadRecord[]): LeadIdentifierAuditReport {
-  // Keep the pure analyzer defensive even when called outside the bounded
-  // pagination coordinator. Firestore adapters and test fixtures are runtime
-  // boundaries, so malformed records must fail closed rather than produce a
-  // misleading report or crash partway through analysis.
-  if (!Array.isArray(records)) {
-    throw new Error("Lead identifier audit requires an array of records.");
+  // Snapshot runtime inputs before any field reads. This function is also used
+  // directly in tests and tools, outside the bounded pagination coordinator.
+  const safeRecords = snapshotAuditRecords(records);
+  if (!safeRecords) {
+    throw new Error("Lead identifier audit requires a dense array of plain data records with non-empty IDs.");
   }
+
   const seenIds = new Set<string>();
-  for (const record of records as readonly unknown[]) {
-    if (!record || typeof record !== "object" || Array.isArray(record)) {
-      throw new Error("Lead identifier audit received a malformed record.");
-    }
-    const id = (record as { id?: unknown }).id;
-    if (typeof id !== "string" || !id.trim()) {
-      throw new Error("Lead identifier audit record must have a non-empty string ID.");
-    }
-    if (seenIds.has(id)) {
+  for (const record of safeRecords) {
+    if (seenIds.has(record.id)) {
       throw new Error("Lead identifier audit received a duplicate record ID.");
     }
-    seenIds.add(id);
+    seenIds.add(record.id);
   }
 
   const report: LeadIdentifierAuditReport = {
-    scannedRecords: records.length,
+    scannedRecords: safeRecords.length,
     missingEmailKeys: [],
     staleEmailKeys: [],
     missingWebsiteKeys: [],
@@ -87,7 +122,7 @@ export function auditLeadIdentifierRecords(records: readonly LegacyLeadRecord[])
     else groups.set(key, [id]);
   };
 
-  for (const record of records) {
+  for (const record of safeRecords) {
     const id = record.id;
     const email = typeof record.email === "string" ? record.email.trim() : "";
     const website = typeof record.website === "string" ? record.website.trim() : "";
