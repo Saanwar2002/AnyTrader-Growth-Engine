@@ -1,3 +1,11 @@
+> **Continuation addendum — 29 October 2026, 15:58 UTC — CI evidence lookup limitation**
+>
+> - The available `fetch_commit_workflow_runs` connector returns only pull-request-triggered workflow runs; therefore an empty result for a merge SHA does **not** prove that a push-triggered `main` workflow did not run. The combined-status lookup also returned no statuses for the checked merge SHA. Treat post-merge main CI as **unverified by these lookups**, not as evidence of absent, failed, or successful CI.
+> - PR #386 (head `7bb5b1242a839ea45886d7555aff95c3e3d70452`) passed both required jobs in CI run [40873569621](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40873569621) and was squash-merged as `536a123d4297884256adb97e3f5e142053cc5baf`. This confirms PR-head CI only; it does not certify post-merge main CI.
+> - To close the evidence gap, inspect the repository Actions UI/API for the `Growth Engine CI` workflow on the exact `main` SHA, or run the workflow manually against the reviewed main checkpoint if repository permissions allow. Do not claim a post-merge pass until the exact SHA and all required jobs are verified.
+>
+> ---
+>
 > **Continuation addendum — 29 October 2026, 12:22 UTC**
 >
 > - **Latest main merge checkpoint:** `caa354bf4bfaae22f422086186b57a2363e687c5` (PR #385 merged; documentation-only readiness evidence refresh).
