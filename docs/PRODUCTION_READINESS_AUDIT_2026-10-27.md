@@ -1,3 +1,14 @@
+> **Continuation addendum — 29 October 2026, 12:16 UTC**
+>
+> - **Current main checkpoint:** `9628296f14637a257e48b126c081e1eb63f3f7ae` (PRs #382–#384 merged).
+> - **Latest exact-head CI evidence:** PR #382 run [40869504983](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40869504983), PR #383 run [40870768530](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40870768530), and PR #384 run [40871389143](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40871389143) each completed successfully for their exact PR head SHAs. Both Functions and frontend jobs passed, including unit tests, builds, dependency checks, and emulator integration smoke tests.
+> - **Post-merge main CI:** no workflow run was returned for merge commit `9628296f14637a257e48b126c081e1eb63f3f7ae` at the time of this update. Do not describe this as a successful post-merge main run; rerun/verify the full suite on the current main or release candidate.
+> - **Repository hardening:** PR #382 added security-audit cursor inspection-trap regression coverage. PR #383 now snapshots bounded lead-audit adapter pages/records via own data descriptors and rejects accessors or hostile inspection traps. PR #384 applies the same fail-closed snapshot boundary to the pure lead-identifier audit analyzer. These changes are repository-only and do not enable migrations.
+> - **Release decision unchanged: NOT PRODUCTION READY.** Dedicated Growth Engine Firebase project setup and live App Check token flow remain unverified. Privacy/retention approval, monitoring and budget alerts, backup/recovery evidence, approved source-provider configuration, legacy-data reconciliation, release ownership, and rollback rehearsal remain blockers.
+> - No production deployment, live data migration, billing activation, live provider connection, or outreach was performed. Continue using synthetic data and local/emulator environments only. Green exact-head PR CI is necessary but not production approval.
+>
+> ---
+>
 > **Continuation addendum — 28 October 2026, 18:05 UTC**
 >
 > - **Current main checkpoint:** `02e394e702ab00e0c4ccd1e417f4b13552bfa16b`.
