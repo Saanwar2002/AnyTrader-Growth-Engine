@@ -3,14 +3,45 @@ import { auditLeadIdentifierRecords } from "./lead-identifier-migration-audit";
 
 describe("read-only lead identifier migration audit", () => {
   it("rejects malformed input records and duplicate IDs before analyzing", () => {
-    expect(() => auditLeadIdentifierRecords(null as unknown as never)).toThrow("requires an array");
-    expect(() => auditLeadIdentifierRecords([null] as unknown as never)).toThrow("malformed record");
-    expect(() => auditLeadIdentifierRecords([{}] as unknown as never)).toThrow("non-empty string ID");
-    expect(() => auditLeadIdentifierRecords([{ id: " " }] as unknown as never)).toThrow("non-empty string ID");
+    expect(() => auditLeadIdentifierRecords(null as unknown as never)).toThrow("dense array of plain data records");
+    expect(() => auditLeadIdentifierRecords([null] as unknown as never)).toThrow("dense array of plain data records");
+    expect(() => auditLeadIdentifierRecords([{}] as unknown as never)).toThrow("dense array of plain data records");
+    expect(() => auditLeadIdentifierRecords([{ id: " " }] as unknown as never)).toThrow("dense array of plain data records");
     expect(() => auditLeadIdentifierRecords([
       { id: "same", email: "first@example.test" },
       { id: "same", email: "second@example.test" },
     ])).toThrow("duplicate record ID");
+  });
+
+  it("rejects accessors without invoking getters in records or the input array", () => {
+    let recordGetterInvoked = false;
+    const record = Object.defineProperty({ id: "lead-a" }, "email", {
+      enumerable: true,
+      get: () => { recordGetterInvoked = true; return "secret@example.test"; },
+    });
+    expect(() => auditLeadIdentifierRecords([record])).toThrow("dense array of plain data records");
+    expect(recordGetterInvoked).toBe(false);
+
+    let arrayGetterInvoked = false;
+    const array = [{ id: "lead-a" }];
+    Object.defineProperty(array, "0", {
+      enumerable: true,
+      configurable: true,
+      get: () => { arrayGetterInvoked = true; return { id: "lead-a" }; },
+    });
+    expect(() => auditLeadIdentifierRecords(array)).toThrow("dense array of plain data records");
+    expect(arrayGetterInvoked).toBe(false);
+  });
+
+  it("fails closed on hostile proxy inspection traps", () => {
+    const hostileRecord = new Proxy({ id: "lead-a" }, {
+      ownKeys() { throw new Error("key inspection failed"); },
+    });
+    const hostileArray = new Proxy([{ id: "lead-a" }], {
+      getPrototypeOf() { throw new Error("prototype inspection failed"); },
+    });
+    expect(() => auditLeadIdentifierRecords([hostileRecord])).toThrow("dense array of plain data records");
+    expect(() => auditLeadIdentifierRecords(hostileArray)).toThrow("dense array of plain data records");
   });
 
   it("reports missing and stale keys without including raw contact data", () => {
@@ -60,7 +91,6 @@ describe("read-only lead identifier migration audit", () => {
     expect(report.emailCollisions).toEqual([]);
     expect(report.websiteCollisions).toEqual([]);
   });
-
 
   it("audits missing, stale, and colliding business/location keys without exposing raw values", () => {
     const report = auditLeadIdentifierRecords([
