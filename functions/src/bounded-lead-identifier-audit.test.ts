@@ -96,13 +96,13 @@ describe("bounded read-only lead identifier audit coordinator", () => {
     await expect(runBoundedLeadIdentifierAudit({
       tenantId: "tenant-1", pageSize: 10, maxRecords: 5, dryRun: true,
       fetchPage: fetchNullRecord,
-    })).rejects.toThrow("malformed record");
+    })).rejects.toThrow("invalid page or records collection");
 
     const fetchMissingRecordId = vi.fn().mockResolvedValue({ records: [{ email: "orphan@example.test" }] });
     await expect(runBoundedLeadIdentifierAudit({
       tenantId: "tenant-1", pageSize: 10, maxRecords: 5, dryRun: true,
       fetchPage: fetchMissingRecordId,
-    })).rejects.toThrow("malformed record");
+    })).rejects.toThrow("invalid page or records collection");
   });
 
   it("rejects duplicate record IDs within a single page", async () => {
@@ -130,6 +130,49 @@ describe("bounded read-only lead identifier audit coordinator", () => {
     });
     await expect(runBoundedLeadIdentifierAudit({
       tenantId: "tenant-1", pageSize: 1, maxRecords: 5, dryRun: true, fetchPage,
-    })).rejects.toThrow("exceeded the requested page limit");
+    })).rejects.toThrow("invalid page or records collection");
+  });
+
+  it("rejects accessor-backed page fields without invoking getters", async () => {
+    let invoked = false;
+    const page = Object.defineProperty({ records: [{ id: "a" }] }, "nextCursor", {
+      enumerable: true,
+      get: () => { invoked = true; return "next"; },
+    });
+    await expect(runBoundedLeadIdentifierAudit({
+      tenantId: "tenant-1", pageSize: 10, maxRecords: 5, dryRun: true,
+      fetchPage: vi.fn().mockResolvedValue(page),
+    })).rejects.toThrow("invalid page or records collection");
+    expect(invoked).toBe(false);
+  });
+
+  it("rejects accessor-backed lead fields without invoking getters", async () => {
+    let invoked = false;
+    const record = Object.defineProperty({}, "id", {
+      enumerable: true,
+      get: () => { invoked = true; return "a"; },
+    });
+    await expect(runBoundedLeadIdentifierAudit({
+      tenantId: "tenant-1", pageSize: 10, maxRecords: 5, dryRun: true,
+      fetchPage: vi.fn().mockResolvedValue({ records: [record] }),
+    })).rejects.toThrow("invalid page or records collection");
+    expect(invoked).toBe(false);
+  });
+
+  it("fails closed when page or record proxy inspection traps throw", async () => {
+    const hostilePage = new Proxy({ records: [{ id: "a" }] }, {
+      getPrototypeOf() { throw new Error("prototype inspection failed"); },
+    });
+    const hostileRecord = new Proxy({ id: "a" }, {
+      ownKeys() { throw new Error("key inspection failed"); },
+    });
+    await expect(runBoundedLeadIdentifierAudit({
+      tenantId: "tenant-1", pageSize: 10, maxRecords: 5, dryRun: true,
+      fetchPage: vi.fn().mockResolvedValue(hostilePage),
+    })).rejects.toThrow("invalid page or records collection");
+    await expect(runBoundedLeadIdentifierAudit({
+      tenantId: "tenant-1", pageSize: 10, maxRecords: 5, dryRun: true,
+      fetchPage: vi.fn().mockResolvedValue({ records: [hostileRecord] }),
+    })).rejects.toThrow("invalid page or records collection");
   });
 });
