@@ -32,6 +32,18 @@ describe("safe persisted timestamp serialization", () => {
     expect(safeTimestampToIso({ toDate: () => date })).toBe("2026-10-20T12:00:00.000Z");
   });
 
+  it("fails closed when hostile timestamp proxies throw during descriptor or prototype inspection", () => {
+    const descriptorTrap = new Proxy({}, {
+      getOwnPropertyDescriptor() { throw new Error("descriptor trap"); },
+    });
+    const prototypeTrap = new Proxy({}, {
+      getPrototypeOf() { throw new Error("prototype trap"); },
+    });
+
+    expect(safeTimestampToIso(descriptorTrap)).toBeNull();
+    expect(safeTimestampToIso(prototypeTrap)).toBeNull();
+  });
+
   it("serializes valid timestamps and fails closed for malformed legacy values", () => {
     expect(safeTimestampToIso({ toDate: () => new Date("2026-10-20T12:00:00.000Z") })).toBe("2026-10-20T12:00:00.000Z");
     expect(safeTimestampToIso(undefined)).toBeNull();
