@@ -843,6 +843,21 @@ describe("timestamp conversion accessor safety", () => {
   });
 });
 
+describe("hostile Firestore timestamp proxy inspection", () => {
+  it("fails closed when proxy descriptor or prototype inspection throws", () => {
+    const descriptorTrap = new Proxy({}, {
+      getOwnPropertyDescriptor() { throw new Error("descriptor trap"); },
+    });
+    const prototypeTrap = new Proxy({}, {
+      getPrototypeOf() { throw new Error("prototype trap"); },
+    });
+
+    expect(isValidFirestoreTimestamp(descriptorTrap)).toBe(false);
+    expect(isValidFirestoreTimestamp(prototypeTrap)).toBe(false);
+  });
+});
+
+
 describe("Firestore timestamp cursor validation", () => {
   it("accepts finite safe-range millisecond timestamps including sub-millisecond precision", () => {
     expect(isValidFirestoreTimestamp({ toMillis: () => 1_700_000_000_000 })).toBe(true);
