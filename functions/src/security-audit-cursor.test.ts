@@ -34,6 +34,19 @@ describe("security audit cursor payload", () => {
     expect(invoked).toBe(false);
   });
 
+  it("fails closed when prototype and descriptor inspection traps throw", () => {
+    const prototypeTrap = new Proxy(validCursor(), {
+      getPrototypeOf() { throw new Error("prototype inspection failed"); },
+    });
+    const descriptorTrap = new Proxy(validCursor(), {
+      getPrototypeOf() { return Object.prototype; },
+      getOwnPropertyDescriptor() { throw new Error("descriptor inspection failed"); },
+    });
+
+    expect(getValidSecurityAuditCursorId(prototypeTrap, "org-1")).toBeNull();
+    expect(getValidSecurityAuditCursorId(descriptorTrap, "org-1")).toBeNull();
+  });
+
   it("fails closed when object inspection traps throw", () => {
     const hostile = new Proxy(validCursor(), { ownKeys() { throw new Error("trap"); } });
     expect(getValidSecurityAuditCursorId(hostile, "org-1")).toBeNull();
