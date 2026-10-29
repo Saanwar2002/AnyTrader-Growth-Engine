@@ -57,6 +57,21 @@ describe("exact event-specific audit metadata shape", () => {
     expect(hasExactAuditMetadataKeys(hostile, allowed)).toBe(false);
   });
 
+  it("fails closed when prototype or property-descriptor inspection throws", () => {
+    const prototypeTrap = new Proxy({ leadStatus: "qualified", followUpDateSet: true }, {
+      getPrototypeOf: () => { throw new Error("prototype inspection failed"); },
+    });
+    const descriptorTrap = new Proxy({ leadStatus: "qualified", followUpDateSet: true }, {
+      getPrototypeOf: () => Object.prototype,
+      getOwnPropertyDescriptor: () => { throw new Error("descriptor inspection failed"); },
+    });
+
+    expect(hasExactAuditMetadataKeys(prototypeTrap, allowed)).toBe(false);
+    expect(snapshotExactAuditMetadata(prototypeTrap, allowed)).toBeNull();
+    expect(hasExactAuditMetadataKeys(descriptorTrap, allowed)).toBe(false);
+    expect(snapshotExactAuditMetadata(descriptorTrap, allowed)).toBeNull();
+  });
+
   it("snapshots proxy data descriptors without invoking its get trap", () => {
     let getTrapInvoked = false;
     const target = { leadStatus: "qualified", followUpDateSet: true };
