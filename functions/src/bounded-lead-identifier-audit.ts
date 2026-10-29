@@ -33,9 +33,64 @@ export interface BoundedLeadAuditResult {
   backfillDecision: "blocked-incomplete-scan" | "blocked-pending-operator-review";
 }
 
+const PAGE_KEYS = new Set(["records", "nextCursor"]);
+const RECORD_KEYS = new Set([
+  "id", "email", "website", "businessName", "location",
+  "dedupeEmailKey", "dedupeWebsiteKey", "dedupeBusinessLocationKey",
+]);
+
+/** Snapshot a plain data record without executing getters or trusting proxy traps. */
+function snapshotPlainRecord(value: unknown, allowedKeys: Set<string>): Record<string, unknown> | null {
+  try {
+    if (value === null || typeof value !== "object" || Array.isArray(value)) return null;
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) return null;
+    const keys = Reflect.ownKeys(value);
+    const snapshot: Record<string, unknown> = Object.create(null);
+    for (const key of keys) {
+      if (typeof key !== "string" || !allowedKeys.has(key)) return null;
+      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      if (!descriptor || !descriptor.enumerable || !("value" in descriptor)) return null;
+      snapshot[key] = descriptor.value;
+    }
+    return snapshot;
+  } catch {
+    return null;
+  }
+}
+
+/** Snapshot a dense, ordinary array using descriptors rather than iterators/index getters. */
+function snapshotRecordArray(value: unknown, maxLength: number): LegacyLeadRecord[] | null {
+  try {
+    if (!Array.isArray(value) || Object.getPrototypeOf(value) !== Array.prototype) return null;
+    const keys = Reflect.ownKeys(value);
+    const lengthDescriptor = Object.getOwnPropertyDescriptor(value, "length");
+    if (!lengthDescriptor || !("value" in lengthDescriptor)
+      || !Number.isSafeInteger(lengthDescriptor.value)
+      || lengthDescriptor.value < 0 || lengthDescriptor.value > maxLength) return null;
+    const length = lengthDescriptor.value as number;
+    if (keys.length !== length + 1 || !keys.includes("length")) return null;
+
+    const records: LegacyLeadRecord[] = [];
+    for (let index = 0; index < length; index += 1) {
+      if (!keys.includes(String(index))) return null;
+      const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+      if (!descriptor || !descriptor.enumerable || !("value" in descriptor)) return null;
+      const record = snapshotPlainRecord(descriptor.value, RECORD_KEYS);
+      if (!record || typeof record.id !== "string" || !record.id.trim()) return null;
+      records.push(record as unknown as LegacyLeadRecord);
+    }
+    return records;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Reads a tenant-scoped, explicitly bounded set of pages and audits it in
- * memory. This coordinator has no write callback and cannot backfill records.
+ * memory. Adapter data is snapshotted as plain own data properties so getters
+ * and hostile proxy inspection traps cannot execute during validation.
+ * This coordinator has no write callback and cannot backfill records.
  */
 export async function runBoundedLeadIdentifierAudit(
   options: BoundedLeadAuditOptions,
@@ -60,41 +115,31 @@ export async function runBoundedLeadIdentifierAudit(
 
   while (records.length < options.maxRecords) {
     const remaining = options.maxRecords - records.length;
-    const page = await options.fetchPage({
+    const rawPage: unknown = await options.fetchPage({
       tenantId: options.tenantId,
       pageSize: Math.min(options.pageSize, remaining),
       ...(cursor ? { cursor } : {}),
     });
     pagesRead += 1;
 
-    if (!page || typeof page !== "object" || !Array.isArray(page.records)) {
-      throw new Error("Lead audit page adapter returned an invalid page or records collection.");
-    }
+    const page = snapshotPlainRecord(rawPage, PAGE_KEYS);
+    if (!page) throw new Error("Lead audit page adapter returned an invalid page or records collection.");
+    const pageRecords = snapshotRecordArray(page.records, Math.min(options.pageSize, remaining));
+    if (!pageRecords) throw new Error("Lead audit page adapter returned an invalid page or records collection.");
     if (page.nextCursor !== undefined && page.nextCursor !== null && typeof page.nextCursor !== "string") {
       throw new Error("Lead audit page adapter returned an invalid continuation cursor.");
     }
-    if (page.records.length > Math.min(options.pageSize, remaining)) {
-      throw new Error("Lead audit page exceeded the requested page limit.");
-    }
-    if (page.records.some((record) => (
-      !record
-      || typeof record !== "object"
-      || Array.isArray(record)
-      || typeof record.id !== "string"
-      || !record.id.trim()
-    ))) {
-      throw new Error("Lead audit page adapter returned a malformed record.");
-    }
-    for (const record of page.records) {
+
+    for (const record of pageRecords) {
       if (seenRecordIds.has(record.id)) {
         throw new Error("Lead audit pagination returned a duplicate record ID.");
       }
       seenRecordIds.add(record.id);
     }
-    records.push(...page.records);
+    records.push(...pageRecords);
 
     const nextCursor = page.nextCursor || undefined;
-    if (page.records.length === 0 && nextCursor) {
+    if (pageRecords.length === 0 && nextCursor) {
       throw new Error("Lead audit pagination returned an empty page with a continuation cursor.");
     }
     hasMore = Boolean(nextCursor);
