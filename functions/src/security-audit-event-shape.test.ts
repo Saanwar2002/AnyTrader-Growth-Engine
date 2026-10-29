@@ -23,6 +23,15 @@ describe("persisted security audit event shape", () => {
     expect(snapshot?.actorUid).toBe("user-1");
   });
 
+  it("accepts an exact event record with a null prototype", () => {
+    const event = Object.assign(Object.create(null) as Record<string, unknown>, validEvent());
+    const snapshot = snapshotPersistedSecurityAuditEvent(event);
+
+    expect(snapshot).not.toBeNull();
+    expect(snapshot?.actorUid).toBe("user-1");
+    expect(Object.getPrototypeOf(snapshot)).toBeNull();
+  });
+
   it.each([
     ["unknown fields", { ...validEvent(), unexpected: true }],
     ["symbol fields", Object.assign(validEvent(), { [Symbol("extra")]: true })],
@@ -62,5 +71,4 @@ describe("persisted security audit event shape", () => {
     const hostile = new Proxy(validEvent(), handler);
     expect(snapshotPersistedSecurityAuditEvent(hostile)).toBeNull();
   });
-
 });
