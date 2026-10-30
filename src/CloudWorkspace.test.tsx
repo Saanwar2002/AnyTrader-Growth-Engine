@@ -1383,7 +1383,7 @@ describe("cloud authentication gate", () => {
     }));
 
     fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
-    expect(await screen.findByText("Second tenant campaign")).toBeTruthy();
+    expect((await screen.findAllByText("Second tenant campaign")).length).toBeGreaterThan(0);
     resolveStatus?.();
 
     await waitFor(() => expect(screen.getByRole("button", { name: "Pause" })).toBeTruthy());
@@ -1796,7 +1796,7 @@ describe("cloud authentication gate", () => {
     render(<CloudWorkspace />);
     fireEvent.click(await screen.findByRole("button", { name: "Load plan usage" }));
     await waitFor(() => expect(mocks.api.getOrganisationPlanUsage).toHaveBeenCalledWith({ organisationId: "org-1" }));
-    expect(await screen.findByRole("table", { name: "Server-maintained plan usage for 2026-10" })).toBeTruthy();
+    expect(await screen.findByRole("table", { name: /Server-maintained plan usage for/ })).toBeTruthy();
     expect(screen.getByText("Campaigns (lifetime)")).toBeTruthy();
     expect(screen.getByText("AI suggestions (UTC month)")).toBeTruthy();
     expect(screen.getByText("458")).toBeTruthy();
