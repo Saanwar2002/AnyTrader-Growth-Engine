@@ -200,6 +200,7 @@ export default function CloudWorkspace() {
     tenantAnalyticsRequestGenerationRef.current += 1;
     setLoadingFullCampaignAnalytics(false);
     setExportingFullCampaignAnalytics(false);
+    setExportingAllLeads(false);
     setLoadingCampaignAnalyticsKey("");
     planUsageReconciliationLoadIdRef.current += 1;
     planUsageLoadIdRef.current += 1;
@@ -1543,9 +1544,13 @@ DRAFT ONLY — NOT SENT.`,
         ? `Exported ${exportLeads.length} lead(s) matching current filters from ${allLeads.length} stored lead(s) across ${allCampaigns.length} campaign(s).`
         : `Exported all ${allLeads.length} stored lead(s) across ${allCampaigns.length} campaign(s). Current filters were not applied.`);
     } catch (reason) {
-      setError(readableError(reason));
+      if (requestId === workspaceLoadIdRef.current && currentOrganisationIdRef.current === requestedOrganisationId) {
+        setError(readableError(reason));
+      }
     } finally {
-      setExportingAllLeads(false);
+      if (requestId === workspaceLoadIdRef.current && currentOrganisationIdRef.current === requestedOrganisationId) {
+        setExportingAllLeads(false);
+      }
     }
   }
 
