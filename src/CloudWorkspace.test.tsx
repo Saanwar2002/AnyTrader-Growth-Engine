@@ -2188,8 +2188,18 @@ describe("cloud authentication gate", () => {
       organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
       hasMoreOrganisations: false,
     });
+    mocks.api.getOrganisationPlanUsage.mockResolvedValueOnce({
+      organisationId: "org-1",
+      status: "authoritative",
+      plan: { id: "pilot", displayName: "Pilot", limits: { campaigns: 10, leads: 500, members: 5, monthlyAiSuggestions: 50 } },
+      usage: { campaigns: 2, leads: 42, members: 3, monthlyAiSuggestions: 7 },
+      remaining: { campaigns: 8, leads: 458, members: 2, monthlyAiSuggestions: 43 },
+      aiUsagePeriod: "2026-10",
+      message: "Usage is server-maintained.",
+    });
     render(<CloudWorkspace />);
     fireEvent.click(await screen.findByRole("button", { name: "Load plan usage" }));
+    await waitFor(() => expect(mocks.api.getOrganisationPlanUsage).toHaveBeenCalledWith({ organisationId: "org-1" }));
     await screen.findByRole("table", { name: "Server-maintained plan usage for 2026-10" });
     fireEvent.click(screen.getByRole("button", { name: "Inspect reconciliation" }));
     await waitFor(() => expect(mocks.api.getOrganisationPlanUsageReconciliation).toHaveBeenCalledWith({ organisationId: "org-1" }));
