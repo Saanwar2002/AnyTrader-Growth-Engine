@@ -3076,6 +3076,45 @@ describe("cloud authentication gate", () => {
     expect(screen.queryByText("stale organisation analytics failure")).toBeNull();
   });
 
+  it("ignores an older per-campaign funnel result after switching away and back to the same organisation", async () => {
+    mocks.currentUser = { email: "owner@example.test", uid: "owner-uid" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [
+        { organisationId: "org-1", name: "Pilot Workspace", role: "owner" },
+        { organisationId: "org-2", name: "Second Workspace", role: "owner" },
+      ],
+      hasMoreOrganisations: false,
+    });
+    mocks.api.listCampaigns.mockResolvedValue({
+      campaigns: [{ id: "campaign-1", name: "Painter pilot", brand: "AnyTrader", category: "Painters", location: "Edinburgh", goal: "Recruit providers", status: "active", createdAt: null }],
+      hasMoreCampaigns: false,
+      nextPageToken: null,
+    });
+    const pending: Array<{ resolve: (value: any) => void }> = [];
+    mocks.api.getCampaignFunnelSummary.mockImplementation(() => new Promise((resolve) => pending.push({ resolve })));
+    const summary = (totalLeadCount: number) => ({
+      organisationId: "org-1", campaignId: "campaign-1", totalLeadCount,
+      qualifiedLeadCount: 0, contactedLeadCount: 0, onboardedLeadCount: 0,
+      qualifiedRatePercent: 0, onboardedRatePercent: 0, scope: "all_stored_campaign_leads",
+    });
+
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load full counts" }));
+    await waitFor(() => expect(pending).toHaveLength(1));
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
+    await waitFor(() => expect((screen.getByLabelText("Current organisation") as HTMLSelectElement).value).toBe("org-2"));
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-1" } });
+    await waitFor(() => expect((screen.getByLabelText("Current organisation") as HTMLSelectElement).value).toBe("org-1"));
+    fireEvent.click(await screen.findByRole("button", { name: "Load full counts" }));
+    await waitFor(() => expect(pending).toHaveLength(2));
+
+    pending[0].resolve(summary(111));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Loading…" })).toBeTruthy());
+    expect(screen.queryByText(/stale/i)).toBeNull();
+    pending[1].resolve(summary(222));
+    await waitFor(() => expect(screen.getByText(/222/)).toBeTruthy());
+  });
+
   it("loads a bounded all-record campaign funnel chart independent of loaded lead pages", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({
