@@ -715,8 +715,14 @@ export default function CloudWorkspace() {
 
   async function changeCampaignStatus(campaign: CampaignSummary, status: "active" | "paused" | "completed") {
     if (!api || !organisationId || campaign.status === status) return;
+    const requestedOrganisationId = organisationId;
+    const requestGeneration = tenantActionRequestGenerationRef.current;
     await runAction(async () => {
-      await api.updateCampaignStatus({ organisationId, campaignId: campaign.id, status });
+      await api.updateCampaignStatus({ organisationId: requestedOrganisationId, campaignId: campaign.id, status });
+      // The action wrapper suppresses stale notices, but callback state updates
+      // must independently reject completions from a previous tenant.
+      if (requestGeneration !== tenantActionRequestGenerationRef.current
+        || currentOrganisationIdRef.current !== requestedOrganisationId) return;
       setCampaigns((current) => current.map((item) => item.id === campaign.id ? { ...item, status } : item));
     }, status === "paused" ? "Campaign paused." : status === "completed" ? "Campaign marked complete." : "Campaign activated.");
   }
@@ -724,14 +730,19 @@ export default function CloudWorkspace() {
   async function saveCampaignDetails(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!api || !organisationId || !editingCampaignId) return;
+    const requestedOrganisationId = organisationId;
+    const requestGeneration = tenantActionRequestGenerationRef.current;
     const payload = {
-      organisationId, campaignId: editingCampaignId,
+      organisationId: requestedOrganisationId, campaignId: editingCampaignId,
       name: campaignEditFields.name.trim(), brand: campaignEditFields.brand.trim(),
       category: campaignEditFields.category.trim(), location: campaignEditFields.location.trim(),
       goal: campaignEditFields.goal.trim(),
     };
     await runAction(async () => {
       const result = await api.updateCampaignDetails(payload);
+      // Do not apply a previous tenant's response to a campaign with a reused ID.
+      if (requestGeneration !== tenantActionRequestGenerationRef.current
+        || currentOrganisationIdRef.current !== requestedOrganisationId) return;
       setCampaigns((current) => current.map((campaign) => campaign.id === result.campaignId
         ? { ...campaign, name: result.name, brand: result.brand, category: result.category, location: result.location, goal: result.goal }
         : campaign));
