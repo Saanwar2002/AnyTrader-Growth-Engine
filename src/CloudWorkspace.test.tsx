@@ -152,6 +152,30 @@ describe("cloud authentication gate", () => {
     await waitFor(() => expect(mocks.googleSignIn).toHaveBeenCalledWith({}, { providerId: "google.com" }));
   });
 
+  it("explains account collisions without automatically linking Google credentials", async () => {
+    const error = Object.assign(new Error("Firebase internal message"), {
+      code: "auth/account-exists-with-different-credential",
+    });
+    mocks.googleSignIn.mockRejectedValueOnce(error);
+    render(<CloudWorkspace />);
+    fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "An account with this email already uses another sign-in method. Sign in with that method first; do not create a second account.",
+    );
+    expect(mocks.signIn).not.toHaveBeenCalled();
+    expect(mocks.register).not.toHaveBeenCalled();
+  });
+
+  it("shows a browser-specific recovery hint when Google sign-in pop-ups are blocked", async () => {
+    const error = Object.assign(new Error("Firebase internal message"), { code: "auth/popup-blocked" });
+    mocks.googleSignIn.mockRejectedValueOnce(error);
+    render(<CloudWorkspace />);
+    fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The Google sign-in window was blocked by your browser. Allow pop-ups for this site and try again.",
+    );
+  });
+
   it("loads only the selected organisation's cloud data after authentication", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
