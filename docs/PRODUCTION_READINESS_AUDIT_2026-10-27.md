@@ -169,3 +169,13 @@ Status meanings:
 ## Stop conditions
 
 Remain in local demo/emulator use if the dedicated project is absent or uncertain, live App Check is unverified, tenant isolation has not been reviewed, migration collisions remain unresolved, privacy/retention decisions are missing, recovery is untested, or operational alerts have no owner. This audit must be refreshed after material changes and immediately before a release candidate is approved.
+
+
+> **Continuation addendum — 30 October 2026 — PR #388 merge checkpoint**
+>
+> - **Main merge checkpoint:** PR #388 (`docs: refresh readiness evidence after PR 387`) was squash-merged as `0650bc6fb65584a119f6a9f5c4c4db922faa2f19`.
+> - **PR #388 exact-head CI:** Growth Engine CI run [40924741435](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40924741435), run number 1866, completed successfully for head `98dbc9177c46ae803204620d709bc48191eeffff`. Both required jobs passed: frontend typecheck, unit tests, production build, dependency audit, script syntax validation and Firebase emulator integration smoke tests; and Firebase Functions tests, compile/build, dependency audit and cloud-target guard checks.
+> - **Review:** PR #388 had no review threads; it was mergeable and its head SHA was rechecked immediately before the squash merge.
+> - **Post-merge main CI:** the available workflow-run lookup returned no run for merge SHA `0650bc6fb65584a119f6a9f5c4c4db922faa2f19`. Because this connector only exposes PR-triggered runs, post-merge push-triggered main CI remains **unverified**, not passed or failed.
+> - **Release decision remains NOT PRODUCTION READY.** Dedicated Growth Engine Firebase project setup, live App Check token flow, privacy/retention approval, monitoring/budget alerts, backup/recovery evidence, approved source-provider configuration, legacy-data reconciliation, release ownership and rollback rehearsal remain blockers.
+> - No production deployment, live data migration, billing activation, live provider connection or prospect outreach was performed.
