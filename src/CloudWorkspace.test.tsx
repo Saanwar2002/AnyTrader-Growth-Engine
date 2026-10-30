@@ -3035,7 +3035,7 @@ describe("cloud authentication gate", () => {
     await waitFor(() => expect(mocks.api.listCampaigns).toHaveBeenCalledTimes(3));
 
     rejectFirst(new Error("stale ABA workspace refresh failure"));
-    expect(await screen.findByText("Current org-1 campaign")).toBeTruthy();
+    await waitFor(() => expect(screen.getAllByText("Current org-1 campaign").length).toBeGreaterThan(0));
     expect(screen.queryByText("stale ABA workspace refresh failure")).toBeNull();
   });
 
