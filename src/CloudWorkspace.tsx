@@ -19,6 +19,7 @@ const firebaseAuthErrorMessages: Record<string, string> = {
 const readableError = (error: unknown) => {
   const code = error && typeof error === "object" && "code" in error && typeof error.code === "string" ? error.code : "";
   if (code && firebaseAuthErrorMessages[code]) return firebaseAuthErrorMessages[code];
+  if (code.startsWith("auth/")) return "Sign-in could not be completed. Check your details or try another sign-in method.";
   return error instanceof Error ? error.message : "The request could not be completed. Please try again.";
 };
 const getLeadContactReviewStatus = (lead: LeadSummary): "pending" | "cleared" | "blocked" =>
