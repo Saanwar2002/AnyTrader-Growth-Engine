@@ -190,6 +190,7 @@ export default function CloudWorkspace() {
   const tenantAnalyticsRequestGenerationRef = useRef(0);
   // Invalidates shared action completions when the active tenant changes.
   const tenantActionRequestGenerationRef = useRef(0);
+  const aiDraftRequestGenerationRef = useRef(0);
   const currentOrganisationIdRef = useRef(organisationId);
   currentOrganisationIdRef.current = organisationId;
   useEffect(() => {
@@ -197,6 +198,9 @@ export default function CloudWorkspace() {
   }, [organisationId, organisations]);
 
   useEffect(() => {
+    // Invalidate AI draft suggestions, including A → B → A tenant switches.
+    aiDraftRequestGenerationRef.current += 1;
+    setAiDraftBusyLeadId("");
     // A previous tenant's mutation may finish, but must not refresh or notify the new tenant.
     tenantActionRequestGenerationRef.current += 1;
     setBusy(false);
@@ -809,20 +813,26 @@ DRAFT ONLY — NOT SENT.`,
   async function suggestAiDraftForLead(lead: LeadSummary) {
     if (!api || !organisationId || busy || editingDraftId || aiDraftBusyLeadId) return;
     const requestedOrganisationId = organisationId;
+    const requestGeneration = aiDraftRequestGenerationRef.current;
+    const isCurrentSuggestion = () =>
+      requestGeneration === aiDraftRequestGenerationRef.current &&
+      currentOrganisationIdRef.current === requestedOrganisationId;
     setAiDraftBusyLeadId(lead.id); setError(""); setNotice("");
     try {
       const suggestion = await api.suggestOutreachDraft({ organisationId: requestedOrganisationId, leadId: lead.id });
-      // A suggestion requested for a previous workspace must be discarded silently.
-      if (currentOrganisationIdRef.current !== requestedOrganisationId) return;
+      // Discard results from a previous tenant, including an A → B → A switch.
+      if (!isCurrentSuggestion()) return;
       setEditingDraftId(`new:${lead.id}`);
       setDraftSubject(suggestion.subject);
       setDraftBody(suggestion.body);
       setNotice("AI suggestion ready. Review and edit it before saving; nothing has been sent.");
     } catch (reason) {
-      // A rejected request from a workspace that is no longer active must not
-      // surface its error in the newly selected tenant.
-      if (currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(reason));
-    } finally { setAiDraftBusyLeadId(""); }
+      // A rejected request from a superseded tenant must not surface in this workspace.
+      if (isCurrentSuggestion()) setError(readableError(reason));
+    } finally {
+      // An old completion must not clear a newer tenant's loading indicator.
+      if (isCurrentSuggestion()) setAiDraftBusyLeadId("");
+    }
   }
 
   async function saveDraft(event: FormEvent<HTMLFormElement>) {
