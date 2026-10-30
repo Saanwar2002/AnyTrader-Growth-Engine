@@ -176,6 +176,16 @@ describe("cloud authentication gate", () => {
     );
   });
 
+  it("does not expose raw Firebase details for an unmapped authentication error", async () => {
+    const error = Object.assign(new Error("Sensitive Firebase internal detail"), { code: "auth/internal-error" });
+    mocks.googleSignIn.mockRejectedValueOnce(error);
+    render(<CloudWorkspace />);
+    fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
+    const alert = (await screen.findByRole("alert")).textContent ?? "";
+    expect(alert).toContain("Sign-in could not be completed. Check your details or try another sign-in method.");
+    expect(alert).not.toContain("Sensitive Firebase internal detail");
+  });
+
   it("loads only the selected organisation's cloud data after authentication", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
