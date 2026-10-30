@@ -3004,6 +3004,41 @@ describe("cloud authentication gate", () => {
   });
 
 
+  it("ignores a rejected workspace refresh after switching away and back to the same organisation", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [
+        { organisationId: "org-1", name: "Pilot Workspace", role: "owner" },
+        { organisationId: "org-2", name: "Second Workspace", role: "owner" },
+      ],
+      hasMoreOrganisations: false,
+    });
+    let rejectFirst!: (reason: Error) => void;
+    mocks.api.listCampaigns
+      .mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectFirst = reject; }))
+      .mockResolvedValue({
+        campaigns: [{ id: "current-campaign", name: "Current org-1 campaign", brand: "AnyTrader", category: "Painters", location: "Edinburgh", goal: "Recruit providers", status: "active", createdAt: null }],
+        hasMoreCampaigns: false,
+        nextPageToken: null,
+      });
+
+    render(<CloudWorkspace />);
+    await waitFor(() => expect((screen.getByLabelText("Current organisation") as HTMLSelectElement).value).toBe("org-1"));
+    await waitFor(() => expect(mocks.api.listCampaigns).toHaveBeenCalledTimes(1));
+
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
+    await waitFor(() => expect((screen.getByLabelText("Current organisation") as HTMLSelectElement).value).toBe("org-2"));
+    await waitFor(() => expect(mocks.api.listCampaigns).toHaveBeenCalledTimes(2));
+
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-1" } });
+    await waitFor(() => expect((screen.getByLabelText("Current organisation") as HTMLSelectElement).value).toBe("org-1"));
+    await waitFor(() => expect(mocks.api.listCampaigns).toHaveBeenCalledTimes(3));
+
+    rejectFirst(new Error("stale ABA workspace refresh failure"));
+    expect(await screen.findByText("Current org-1 campaign")).toBeTruthy();
+    expect(screen.queryByText("stale ABA workspace refresh failure")).toBeNull();
+  });
+
   it("does not show a failed workspace refresh from a previous organisation", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({
