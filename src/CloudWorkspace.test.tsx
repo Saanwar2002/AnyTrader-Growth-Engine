@@ -1902,8 +1902,8 @@ describe("cloud authentication gate", () => {
     let leadListCalls = 0;
     mocks.api.listLeads.mockImplementation(() => {
       leadListCalls += 1;
-      if (leadListCalls === 1) return Promise.resolve({ leads: [], hasMoreLeads: false, nextPageToken: null });
-      return new Promise((_resolve, reject) => { rejectExport = reject; });
+      if (leadListCalls === 2) return new Promise((_resolve, reject) => { rejectExport = reject; });
+      return Promise.resolve({ leads: [], hasMoreLeads: false, nextPageToken: null });
     });
     render(<CloudWorkspace />);
     await screen.findByText("First Workspace · owner");
