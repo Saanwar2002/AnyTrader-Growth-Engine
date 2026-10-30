@@ -3370,4 +3370,37 @@ describe("cloud authentication gate", () => {
   });
 
 
+  it("keeps the new organisation's plan usage loading indicator active when an older request resolves", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [
+        { organisationId: "org-1", name: "First Workspace", role: "owner" },
+        { organisationId: "org-2", name: "Second Workspace", role: "owner" },
+      ],
+      hasMoreOrganisations: false,
+    });
+    const pending = new Map<string, (value: any) => void>();
+    mocks.api.getOrganisationPlanUsage.mockImplementation(({ organisationId }: { organisationId: string }) =>
+      new Promise((resolve) => { pending.set(organisationId, resolve); })
+    );
+
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load plan usage" }));
+    await waitFor(() => expect(mocks.api.getOrganisationPlanUsage).toHaveBeenCalledWith({ organisationId: "org-1" }));
+    expect(screen.getByRole("button", { name: "Loading plan usage…" })).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
+    fireEvent.click(await screen.findByRole("button", { name: "Load plan usage" }));
+    await waitFor(() => expect(mocks.api.getOrganisationPlanUsage).toHaveBeenCalledWith({ organisationId: "org-2" }));
+    expect(screen.getByRole("button", { name: "Loading plan usage…" })).toBeTruthy();
+
+    pending.get("org-1")?.({ organisationId: "org-1", status: "authoritative" });
+    await waitFor(() => expect(pending.has("org-2")).toBe(true));
+    expect(screen.getByRole("button", { name: "Loading plan usage…" })).toBeTruthy();
+
+    pending.get("org-2")?.({ organisationId: "org-2", status: "authoritative" });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Refresh plan usage" })).toBeTruthy());
+  });
+
+
 });
