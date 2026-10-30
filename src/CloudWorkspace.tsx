@@ -181,6 +181,7 @@ export default function CloudWorkspace() {
   const onboardingCoverageLoadIdRef = useRef(0);
   const leadCompletenessLoadIdRef = useRef(0);
   const sourceAnalyticsLoadIdRef = useRef(0);
+  const leadActivityLoadIdRef = useRef(0);
   const currentOrganisationIdRef = useRef(organisationId);
   currentOrganisationIdRef.current = organisationId;
   useEffect(() => {
@@ -196,6 +197,8 @@ export default function CloudWorkspace() {
     onboardingCoverageLoadIdRef.current += 1;
     leadCompletenessLoadIdRef.current += 1;
     sourceAnalyticsLoadIdRef.current += 1;
+    leadActivityLoadIdRef.current += 1;
+    setLoadingLeadActivityId("");
     setLoadingSourceAnalyticsOrganisationId("");
     setServerSourceAnalytics(null);
     setLoadingPlanUsageReconciliation(false);
@@ -716,18 +719,21 @@ export default function CloudWorkspace() {
       return;
     }
     const requestedOrganisationId = organisationId;
+    const requestId = ++leadActivityLoadIdRef.current;
     setLoadingLeadActivityId(lead.id);
     setError("");
     try {
       const timeline = await api.getLeadActivityTimeline({ organisationId: requestedOrganisationId, leadId: lead.id });
-      if (currentOrganisationIdRef.current !== requestedOrganisationId) return;
+      if (requestId !== leadActivityLoadIdRef.current || currentOrganisationIdRef.current !== requestedOrganisationId) return;
       setLeadActivityTimeline(timeline);
       setSelectedLeadActivityId(lead.id);
     } catch (reason) {
-      // Do not surface a failed timeline request from a workspace that is no longer active.
-      if (currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(reason));
+      // Ignore stale failures, including requests invalidated by an organisation switch.
+      if (requestId === leadActivityLoadIdRef.current && currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(reason));
     } finally {
-      setLoadingLeadActivityId("");
+      if (requestId === leadActivityLoadIdRef.current && currentOrganisationIdRef.current === requestedOrganisationId) {
+        setLoadingLeadActivityId("");
+      }
     }
   }
 
