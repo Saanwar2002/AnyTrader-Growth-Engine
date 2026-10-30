@@ -159,7 +159,7 @@ describe("cloud authentication gate", () => {
     mocks.googleSignIn.mockRejectedValueOnce(error);
     render(<CloudWorkspace />);
     fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent(
+    expect((await screen.findByRole("alert")).textContent).toContain(
       "An account with this email already uses another sign-in method. Sign in with that method first; do not create a second account.",
     );
     expect(mocks.signIn).not.toHaveBeenCalled();
