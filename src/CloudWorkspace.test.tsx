@@ -171,7 +171,7 @@ describe("cloud authentication gate", () => {
     mocks.googleSignIn.mockRejectedValueOnce(error);
     render(<CloudWorkspace />);
     fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent(
+    expect((await screen.findByRole("alert")).textContent).toContain(
       "The Google sign-in window was blocked by your browser. Allow pop-ups for this site and try again.",
     );
   });
