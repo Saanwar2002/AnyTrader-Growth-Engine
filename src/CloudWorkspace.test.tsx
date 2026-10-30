@@ -3394,11 +3394,11 @@ describe("cloud authentication gate", () => {
     await waitFor(() => expect(mocks.api.getOrganisationPlanUsage).toHaveBeenCalledWith({ organisationId: "org-2" }));
     expect(screen.getByRole("button", { name: "Loading plan usage…" })).toBeTruthy();
 
-    pending.get("org-1")?.({ organisationId: "org-1", status: "authoritative" });
+    pending.get("org-1")?.({ organisationId: "org-1", status: "authoritative", plan: { id: "pilot", displayName: "Pilot", limits: { campaigns: 10, leads: 500, members: 5, monthlyAiSuggestions: 50 } }, usage: { campaigns: 2, leads: 42, members: 3, monthlyAiSuggestions: 7 }, remaining: { campaigns: 8, leads: 458, members: 2, monthlyAiSuggestions: 43 }, aiUsagePeriod: "2026-10", message: "Usage is server-maintained." });
     await waitFor(() => expect(pending.has("org-2")).toBe(true));
     expect(screen.getByRole("button", { name: "Loading plan usage…" })).toBeTruthy();
 
-    pending.get("org-2")?.({ organisationId: "org-2", status: "authoritative" });
+    pending.get("org-2")?.({ organisationId: "org-2", status: "authoritative", plan: { id: "pilot", displayName: "Pilot", limits: { campaigns: 10, leads: 500, members: 5, monthlyAiSuggestions: 50 } }, usage: { campaigns: 2, leads: 42, members: 3, monthlyAiSuggestions: 7 }, remaining: { campaigns: 8, leads: 458, members: 2, monthlyAiSuggestions: 43 }, aiUsagePeriod: "2026-10", message: "Usage is server-maintained." });
     await waitFor(() => expect(screen.getByRole("button", { name: "Refresh plan usage" })).toBeTruthy());
   });
 
