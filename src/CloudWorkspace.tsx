@@ -8,7 +8,19 @@ import "./cloudWorkspace.css";
 
 const leadStatuses: ServerLeadStatus[] = ["new", "reviewing", "qualified", "contacted", "onboarded", "rejected"];
 const statusLabel = (status: string) => status.charAt(0).toUpperCase() + status.slice(1);
-const readableError = (error: unknown) => error instanceof Error ? error.message : "The request could not be completed. Please try again.";
+const firebaseAuthErrorMessages: Record<string, string> = {
+  "auth/account-exists-with-different-credential": "An account with this email already uses another sign-in method. Sign in with that method first; do not create a second account.",
+  "auth/email-already-in-use": "An account with this email already exists. Sign in instead, or use the account recovery option for your sign-in method.",
+  "auth/credential-already-in-use": "This sign-in method is already linked to another account. Sign in to the existing account and complete verified account recovery before linking credentials.",
+  "auth/popup-blocked": "The Google sign-in window was blocked by your browser. Allow pop-ups for this site and try again.",
+  "auth/popup-closed-by-user": "The Google sign-in window was closed before sign-in completed. Try again when ready.",
+  "auth/cancelled-popup-request": "A Google sign-in request is already in progress. Finish or close that window before trying again.",
+};
+const readableError = (error: unknown) => {
+  const code = error && typeof error === "object" && "code" in error && typeof error.code === "string" ? error.code : "";
+  if (code && firebaseAuthErrorMessages[code]) return firebaseAuthErrorMessages[code];
+  return error instanceof Error ? error.message : "The request could not be completed. Please try again.";
+};
 const getLeadContactReviewStatus = (lead: LeadSummary): "pending" | "cleared" | "blocked" =>
   lead.contactReviewStatus ?? (lead.doNotContact ? "blocked" : lead.contactRestrictionVerified ? "cleared" : "pending");
 const getQuotaUsageState = (remaining: number, limit: number): { label: "Within limit" | "Near limit" | "Limit reached" | "Review required"; className: string } => {
