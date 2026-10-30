@@ -175,6 +175,7 @@ export default function CloudWorkspace() {
   const memberRosterLoadIdRef = useRef(0);
   const memberActionLoadIdRef = useRef(0);
   const securityAuditLoadIdRef = useRef(0);
+  const offboardingPreviewLoadIdRef = useRef(0);
   const planUsageReconciliationLoadIdRef = useRef(0);
   const planUsageLoadIdRef = useRef(0);
   const onboardingCohortsLoadIdRef = useRef(0);
@@ -222,6 +223,9 @@ export default function CloudWorkspace() {
     setLoadingOnboardingCohorts(false);
     setLoadingOnboardingCohortCoverage(false);
     setLoadingLeadCompletenessSummary(false);
+    // Invalidate read-only offboarding previews across tenant changes, including A → B → A.
+    offboardingPreviewLoadIdRef.current += 1;
+    setOffboardingPreview(null);
     // Invalidate audit requests when the active tenant changes. An old request
     // must not keep the new tenant's audit controls stuck in a loading state.
     securityAuditLoadIdRef.current += 1;
@@ -510,9 +514,12 @@ export default function CloudWorkspace() {
   async function loadOffboardingPreview() {
     if (!api || !organisationId || selectedOrganisationRole !== "owner") return;
     const requestedOrganisationId = organisationId;
+    const requestId = ++offboardingPreviewLoadIdRef.current;
     await runAction(async () => {
       const result = await api.previewOrganisationOffboarding({ organisationId: requestedOrganisationId });
-      if (currentOrganisationIdRef.current === requestedOrganisationId) setOffboardingPreview(result);
+      if (requestId === offboardingPreviewLoadIdRef.current && currentOrganisationIdRef.current === requestedOrganisationId) {
+        setOffboardingPreview(result);
+      }
     }, "Read-only offboarding preview refreshed.", false);
   }
 
