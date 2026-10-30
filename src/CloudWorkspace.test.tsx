@@ -1889,6 +1889,35 @@ describe("cloud authentication gate", () => {
     expect(await screen.findByText(/Exported all 2 stored lead\(s\).*Current filters were not applied/)).toBeTruthy();
   });
 
+  it("does not surface a stale full-export failure after switching organisations", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [
+        { organisationId: "org-1", name: "First Workspace", role: "owner" },
+        { organisationId: "org-2", name: "Second Workspace", role: "owner" },
+      ],
+      hasMoreOrganisations: false,
+    });
+    let rejectExport!: (reason: Error) => void;
+    let leadListCalls = 0;
+    mocks.api.listLeads.mockImplementation(() => {
+      leadListCalls += 1;
+      if (leadListCalls === 1) return Promise.resolve({ leads: [], hasMoreLeads: false, nextPageToken: null });
+      return new Promise((_resolve, reject) => { rejectExport = reject; });
+    });
+    render(<CloudWorkspace />);
+    await screen.findByText("First Workspace · owner");
+    fireEvent.click(screen.getByRole("button", { name: "Export all stored leads (CSV)" }));
+    await waitFor(() => expect(leadListCalls).toBe(2));
+
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
+    await waitFor(() => expect(screen.getByText("Second Workspace · owner")).toBeTruthy());
+    rejectExport(new Error("stale first-tenant export failure"));
+    await waitFor(() => expect(screen.queryByText("stale first-tenant export failure")).toBeNull());
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByRole("button", { name: "Export all stored leads (CSV)" }).hasAttribute("disabled")).toBe(false);
+  });
+
   it("exports all matching filtered leads across stored pages, not just currently loaded rows", async () => {
     const targetFollowUpDate = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
     mocks.currentUser = { email: "pilot@example.test" };
