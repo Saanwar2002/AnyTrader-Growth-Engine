@@ -273,12 +273,17 @@ export default function CloudWorkspace() {
     const requestId = ++organisationListLoadIdRef.current;
     organisationPageTokensRef.current.clear();
     setLoadingMoreOrganisations(false);
-    const result = await api.listMyOrganisations();
-    if (requestId !== organisationListLoadIdRef.current) return;
-    setOrganisations(result.organisations);
-    setHasMoreOrganisations(result.hasMoreOrganisations === true);
-    setNextOrganisationPageToken(result.nextPageToken ?? null);
-    setOrganisationId((current) => result.organisations.some((org) => org.organisationId === current) ? current : result.organisations[0]?.organisationId ?? "");
+    try {
+      const result = await api.listMyOrganisations();
+      if (requestId !== organisationListLoadIdRef.current) return;
+      setOrganisations(result.organisations);
+      setHasMoreOrganisations(result.hasMoreOrganisations === true);
+      setNextOrganisationPageToken(result.nextPageToken ?? null);
+      setOrganisationId((current) => result.organisations.some((org) => org.organisationId === current) ? current : result.organisations[0]?.organisationId ?? "");
+    } catch (reason) {
+      // A superseded organisation refresh must not surface an obsolete error.
+      if (requestId === organisationListLoadIdRef.current) setError(readableError(reason));
+    }
   }, [api]);
 
   const loadMoreOrganisations = useCallback(async () => {
