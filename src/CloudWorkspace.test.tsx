@@ -1766,14 +1766,15 @@ describe("cloud authentication gate", () => {
       organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
       hasMoreOrganisations: false,
     });
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load onboarding cohorts" }));
+    await screen.findByRole("table", { name: /First-onboarding cohorts by UTC calendar month/ });
+    await waitFor(() => expect(mocks.api.getOnboardingCohortSummary).toHaveBeenCalledWith({ organisationId: "org-1" }));
+
     const createObjectURL = vi.fn((_blob: Blob) => "blob:cohort-export");
     const revokeObjectURL = vi.fn();
     vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
     const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
-
-    render(<CloudWorkspace />);
-    fireEvent.click(await screen.findByRole("button", { name: "Load onboarding cohorts" }));
-    await screen.findByRole("table", { name: /First-onboarding cohorts by UTC calendar month/ });
     fireEvent.click(screen.getByRole("button", { name: "Export cohort CSV" }));
     await waitFor(() => expect(createObjectURL).toHaveBeenCalledTimes(1));
     const exportedBlob = createObjectURL.mock.calls[0][0] as Blob;
