@@ -1174,6 +1174,40 @@ describe("cloud authentication gate", () => {
     expect(screen.queryByText(/active organisation changed while the AI suggestion was loading/i)).toBeNull();
   });
 
+  it("does not let an old AI suggestion completion clear a newer request after an A-B-A switch", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [
+      { organisationId: "org-1", name: "Pilot Workspace", role: "owner" },
+      { organisationId: "org-2", name: "Second Workspace", role: "owner" },
+    ] });
+    mocks.api.listCampaigns.mockResolvedValue({ campaigns: [] });
+    mocks.api.listLeads.mockResolvedValue({ leads: [{
+      id: "lead-1", campaignId: "campaign-1", businessName: "North Star Painters", category: "Painters", location: "Edinburgh",
+      website: "", email: "", phone: "", source: "manual", status: "new", score: 40,
+      scoreReasons: [], notes: "", doNotContact: false, contactRestrictionVerified: true, createdAt: null,
+    }] });
+    const resolvers: Array<(value: { subject: string; body: string; sent: false }) => void> = [];
+    mocks.api.suggestOutreachDraft.mockImplementation(() => new Promise((resolve) => { resolvers.push(resolve); }));
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "AI draft suggestion" }));
+    await waitFor(() => expect(resolvers).toHaveLength(1));
+
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
+    await waitFor(() => expect(screen.getByText("Second Workspace · owner")).toBeTruthy());
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-1" } });
+    await waitFor(() => expect(screen.getByText("Pilot Workspace · owner")).toBeTruthy());
+
+    fireEvent.click(await screen.findByRole("button", { name: "AI draft suggestion" }));
+    await waitFor(() => expect(resolvers).toHaveLength(2));
+
+    resolvers[0]({ subject: "Stale first request", body: "Must be discarded.", sent: false });
+    await waitFor(() => expect((screen.getByLabelText("Current organisation") as HTMLSelectElement).disabled).toBe(true));
+    expect(screen.queryByDisplayValue("Stale first request")).toBeNull();
+
+    resolvers[1]({ subject: "Current request", body: "Review this current suggestion. DRAFT ONLY — NOT SENT.", sent: false });
+    expect(await screen.findByDisplayValue("Current request")).toBeTruthy();
+  });
+
   it("generates an AI suggestion for an eligible lead and requires review before saving", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [
