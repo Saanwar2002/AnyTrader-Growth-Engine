@@ -1365,6 +1365,54 @@ describe("cloud authentication gate", () => {
     expect(screen.queryByText(/stale source analytics failed/i)).toBeNull();
   });
 
+  it("ignores an older source analytics request after switching away and back to the same organisation", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [
+        { organisationId: "org-1", name: "Pilot Workspace", role: "owner" },
+        { organisationId: "org-2", name: "Second Workspace", role: "owner" },
+      ],
+      hasMoreOrganisations: false,
+    });
+    const pending: Array<{ organisationId: string; resolve: (value: unknown) => void }> = [];
+    mocks.api.getLeadSourceFunnelSummary.mockImplementation(({ organisationId }: { organisationId: string }) =>
+      new Promise((resolve) => pending.push({ organisationId, resolve })));
+    const summary = (organisationId: string, totalLeadCount: number) => ({
+      organisationId,
+      sourceSummaries: [{
+        source: "manual",
+        totalLeadCount,
+        qualifiedLeadCount: 0,
+        onboardedLeadCount: 0,
+        qualifiedRatePercent: 0,
+        onboardedRatePercent: 0,
+      }],
+      scope: "all_stored_organisation_leads",
+      attributionNote: "Source values are self-declared.",
+    });
+
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load full source counts" }));
+    await waitFor(() => expect(pending).toHaveLength(1));
+
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
+    await waitFor(() => expect(screen.getByLabelText("Current organisation")).toHaveProperty("value", "org-2"));
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-1" } });
+    await waitFor(() => expect(screen.getByLabelText("Current organisation")).toHaveProperty("value", "org-1"));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Load full source counts" }));
+    await waitFor(() => expect(pending).toHaveLength(2));
+    expect(pending.map((request) => request.organisationId)).toEqual(["org-1", "org-1"]);
+
+    pending[0].resolve(summary("org-1", 111));
+    await waitFor(() => expect((screen.getByRole("button", { name: "Loading full source counts…" }) as HTMLButtonElement).disabled).toBe(true));
+    expect(screen.queryByText("111", { selector: "td" })).toBeNull();
+
+    pending[1].resolve(summary("org-1", 222));
+    expect(await screen.findByText("222", { selector: "td" })).toBeTruthy();
+    expect(screen.queryByText("111", { selector: "td" })).toBeNull();
+  });
+
   it("loads complete server-side source attribution counts on demand", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({
