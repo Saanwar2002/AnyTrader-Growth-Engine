@@ -1766,14 +1766,15 @@ describe("cloud authentication gate", () => {
       organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }],
       hasMoreOrganisations: false,
     });
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load onboarding cohorts" }));
+    await screen.findByRole("table", { name: /First-onboarding cohorts by UTC calendar month/ });
+    await waitFor(() => expect(mocks.api.getOnboardingCohortSummary).toHaveBeenCalledWith({ organisationId: "org-1" }));
+
     const createObjectURL = vi.fn((_blob: Blob) => "blob:cohort-export");
     const revokeObjectURL = vi.fn();
     vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
     const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
-
-    render(<CloudWorkspace />);
-    fireEvent.click(await screen.findByRole("button", { name: "Load onboarding cohorts" }));
-    await screen.findByRole("table", { name: /First-onboarding cohorts by UTC calendar month/ });
     fireEvent.click(screen.getByRole("button", { name: "Export cohort CSV" }));
     await waitFor(() => expect(createObjectURL).toHaveBeenCalledTimes(1));
     const exportedBlob = createObjectURL.mock.calls[0][0] as Blob;
@@ -2077,6 +2078,35 @@ describe("cloud authentication gate", () => {
     pending[1].resolve(usage(222));
     await waitFor(() => expect(screen.getAllByText("222").length).toBeGreaterThan(0));
     expect(screen.queryByText("777")).toBeNull();
+  });
+
+  it("ignores an older campaign readiness result after switching away and back to the same organisation", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [
+      { organisationId: "org-1", name: "Pilot Workspace", role: "owner" },
+      { organisationId: "org-2", name: "Second Workspace", role: "owner" },
+    ], hasMoreOrganisations: false });
+    const pending: Array<{ resolve: (value: any) => void }> = [];
+    mocks.api.getFullCampaignReadinessSummary.mockImplementation(() => new Promise((resolve) => pending.push({ resolve })));
+    const readiness = (note: string) => ({
+      organisationId: "org-1", campaigns: [], hasMoreCampaigns: false, campaignLimit: 20,
+      scope: "server_counted_campaign_readiness", note,
+    });
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load server readiness" }));
+    await waitFor(() => expect(pending).toHaveLength(1));
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
+    await waitFor(() => expect(screen.getByLabelText("Current organisation")).toHaveProperty("value", "org-2"));
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-1" } });
+    await waitFor(() => expect(screen.getByLabelText("Current organisation")).toHaveProperty("value", "org-1"));
+    fireEvent.click(await screen.findByRole("button", { name: "Load server readiness" }));
+    await waitFor(() => expect(pending).toHaveLength(2));
+    pending[0].resolve(readiness("stale readiness"));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Loading server readiness…" })).toBeTruthy());
+    expect(screen.queryByText("stale readiness")).toBeNull();
+    pending[1].resolve(readiness("current readiness"));
+    await waitFor(() => expect(screen.getByText("current readiness")).toBeTruthy());
+    expect(screen.queryByText("stale readiness")).toBeNull();
   });
 
   it("does not show a failed plan usage reconciliation request from a previous organisation", async () => {
