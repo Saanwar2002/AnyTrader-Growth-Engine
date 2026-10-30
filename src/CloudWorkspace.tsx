@@ -182,6 +182,9 @@ export default function CloudWorkspace() {
   const leadCompletenessLoadIdRef = useRef(0);
   const sourceAnalyticsLoadIdRef = useRef(0);
   const leadActivityLoadIdRef = useRef(0);
+  const fullCampaignReadinessLoadIdRef = useRef(0);
+  const openLeadAgingLoadIdRef = useRef(0);
+  const contactReviewQueueLoadIdRef = useRef(0);
   const currentOrganisationIdRef = useRef(organisationId);
   currentOrganisationIdRef.current = organisationId;
   useEffect(() => {
@@ -198,6 +201,12 @@ export default function CloudWorkspace() {
     leadCompletenessLoadIdRef.current += 1;
     sourceAnalyticsLoadIdRef.current += 1;
     leadActivityLoadIdRef.current += 1;
+    fullCampaignReadinessLoadIdRef.current += 1;
+    openLeadAgingLoadIdRef.current += 1;
+    contactReviewQueueLoadIdRef.current += 1;
+    setLoadingFullCampaignReadiness(false);
+    setLoadingOpenLeadAgingSummary(false);
+    setLoadingContactReviewQueueSummary(false);
     setLoadingLeadActivityId("");
     setLoadingSourceAnalyticsOrganisationId("");
     setServerSourceAnalytics(null);
@@ -1154,45 +1163,48 @@ DRAFT ONLY — NOT SENT.`,
   async function loadFullCampaignReadiness() {
     if (!api || !organisationId || loadingFullCampaignReadiness) return;
     const requestedOrganisationId = organisationId;
+    const requestId = ++fullCampaignReadinessLoadIdRef.current;
     setLoadingFullCampaignReadiness(true);
     setError("");
     try {
       const summary = await api.getFullCampaignReadinessSummary({ organisationId: requestedOrganisationId });
-      if (currentOrganisationIdRef.current === requestedOrganisationId) setFullCampaignReadiness(summary);
+      if (requestId === fullCampaignReadinessLoadIdRef.current && currentOrganisationIdRef.current === requestedOrganisationId) setFullCampaignReadiness(summary);
     } catch (loadError) {
-      if (currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(loadError));
+      if (requestId === fullCampaignReadinessLoadIdRef.current && currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(loadError));
     } finally {
-      setLoadingFullCampaignReadiness(false);
+      if (requestId === fullCampaignReadinessLoadIdRef.current && currentOrganisationIdRef.current === requestedOrganisationId) setLoadingFullCampaignReadiness(false);
     }
   }
 
   async function loadOpenLeadAgingSummary() {
     if (!api || !organisationId || loadingOpenLeadAgingSummary) return;
     const requestedOrganisationId = organisationId;
+    const requestId = ++openLeadAgingLoadIdRef.current;
     setLoadingOpenLeadAgingSummary(true);
     setError("");
     try {
       const summary = await api.getOpenLeadAgingSummary({ organisationId: requestedOrganisationId });
-      if (currentOrganisationIdRef.current === requestedOrganisationId) setOpenLeadAgingSummary(summary);
+      if (requestId === openLeadAgingLoadIdRef.current && currentOrganisationIdRef.current === requestedOrganisationId) setOpenLeadAgingSummary(summary);
     } catch (loadError) {
-      if (currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(loadError));
+      if (requestId === openLeadAgingLoadIdRef.current && currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(loadError));
     } finally {
-      setLoadingOpenLeadAgingSummary(false);
+      if (requestId === openLeadAgingLoadIdRef.current && currentOrganisationIdRef.current === requestedOrganisationId) setLoadingOpenLeadAgingSummary(false);
     }
   }
 
   async function loadContactReviewQueueSummary() {
     if (!api || !organisationId || loadingContactReviewQueueSummary) return;
     const requestedOrganisationId = organisationId;
+    const requestId = ++contactReviewQueueLoadIdRef.current;
     setLoadingContactReviewQueueSummary(true);
     setError("");
     try {
       const summary = await api.getContactReviewQueueSummary({ organisationId: requestedOrganisationId });
-      if (currentOrganisationIdRef.current === requestedOrganisationId) setContactReviewQueueSummary(summary);
+      if (requestId === contactReviewQueueLoadIdRef.current && currentOrganisationIdRef.current === requestedOrganisationId) setContactReviewQueueSummary(summary);
     } catch (loadError) {
-      if (currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(loadError));
+      if (requestId === contactReviewQueueLoadIdRef.current && currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(loadError));
     } finally {
-      setLoadingContactReviewQueueSummary(false);
+      if (requestId === contactReviewQueueLoadIdRef.current && currentOrganisationIdRef.current === requestedOrganisationId) setLoadingContactReviewQueueSummary(false);
     }
   }
 
