@@ -322,19 +322,27 @@ export default function CloudWorkspace() {
     // selected organisation is loading; do not leave old data on screen.
     setCampaigns([]); setHasMoreCampaigns(false); setNextCampaignPageToken(null); setLoadingMoreCampaigns(false); setLeads([]); setHasMoreLeads(false); setNextLeadPageToken(null); setLoadingMoreLeads(false); setLeadNotes({}); setLeadFollowUpDates({}); setDrafts([]); setHasMoreDrafts(false); setNextDraftPageToken(null); setLoadingMoreDrafts(false);
     setEditingDraftId(""); setDraftSubject(""); setDraftBody("");
-    const [campaignResult, leadResult, draftResult] = await Promise.all([
-      api.listCampaigns({ organisationId: orgId }), api.listLeads({ organisationId: orgId }), api.listOutreachDrafts({ organisationId: orgId }),
-    ]);
-    // Ignore stale responses so a slow request from a previous tenant cannot replace
-    // the currently selected organisation's data after a switch or sign-out.
-    if (requestId !== workspaceLoadIdRef.current || orgId !== currentOrganisationIdRef.current) return;
-    setCampaigns(campaignResult.campaigns); setHasMoreCampaigns(campaignResult.hasMoreCampaigns === true); setNextCampaignPageToken(campaignResult.nextPageToken ?? null);
-    setLeads(leadResult.leads); setHasMoreLeads(leadResult.hasMoreLeads === true); setNextLeadPageToken(leadResult.nextPageToken ?? null);
-    setLeadNotes(Object.fromEntries(leadResult.leads.map((lead) => [lead.id, lead.notes ?? ""])));
-    setLeadFollowUpDates(Object.fromEntries(leadResult.leads.map((lead) => [lead.id, lead.followUpDate ?? ""])));
-    setDrafts(draftResult.drafts); setHasMoreDrafts(draftResult.hasMoreDrafts === true); setNextDraftPageToken(draftResult.nextPageToken ?? null);
-    setLeadCampaignId((current) => campaignResult.campaigns.some((campaign) => campaign.id === current) ? current : campaignResult.campaigns[0]?.id ?? "");
-    setCsvCampaignId((current) => campaignResult.campaigns.some((campaign) => campaign.id === current) ? current : campaignResult.campaigns[0]?.id ?? "");
+    try {
+      const [campaignResult, leadResult, draftResult] = await Promise.all([
+        api.listCampaigns({ organisationId: orgId }), api.listLeads({ organisationId: orgId }), api.listOutreachDrafts({ organisationId: orgId }),
+      ]);
+      // Ignore stale responses so a slow request from a previous tenant cannot replace
+      // the currently selected organisation's data after a switch or sign-out.
+      if (requestId !== workspaceLoadIdRef.current || orgId !== currentOrganisationIdRef.current) return;
+      setCampaigns(campaignResult.campaigns); setHasMoreCampaigns(campaignResult.hasMoreCampaigns === true); setNextCampaignPageToken(campaignResult.nextPageToken ?? null);
+      setLeads(leadResult.leads); setHasMoreLeads(leadResult.hasMoreLeads === true); setNextLeadPageToken(leadResult.nextPageToken ?? null);
+      setLeadNotes(Object.fromEntries(leadResult.leads.map((lead) => [lead.id, lead.notes ?? ""])));
+      setLeadFollowUpDates(Object.fromEntries(leadResult.leads.map((lead) => [lead.id, lead.followUpDate ?? ""])));
+      setDrafts(draftResult.drafts); setHasMoreDrafts(draftResult.hasMoreDrafts === true); setNextDraftPageToken(draftResult.nextPageToken ?? null);
+      setLeadCampaignId((current) => campaignResult.campaigns.some((campaign) => campaign.id === current) ? current : campaignResult.campaigns[0]?.id ?? "");
+      setCsvCampaignId((current) => campaignResult.campaigns.some((campaign) => campaign.id === current) ? current : campaignResult.campaigns[0]?.id ?? "");
+    } catch (reason) {
+      // A rejected request from a previous tenant must not surface an obsolete error
+      // in the newly selected workspace (including an A → B → A switch).
+      if (requestId === workspaceLoadIdRef.current && orgId === currentOrganisationIdRef.current) {
+        setError(readableError(reason));
+      }
+    }
   }, [api]);
 
   const loadMoreCampaigns = useCallback(async () => {
