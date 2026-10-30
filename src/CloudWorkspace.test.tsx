@@ -2079,6 +2079,35 @@ describe("cloud authentication gate", () => {
     expect(screen.queryByText("777")).toBeNull();
   });
 
+  it("ignores an older campaign readiness result after switching away and back to the same organisation", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [
+      { organisationId: "org-1", name: "Pilot Workspace", role: "owner" },
+      { organisationId: "org-2", name: "Second Workspace", role: "owner" },
+    ], hasMoreOrganisations: false });
+    const pending: Array<{ resolve: (value: any) => void }> = [];
+    mocks.api.getFullCampaignReadinessSummary.mockImplementation(() => new Promise((resolve) => pending.push({ resolve })));
+    const readiness = (note: string) => ({
+      organisationId: "org-1", campaigns: [], hasMoreCampaigns: false, campaignLimit: 20,
+      scope: "server_counted_campaign_readiness", note,
+    });
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load server readiness" }));
+    await waitFor(() => expect(pending).toHaveLength(1));
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
+    await waitFor(() => expect(screen.getByLabelText("Current organisation")).toHaveProperty("value", "org-2"));
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-1" } });
+    await waitFor(() => expect(screen.getByLabelText("Current organisation")).toHaveProperty("value", "org-1"));
+    fireEvent.click(await screen.findByRole("button", { name: "Load server readiness" }));
+    await waitFor(() => expect(pending).toHaveLength(2));
+    pending[0].resolve(readiness("stale readiness"));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Loading server readiness…" })).toBeTruthy());
+    expect(screen.queryByText("stale readiness")).toBeNull();
+    pending[1].resolve(readiness("current readiness"));
+    await waitFor(() => expect(screen.getByText("current readiness")).toBeTruthy());
+    expect(screen.queryByText("stale readiness")).toBeNull();
+  });
+
   it("does not show a failed plan usage reconciliation request from a previous organisation", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({
