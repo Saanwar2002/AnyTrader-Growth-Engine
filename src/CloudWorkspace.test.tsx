@@ -874,6 +874,28 @@ describe("cloud authentication gate", () => {
     expect((screen.getByLabelText("Password") as HTMLInputElement).minLength).toBe(6);
   });
 
+  it("ignores a rejected organisation refresh after a newer refresh succeeds", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    let rejectFirstRefresh!: (reason: Error) => void;
+    mocks.api.listMyOrganisations
+      .mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectFirstRefresh = reject; }))
+      .mockResolvedValue({
+        organisations: [{ organisationId: "org-1", name: "Current Workspace", role: "owner" }],
+        hasMoreOrganisations: false,
+      });
+    mocks.api.createOrganisation.mockResolvedValue({ organisationId: "org-1", name: "Current Workspace", role: "owner" });
+    render(<CloudWorkspace />);
+    await waitFor(() => expect(mocks.api.listMyOrganisations).toHaveBeenCalledTimes(1));
+    fireEvent.change(screen.getByPlaceholderText("e.g. AnyTrader pilot"), { target: { value: "Current Workspace" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create organisation" }));
+    await waitFor(() => expect(mocks.api.listMyOrganisations).toHaveBeenCalledTimes(2));
+    await screen.findByText("Current Workspace · owner");
+
+    rejectFirstRefresh(new Error("stale organisation refresh failure"));
+    await waitFor(() => expect(screen.queryByText("stale organisation refresh failure")).toBeNull());
+    expect(screen.getByText("Current Workspace · owner")).toBeTruthy();
+  });
+
   it("retries uncertain organisation creation with the same key and unchanged name", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.createOrganisation.mockRejectedValueOnce(new Error("temporary network failure"));
