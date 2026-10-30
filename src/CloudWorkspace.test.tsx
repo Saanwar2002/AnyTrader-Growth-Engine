@@ -3109,7 +3109,7 @@ describe("cloud authentication gate", () => {
     await waitFor(() => expect(pending).toHaveLength(2));
 
     pending[0].resolve(summary(111));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Loading full counts…" })).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Loading…" })).toBeTruthy());
     expect(screen.queryByText(/stale/i)).toBeNull();
     pending[1].resolve(summary(222));
     await waitFor(() => expect(screen.getByText(/222/)).toBeTruthy());
