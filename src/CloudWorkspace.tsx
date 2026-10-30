@@ -188,6 +188,8 @@ export default function CloudWorkspace() {
   // Shared generation for remaining tenant-scoped campaign analytics requests.
   // Unlike organisation IDs alone, this also rejects responses after an A → B → A switch.
   const tenantAnalyticsRequestGenerationRef = useRef(0);
+  // Invalidates shared action completions when the active tenant changes.
+  const tenantActionRequestGenerationRef = useRef(0);
   const currentOrganisationIdRef = useRef(organisationId);
   currentOrganisationIdRef.current = organisationId;
   useEffect(() => {
@@ -195,6 +197,9 @@ export default function CloudWorkspace() {
   }, [organisationId, organisations]);
 
   useEffect(() => {
+    // A previous tenant's mutation may finish, but must not refresh or notify the new tenant.
+    tenantActionRequestGenerationRef.current += 1;
+    setBusy(false);
     // Invalidate tenant-scoped analytics requests when the active organisation changes.
     // A stale request must not clear a newer organisation's loading indicator.
     tenantAnalyticsRequestGenerationRef.current += 1;
@@ -452,13 +457,22 @@ export default function CloudWorkspace() {
   }, [organisationId, refreshWorkspace]);
 
   async function runAction(action: () => Promise<unknown>, success: string, refresh = true) {
+    const requestedOrganisationId = organisationId;
+    const requestGeneration = tenantActionRequestGenerationRef.current;
+    const isCurrentTenantAction = () =>
+      requestGeneration === tenantActionRequestGenerationRef.current &&
+      requestedOrganisationId === currentOrganisationIdRef.current;
     setBusy(true); setError(""); setNotice("");
     try {
       await action();
+      if (!isCurrentTenantAction()) return;
       setNotice(success);
-      if (refresh && organisationId) await refreshWorkspace(organisationId);
-    } catch (reason) { setError(readableError(reason)); }
-    finally { setBusy(false); }
+      if (refresh && requestedOrganisationId) await refreshWorkspace(requestedOrganisationId);
+    } catch (reason) {
+      if (isCurrentTenantAction()) setError(readableError(reason));
+    } finally {
+      if (isCurrentTenantAction()) setBusy(false);
+    }
   }
 
   async function submitAuth(event: FormEvent<HTMLFormElement>) {

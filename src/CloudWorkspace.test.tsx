@@ -1889,6 +1889,46 @@ describe("cloud authentication gate", () => {
     expect(await screen.findByText(/Exported all 2 stored lead\(s\).*Current filters were not applied/)).toBeTruthy();
   });
 
+  it("does not publish or refresh after a mutation from a previous organisation completes", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [
+        { organisationId: "org-1", name: "First Workspace", role: "owner" },
+        { organisationId: "org-2", name: "Second Workspace", role: "owner" },
+      ],
+      hasMoreOrganisations: false,
+    });
+    const firstLead = {
+      id: "lead-1", campaignId: "campaign-1", businessName: "First Tenant Lead",
+      category: "Painters", location: "Manchester", website: "", email: "", phone: "",
+      source: "manual", status: "new", score: 20, scoreReasons: [], notes: "",
+      doNotContact: false, contactRestrictionVerified: true, createdAt: null,
+    };
+    mocks.api.listLeads.mockImplementation(({ organisationId }: { organisationId: string }) =>
+      organisationId === "org-1"
+        ? Promise.resolve({ leads: [firstLead], hasMoreLeads: false, nextPageToken: null })
+        : Promise.resolve({ leads: [], hasMoreLeads: false, nextPageToken: null })
+    );
+    let resolveMutation!: (value: unknown) => void;
+    mocks.api.updateLeadStatus.mockImplementation(() => new Promise((resolve) => { resolveMutation = resolve; }));
+
+    render(<CloudWorkspace />);
+    expect(await screen.findByText("First Tenant Lead")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Status for First Tenant Lead"), { target: { value: "qualified" } });
+    await waitFor(() => expect(mocks.api.updateLeadStatus).toHaveBeenCalledWith({
+      organisationId: "org-1", leadId: "lead-1", status: "qualified",
+    }));
+
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
+    await waitFor(() => expect(screen.getByText("Second Workspace · owner")).toBeTruthy());
+    const listCampaignCallsBeforeCompletion = mocks.api.listCampaigns.mock.calls.length;
+    resolveMutation({});
+
+    await waitFor(() => expect(screen.queryByText("Lead status updated.")).toBeNull());
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(mocks.api.listCampaigns).toHaveBeenCalledTimes(listCampaignCallsBeforeCompletion);
+  });
+
   it("does not surface a stale full-export failure after switching organisations", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({
