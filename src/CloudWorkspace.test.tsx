@@ -3710,6 +3710,50 @@ describe("cloud authentication gate", () => {
 
 
 
+  it("does not apply a stale follow-up date save to another tenant with a reused lead ID", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [
+        { organisationId: "org-1", name: "Pilot Workspace", role: "owner" },
+        { organisationId: "org-2", name: "Second Workspace", role: "owner" },
+      ],
+      hasMoreOrganisations: false,
+    });
+    mocks.api.listCampaigns.mockResolvedValue({ campaigns: [], hasMoreCampaigns: false, nextPageToken: null });
+    const makeLead = (organisationId: string) => ({
+      id: "lead-shared-follow-up", campaignId: "campaign-1",
+      businessName: organisationId === "org-1" ? "First tenant painter" : "Second tenant painter",
+      category: "Painters", location: "Edinburgh", website: "", email: "", phone: "", source: "manual",
+      status: "qualified", score: 30, scoreReasons: [], notes: "", doNotContact: true,
+      contactRestrictionVerified: false, contactReviewStatus: "pending" as const, contactReviewRevision: 0,
+      onboardedAt: null, followUpDate: null, createdAt: null,
+    });
+    mocks.api.listLeads.mockImplementation(async ({ organisationId }: { organisationId: string }) => ({
+      leads: [makeLead(organisationId)],
+      hasMoreLeads: false,
+      nextPageToken: null,
+    }));
+    let finishFollowUpSave: (() => void) | undefined;
+    mocks.api.updateLeadFollowUpDate.mockImplementation(async () => new Promise((resolve) => {
+      finishFollowUpSave = () => resolve({ leadId: "lead-shared-follow-up", followUpDate: "2026-11-04" });
+    }));
+
+    render(<CloudWorkspace />);
+    const dateInput = await screen.findByLabelText("Follow-up date for First tenant painter");
+    fireEvent.change(dateInput, { target: { value: "2026-11-04" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save follow-up date" }));
+    await waitFor(() => expect(mocks.api.updateLeadFollowUpDate).toHaveBeenCalledWith({
+      organisationId: "org-1", leadId: "lead-shared-follow-up", followUpDate: "2026-11-04",
+    }));
+
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
+    const secondTenantDateInput = await screen.findByLabelText("Follow-up date for Second tenant painter");
+    finishFollowUpSave?.();
+
+    await waitFor(() => expect((secondTenantDateInput as HTMLInputElement).value).toBe(""));
+    expect(screen.queryByText("Lead follow-up date saved.")).toBeNull();
+  });
+
   it("filters leads with no assigned campaign without conflating unknown campaign IDs", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({
