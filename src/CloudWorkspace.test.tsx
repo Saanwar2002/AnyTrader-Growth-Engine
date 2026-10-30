@@ -1358,6 +1358,38 @@ describe("cloud authentication gate", () => {
   });
 
 
+  it("does not apply a stale campaign status completion to a different tenant with a reused campaign ID", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [
+      { organisationId: "org-1", name: "Pilot Workspace", role: "owner" },
+      { organisationId: "org-2", name: "Second Workspace", role: "owner" },
+    ] });
+    mocks.api.listCampaigns.mockImplementation(async ({ organisationId }: { organisationId: string }) => ({
+      campaigns: [{
+        id: "campaign-shared",
+        name: organisationId === "org-1" ? "First tenant campaign" : "Second tenant campaign",
+        brand: "AnyTrader", category: "Painting", location: "Manchester", goal: "Recruit providers",
+        status: "active", createdAt: null,
+      }],
+      hasMoreCampaigns: false, nextPageToken: null,
+    }));
+    let resolveStatus: (() => void) | undefined;
+    mocks.api.updateCampaignStatus.mockImplementation(() => new Promise((resolve) => { resolveStatus = () => resolve(undefined); }));
+    render(<CloudWorkspace />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Pause" }));
+    await waitFor(() => expect(mocks.api.updateCampaignStatus).toHaveBeenCalledWith({
+      organisationId: "org-1", campaignId: "campaign-shared", status: "paused",
+    }));
+
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
+    expect(await screen.findByText("Second tenant campaign")).toBeTruthy();
+    resolveStatus?.();
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "Pause" })).toBeTruthy());
+    expect(screen.queryByText("Campaign paused.")).toBeNull();
+  });
+
   it("lets an organisation owner pause and reactivate campaigns through the server API", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
