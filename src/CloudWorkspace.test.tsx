@@ -1566,6 +1566,47 @@ describe("cloud authentication gate", () => {
     expect(screen.queryByRole("button", { name: /delete|remove|close account/i })).toBeNull();
   });
 
+  it("ignores an older offboarding preview after switching away and back to the same organisation", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [
+        { organisationId: "org-1", name: "First Workspace", role: "owner" },
+        { organisationId: "org-2", name: "Second Workspace", role: "owner" },
+      ],
+      hasMoreOrganisations: false,
+    });
+    let resolveOldPreview!: (value: any) => void;
+    mocks.api.previewOrganisationOffboarding
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveOldPreview = resolve; }))
+      .mockResolvedValue({
+        complete: true,
+        destructiveActionPerformed: false,
+        maxRecordsPerCategory: 1000,
+        categories: [{ category: "leads", status: "complete", exactCount: 22, observedCount: 22 }],
+      });
+    render(<CloudWorkspace />);
+    await screen.findByText("First Workspace · owner");
+    fireEvent.click(screen.getByRole("button", { name: "Preview organisation data" }));
+    await waitFor(() => expect(mocks.api.previewOrganisationOffboarding).toHaveBeenCalledTimes(1));
+
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
+    await waitFor(() => expect(screen.getByText("Second Workspace · owner")).toBeTruthy());
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-1" } });
+    await waitFor(() => expect(screen.getByText("First Workspace · owner")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Preview organisation data" }));
+    await waitFor(() => expect(mocks.api.previewOrganisationOffboarding).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText("22 records")).toBeTruthy();
+
+    resolveOldPreview({
+      complete: true,
+      destructiveActionPerformed: false,
+      maxRecordsPerCategory: 1000,
+      categories: [{ category: "leads", status: "complete", exactCount: 11, observedCount: 11 }],
+    });
+    await waitFor(() => expect(screen.queryByText("11 records")).toBeNull());
+    expect(screen.getByText("22 records")).toBeTruthy();
+  });
+
   it("does not expose the owner-only offboarding preview to admins", async () => {
     mocks.currentUser = { email: "admin@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({
