@@ -2291,6 +2291,48 @@ describe("cloud authentication gate", () => {
     expect(screen.queryByText(/stale activity request failed/i)).toBeNull();
   });
 
+  it("ignores an older activity request after switching away and back to the same organisation", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [
+      { organisationId: "org-1", name: "Pilot Workspace", role: "owner" },
+      { organisationId: "org-2", name: "Second Workspace", role: "owner" },
+    ] });
+    mocks.api.listLeads.mockResolvedValue({ leads: [{
+      id: "lead-history", campaignId: "campaign-1", businessName: "History Painter", category: "Painters",
+      location: "Leeds", website: "", email: "", phone: "", source: "manual", status: "qualified",
+      score: 40, scoreReasons: [], notes: "", doNotContact: true, contactRestrictionVerified: false,
+      contactReviewStatus: "pending", createdAt: null,
+    }] });
+    const pending: Array<{ resolve: (value: any) => void }> = [];
+    mocks.api.getLeadActivityTimeline.mockImplementation(() => new Promise((resolve) => pending.push({ resolve })));
+    const timeline = (message: string) => ({
+      organisationId: "org-1", leadId: "lead-history",
+      activities: [{ id: message, eventType: "lead_status_changed", message, createdAt: null }],
+      hasMoreHistory: false,
+    });
+
+    render(<CloudWorkspace />);
+    await screen.findByText("History Painter");
+    fireEvent.click(screen.getByRole("button", { name: "View history" }));
+    await waitFor(() => expect(pending).toHaveLength(1));
+
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
+    await waitFor(() => expect(screen.getByLabelText("Current organisation")).toHaveProperty("value", "org-2"));
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-1" } });
+    await waitFor(() => expect(screen.getByLabelText("Current organisation")).toHaveProperty("value", "org-1"));
+
+    fireEvent.click(await screen.findByRole("button", { name: "View history" }));
+    await waitFor(() => expect(pending).toHaveLength(2));
+
+    pending[0].resolve(timeline("Stale activity result"));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Loading history…" })).toBeTruthy());
+    expect(screen.queryByText("Stale activity result")).toBeNull();
+
+    pending[1].resolve(timeline("Current activity result"));
+    expect(await screen.findByText("Current activity result")).toBeTruthy();
+    expect(screen.queryByText("Stale activity result")).toBeNull();
+  });
+
   it("loads a privacy-minimised activity timeline on demand for the selected lead", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [{ organisationId: "org-1", name: "Pilot Workspace", role: "owner" }] });
