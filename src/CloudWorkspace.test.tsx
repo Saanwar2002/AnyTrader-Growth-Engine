@@ -2047,6 +2047,38 @@ describe("cloud authentication gate", () => {
     expect(screen.queryByText(/stale plan usage request failed/i)).toBeNull();
   });
 
+  it("ignores an older plan usage result after switching away and back to the same organisation", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({ organisations: [
+      { organisationId: "org-1", name: "Pilot Workspace", role: "owner" },
+      { organisationId: "org-2", name: "Second Workspace", role: "owner" },
+    ], hasMoreOrganisations: false });
+    const pending: Array<{ resolve: (value: any) => void }> = [];
+    mocks.api.getOrganisationPlanUsage.mockImplementation(() => new Promise((resolve) => pending.push({ resolve })));
+    const usage = (count: number) => ({
+      organisationId: "org-1", status: "authoritative",
+      plan: { id: "pilot", displayName: "Pilot", limits: { campaigns: 1000, leads: 1000, members: 1000, monthlyAiSuggestions: 1000 } },
+      usage: { campaigns: count, leads: count, members: count, monthlyAiSuggestions: count },
+      remaining: { campaigns: 1000-count, leads: 1000-count, members: 1000-count, monthlyAiSuggestions: 1000-count },
+      aiUsagePeriod: "2026-10", message: "Usage is server-maintained.",
+    });
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load plan usage" }));
+    await waitFor(() => expect(pending).toHaveLength(1));
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
+    await waitFor(() => expect(screen.getByLabelText("Current organisation")).toHaveProperty("value", "org-2"));
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-1" } });
+    await waitFor(() => expect(screen.getByLabelText("Current organisation")).toHaveProperty("value", "org-1"));
+    fireEvent.click(await screen.findByRole("button", { name: "Load plan usage" }));
+    await waitFor(() => expect(pending).toHaveLength(2));
+    pending[0].resolve(usage(777));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Loading plan usage…" })).toBeTruthy());
+    expect(screen.queryByText("777")).toBeNull();
+    pending[1].resolve(usage(222));
+    await waitFor(() => expect(screen.getAllByText("222").length).toBeGreaterThan(0));
+    expect(screen.queryByText("777")).toBeNull();
+  });
+
   it("does not show a failed plan usage reconciliation request from a previous organisation", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({

@@ -1039,9 +1039,9 @@ DRAFT ONLY — NOT SENT.`,
     setError("");
     try {
       const result = await api.getOrganisationPlanUsageReconciliation({ organisationId: requestedOrganisationId });
-      if (currentOrganisationIdRef.current === requestedOrganisationId) setPlanUsageReconciliation(result);
+      if (requestId === planUsageReconciliationLoadIdRef.current && currentOrganisationIdRef.current === requestedOrganisationId) setPlanUsageReconciliation(result);
     } catch (loadError) {
-      if (currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(loadError));
+      if (requestId === planUsageReconciliationLoadIdRef.current && currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(loadError));
     } finally {
       if (requestId === planUsageReconciliationLoadIdRef.current && currentOrganisationIdRef.current === requestedOrganisationId) setLoadingPlanUsageReconciliation(false);
     }
@@ -1055,9 +1055,9 @@ DRAFT ONLY — NOT SENT.`,
     setError("");
     try {
       const summary = await api.getOrganisationPlanUsage({ organisationId: requestedOrganisationId });
-      if (currentOrganisationIdRef.current === requestedOrganisationId) setOrganisationPlanUsage(summary);
+      if (requestId === planUsageLoadIdRef.current && currentOrganisationIdRef.current === requestedOrganisationId) setOrganisationPlanUsage(summary);
     } catch (loadError) {
-      if (currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(loadError));
+      if (requestId === planUsageLoadIdRef.current && currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(loadError));
     } finally {
       if (requestId === planUsageLoadIdRef.current && currentOrganisationIdRef.current === requestedOrganisationId) setLoadingPlanUsage(false);
     }
@@ -1071,9 +1071,9 @@ DRAFT ONLY — NOT SENT.`,
     setError("");
     try {
       const summary = await api.getOnboardingCohortSummary({ organisationId: requestedOrganisationId });
-      if (currentOrganisationIdRef.current === requestedOrganisationId) setOnboardingCohortSummary(summary);
+      if (requestId === onboardingCohortsLoadIdRef.current && currentOrganisationIdRef.current === requestedOrganisationId) setOnboardingCohortSummary(summary);
     } catch (loadError) {
-      if (currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(loadError));
+      if (requestId === onboardingCohortsLoadIdRef.current && currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(loadError));
     } finally {
       if (requestId === onboardingCohortsLoadIdRef.current && currentOrganisationIdRef.current === requestedOrganisationId) setLoadingOnboardingCohorts(false);
     }
@@ -1087,9 +1087,9 @@ DRAFT ONLY — NOT SENT.`,
     setError("");
     try {
       const coverage = await api.getOnboardingCohortCoverage({ organisationId: requestedOrganisationId });
-      if (currentOrganisationIdRef.current === requestedOrganisationId) setOnboardingCohortCoverage(coverage);
+      if (requestId === onboardingCoverageLoadIdRef.current && currentOrganisationIdRef.current === requestedOrganisationId) setOnboardingCohortCoverage(coverage);
     } catch (loadError) {
-      if (currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(loadError));
+      if (requestId === onboardingCoverageLoadIdRef.current && currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(loadError));
     } finally {
       if (requestId === onboardingCoverageLoadIdRef.current && currentOrganisationIdRef.current === requestedOrganisationId) setLoadingOnboardingCohortCoverage(false);
     }
@@ -1103,9 +1103,9 @@ DRAFT ONLY — NOT SENT.`,
     setError("");
     try {
       const summary = await api.getLeadCompletenessSummary({ organisationId: requestedOrganisationId });
-      if (currentOrganisationIdRef.current === requestedOrganisationId) setLeadCompletenessSummary(summary);
+      if (requestId === leadCompletenessLoadIdRef.current && currentOrganisationIdRef.current === requestedOrganisationId) setLeadCompletenessSummary(summary);
     } catch (loadError) {
-      if (currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(loadError));
+      if (requestId === leadCompletenessLoadIdRef.current && currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(loadError));
     } finally {
       if (requestId === leadCompletenessLoadIdRef.current && currentOrganisationIdRef.current === requestedOrganisationId) setLoadingLeadCompletenessSummary(false);
     }
