@@ -3106,6 +3106,45 @@ describe("cloud authentication gate", () => {
     expect(screen.getByRole("progressbar", { name: "Roofers Leeds onboarded leads (all stored)" }).getAttribute("value")).toBe("4");
   });
 
+  it("ignores an older full campaign chart result after switching away and back to the same organisation", async () => {
+    mocks.currentUser = { email: "owner@example.test", uid: "owner-uid" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [
+        { organisationId: "org-1", name: "Pilot Workspace", role: "owner" },
+        { organisationId: "org-2", name: "Second Workspace", role: "owner" },
+      ],
+      hasMoreOrganisations: false,
+    });
+    mocks.api.listCampaigns.mockResolvedValue({
+      campaigns: [{ id: "campaign-1", name: "Roofers Leeds", brand: "AnyTrader", category: "Roofers", location: "Leeds", goal: "Pilot", status: "active", createdAt: null }],
+      hasMoreCampaigns: false,
+      nextPageToken: null,
+    });
+    const pending: Array<{ resolve: (value: any) => void }> = [];
+    mocks.api.getCampaignFunnelSummary.mockImplementation(() => new Promise((resolve) => pending.push({ resolve })));
+    const summary = (totalLeadCount: number) => ({
+      organisationId: "org-1", campaignId: "campaign-1", totalLeadCount,
+      qualifiedLeadCount: 0, contactedLeadCount: 0, onboardedLeadCount: 0,
+      qualifiedRatePercent: 0, onboardedRatePercent: 0, scope: "all_stored_campaign_leads",
+    });
+
+    render(<CloudWorkspace />);
+    fireEvent.click(await screen.findByRole("button", { name: "Load full campaign chart" }));
+    await waitFor(() => expect(pending).toHaveLength(1));
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
+    await waitFor(() => expect((screen.getByLabelText("Current organisation") as HTMLSelectElement).value).toBe("org-2"));
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-1" } });
+    await waitFor(() => expect((screen.getByLabelText("Current organisation") as HTMLSelectElement).value).toBe("org-1"));
+    fireEvent.click(await screen.findByRole("button", { name: "Load full campaign chart" }));
+    await waitFor(() => expect(pending).toHaveLength(2));
+
+    pending[0].resolve(summary(111));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Loading full chart…" })).toBeTruthy());
+    expect(screen.queryByText(/Loaded complete server-side funnel counts/)).toBeNull();
+    pending[1].resolve(summary(222));
+    await waitFor(() => expect(screen.getByRole("progressbar", { name: "Roofers Leeds all stored leads" }).getAttribute("value")).toBe("222"));
+  });
+
   it("does not show a failed full campaign chart request from a previous organisation", async () => {
     mocks.currentUser = { email: "owner@example.test", uid: "owner-uid" };
     mocks.api.listMyOrganisations.mockResolvedValue({

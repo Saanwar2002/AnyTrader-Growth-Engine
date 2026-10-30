@@ -185,6 +185,9 @@ export default function CloudWorkspace() {
   const fullCampaignReadinessLoadIdRef = useRef(0);
   const openLeadAgingLoadIdRef = useRef(0);
   const contactReviewQueueLoadIdRef = useRef(0);
+  // Shared generation for remaining tenant-scoped campaign analytics requests.
+  // Unlike organisation IDs alone, this also rejects responses after an A → B → A switch.
+  const tenantAnalyticsRequestGenerationRef = useRef(0);
   const currentOrganisationIdRef = useRef(organisationId);
   currentOrganisationIdRef.current = organisationId;
   useEffect(() => {
@@ -194,6 +197,10 @@ export default function CloudWorkspace() {
   useEffect(() => {
     // Invalidate tenant-scoped analytics requests when the active organisation changes.
     // A stale request must not clear a newer organisation's loading indicator.
+    tenantAnalyticsRequestGenerationRef.current += 1;
+    setLoadingFullCampaignAnalytics(false);
+    setExportingFullCampaignAnalytics(false);
+    setLoadingCampaignAnalyticsKey("");
     planUsageReconciliationLoadIdRef.current += 1;
     planUsageLoadIdRef.current += 1;
     onboardingCohortsLoadIdRef.current += 1;
@@ -1210,17 +1217,21 @@ DRAFT ONLY — NOT SENT.`,
 
   async function loadCampaignFunnelAnalytics(campaignId: string) {
     if (!api || !organisationId) return;
-    const key = `${organisationId}:${campaignId}`;
+    const requestedOrganisationId = organisationId;
+    const requestGeneration = tenantAnalyticsRequestGenerationRef.current;
+    const key = `${requestedOrganisationId}:${campaignId}`;
     setLoadingCampaignAnalyticsKey(key);
     setError("");
     try {
-      const summary = await api.getCampaignFunnelSummary({ organisationId, campaignId });
-      if (currentOrganisationIdRef.current !== organisationId) return;
+      const summary = await api.getCampaignFunnelSummary({ organisationId: requestedOrganisationId, campaignId });
+      if (requestGeneration !== tenantAnalyticsRequestGenerationRef.current || currentOrganisationIdRef.current !== requestedOrganisationId) return;
       setServerCampaignAnalytics((current) => ({ ...current, [key]: summary }));
     } catch (loadError) {
-      if (currentOrganisationIdRef.current === organisationId) setError(readableError(loadError));
+      if (requestGeneration === tenantAnalyticsRequestGenerationRef.current && currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(loadError));
     } finally {
-      setLoadingCampaignAnalyticsKey((current) => current === key ? "" : current);
+      if (requestGeneration === tenantAnalyticsRequestGenerationRef.current && currentOrganisationIdRef.current === requestedOrganisationId) {
+        setLoadingCampaignAnalyticsKey((current) => current === key ? "" : current);
+      }
     }
   }
 
@@ -1248,6 +1259,7 @@ DRAFT ONLY — NOT SENT.`,
   async function loadFullCampaignAnalytics() {
     if (!api || !organisationId || loadingFullCampaignAnalytics) return;
     const requestedOrganisationId = organisationId;
+    const requestGeneration = tenantAnalyticsRequestGenerationRef.current;
     setLoadingFullCampaignAnalytics(true);
     setError("");
     try {
@@ -1257,7 +1269,7 @@ DRAFT ONLY — NOT SENT.`,
       let hasMoreCampaigns = true;
       for (let pageIndex = 0; pageIndex < 2 && hasMoreCampaigns; pageIndex += 1) {
         const result = await api.listCampaigns({ organisationId: requestedOrganisationId, ...(pageToken ? { pageToken } : {}) });
-        if (currentOrganisationIdRef.current !== requestedOrganisationId) return;
+        if (requestGeneration !== tenantAnalyticsRequestGenerationRef.current || currentOrganisationIdRef.current !== requestedOrganisationId) return;
         for (const campaign of result.campaigns) {
           if (!seenCampaignIds.has(campaign.id)) {
             seenCampaignIds.add(campaign.id);
@@ -1274,23 +1286,24 @@ DRAFT ONLY — NOT SENT.`,
       const campaigns: Array<{ campaignName: string; summary: CampaignFunnelAnalyticsSummary }> = [];
       for (const campaign of allCampaigns) {
         const summary = await api.getCampaignFunnelSummary({ organisationId: requestedOrganisationId, campaignId: campaign.id });
-        if (currentOrganisationIdRef.current !== requestedOrganisationId) return;
+        if (requestGeneration !== tenantAnalyticsRequestGenerationRef.current || currentOrganisationIdRef.current !== requestedOrganisationId) return;
         campaigns.push({ campaignName: campaign.name, summary });
       }
-      if (currentOrganisationIdRef.current === requestedOrganisationId) {
+      if (requestGeneration === tenantAnalyticsRequestGenerationRef.current && currentOrganisationIdRef.current === requestedOrganisationId) {
         setFullCampaignAnalytics({ organisationId: requestedOrganisationId, campaigns });
         setNotice(`Loaded complete server-side funnel counts for ${campaigns.length} campaign(s).`);
       }
     } catch (reason) {
-      if (currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(reason));
+      if (requestGeneration === tenantAnalyticsRequestGenerationRef.current && currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(reason));
     } finally {
-      setLoadingFullCampaignAnalytics(false);
+      if (requestGeneration === tenantAnalyticsRequestGenerationRef.current && currentOrganisationIdRef.current === requestedOrganisationId) setLoadingFullCampaignAnalytics(false);
     }
   }
 
   async function exportFullCampaignAnalytics() {
     if (!api || !organisationId || exportingFullCampaignAnalytics) return;
     const requestedOrganisationId = organisationId;
+    const requestGeneration = tenantAnalyticsRequestGenerationRef.current;
     setExportingFullCampaignAnalytics(true);
     setError("");
     setNotice("");
@@ -1301,7 +1314,7 @@ DRAFT ONLY — NOT SENT.`,
       let hasMoreCampaigns = true;
       for (let pageIndex = 0; pageIndex < 2 && hasMoreCampaigns; pageIndex += 1) {
         const result = await api.listCampaigns({ organisationId: requestedOrganisationId, ...(pageToken ? { pageToken } : {}) });
-        if (currentOrganisationIdRef.current !== requestedOrganisationId) return;
+        if (requestGeneration !== tenantAnalyticsRequestGenerationRef.current || currentOrganisationIdRef.current !== requestedOrganisationId) return;
         for (const campaign of result.campaigns) {
           if (!seenCampaignIds.has(campaign.id)) {
             seenCampaignIds.add(campaign.id);
@@ -1318,9 +1331,10 @@ DRAFT ONLY — NOT SENT.`,
       const summaries: CampaignFunnelAnalyticsSummary[] = [];
       for (const campaign of allCampaigns) {
         const summary = await api.getCampaignFunnelSummary({ organisationId: requestedOrganisationId, campaignId: campaign.id });
-        if (currentOrganisationIdRef.current !== requestedOrganisationId) return;
+        if (requestGeneration !== tenantAnalyticsRequestGenerationRef.current || currentOrganisationIdRef.current !== requestedOrganisationId) return;
         summaries.push(summary);
       }
+      if (requestGeneration !== tenantAnalyticsRequestGenerationRef.current || currentOrganisationIdRef.current !== requestedOrganisationId) return;
       const names = new Map(allCampaigns.map((campaign) => [campaign.id, campaign.name]));
       const csv = serializeFullCampaignFunnelCsv(summaries.map((summary) => ({
         campaignName: names.get(summary.campaignId) ?? summary.campaignId,
@@ -1342,9 +1356,9 @@ DRAFT ONLY — NOT SENT.`,
       URL.revokeObjectURL(url);
       setNotice(`Exported full stored-lead funnel counts for ${summaries.length} campaign(s). This report is not limited to loaded lead pages.`);
     } catch (reason) {
-      if (currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(reason));
+      if (requestGeneration === tenantAnalyticsRequestGenerationRef.current && currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(reason));
     } finally {
-      setExportingFullCampaignAnalytics(false);
+      if (requestGeneration === tenantAnalyticsRequestGenerationRef.current && currentOrganisationIdRef.current === requestedOrganisationId) setExportingFullCampaignAnalytics(false);
     }
   }
 
