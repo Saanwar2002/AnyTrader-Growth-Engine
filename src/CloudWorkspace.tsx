@@ -175,6 +175,11 @@ export default function CloudWorkspace() {
   const memberRosterLoadIdRef = useRef(0);
   const memberActionLoadIdRef = useRef(0);
   const securityAuditLoadIdRef = useRef(0);
+  const planUsageReconciliationLoadIdRef = useRef(0);
+  const planUsageLoadIdRef = useRef(0);
+  const onboardingCohortsLoadIdRef = useRef(0);
+  const onboardingCoverageLoadIdRef = useRef(0);
+  const leadCompletenessLoadIdRef = useRef(0);
   const currentOrganisationIdRef = useRef(organisationId);
   currentOrganisationIdRef.current = organisationId;
   useEffect(() => {
@@ -182,6 +187,18 @@ export default function CloudWorkspace() {
   }, [organisationId, organisations]);
 
   useEffect(() => {
+    // Invalidate tenant-scoped analytics requests when the active organisation changes.
+    // A stale request must not clear a newer organisation's loading indicator.
+    planUsageReconciliationLoadIdRef.current += 1;
+    planUsageLoadIdRef.current += 1;
+    onboardingCohortsLoadIdRef.current += 1;
+    onboardingCoverageLoadIdRef.current += 1;
+    leadCompletenessLoadIdRef.current += 1;
+    setLoadingPlanUsageReconciliation(false);
+    setLoadingPlanUsage(false);
+    setLoadingOnboardingCohorts(false);
+    setLoadingOnboardingCohortCoverage(false);
+    setLoadingLeadCompletenessSummary(false);
     // Invalidate audit requests when the active tenant changes. An old request
     // must not keep the new tenant's audit controls stuck in a loading state.
     securityAuditLoadIdRef.current += 1;
@@ -1004,6 +1021,7 @@ DRAFT ONLY — NOT SENT.`,
   async function loadPlanUsageReconciliation() {
     if (!api || !organisationId || (selectedOrganisationRole !== "owner" && selectedOrganisationRole !== "admin")) return;
     const requestedOrganisationId = organisationId;
+    const requestId = ++planUsageReconciliationLoadIdRef.current;
     setLoadingPlanUsageReconciliation(true);
     setError("");
     try {
@@ -1012,13 +1030,14 @@ DRAFT ONLY — NOT SENT.`,
     } catch (loadError) {
       if (currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(loadError));
     } finally {
-      setLoadingPlanUsageReconciliation(false);
+      if (requestId === planUsageReconciliationLoadIdRef.current && currentOrganisationIdRef.current === requestedOrganisationId) setLoadingPlanUsageReconciliation(false);
     }
   }
 
   async function loadOrganisationPlanUsage() {
     if (!api || !organisationId || (selectedOrganisationRole !== "owner" && selectedOrganisationRole !== "admin")) return;
     const requestedOrganisationId = organisationId;
+    const requestId = ++planUsageLoadIdRef.current;
     setLoadingPlanUsage(true);
     setError("");
     try {
@@ -1027,13 +1046,14 @@ DRAFT ONLY — NOT SENT.`,
     } catch (loadError) {
       if (currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(loadError));
     } finally {
-      setLoadingPlanUsage(false);
+      if (requestId === planUsageLoadIdRef.current && currentOrganisationIdRef.current === requestedOrganisationId) setLoadingPlanUsage(false);
     }
   }
 
   async function loadOnboardingCohorts() {
     if (!api || !organisationId) return;
     const requestedOrganisationId = organisationId;
+    const requestId = ++onboardingCohortsLoadIdRef.current;
     setLoadingOnboardingCohorts(true);
     setError("");
     try {
@@ -1042,13 +1062,14 @@ DRAFT ONLY — NOT SENT.`,
     } catch (loadError) {
       if (currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(loadError));
     } finally {
-      setLoadingOnboardingCohorts(false);
+      if (requestId === onboardingCohortsLoadIdRef.current && currentOrganisationIdRef.current === requestedOrganisationId) setLoadingOnboardingCohorts(false);
     }
   }
 
   async function loadOnboardingCohortCoverage() {
     if (!api || !organisationId || (selectedOrganisationRole !== "owner" && selectedOrganisationRole !== "admin") || loadingOnboardingCohortCoverage) return;
     const requestedOrganisationId = organisationId;
+    const requestId = ++onboardingCoverageLoadIdRef.current;
     setLoadingOnboardingCohortCoverage(true);
     setError("");
     try {
@@ -1057,13 +1078,14 @@ DRAFT ONLY — NOT SENT.`,
     } catch (loadError) {
       if (currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(loadError));
     } finally {
-      setLoadingOnboardingCohortCoverage(false);
+      if (requestId === onboardingCoverageLoadIdRef.current && currentOrganisationIdRef.current === requestedOrganisationId) setLoadingOnboardingCohortCoverage(false);
     }
   }
 
   async function loadLeadCompletenessSummary() {
     if (!api || !organisationId || loadingLeadCompletenessSummary) return;
     const requestedOrganisationId = organisationId;
+    const requestId = ++leadCompletenessLoadIdRef.current;
     setLoadingLeadCompletenessSummary(true);
     setError("");
     try {
@@ -1072,7 +1094,7 @@ DRAFT ONLY — NOT SENT.`,
     } catch (loadError) {
       if (currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(loadError));
     } finally {
-      setLoadingLeadCompletenessSummary(false);
+      if (requestId === leadCompletenessLoadIdRef.current && currentOrganisationIdRef.current === requestedOrganisationId) setLoadingLeadCompletenessSummary(false);
     }
   }
 
