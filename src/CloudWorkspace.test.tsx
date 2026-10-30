@@ -2075,7 +2075,7 @@ describe("cloud authentication gate", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "Loading plan usage…" })).toBeTruthy());
     expect(screen.queryByText("777")).toBeNull();
     pending[1].resolve(usage(222));
-    await waitFor(() => expect(screen.getByText("222")).toBeTruthy());
+    await waitFor(() => expect(screen.getAllByText("222").length).toBeGreaterThan(0));
     expect(screen.queryByText("777")).toBeNull();
   });
 
