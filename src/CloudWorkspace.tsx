@@ -180,6 +180,7 @@ export default function CloudWorkspace() {
   const onboardingCohortsLoadIdRef = useRef(0);
   const onboardingCoverageLoadIdRef = useRef(0);
   const leadCompletenessLoadIdRef = useRef(0);
+  const sourceAnalyticsLoadIdRef = useRef(0);
   const currentOrganisationIdRef = useRef(organisationId);
   currentOrganisationIdRef.current = organisationId;
   useEffect(() => {
@@ -194,6 +195,9 @@ export default function CloudWorkspace() {
     onboardingCohortsLoadIdRef.current += 1;
     onboardingCoverageLoadIdRef.current += 1;
     leadCompletenessLoadIdRef.current += 1;
+    sourceAnalyticsLoadIdRef.current += 1;
+    setLoadingSourceAnalyticsOrganisationId("");
+    setServerSourceAnalytics(null);
     setLoadingPlanUsageReconciliation(false);
     setLoadingPlanUsage(false);
     setLoadingOnboardingCohorts(false);
@@ -962,16 +966,19 @@ DRAFT ONLY — NOT SENT.`,
   async function loadLeadSourceFunnelAnalytics() {
     if (!api || !organisationId) return;
     const requestedOrganisationId = organisationId;
+    const requestId = ++sourceAnalyticsLoadIdRef.current;
     setLoadingSourceAnalyticsOrganisationId(requestedOrganisationId);
     setError("");
     try {
       const summary = await api.getLeadSourceFunnelSummary({ organisationId: requestedOrganisationId });
-      if (currentOrganisationIdRef.current !== requestedOrganisationId) return;
+      if (requestId !== sourceAnalyticsLoadIdRef.current || currentOrganisationIdRef.current !== requestedOrganisationId) return;
       setServerSourceAnalytics(summary);
     } catch (loadError) {
-      if (currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(loadError));
+      if (requestId === sourceAnalyticsLoadIdRef.current && currentOrganisationIdRef.current === requestedOrganisationId) setError(readableError(loadError));
     } finally {
-      setLoadingSourceAnalyticsOrganisationId((current) => current === requestedOrganisationId ? "" : current);
+      if (requestId === sourceAnalyticsLoadIdRef.current && currentOrganisationIdRef.current === requestedOrganisationId) {
+        setLoadingSourceAnalyticsOrganisationId((current) => current === requestedOrganisationId ? "" : current);
+      }
     }
   }
 
