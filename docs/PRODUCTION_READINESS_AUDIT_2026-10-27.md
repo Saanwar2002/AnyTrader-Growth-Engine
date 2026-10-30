@@ -1,3 +1,14 @@
+> **Continuation addendum — 29 October 2026, 17:47 UTC — PR #387 checkpoint**
+>
+> - **Latest main merge checkpoint:** `055e179afca29ccc66e0abaeda730d4191e1d9b8` (PR #387, documentation-only clarification of CI evidence lookup scope).
+> - **PR #387 exact-head CI:** run [40906928003](https://github.com/Saanwar2002/AnyTrader-Growth-Engine/actions/runs/40906928003) completed successfully for head `1ecd4d86632802a17141d9cd56b5cfe7818ebd17`. Both Firebase Functions tests/build and frontend typecheck, unit tests, production build, dependency checks, script syntax validation, and Firebase emulator integration smoke tests passed.
+> - **Post-merge main CI:** workflow-run and combined-status lookups returned no results for merge SHA `055e179afca29ccc66e0abaeda730d4191e1d9b8`. The workflow-run connector only exposes pull-request-triggered runs; these empty results do not prove that push-triggered CI did not run. Post-merge main CI remains **unverified through the available lookups**, not failed and not passed.
+> - **Open work queue:** open-PR and open-issue searches returned no items at this checkpoint. This refresh records evidence; it does not introduce speculative runtime changes.
+> - **Release decision remains NOT PRODUCTION READY.** Dedicated Growth Engine Firebase project setup, live App Check token flow, privacy/retention approval, monitoring/budget alerts, backup/recovery evidence, approved source-provider configuration, legacy-data reconciliation, release ownership, and rollback rehearsal remain blockers.
+> - No production deployment, live data migration, billing activation, live provider connection, or prospect outreach was performed.
+>
+> ---
+>
 > **Continuation addendum — 29 October 2026, 15:58 UTC — CI evidence lookup limitation**
 >
 > - The available `fetch_commit_workflow_runs` connector returns only pull-request-triggered workflow runs; therefore an empty result for a merge SHA does **not** prove that a push-triggered `main` workflow did not run. The combined-status lookup also returned no statuses for the checked merge SHA. Treat post-merge main CI as **unverified by these lookups**, not as evidence of absent, failed, or successful CI.
