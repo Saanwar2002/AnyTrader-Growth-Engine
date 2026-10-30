@@ -3004,6 +3004,37 @@ describe("cloud authentication gate", () => {
   });
 
 
+  it("does not show a failed workspace refresh from a previous organisation", async () => {
+    mocks.currentUser = { email: "pilot@example.test" };
+    mocks.api.listMyOrganisations.mockResolvedValue({
+      organisations: [
+        { organisationId: "org-1", name: "Pilot Workspace", role: "owner" },
+        { organisationId: "org-2", name: "Second Workspace", role: "owner" },
+      ],
+      hasMoreOrganisations: false,
+    });
+    let rejectFirst!: (reason: Error) => void;
+    mocks.api.listCampaigns
+      .mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectFirst = reject; }))
+      .mockResolvedValue({
+        campaigns: [{ id: "campaign-2", name: "Second campaign", brand: "AnyTrader", category: "Painters", location: "Edinburgh", goal: "Recruit providers", status: "active", createdAt: null }],
+        hasMoreCampaigns: false,
+        nextPageToken: null,
+      });
+
+    render(<CloudWorkspace />);
+    await waitFor(() => expect((screen.getByLabelText("Current organisation") as HTMLSelectElement).value).toBe("org-1"));
+    await waitFor(() => expect(mocks.api.listCampaigns).toHaveBeenCalledTimes(1));
+
+    fireEvent.change(screen.getByLabelText("Current organisation"), { target: { value: "org-2" } });
+    await waitFor(() => expect((screen.getByLabelText("Current organisation") as HTMLSelectElement).value).toBe("org-2"));
+    await waitFor(() => expect(mocks.api.listCampaigns).toHaveBeenCalledTimes(2));
+
+    rejectFirst(new Error("stale workspace refresh failure"));
+    await waitFor(() => expect(screen.getAllByText("Second campaign").length).toBeGreaterThan(0));
+    expect(screen.queryByText("stale workspace refresh failure")).toBeNull();
+  });
+
   it("keeps the active member roster loading state when an older organisation request fails", async () => {
     mocks.currentUser = { email: "pilot@example.test" };
     mocks.api.listMyOrganisations.mockResolvedValue({
