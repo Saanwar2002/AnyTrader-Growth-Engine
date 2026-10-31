@@ -2774,7 +2774,6 @@ export const classifyLeadForAcquisition = onCall(
     const data = (request.data ?? {}) as Record<string, unknown>;
     const organisationId = requireOrganisationId(data.organisationId);
     const leadId = requireDocumentId(data.leadId, "leadId");
-    await requireLeadEditor(organisationId, uid);
     let apiKey = "";
     try { apiKey = geminiApiKey.value(); } catch { /* secret is not configured in this environment */ }
     if (!apiKey.trim()) {
@@ -2782,32 +2781,35 @@ export const classifyLeadForAcquisition = onCall(
     }
 
     const organisationRef = db.collection("organisations").doc(organisationId);
-    const [organisationSnapshot, leadSnapshot] = await Promise.all([
-      organisationRef.get(),
-      organisationRef.collection("leads").doc(leadId).get(),
-    ]);
-    if (!organisationSnapshot.exists || !leadSnapshot.exists) {
-      throw new HttpsError("not-found", "Lead or organisation was not found.");
-    }
-    const lead = leadSnapshot.data() ?? {};
-    const businessName = safePersistedText(lead.businessName, 160).trim();
-    const currentCategory = safePersistedText(lead.category, 100).trim();
-    const location = safePersistedText(lead.location, 160).trim();
-    if (!businessName || !currentCategory || !location) {
-      throw new HttpsError("failed-precondition", "The lead needs a business name, category, and location before AI classification.");
-    }
-    await consumeReadRateLimit(organisationId, uid, "classifyLeadForAcquisition", 10);
-    // Reserve the existing monthly AI allowance before any external provider call.
-    // Failed provider attempts consume the reservation to prevent retry-based quota bypass.
+    const leadRef = organisationRef.collection("leads").doc(leadId);
+    let leadContext: { businessName: string; currentCategory: string; location: string } | undefined;
     await db.runTransaction(async (transaction: Transaction) => {
+      await requireTransactionalRole(transaction, organisationId, uid, "lead");
+      await consumeTransactionalRateLimit(transaction, organisationId, uid, "classifyLeadForAcquisition", 10);
+      const [organisationSnapshot, leadSnapshot] = await Promise.all([
+        transaction.get(organisationRef),
+        transaction.get(leadRef),
+      ]);
+      if (!organisationSnapshot.exists || !leadSnapshot.exists) {
+        throw new HttpsError("not-found", "Lead or organisation was not found.");
+      }
+      const lead = leadSnapshot.data() ?? {};
+      const businessName = safePersistedText(lead.businessName, 160).trim();
+      const currentCategory = safePersistedText(lead.category, 100).trim();
+      const location = safePersistedText(lead.location, 160).trim();
+      if (!businessName || !currentCategory || !location) {
+        throw new HttpsError("failed-precondition", "The lead needs a business name, category, and location before AI classification.");
+      }
+      // Reserve the monthly AI allowance in the same transaction as authorisation and rate limiting.
       const reservedPlanUsageState = await reserveOrganisationPlanUsage(
         transaction, organisationId, "monthlyAiSuggestions", 1,
       );
       if (reservedPlanUsageState) transaction.update(organisationRef, { planUsage: reservedPlanUsageState });
+      leadContext = { businessName, currentCategory, location };
     });
     try {
       return await classifyLeadWithAi(
-        { businessName, currentCategory, location },
+        leadContext!,
         { apiKey, model: process.env.GEMINI_MODEL || "gemini-3.8-flash", timeoutMs: 15000 },
       );
     } catch (error) {
