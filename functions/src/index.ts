@@ -2605,6 +2605,120 @@ export const updateLeadFollowUpDate = onCall(callableOptions, async (request) =>
   return { leadId, followUpDate };
 });
 
+export const bulkAssignLeads = onCall(callableOptions, async (request) => {
+  const uid = requireUid(request.auth?.uid);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const organisationId = requireOrganisationId(data.organisationId);
+  const rawLeadIds = data.leadIds;
+  const assignedToUid = data.assignedToUid === null
+    ? null
+    : requireDocumentId(data.assignedToUid, "assignedToUid");
+  const idempotencyKey = data.idempotencyKey;
+  if (!Array.isArray(rawLeadIds) || rawLeadIds.length < 1 || rawLeadIds.length > 25) {
+    throw new HttpsError("invalid-argument", "leadIds must contain between 1 and 25 leads.");
+  }
+  const leadIds = rawLeadIds.map((value) => requireDocumentId(value, "leadId"));
+  if (new Set(leadIds).size !== leadIds.length) {
+    throw new HttpsError("invalid-argument", "leadIds must not contain duplicates.");
+  }
+  if (typeof idempotencyKey !== "string" || !/^[A-Za-z0-9._:-]{16,128}$/.test(idempotencyKey)) {
+    throw new HttpsError("invalid-argument", "idempotencyKey must be 16-128 safe characters.");
+  }
+  await requireLeadEditor(organisationId, uid);
+  const organisationRef = db.collection("organisations").doc(organisationId);
+  const leadsRef = organisationRef.collection("leads");
+  const idempotencyId = createHash("sha256").update(JSON.stringify([organisationId, uid, idempotencyKey])).digest("hex");
+  const idempotencyRef = organisationRef.collection("leadBulkAssignmentIdempotency").doc(idempotencyId);
+  const requestHash = createHash("sha256").update(JSON.stringify({
+    organisationId,
+    leadIds: [...leadIds].sort(),
+    assignedToUid,
+  })).digest("hex");
+
+  return db.runTransaction(async (transaction: Transaction) => {
+    const idempotencySnapshot = await transaction.get(idempotencyRef);
+    const callerMembership = await requireTransactionalRole(transaction, organisationId, uid, "lead");
+    if (callerMembership.role !== "owner" && callerMembership.role !== "admin") {
+      throw new HttpsError("permission-denied", "Only organisation owners and admins can assign leads.");
+    }
+    if (idempotencySnapshot.exists) {
+      const saved = idempotencySnapshot.data() ?? {};
+      if (saved.requestHash !== requestHash || saved.actorUid !== uid) {
+        throw new HttpsError("already-exists", "This idempotencyKey was already used with a different bulk assignment request.");
+      }
+      const result = saved.result as Record<string, unknown> | undefined;
+      const changedIds = result?.leadIds;
+      if (!result || Object.keys(result).sort().join(",") !== "assignedToUid,leadIds,organisationId,unchangedCount,updatedCount"
+        || result.organisationId !== organisationId
+        || result.assignedToUid !== assignedToUid
+        || !Array.isArray(changedIds)
+        || changedIds.some((leadId) => typeof leadId !== "string" || !leadIds.includes(leadId))
+        || new Set(changedIds).size !== changedIds.length
+        || result.updatedCount !== changedIds.length
+        || result.unchangedCount !== leadIds.length - changedIds.length) {
+        throw new HttpsError("failed-precondition", "Saved bulk assignment retry state is invalid and requires operator review.");
+      }
+      return {
+        organisationId,
+        assignedToUid,
+        updatedCount: changedIds.length,
+        unchangedCount: leadIds.length - changedIds.length,
+        leadIds: [...changedIds] as string[],
+      };
+    }
+
+    const organisationSnapshot = await transaction.get(organisationRef);
+    if (!organisationSnapshot.exists) throw new HttpsError("not-found", "Organisation was not found.");
+    const leadRefs = leadIds.map((leadId) => leadsRef.doc(leadId));
+    const leadSnapshots = await Promise.all(leadRefs.map((ref) => transaction.get(ref)));
+    const leads = leadSnapshots.map((snapshot, index) => {
+      if (!snapshot.exists) {
+        throw new HttpsError("not-found", "A selected lead was not found in this organisation; no assignments were changed.");
+      }
+      return { leadId: leadIds[index], ref: leadRefs[index], data: snapshot.data() ?? {} };
+    });
+    if (assignedToUid) {
+      const targetMembershipSnapshot = await transaction.get(organisationRef.collection("members").doc(assignedToUid));
+      if (!targetMembershipSnapshot.exists
+        || !isValidMembershipForOrganisation(targetMembershipSnapshot.data(), assignedToUid, organisationSnapshot.data()?.ownerUid)) {
+        throw new HttpsError("invalid-argument", "The assignee must be an active member of this organisation.");
+      }
+    }
+
+    const changedLeadIds: string[] = [];
+    for (const lead of leads) {
+      const currentAssignee = typeof lead.data.assignedToUid === "string" ? lead.data.assignedToUid : null;
+      if (currentAssignee !== assignedToUid) changedLeadIds.push(lead.leadId);
+    }
+    await consumeTransactionalRateLimit(transaction, organisationId, uid, "bulkAssignLeads", 30);
+    const now = FieldValue.serverTimestamp();
+    for (const lead of leads) {
+      const currentAssignee = typeof lead.data.assignedToUid === "string" ? lead.data.assignedToUid : null;
+      if (currentAssignee === assignedToUid) continue;
+      transaction.update(lead.ref, { assignedToUid, updatedAt: now, updatedBy: uid });
+      const activityRef = organisationRef.collection("leadActivities").doc();
+      transaction.create(activityRef, {
+        leadId: lead.leadId,
+        actorUid: uid,
+        message: assignedToUid ? "Lead assigned to a team member (bulk update)" : "Lead assignment cleared (bulk update)",
+        createdAt: now,
+      });
+      writeSecurityAuditEvent(transaction, organisationId, uid, "lead.assigned", "lead", lead.leadId, {
+        assignmentChanged: true,
+      });
+    }
+    const result = {
+      organisationId,
+      assignedToUid,
+      updatedCount: changedLeadIds.length,
+      unchangedCount: leadIds.length - changedLeadIds.length,
+      leadIds: changedLeadIds,
+    };
+    transaction.create(idempotencyRef, { requestHash, actorUid: uid, result, createdAt: now });
+    return result;
+  });
+});
+
 export const assignLead = onCall(callableOptions, async (request) => {
   const uid = requireUid(request.auth?.uid);
   const data = (request.data ?? {}) as Record<string, unknown>;
