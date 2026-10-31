@@ -79,7 +79,7 @@ export async function classifyLeadWithAi(
     throw new Error("AI classification context fields are invalid.");
   }
   const config = snapshot(options, OPTION_KEYS, "AI classification options are invalid.");
-  if (typeof config.apiKey !== "string" || !config.apiKey.trim() || /[\u0000-\u0020\u007f]/.test(config.apiKey)) {
+  if (typeof config.apiKey !== "string" || !config.apiKey.trim() || /[\u0000-\u001f\u007f]/.test(config.apiKey.trim())) {
     throw new Error("AI classification is not configured.");
   }
   if (config.model !== undefined && typeof config.model !== "string") throw new Error("AI model name is invalid.");
