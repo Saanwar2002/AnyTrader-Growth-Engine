@@ -159,8 +159,8 @@
 
 ## Non-negotiable boundaries
 
-- Work only in Saanwar2002/AnyTrader-Growth-Engine, on development/next-phase.
-- Do not modify the original AnyTrader repository or either repository's main branch.
+- Work only in Saanwar2002/AnyTrader-Growth-Engine. Create focused feature or documentation branches from the latest `main` and integrate them through reviewed pull requests targeting `main`.
+- Do not modify the original AnyTrader repository. Do not merge stale or highly divergent branches wholesale; inspect and selectively port only unique, verified work.
 - No unauthorized scraping or access-control bypass.
 - No secrets in the browser or committed configuration.
 - No real lead data in localStorage demo mode and no automated outreach.
