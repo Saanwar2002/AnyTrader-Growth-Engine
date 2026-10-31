@@ -133,7 +133,7 @@ export interface LeadActivityTimeline {
   scope: "latest_20_lead_activity_events";
   hasMoreHistory: boolean;
 }
-export interface LeadSummary { id: string; campaignId: string; businessName: string; category: string; location: string; website: string; email: string; phone: string; source: string; sourceRecordId?: string; status: ServerLeadStatus; score: number; scoreReasons: string[]; notes: string; doNotContact: boolean; contactRestrictionVerified: boolean; contactReviewStatus?: "pending" | "cleared" | "blocked"; contactReviewRevision: number; onboardedAt: string | null; followUpDate?: string | null; createdAt: string | null; }
+export interface LeadSummary { id: string; campaignId: string; businessName: string; category: string; location: string; website: string; email: string; phone: string; source: string; sourceRecordId?: string; status: ServerLeadStatus; score: number; scoreReasons: string[]; notes: string; doNotContact: boolean; contactRestrictionVerified: boolean; contactReviewStatus?: "pending" | "cleared" | "blocked"; contactReviewRevision: number; onboardedAt: string | null; followUpDate?: string | null; assignedToUid?: string; createdAt: string | null; }
 export interface OutreachDraftSummary { id: string; leadId: string; campaignId: string; subject: string; body: string; status: string; leadSuppressed: boolean; requiresReview: boolean; reviewReason: string | null; createdAt: string | null; }
 
 /** Typed boundary for callable functions. All authorisation still happens server-side. */
@@ -171,6 +171,7 @@ export function createGrowthEngineApi(call: CallableInvoker) {
     bulkUpdateLeadStatus: (payload: { organisationId: string; leadIds: string[]; status: ServerLeadStatus; idempotencyKey: string }) => call<typeof payload, { organisationId: string; status: ServerLeadStatus; updatedCount: number; unchangedCount: number; leadIds: string[] }>("bulkUpdateLeadStatus", payload),
     updateLeadNotes: (payload: { organisationId: string; leadId: string; notes: string }) => call<typeof payload, { leadId: string; notes: string }>("updateLeadNotes", payload),
     updateLeadFollowUpDate: (payload: { organisationId: string; leadId: string; followUpDate: string | null }) => call<typeof payload, { leadId: string; followUpDate: string | null }>("updateLeadFollowUpDate", payload),
+    assignLead: (payload: { organisationId: string; leadId: string; assignedToUid: string | null }) => call<typeof payload, { leadId: string; assignedToUid: string | null; assignmentChanged: boolean }>("assignLead", payload),
     setLeadSuppression: (payload: { organisationId: string; leadId: string; doNotContact: boolean; contactReviewRevision?: number }) => call<typeof payload, { leadId: string; doNotContact: boolean }>("setLeadSuppression", payload),
     createOutreachDraft: (payload: { organisationId: string; leadId: string; subject: string; body: string; idempotencyKey: string }) => call<typeof payload, { draftId: string; leadId: string; campaignId: string; subject: string; body: string; status: "draft"; sent: false }>("createOutreachDraft", payload),
     suggestOutreachDraft: (payload: { organisationId: string; leadId: string }) => call<typeof payload, { subject: string; body: string; sent: false }>("suggestOutreachDraft", payload),
