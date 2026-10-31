@@ -2361,7 +2361,7 @@ describe("cloud authentication gate", () => {
     render(<CloudWorkspace />);
     await waitFor(() => expect((screen.getByLabelText("Current organisation") as HTMLSelectElement).value).toBe("org-1"));
     fireEvent.click(await screen.findByRole("button", { name: "Load member roster" }));
-    await screen.findByText("member@example.test");
+    await screen.findAllByText("member@example.test");
     fireEvent.click(screen.getByRole("button", { name: "Remove access" }));
     await waitFor(() => expect(mocks.api.removeOrganisationMember).toHaveBeenCalledWith({ organisationId: "org-1", targetUid: "member-uid" }));
     expect(confirm).toHaveBeenCalledTimes(1);
@@ -3279,7 +3279,7 @@ describe("cloud authentication gate", () => {
       nextPageToken: null,
       scope: "organisation_member_roster",
     });
-    await waitFor(() => expect(screen.getByText("second@example.test")).toBeTruthy());
+    await waitFor(() => expect(screen.getAllByText("second@example.test").length).toBeGreaterThan(0));
   });
 
   it("does not show a failed per-campaign funnel request from a previous organisation", async () => {
