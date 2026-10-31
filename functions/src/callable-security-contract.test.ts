@@ -41,6 +41,7 @@ const expectedRateLimitType: Record<string, "read" | "mutation"> = {
   classifyLeadForAcquisition: "mutation",
   reviewAiLeadCategory: "mutation",
   assignLead: "mutation",
+  bulkAssignLeads: "mutation",
   updateLeadNotes: "mutation",
   updateLeadFollowUpDate: "mutation",
   setLeadSuppression: "mutation",
@@ -52,6 +53,24 @@ const expectedRateLimitType: Record<string, "read" | "mutation"> = {
 };
 
 describe("callable security contract", () => {
+  it("bulk-assigns at most 25 tenant leads atomically to an active member and records PII-minimised audit events", () => {
+    const start = callableSource.indexOf("export const bulkAssignLeads = onCall(");
+    const end = callableSource.indexOf("export const assignLead = onCall(", start);
+    const callable = callableSource.slice(start, end);
+    expect(callable).toContain("leadIds.length > 25");
+    expect(callable).toContain("leadIds must not contain duplicates");
+    expect(callable).toContain('requireTransactionalRole(transaction, organisationId, uid, "lead")');
+    expect(callable).toContain('callerMembership.role !== "owner" && callerMembership.role !== "admin"');
+    expect(callable).toContain('collection("members").doc(assignedToUid)');
+    expect(callable).toContain("isValidMembershipForOrganisation");
+    expect(callable).toContain('"leadBulkAssignmentIdempotency"');
+    expect(callable).toContain('"bulkAssignLeads", 30');
+    expect(callable).toContain('"lead.assigned"');
+    expect(callable).toContain("assignmentChanged: true");
+    expect(callable).toContain("no assignments were changed");
+    expect(callable).not.toContain("email:");
+  });
+
   it("assigns leads only to active members of the same organisation and audits real changes", () => {
     const start = callableSource.indexOf("export const assignLead = onCall(");
     const end = callableSource.indexOf("export const setLeadSuppression =", start);
