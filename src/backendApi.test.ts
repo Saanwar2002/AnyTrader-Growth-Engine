@@ -366,3 +366,26 @@ it("passes a stable idempotency key and exact tenant-scoped payload for bulk lea
   await expect(api.bulkUpdateLeadStatus(payload)).resolves.toEqual(response);
   expect(calls).toEqual([{ name: "bulkUpdateLeadStatus", payload }]);
 });
+
+
+it("passes a stable idempotency key and exact tenant-scoped payload for bulk lead assignment", async () => {
+  const response = {
+    organisationId: "org-1",
+    assignedToUid: "member-2",
+    updatedCount: 2,
+    unchangedCount: 1,
+    leadIds: ["lead-1", "lead-2"],
+  };
+  const { invoke, calls } = makeInvoker([response]);
+  const api = createGrowthEngineApi(invoke);
+  const payload = {
+    organisationId: "org-1",
+    leadIds: ["lead-1", "lead-2", "lead-3"],
+    assignedToUid: "member-2",
+    idempotencyKey: "bulk-assignment-api-contract-0001",
+  };
+
+  await expect(api.bulkAssignLeads(payload)).resolves.toEqual(response);
+  expect(calls).toEqual([{ name: "bulkAssignLeads", payload }]);
+});
+
