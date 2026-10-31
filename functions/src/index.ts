@@ -172,8 +172,10 @@ function normalizeBoundedAuditMetadata(
     || ("doNotContact" in record && typeof record.doNotContact !== "boolean")
     || ("notesCleared" in record && typeof record.notesCleared !== "boolean")
     || ("followUpDateSet" in record && typeof record.followUpDateSet !== "boolean")
+    || ("categoryChanged" in record && typeof record.categoryChanged !== "boolean")
     || ("nameChanged" in record && typeof record.nameChanged !== "boolean")
     || ("campaignDetailsChanged" in record && typeof record.campaignDetailsChanged !== "boolean")) return null;
+  if ("aiCategoryDecision" in record && !["accepted", "rejected"].includes(record.aiCategoryDecision ?? "")) return null;
   if ("campaignStatus" in record && !["active", "paused", "completed"].includes(record.campaignStatus ?? "")) return null;
   if ("leadStatus" in record && !["new", "reviewing", "qualified", "contacted", "onboarded", "rejected"].includes(record.leadStatus ?? "")) return null;
   if ("contactReviewStatus" in record && !["pending", "cleared", "blocked"].includes(record.contactReviewStatus ?? "")) return null;
