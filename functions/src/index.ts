@@ -89,6 +89,7 @@ type SecurityAuditEventType =
   | "lead.status_changed"
   | "lead.notes_changed"
   | "lead.follow_up_date_changed"
+  | "lead.ai_category_reviewed"
   | "outreach_draft.created"
   | "outreach_draft.updated"
   | "outreach_draft.deleted";
@@ -105,6 +106,8 @@ type SecurityAuditEventMetadata = {
   leadStatus?: string;
   notesCleared?: boolean;
   followUpDateSet?: boolean;
+  aiCategoryDecision?: "accepted" | "rejected";
+  categoryChanged?: boolean;
   nameChanged?: boolean;
   draftAction?: "created" | "updated" | "deleted";
   memberRole?: "admin" | "member" | "viewer";
@@ -126,6 +129,7 @@ const AUDIT_EVENT_RESOURCE_TYPES: Record<SecurityAuditEventType, "organisation" 
   "lead.status_changed": "lead",
   "lead.notes_changed": "lead",
   "lead.follow_up_date_changed": "lead",
+  "lead.ai_category_reviewed": "lead",
   "outreach_draft.created": "outreachDraft",
   "outreach_draft.updated": "outreachDraft",
   "outreach_draft.deleted": "outreachDraft",
@@ -147,6 +151,7 @@ const AUDIT_METADATA_KEYS: Record<SecurityAuditEventType, readonly (keyof Securi
   "lead.status_changed": ["leadStatus"],
   "lead.notes_changed": ["notesCleared"],
   "lead.follow_up_date_changed": ["followUpDateSet"],
+  "lead.ai_category_reviewed": ["aiCategoryDecision", "categoryChanged"],
   "outreach_draft.created": ["draftAction"],
   "outreach_draft.updated": ["draftAction"],
   "outreach_draft.deleted": ["draftAction"],
@@ -2821,6 +2826,52 @@ export const classifyLeadForAcquisition = onCall(
     }
   },
 );
+
+export const reviewAiLeadCategory = onCall(callableOptions, async (request) => {
+  const uid = requireUid(request.auth?.uid);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const organisationId = requireOrganisationId(data.organisationId);
+  const leadId = requireDocumentId(data.leadId, "leadId");
+  const decision = data.decision;
+  if (decision !== "accepted" && decision !== "rejected") {
+    throw new HttpsError("invalid-argument", "decision must be accepted or rejected.");
+  }
+  const suggestedCategory = normaliseRequiredText(data.suggestedCategory, 100);
+  if (!suggestedCategory) {
+    throw new HttpsError("invalid-argument", "suggestedCategory must be 1-100 characters.");
+  }
+  const organisationRef = db.collection("organisations").doc(organisationId);
+  const leadRef = organisationRef.collection("leads").doc(leadId);
+  const activityRef = organisationRef.collection("leadActivities").doc();
+  let categoryChanged = false;
+  await db.runTransaction(async (transaction: Transaction) => {
+    await requireTransactionalRole(transaction, organisationId, uid, "lead");
+    const leadSnapshot = await transaction.get(leadRef);
+    if (!leadSnapshot.exists) throw new HttpsError("not-found", "Lead was not found in this organisation.");
+    const lead = leadSnapshot.data() ?? {};
+    if (decision === "accepted" && lead.category !== suggestedCategory) {
+      categoryChanged = true;
+    }
+    const now = FieldValue.serverTimestamp();
+    await consumeTransactionalRateLimit(transaction, organisationId, uid, "reviewAiLeadCategory", 120);
+    if (categoryChanged) {
+      transaction.update(leadRef, { category: suggestedCategory, updatedAt: now, updatedBy: uid });
+    }
+    transaction.create(activityRef, {
+      leadId,
+      actorUid: uid,
+      message: decision === "accepted"
+        ? (categoryChanged ? `AI category suggestion accepted: ${suggestedCategory}` : "AI category suggestion accepted; category was already unchanged")
+        : "AI category suggestion rejected",
+      createdAt: now,
+    });
+    writeSecurityAuditEvent(transaction, organisationId, uid, "lead.ai_category_reviewed", "lead", leadId, {
+      aiCategoryDecision: decision,
+      categoryChanged,
+    });
+  });
+  return { leadId, decision, category: categoryChanged ? suggestedCategory : undefined, categoryChanged };
+});
 
 export const listOutreachDrafts = onCall(callableOptions, async (request) => {
   const uid = requireUid(request.auth?.uid);
