@@ -57,7 +57,7 @@ describe("callable security contract", () => {
     const start = callableSource.indexOf("export const bulkAssignLeads = onCall(");
     const end = callableSource.indexOf("export const assignLead = onCall(", start);
     const callable = callableSource.slice(start, end);
-    expect(callable).toContain("leadIds.length > 25");
+    expect(callable).toContain("rawLeadIds.length > 25");
     expect(callable).toContain("leadIds must not contain duplicates");
     expect(callable).toContain('requireTransactionalRole(transaction, organisationId, uid, "lead")');
     expect(callable).toContain('callerMembership.role !== "owner" && callerMembership.role !== "admin"');
