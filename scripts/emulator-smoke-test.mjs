@@ -3456,6 +3456,37 @@ try {
     leadIds: [leadOne.leadId, leadOne.leadId],
     idempotencyKey: "bulk-lead-status-duplicate-0001",
   }), "functions/invalid-argument", "bulk status update rejects duplicate lead IDs");
+  const bulkAssignmentPayload = {
+    organisationId: orgOne.organisationId,
+    leadIds: [leadOne.leadId, invalidContactEditLead.leadId],
+    assignedToUid: first.auth.currentUser.uid,
+    idempotencyKey: "bulk-lead-assignment-smoke-0001",
+  };
+  const bulkAssignmentResult = await callOne("bulkAssignLeads", bulkAssignmentPayload);
+  assert.equal(bulkAssignmentResult.updatedCount, 2, "bulk assignment changes every selected lead");
+  assert.equal(bulkAssignmentResult.unchangedCount, 0);
+  assert.deepEqual(bulkAssignmentResult.leadIds, bulkAssignmentPayload.leadIds);
+  assert.deepEqual(await callOne("bulkAssignLeads", bulkAssignmentPayload), bulkAssignmentResult,
+    "bulk assignment retry returns the original result without repeating activity or audit writes");
+  await expectCallableFailure(callOne("bulkAssignLeads", {
+    ...bulkAssignmentPayload,
+    assignedToUid: null,
+  }), "functions/already-exists", "bulk assignment idempotency rejects a changed assignee");
+  await expectCallableFailure(callTwo("bulkAssignLeads", {
+    ...bulkAssignmentPayload,
+    idempotencyKey: "bulk-lead-assignment-cross-tenant-0001",
+  }), "functions/permission-denied", "bulk assignment rejects cross-tenant access");
+  await expectCallableFailure(callOne("bulkAssignLeads", {
+    ...bulkAssignmentPayload,
+    leadIds: [leadOne.leadId, leadOne.leadId],
+    idempotencyKey: "bulk-lead-assignment-duplicate-0001",
+  }), "functions/invalid-argument", "bulk assignment rejects duplicate lead IDs");
+  await expectCallableFailure(callOne("bulkAssignLeads", {
+    ...bulkAssignmentPayload,
+    assignedToUid: "inactive-or-foreign-member",
+    idempotencyKey: "bulk-lead-assignment-foreign-member-0001",
+  }), "functions/invalid-argument", "bulk assignment rejects inactive or foreign assignees");
+
   const reservationAuditOutput = execFileSync(process.execPath, [
     "functions/scripts/audit-lead-identifier-reservations.mjs",
     "--organisation-id", orgOne.organisationId,
