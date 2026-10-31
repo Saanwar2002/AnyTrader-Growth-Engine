@@ -2404,7 +2404,7 @@ describe("cloud authentication gate", () => {
     await screen.findAllByText("member@example.test");
     fireEvent.click(screen.getByRole("button", { name: "Load more members" }));
     await waitFor(() => expect(mocks.api.listOrganisationMembers).toHaveBeenNthCalledWith(2, { organisationId: "org-1", pageToken: "cursor-page-2" }));
-    expect(await screen.findByText("viewer@example.test")).toBeTruthy();
+    expect((await screen.findAllByText("viewer@example.test")).length).toBeGreaterThan(0);
     expect(screen.getAllByText("member@example.test").length).toBeGreaterThan(0);
     expect(screen.queryByRole("button", { name: "Load more members" })).toBeNull();
   });
