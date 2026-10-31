@@ -2430,7 +2430,7 @@ describe("cloud authentication gate", () => {
     render(<CloudWorkspace />);
     await waitFor(() => expect((screen.getByLabelText("Current organisation") as HTMLSelectElement).value).toBe("org-1"));
     fireEvent.click(await screen.findByRole("button", { name: "Load member roster" }));
-    await screen.findByText("member@example.test");
+    await screen.findAllByText("member@example.test");
     fireEvent.change(screen.getByRole("combobox", { name: "Role for member@example.test" }), { target: { value: "admin" } });
     fireEvent.click(screen.getByRole("button", { name: "Save role" }));
     await waitFor(() => expect(mocks.api.updateOrganisationMemberRole).toHaveBeenCalledWith({ organisationId: "org-1", targetUid: "member-uid", role: "admin" }));
