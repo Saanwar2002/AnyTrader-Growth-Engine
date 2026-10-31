@@ -38,6 +38,7 @@ const expectedRateLimitType: Record<string, "read" | "mutation"> = {
   updateLeadContact: "mutation",
   updateLeadStatus: "mutation",
   bulkUpdateLeadStatus: "mutation",
+  classifyLeadForAcquisition: "mutation",
   updateLeadNotes: "mutation",
   updateLeadFollowUpDate: "mutation",
   setLeadSuppression: "mutation",
