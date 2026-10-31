@@ -5,6 +5,7 @@ import { FieldPath, FieldValue, Timestamp, getFirestore, type DocumentReference,
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import { generateAiOutreachDraftSuggestion } from "./ai-outreach-draft";
+import { classifyLeadWithAi } from "./ai-lead-classification";
 import { getValidOutreachDraftReplayResult, isPersistedOutreachDraftAvailable } from "./outreach-draft-idempotency";
 import { getValidBulkLeadStatusReplayResult } from "./bulk-lead-status-idempotency";
 import { snapshotExactAuditMetadata } from "./audit-metadata-shape";
@@ -2765,6 +2766,61 @@ export const suggestOutreachDraft = onCall({ enforceAppCheck: process.env.FUNCTI
     throw new HttpsError("unavailable", "AI draft assistance is temporarily unavailable. You can create a manual draft instead.");
   }
 });
+
+export const classifyLeadForAcquisition = onCall(
+  { enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true", secrets: [geminiApiKey], timeoutSeconds: 30 },
+  async (request) => {
+    const uid = requireUid(request.auth?.uid);
+    const data = (request.data ?? {}) as Record<string, unknown>;
+    const organisationId = requireOrganisationId(data.organisationId);
+    const leadId = requireDocumentId(data.leadId, "leadId");
+    let apiKey = "";
+    try { apiKey = geminiApiKey.value(); } catch { /* secret is not configured in this environment */ }
+    if (!apiKey.trim()) {
+      throw new HttpsError("failed-precondition", "AI classification is not configured. An operator must configure the GEMINI_API_KEY secret.");
+    }
+
+    const organisationRef = db.collection("organisations").doc(organisationId);
+    const leadRef = organisationRef.collection("leads").doc(leadId);
+    let leadContext: { businessName: string; currentCategory: string; location: string } | undefined;
+    await db.runTransaction(async (transaction: Transaction) => {
+      await requireTransactionalRole(transaction, organisationId, uid, "lead");
+      await consumeTransactionalRateLimit(transaction, organisationId, uid, "classifyLeadForAcquisition", 10);
+      const [organisationSnapshot, leadSnapshot] = await Promise.all([
+        transaction.get(organisationRef),
+        transaction.get(leadRef),
+      ]);
+      if (!organisationSnapshot.exists || !leadSnapshot.exists) {
+        throw new HttpsError("not-found", "Lead or organisation was not found.");
+      }
+      const lead = leadSnapshot.data() ?? {};
+      const businessName = safePersistedText(lead.businessName, 160).trim();
+      const currentCategory = safePersistedText(lead.category, 100).trim();
+      const location = safePersistedText(lead.location, 160).trim();
+      if (!businessName || !currentCategory || !location) {
+        throw new HttpsError("failed-precondition", "The lead needs a business name, category, and location before AI classification.");
+      }
+      // Reserve the monthly AI allowance in the same transaction as authorisation and rate limiting.
+      const reservedPlanUsageState = await reserveOrganisationPlanUsage(
+        transaction, organisationId, "monthlyAiSuggestions", 1,
+      );
+      if (reservedPlanUsageState) transaction.update(organisationRef, { planUsage: reservedPlanUsageState });
+      leadContext = { businessName, currentCategory, location };
+    });
+    try {
+      return await classifyLeadWithAi(
+        leadContext!,
+        { apiKey, model: process.env.GEMINI_MODEL || "gemini-3.8-flash", timeoutMs: 15000 },
+      );
+    } catch (error) {
+      logger.warn("AI lead classification failed", {
+        operation: "classifyLeadForAcquisition", organisationId, actorUid: uid,
+        reason: error instanceof Error ? error.name : "unknown",
+      });
+      throw new HttpsError("unavailable", "AI classification is temporarily unavailable. Review the lead manually instead.");
+    }
+  },
+);
 
 export const listOutreachDrafts = onCall(callableOptions, async (request) => {
   const uid = requireUid(request.auth?.uid);
