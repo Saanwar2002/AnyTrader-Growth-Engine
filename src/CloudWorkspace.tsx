@@ -537,10 +537,14 @@ export default function CloudWorkspace() {
 
   async function saveLeadFollowUpDate(lead: LeadSummary) {
     if (!api || !organisationId || busy) return;
+    const requestedOrganisationId = organisationId;
+    const requestGeneration = tenantActionRequestGenerationRef.current;
     const followUpDate = (leadFollowUpDates[lead.id] ?? lead.followUpDate ?? "").trim() || null;
     if (followUpDate === (lead.followUpDate ?? null)) return;
     await runAction(async () => {
-      await api.updateLeadFollowUpDate({ organisationId, leadId: lead.id, followUpDate });
+      await api.updateLeadFollowUpDate({ organisationId: requestedOrganisationId, leadId: lead.id, followUpDate });
+      if (requestGeneration !== tenantActionRequestGenerationRef.current
+        || currentOrganisationIdRef.current !== requestedOrganisationId) return;
       setLeads((current) => current.map((item) => item.id === lead.id ? { ...item, followUpDate } : item));
       setLeadFollowUpDates((current) => ({ ...current, [lead.id]: followUpDate ?? "" }));
     }, followUpDate ? "Lead follow-up date saved." : "Lead follow-up date cleared.");
