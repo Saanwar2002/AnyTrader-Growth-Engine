@@ -3547,6 +3547,7 @@ try {
     "deleteOutreachDraft",
   "classifyLeadForAcquisition",
   "reviewAiLeadCategory",
+  "assignLead",
   ];
   for (const callableName of unauthenticatedCallableNames) {
     await expectCallableFailure(

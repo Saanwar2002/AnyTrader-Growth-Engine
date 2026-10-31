@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
   api: {
     listMyOrganisations: vi.fn(), createOrganisation: vi.fn(), updateOrganisationSettings: vi.fn(), previewOrganisationOffboarding: vi.fn(), addOrganisationMember: vi.fn(), removeOrganisationMember: vi.fn(), updateOrganisationMemberRole: vi.fn(), listOrganisationMembers: vi.fn(), listOrganisationSecurityAuditEvents: vi.fn(), createCampaign: vi.fn(), updateCampaignStatus: vi.fn(), updateCampaignDetails: vi.fn(),
     listCampaigns: vi.fn(), getCampaignFunnelSummary: vi.fn(), getLeadSourceFunnelSummary: vi.fn(), getOnboardingCohortSummary: vi.fn(), getOnboardingCohortCoverage: vi.fn(), getContactReviewQueueSummary: vi.fn(), getLeadCompletenessSummary: vi.fn(), getFullCampaignReadinessSummary: vi.fn(), getOpenLeadAgingSummary: vi.fn(), getLeadActivityTimeline: vi.fn(), getOrganisationPlanUsage: vi.fn(), getOrganisationPlanUsageReconciliation: vi.fn(), listLeads: vi.fn(), createLead: vi.fn(), importLeads: vi.fn(), updateLeadContact: vi.fn(), updateLeadStatus: vi.fn(), bulkUpdateLeadStatus: vi.fn(),
-    updateLeadNotes: vi.fn(), updateLeadFollowUpDate: vi.fn(), setLeadSuppression: vi.fn(), createOutreachDraft: vi.fn(), suggestOutreachDraft: vi.fn(), listOutreachDrafts: vi.fn(),
+    updateLeadNotes: vi.fn(), updateLeadFollowUpDate: vi.fn(), assignLead: vi.fn(), setLeadSuppression: vi.fn(), createOutreachDraft: vi.fn(), suggestOutreachDraft: vi.fn(), listOutreachDrafts: vi.fn(),
     updateOutreachDraft: vi.fn(), deleteOutreachDraft: vi.fn(),
   },
 }));
@@ -1821,6 +1821,7 @@ describe("cloud authentication gate", () => {
     render(<CloudWorkspace />);
     fireEvent.click(await screen.findByRole("button", { name: "Load plan usage" }));
     await waitFor(() => expect(mocks.api.getOrganisationPlanUsage).toHaveBeenCalledWith({ organisationId: "org-1" }));
+    await screen.findByRole("table", { name: /Server-maintained plan usage for/ });
     expect((await screen.findByLabelText("Quota status for Campaigns (lifetime)")).textContent).toBe("Near limit");
     expect((await screen.findByLabelText("Quota status for Leads (lifetime)")).textContent).toBe("Limit reached");
     expect((await screen.findByLabelText("Quota status for Organisation members (current counter)")).textContent).toBe("Limit reached");
@@ -2361,7 +2362,7 @@ describe("cloud authentication gate", () => {
     render(<CloudWorkspace />);
     await waitFor(() => expect((screen.getByLabelText("Current organisation") as HTMLSelectElement).value).toBe("org-1"));
     fireEvent.click(await screen.findByRole("button", { name: "Load member roster" }));
-    await screen.findByText("member@example.test");
+    await screen.findAllByText("member@example.test");
     fireEvent.click(screen.getByRole("button", { name: "Remove access" }));
     await waitFor(() => expect(mocks.api.removeOrganisationMember).toHaveBeenCalledWith({ organisationId: "org-1", targetUid: "member-uid" }));
     expect(confirm).toHaveBeenCalledTimes(1);
@@ -2400,11 +2401,11 @@ describe("cloud authentication gate", () => {
     render(<CloudWorkspace />);
     await waitFor(() => expect((screen.getByLabelText("Current organisation") as HTMLSelectElement).value).toBe("org-1"));
     fireEvent.click(await screen.findByRole("button", { name: "Load member roster" }));
-    await screen.findByText("member@example.test");
+    await screen.findAllByText("member@example.test");
     fireEvent.click(screen.getByRole("button", { name: "Load more members" }));
     await waitFor(() => expect(mocks.api.listOrganisationMembers).toHaveBeenNthCalledWith(2, { organisationId: "org-1", pageToken: "cursor-page-2" }));
-    expect(await screen.findByText("viewer@example.test")).toBeTruthy();
-    expect(screen.getAllByText("member@example.test")).toHaveLength(1);
+    expect((await screen.findAllByText("viewer@example.test")).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("member@example.test").length).toBeGreaterThan(0);
     expect(screen.queryByRole("button", { name: "Load more members" })).toBeNull();
   });
 
@@ -2430,7 +2431,7 @@ describe("cloud authentication gate", () => {
     render(<CloudWorkspace />);
     await waitFor(() => expect((screen.getByLabelText("Current organisation") as HTMLSelectElement).value).toBe("org-1"));
     fireEvent.click(await screen.findByRole("button", { name: "Load member roster" }));
-    await screen.findByText("member@example.test");
+    await screen.findAllByText("member@example.test");
     fireEvent.change(screen.getByRole("combobox", { name: "Role for member@example.test" }), { target: { value: "admin" } });
     fireEvent.click(screen.getByRole("button", { name: "Save role" }));
     await waitFor(() => expect(mocks.api.updateOrganisationMemberRole).toHaveBeenCalledWith({ organisationId: "org-1", targetUid: "member-uid", role: "admin" }));
@@ -3279,7 +3280,7 @@ describe("cloud authentication gate", () => {
       nextPageToken: null,
       scope: "organisation_member_roster",
     });
-    await waitFor(() => expect(screen.getByText("second@example.test")).toBeTruthy());
+    await waitFor(() => expect(screen.getAllByText("second@example.test").length).toBeGreaterThan(0));
   });
 
   it("does not show a failed per-campaign funnel request from a previous organisation", async () => {

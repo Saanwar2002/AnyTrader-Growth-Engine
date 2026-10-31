@@ -11,6 +11,23 @@ function makeInvoker(responses: unknown[] = []) {
 }
 
 describe("typed backend API boundary", () => {
+  it("passes lead assignment and unassignment to the tenant-authorised callable", async () => {
+    const { invoke, calls } = makeInvoker([
+      { leadId: "lead-1", assignedToUid: "member-2", assignmentChanged: true },
+      { leadId: "lead-1", assignedToUid: null, assignmentChanged: true },
+    ]);
+    const api = createGrowthEngineApi(invoke);
+    await expect(api.assignLead({ organisationId: "org-1", leadId: "lead-1", assignedToUid: "member-2" }))
+      .resolves.toEqual({ leadId: "lead-1", assignedToUid: "member-2", assignmentChanged: true });
+    await expect(api.assignLead({ organisationId: "org-1", leadId: "lead-1", assignedToUid: null }))
+      .resolves.toEqual({ leadId: "lead-1", assignedToUid: null, assignmentChanged: true });
+    expect(calls).toEqual([
+      { name: "assignLead", payload: { organisationId: "org-1", leadId: "lead-1", assignedToUid: "member-2" } },
+      { name: "assignLead", payload: { organisationId: "org-1", leadId: "lead-1", assignedToUid: null } },
+    ]);
+  });
+
+
   it("passes the stable idempotency key for organisation creation", async () => {
     const response = { organisationId: "org-1", name: "Pilot", role: "owner" as const };
     const { invoke, calls } = makeInvoker([response]);

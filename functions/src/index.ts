@@ -90,6 +90,7 @@ type SecurityAuditEventType =
   | "lead.notes_changed"
   | "lead.follow_up_date_changed"
   | "lead.ai_category_reviewed"
+  | "lead.assigned"
   | "outreach_draft.created"
   | "outreach_draft.updated"
   | "outreach_draft.deleted";
@@ -111,6 +112,7 @@ type SecurityAuditEventMetadata = {
   nameChanged?: boolean;
   draftAction?: "created" | "updated" | "deleted";
   memberRole?: "admin" | "member" | "viewer";
+  assignmentChanged?: boolean;
 };
 
 const AUDIT_EVENT_RESOURCE_TYPES: Record<SecurityAuditEventType, "organisation" | "campaign" | "lead" | "outreachDraft"> = {
@@ -130,6 +132,7 @@ const AUDIT_EVENT_RESOURCE_TYPES: Record<SecurityAuditEventType, "organisation" 
   "lead.notes_changed": "lead",
   "lead.follow_up_date_changed": "lead",
   "lead.ai_category_reviewed": "lead",
+  "lead.assigned": "lead",
   "outreach_draft.created": "outreachDraft",
   "outreach_draft.updated": "outreachDraft",
   "outreach_draft.deleted": "outreachDraft",
@@ -152,6 +155,7 @@ const AUDIT_METADATA_KEYS: Record<SecurityAuditEventType, readonly (keyof Securi
   "lead.notes_changed": ["notesCleared"],
   "lead.follow_up_date_changed": ["followUpDateSet"],
   "lead.ai_category_reviewed": ["aiCategoryDecision", "categoryChanged"],
+  "lead.assigned": ["assignmentChanged"],
   "outreach_draft.created": ["draftAction"],
   "outreach_draft.updated": ["draftAction"],
   "outreach_draft.deleted": ["draftAction"],
@@ -174,7 +178,8 @@ function normalizeBoundedAuditMetadata(
     || ("followUpDateSet" in record && typeof record.followUpDateSet !== "boolean")
     || ("categoryChanged" in record && typeof record.categoryChanged !== "boolean")
     || ("nameChanged" in record && typeof record.nameChanged !== "boolean")
-    || ("campaignDetailsChanged" in record && typeof record.campaignDetailsChanged !== "boolean")) return null;
+    || ("campaignDetailsChanged" in record && typeof record.campaignDetailsChanged !== "boolean")
+    || ("assignmentChanged" in record && typeof record.assignmentChanged !== "boolean")) return null;
   if ("aiCategoryDecision" in record && !["accepted", "rejected"].includes(record.aiCategoryDecision ?? "")) return null;
   if ("campaignStatus" in record && !["active", "paused", "completed"].includes(record.campaignStatus ?? "")) return null;
   if ("leadStatus" in record && !["new", "reviewing", "qualified", "contacted", "onboarded", "rejected"].includes(record.leadStatus ?? "")) return null;
@@ -1345,6 +1350,7 @@ export const listLeads = onCall(callableOptions, async (request) => {
           && !Number.isNaN(Date.parse(`${lead.followUpDate}T00:00:00.000Z`))
           && new Date(`${lead.followUpDate}T00:00:00.000Z`).toISOString().slice(0, 10) === lead.followUpDate
           ? lead.followUpDate : null,
+        ...(typeof lead.assignedToUid === "string" && lead.assignedToUid.length > 0 ? { assignedToUid: lead.assignedToUid } : {}),
         createdAt: safeTimestampToIso(lead.createdAt),
       };
     }),
@@ -2597,6 +2603,59 @@ export const updateLeadFollowUpDate = onCall(callableOptions, async (request) =>
     writeSecurityAuditEvent(transaction, organisationId, uid, "lead.follow_up_date_changed", "lead", leadId, { followUpDateSet: followUpDate !== null });
   });
   return { leadId, followUpDate };
+});
+
+export const assignLead = onCall(callableOptions, async (request) => {
+  const uid = requireUid(request.auth?.uid);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const organisationId = requireOrganisationId(data.organisationId);
+  const leadId = requireDocumentId(data.leadId, "leadId");
+  const assignedToUid = data.assignedToUid === null
+    ? null
+    : requireDocumentId(data.assignedToUid, "assignedToUid");
+  const organisationRef = db.collection("organisations").doc(organisationId);
+  const leadRef = organisationRef.collection("leads").doc(leadId);
+  const activityRef = organisationRef.collection("leadActivities").doc();
+  let assignmentChanged = false;
+  await db.runTransaction(async (transaction: Transaction) => {
+    const callerMembership = await requireTransactionalRole(transaction, organisationId, uid, "lead");
+    if (callerMembership.role !== "owner" && callerMembership.role !== "admin") {
+      throw new HttpsError("permission-denied", "Only organisation owners and admins can assign leads.");
+    }
+    const [organisationSnapshot, leadSnapshot] = await Promise.all([
+      transaction.get(organisationRef),
+      transaction.get(leadRef),
+    ]);
+    if (!organisationSnapshot.exists) throw new HttpsError("not-found", "Organisation was not found.");
+    if (!leadSnapshot.exists) throw new HttpsError("not-found", "Lead was not found in this organisation.");
+    if (assignedToUid) {
+      const targetMembershipSnapshot = await transaction.get(organisationRef.collection("members").doc(assignedToUid));
+      if (!targetMembershipSnapshot.exists
+        || !isValidMembershipForOrganisation(targetMembershipSnapshot.data(), assignedToUid, organisationSnapshot.data()?.ownerUid)) {
+        throw new HttpsError("invalid-argument", "The assignee must be an active member of this organisation.");
+      }
+    }
+    const currentAssignee = typeof leadSnapshot.data()?.assignedToUid === "string" ? leadSnapshot.data()?.assignedToUid : null;
+    assignmentChanged = currentAssignee !== assignedToUid;
+    await consumeTransactionalRateLimit(transaction, organisationId, uid, "assignLead", 60);
+    if (!assignmentChanged) return;
+    const now = FieldValue.serverTimestamp();
+    transaction.update(leadRef, {
+      assignedToUid,
+      updatedAt: now,
+      updatedBy: uid,
+    });
+    transaction.create(activityRef, {
+      leadId,
+      actorUid: uid,
+      message: assignedToUid ? "Lead assigned to a team member" : "Lead assignment cleared",
+      createdAt: now,
+    });
+    writeSecurityAuditEvent(transaction, organisationId, uid, "lead.assigned", "lead", leadId, {
+      assignmentChanged: true,
+    });
+  });
+  return { leadId, assignedToUid, assignmentChanged };
 });
 
 export const setLeadSuppression = onCall(callableOptions, async (request) => {

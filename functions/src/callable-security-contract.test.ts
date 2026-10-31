@@ -40,6 +40,7 @@ const expectedRateLimitType: Record<string, "read" | "mutation"> = {
   bulkUpdateLeadStatus: "mutation",
   classifyLeadForAcquisition: "mutation",
   reviewAiLeadCategory: "mutation",
+  assignLead: "mutation",
   updateLeadNotes: "mutation",
   updateLeadFollowUpDate: "mutation",
   setLeadSuppression: "mutation",
@@ -51,6 +52,21 @@ const expectedRateLimitType: Record<string, "read" | "mutation"> = {
 };
 
 describe("callable security contract", () => {
+  it("assigns leads only to active members of the same organisation and audits real changes", () => {
+    const start = callableSource.indexOf("export const assignLead = onCall(");
+    const end = callableSource.indexOf("export const setLeadSuppression =", start);
+    const callable = callableSource.slice(start, end);
+    expect(callable).toContain('requireTransactionalRole(transaction, organisationId, uid, "lead")');
+    expect(callable).toContain('callerMembership.role !== "owner" && callerMembership.role !== "admin"');
+    expect(callable).toContain('collection("members").doc(assignedToUid)');
+    expect(callable).toContain("isValidMembershipForOrganisation");
+    expect(callable).toContain('consumeTransactionalRateLimit(transaction, organisationId, uid, "assignLead", 60)');
+    expect(callable).toContain('message: assignedToUid ? "Lead assigned to a team member" : "Lead assignment cleared"');
+    expect(callable).toContain('"lead.assigned"');
+    expect(callable).not.toContain("email:");
+  });
+
+
   it("authorises member additions and reserves member quota in the same transaction", () => {
     const start = callableSource.indexOf("export const addOrganisationMember =");
     const end = callableSource.indexOf("export const createCampaign =", start);
@@ -131,7 +147,7 @@ describe("callable security contract", () => {
 
   it("enforces App Check on every deployed callable and only bypasses it in the Functions emulator", () => {
     expect(callableSource).toContain('const callableOptions = { enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true" }');
-    expect((callableSource.match(/= onCall\(callableOptions, async \(request\) => \{/g) ?? [])).toHaveLength(37);
+    expect((callableSource.match(/= onCall\(callableOptions, async \(request\) => \{/g) ?? [])).toHaveLength(38);
     expect(callableSource.includes("= onCall(async (request) => {")).toBe(false);
   });
 
@@ -215,7 +231,7 @@ describe("callable security contract", () => {
 
     const auditCalls = [...callableSource.matchAll(/writeSecurityAuditEvent\(transaction,\s*[^,]+,\s*[^,]+,\s*"([^"]+)",\s*"([^"]+)"/g)];
     const callPairs = new Set(auditCalls.map((match) => `${match[1]}|${match[2]}`));
-    expect(auditCalls.length).toBe(20);
+    expect(auditCalls.length).toBe(21);
     for (const [eventType, resourceType] of [
       ["organisation.created", "organisation"],
       ["organisation.settings_updated", "organisation"],
@@ -232,6 +248,7 @@ describe("callable security contract", () => {
       ["lead.status_changed", "lead"],
       ["lead.notes_changed", "lead"],
       ["lead.ai_category_reviewed", "lead"],
+      ["lead.assigned", "lead"],
       ["outreach_draft.created", "outreachDraft"],
       ["outreach_draft.updated", "outreachDraft"],
       ["outreach_draft.deleted", "outreachDraft"],
