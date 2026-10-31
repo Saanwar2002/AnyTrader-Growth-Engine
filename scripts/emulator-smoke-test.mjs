@@ -3537,6 +3537,7 @@ try {
     "updateLeadContact",
     "updateLeadStatus",
     "bulkUpdateLeadStatus",
+    "bulkAssignLeads",
     "updateLeadNotes",
     "updateLeadFollowUpDate",
     "setLeadSuppression",
