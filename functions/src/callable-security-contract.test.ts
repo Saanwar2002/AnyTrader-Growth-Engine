@@ -39,6 +39,7 @@ const expectedRateLimitType: Record<string, "read" | "mutation"> = {
   updateLeadStatus: "mutation",
   bulkUpdateLeadStatus: "mutation",
   classifyLeadForAcquisition: "mutation",
+  reviewAiLeadCategory: "mutation",
   updateLeadNotes: "mutation",
   updateLeadFollowUpDate: "mutation",
   setLeadSuppression: "mutation",
@@ -130,7 +131,7 @@ describe("callable security contract", () => {
 
   it("enforces App Check on every deployed callable and only bypasses it in the Functions emulator", () => {
     expect(callableSource).toContain('const callableOptions = { enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true" }');
-    expect((callableSource.match(/= onCall\(callableOptions, async \(request\) => \{/g) ?? [])).toHaveLength(36);
+    expect((callableSource.match(/= onCall\(callableOptions, async \(request\) => \{/g) ?? [])).toHaveLength(37);
     expect(callableSource.includes("= onCall(async (request) => {")).toBe(false);
   });
 
@@ -178,6 +179,7 @@ describe("callable security contract", () => {
     expect(callableSource).toContain("const AUDIT_METADATA_KEYS:");
     expect(callableSource).toContain('"lead.contact_updated": ["contactChannelsChanged", "contactReviewRevision", "contactReviewStatus", "doNotContact"]');
     expect(callableSource).toContain('"lead.contact_restriction_changed": ["doNotContact", "contactReviewRevision", "contactReviewStatus"]');
+    expect(callableSource).toContain('"lead.ai_category_reviewed": ["aiCategoryDecision", "categoryChanged"]');
     expect(callableSource).toContain("function isBoundedAuditMetadata(");
     expect(callableSource).toContain("snapshotExactAuditMetadata(metadata, allowedKeys)");
     expect(callableSource).toContain('import { snapshotExactAuditMetadata } from "./audit-metadata-shape"');
@@ -213,7 +215,7 @@ describe("callable security contract", () => {
 
     const auditCalls = [...callableSource.matchAll(/writeSecurityAuditEvent\(transaction,\s*[^,]+,\s*[^,]+,\s*"([^"]+)",\s*"([^"]+)"/g)];
     const callPairs = new Set(auditCalls.map((match) => `${match[1]}|${match[2]}`));
-    expect(auditCalls.length).toBe(19);
+    expect(auditCalls.length).toBe(20);
     for (const [eventType, resourceType] of [
       ["organisation.created", "organisation"],
       ["organisation.settings_updated", "organisation"],
@@ -229,6 +231,7 @@ describe("callable security contract", () => {
       ["campaign.details_updated", "campaign"],
       ["lead.status_changed", "lead"],
       ["lead.notes_changed", "lead"],
+      ["lead.ai_category_reviewed", "lead"],
       ["outreach_draft.created", "outreachDraft"],
       ["outreach_draft.updated", "outreachDraft"],
       ["outreach_draft.deleted", "outreachDraft"],
